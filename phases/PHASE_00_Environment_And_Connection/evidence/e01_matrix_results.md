@@ -1,3 +1,8 @@
+> **Correction note, added 2026-09-18 at the Phase 00 review gate.** Row 8 below records PASS for both MCP servers on the question
+> "whether Sonnet AND Opus subagents can call the same tools". Only the Sonnet agent running this matrix was exercised; the Opus half
+> was never tested. `docs/28` downgrades that cell to PARTIAL and names the untested half. This file is left otherwise unaltered as the
+> as-run record; where it and `docs/28` differ on row 8, `docs/28` is correct.
+
 # E0.1 — Connection Test Matrix Results
 
 Continuation of an interrupted E0.1 run. Method comparison (`e01_control_paths.md`) and the

@@ -310,6 +310,8 @@ func _init() -> void:
 		var autoload_path := raw_autoload.trim_prefix("*")
 		if autoload_path != BOOTCHECK_PATH:
 			_fail("autoload/BootCheck points at '%s', expected '%s'" % [autoload_path, BOOTCHECK_PATH])
+		elif not FileAccess.file_exists(BOOTCHECK_PATH):
+			_fail("autoload/BootCheck points at %s but no such file exists on disk, so the autoload cannot load and the 4.7.1 boot assertion never runs" % BOOTCHECK_PATH)
 
 	# 7. Pinned 4.7.1 export templates present.
 	var tpl := OS.get_data_dir().path_join("Godot/export_templates/4.7.1.stable/version.txt")
@@ -321,7 +323,9 @@ func _init() -> void:
 			_fail("export templates report '%s', expected '4.7.1.stable'" % stamp)
 
 	if _failures.is_empty():
-		print("Settings check: PASS (%d layers, %d actions, %d settings, templates 4.7.1.stable)" % [LAYERS.size(), ACTIONS.size(), PINNED_SETTINGS.size()])
+		var measured_actions: int = _keys_with_prefix("input/").size()
+		var measured_autoloads: int = _keys_with_prefix("autoload/").size()
+		print("Settings check: PASS (%d layers, %d actions asserted of %d input entries present, %d settings, %d autoload(s), templates 4.7.1.stable)" % [LAYERS.size(), ACTIONS.size(), measured_actions, PINNED_SETTINGS.size(), measured_autoloads])
 		quit(0)
 	else:
 		for f in _failures:
