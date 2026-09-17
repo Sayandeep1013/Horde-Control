@@ -23,3 +23,8 @@ export/
 
 # E0.1/E0.2 connection-test scaffolding: throwaway, never enters the repository
 sandbox/
+
+# Locally built, commit-pinned MCP servers (E0.1/P0.5). Tooling, not project
+# source: node_modules and compiled output, rebuilt from the pinned commits
+# recorded in docs/28. Never committed.
+tools/
