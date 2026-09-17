@@ -20,8 +20,16 @@ A Godot 4.7.1 top-down 2D dual-entity survival roguelite: protect yourself and a
 - Before re-review, sweep changed files for superseded wording.
 - Once the repository exists, commit documentation and implementation changes together.
 
+## GodotPrompter
+The `godot-prompter` plugin (v1.13.3) adds 55 Godot skills and 8 specialist agents.
+
+- Before implementing any Godot system - controller, state machine, AI, UI, shader, test, export - check for a matching `godot-prompter:*` skill and invoke it first. This applies to subagents writing Godot code, which is most implementation work here.
+- The skills advise on Godot idiom. They never override this project. Where a skill conflicts with `docs/20_Technical_Architecture.md`, the Provisional Values Register, or an Author decision, this project wins and the conflict is recorded in the phase LEDGER.
+- This project targets **Godot 4.7.1**. If any tool or skill reports 4.4, it has misread a stray `project.godot`; the pinned version is in the Provisional Values Register (Engine & Platform).
+- The pack's generic `godot-project-setup` suggests autoloads (GameManager, AudioManager, SaveManager) this project does not use. The autoloads are defined by docs/20: SimClock, PauseAuthority, EventBus, EntityRegistry.
+
 ## Tools
 - Godot 4.7.1 at `D:\godot`.
 - Godot MCP servers `godot-comprehensive` and `godot-coding-solo` are configured for this project and allowed in `.claude/settings.json`; deletes, exports, and network calls still ask. Both are pinned to exact commits and run from locally built copies under `tools/mcp/` (gitignored), because npx on this machine cannot install commit-pinned git specs. The commits and the rebuild steps are recorded in docs/28.
 - `godot-comprehensive`’s `run_project` and every `game_*` tool are sandbox-only (author decision): `run_project` injects an autoload into `project.godot` and opens a local listener exposing arbitrary GDScript. Its authoring tools do not inject and stay available for the real project.
-- No Godot skills are installed yet.
+- Godot skill pack: `godot-prompter` 1.13.3 (MIT), installed from the `godot-prompter-marketplace` marketplace, project-scoped to this project. See the GodotPrompter section above.
