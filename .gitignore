@@ -6,8 +6,10 @@
 # Legacy import cache (pre-4.x layout; harmless to exclude under 4.7)
 .import/
 
-# Can embed export secrets (keystore paths, signing passwords); excluded whole
-export_presets.cfg
+# export_presets.cfg IS committed: it carries no secrets today and P4.5.3
+# requires byte-identical repeat exports, which needs the preset under version
+# control. If signing is ever added, keep the keystore path and password in
+# environment variables, never in this file.
 
 # Compiled translation binaries, generated from source .csv/.po files
 *.translation
