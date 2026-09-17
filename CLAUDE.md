@@ -22,5 +22,6 @@ A Godot 4.7.1 top-down 2D dual-entity survival roguelite: protect yourself and a
 
 ## Tools
 - Godot 4.7.1 at `D:\godot`.
-- Godot MCP servers `godot-comprehensive` and `godot-coding-solo` are configured for this project and allowed in `.claude/settings.json`; deletes, exports, and network calls still ask. Their versions are not pinned yet.
+- Godot MCP servers `godot-comprehensive` and `godot-coding-solo` are configured for this project and allowed in `.claude/settings.json`; deletes, exports, and network calls still ask. Both are pinned to exact commits and run from locally built copies under `tools/mcp/` (gitignored), because npx on this machine cannot install commit-pinned git specs. The commits and the rebuild steps are recorded in docs/28.
+- `godot-comprehensive`’s `run_project` and every `game_*` tool are sandbox-only (author decision): `run_project` injects an autoload into `project.godot` and opens a local listener exposing arbitrary GDScript. Its authoring tools do not inject and stay available for the real project.
 - No Godot skills are installed yet.
