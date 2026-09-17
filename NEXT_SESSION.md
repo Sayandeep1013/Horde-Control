@@ -1,132 +1,118 @@
 # Next Session — Start Here
 
-**State on 2026-09-17**
-- Prompt 1 has been run: the work is split into 20 execution phases, the author approved the split, and `phases/` now holds the phase table, the loop rules, and a folder per phase. Phase 00 (Environment & Connection) is the phase in progress; it runs Prompt 2 as task E0.1 and Prompt 3 as task E0.2, both now rows in the master's Development Phase Map (decision D77).
-
-**State on 2026-09-14**
-- Design is complete for prototype work: `MASTER_SDLC.md` v0.8.1 plus draft system documents in `docs/` (09 Enemy AI, 11 Wave Director, 19 UI/UX, 20 Technical Architecture, 29 Milestones and Roadmap with Deferred Review Findings).
-- Last independent review: gameplay 4/10, technical 4/10, intent 7/10; a final consistency pass was lint-checked only. The author accepted this and expects the remaining polish to happen during implementation.
-- The old master backups (v0.5.0 original, v0.6.x, v0.7.0) were deleted at the author's request. The Review Decision Log still quotes every 0.5.0 sentence it changed.
-- No git repository and no Godot project exist yet.
-- Godot 4.7.1 is installed at `D:\godot`. Two Godot MCP servers are configured for this project (unpinned). No Godot skills are installed.
-
-## Next steps, in order
-1. **Phase split and supervised execution loop** — run Prompt 1. It produces the phase plan and the `phases/` documents, then runs Phase 0.
-2. **Godot ↔ agent connection test and project creation** — Prompt 2, executed as part of Phase 0.
-3. **Godot skill installation** — Prompt 3, executed as part of Phase 0 once the sandbox from Prompt 2 exists.
-
-Paste the prompts below one at a time, or tell the agent "run NEXT_SESSION.md Prompt 1".
+**State on 2026-09-18.** Phase 00 (Environment & Connection) is built and reviewed. Phase 01 is next. Read `phases/README.md` for the 20-phase table, then this file.
 
 ---
 
-## Prompt 1 — Phase split and supervised execution loop
+## What exists now
+
+- A Godot 4.7.1 project at `D:\Gamedev` that opens, runs, and exports a Windows release build. `project.godot` carries the pinned settings, the 16 collision layer names, 24 input actions, and a `BootCheck` autoload that asserts the engine is 4.7.1 — and fires inside the exported build, not just the editor.
+- `tests/settings_check.gd` — the Settings check, asserting effective values and exact sets. Falsified ten ways; it fails on a rogue autoload, a rogue action, a rebound key, a mutated deadzone, a missing main scene, and a wrong features array.
+- 31 design documents (`docs/00..30`). Five are drafts with real content (09, 11, 19, 20, 29); `docs/28` is at 1.0.0; the rest are stubs carrying their remit and Owns list.
+- A pinned, locally built agent-to-Godot toolchain, and `phases/` holding the plan, log, ledger, failure points and review record for all 20 phases.
+- **No gameplay code.** That starts in Phase 02 (engine spine) and becomes visible in Phase 03.
+
+## Phase 00's standing
+
+Two review iterations scored it **6/10 against a bar of 8**, with four of six tasks below the task bar of 7. The substance was independently reproduced — pins verified live, the export clean, the Settings check falsified, the Known Limitations re-derived from source — but the phase did not reach its bar. **Closure is the designer's decision under the Gate Approval rule.** See `phases/PHASE_00_Environment_And_Connection/REVIEW.md` for both iterations and every score.
+
+Open findings carried forward, with owners:
+
+| ID | What | Owner |
+| --- | --- | --- |
+| F-06b | `delete_file` and `export_project` stay on `ask`, which does not intercept a subagent | Phase 01 entry — re-test |
+| F-09 | The folder layout has no owning document; doc 23 is still a stub | P3.2b (consider re-owning earlier) |
+| F-11 | The installed skill pack's gdUnit4 CLI guidance is wrong for the shipped version | P0.7 |
+| F-12 | gdUnit4's upstream repository migrated orgs | P0.7 |
+
+---
+
+## Rules this project learned the hard way
+
+Read `phases/LESSONS.md` in full. These cost real time:
+
+1. **Prove a tooling config change before applying it.** Pinning both MCP servers to git specs looked right and killed both for a session.
+2. **A passing test proves nothing until it fails against its own mechanism.** The Settings check passed on a project with its display block deleted.
+3. **Never write "root cause" without an experiment.** One was written from reasoning, was wrong, and the rule derived from it would have misdirected Phase 03.
+4. **Verify by reading the artifact back.** A tool logged "Save result: 0" while writing nothing.
+5. **Spot-check delegated output.** Reading 3 of 26 generated files found a defect the agent's own report called complete.
+6. **Cite only paths that exist in the repository.** A 1.0.0 document cited a session temp directory.
+
+---
+
+## Facts Phase 01 must not re-derive
+
+**gdUnit4 harness (P0.7).** Verified twice in the sandbox. Take the command from here, never from the skill pack, whose documented runner file and flag do not exist in v6.2.1 and which never mentions `--ignoreHeadlessMode`:
+
+```
+Godot_v4.7.1-stable_win64_console.exe --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode
+```
+
+Run `--import` first. Four exit codes, and CI must distinguish all four: **0** pass, **100** assertion failure, **103** `--ignoreHeadlessMode` missing, **1** import pass not run. gdUnit4 v6.2.1, now at `godot-gdunit-labs/gdUnit4` — a human should eyeball that org migration before P0.7 pins it.
+
+**Pin verification, at phase entry.** `tools/mcp/**` is gitignored and the MCP config stores a path, not a sha, so this is the only thing standing between the project and an unpinned server:
+
+```
+git -C tools/mcp/coding-solo   rev-parse HEAD   # 1209744fad78f3998f98c7394fd0f6ef50da5281
+git -C tools/mcp/comprehensive rev-parse HEAD   # fcbc29e03297900b9a1fcc6c7cbae116fe9d532a
+```
+
+Both `tools/.gdignore` and `sandbox/.gdignore` must exist — they are not in the repository (they live inside gitignored directories), and without them the next export packs 11 MB of MCP server into the game.
+
+**Permissions.** The `ask` gate does **not** intercept subagents. `run_project` is now confined to the sandbox by `GODOT_MCP_ALLOWED_DIRS`, which tool-enforces the sandbox-only rule for the whole `game_*` surface — verify it actually refuses `D:/Gamedev` at Phase 01 entry. `delete_file` remains reachable by a subagent unprompted, so every delegation prompt carries the no-delete, no-export constraint explicitly.
+
+**Review pace (decision D83).** Code phases and gate phases: one critical agent per task plus a phase reviewer. Documentation-only phases: a spot-check. A narrowing is legitimate only when decided in advance and recorded — iteration 2 of Phase 00 cut the panel without recording it and the phase reviewer named five defects that slipped through.
+
+---
+
+## Prompt — Phase 01
 
 ```text
-Act as the supervising orchestrator for building this game from its plan.
+Act as the supervising orchestrator continuing this project at Phase 01.
 
-Read first: D:\Gamedev\CLAUDE.md; then D:\Gamedev\MASTER_SDLC.md (Development Readiness Threshold, Minimum Playable Prototype Gate, Acceptance Test Matrix, Development Phase Map, Provisional Values Register, Review Decision Log); then D:\Gamedev\docs\*.md, especially docs/29 for Phases 3–4 and Deferred Review Findings.
+Read first: D:\Gamedev\CLAUDE.md; phases/README.md; phases/LESSONS.md; NEXT_SESSION.md;
+then phases/PHASE_01_Contracts_Docs_Harness/PLAN.md, and Phase 00's EXECUTION_LOG.md,
+FAILURE_POINTS.md, LEDGER.md and REVIEW.md. Loop rule (a) requires this before any
+implementation, and Phase 01's PLAN.md still carries a placeholder "Carried lessons"
+section: fill it from LESSONS.md and Phase 00's record before starting work.
 
-GOAL
-Divide all the work in the plan into execution phases that can each be completed and verified on their own, then run the phases one at a time through a supervised review loop.
+AT PHASE ENTRY, before any task:
+1. Run the pin verification above and confirm both shas and both .gdignore files.
+2. Re-test F-06b: confirm from a Sonnet subagent whether the ask gate still fails to
+   intercept it, and whether GODOT_MCP_ALLOWED_DIRS now makes run_project refuse
+   D:/Gamedev. Record the result either way.
+3. Confirm the Settings check still passes: it is the regression guard for everything
+   Phase 00 pinned.
 
-1. PHASE SPLIT
-- Start from this draft of phases 0–8 and check it against the plan's task IDs, dependencies, and gates. Merge or split phases until each has one clear outcome, fits in a few sessions, and ends at a checkable gate. The final count may be more or fewer than nine; record the reason for every change.
-  Draft to check:
-  0 Environment — Godot–agent connection test in a sandbox, Godot skill installation, then the real project and repository
-  1 Foundations — P0.1–P0.7
-  2 Technical foundations — P1.1–P1.7
-  3 Core prototype build — P2.1–P2.7, ending with the feel check
-  4 Wave Director, pickups, upgrades, menus — P2.8–P2.14
-  5 Prototype validation and gate — P2.15–P2.18
-  6 Vertical slice systems — P3.1–P3.9 and P3.2b
-  7 Vertical slice content, art, and playtest — P3.10–P3.18
-  8 Production milestones — M4.1–M4.7 and P4.0
-- Every plan task ID belongs to exactly one phase. List any task that fits nowhere and why.
-- Show me the phase table before executing Phase 0.
+THE PHASE: P0.4 (documents 00, 01, 02 to stable), P0.6 (the eleven typed data-contract
+Resource schemas under src/data/), P0.7 (the gdUnit4 harness, using the command above).
 
-2. PHASE DOCUMENTS — create D:\Gamedev\phases\
-- phases\README.md — phase table (number, name, outcome, task IDs, dependencies, gate, status) and the loop rules below.
-- phases\LESSONS.md — patterns carried between phases (starts empty).
-- phases\PHASE_N_<Name>\ for every phase, containing:
-  - PLAN.md — goal; entry conditions; tasks mapped to plan IDs; step-by-step implementation for each task; exit criteria and acceptance tests taken from the Acceptance Test Matrix, fixed before work starts; predetermined failure points and risks with mitigations; which agent does what.
-  - EXECUTION_LOG.md — dated record of every action, command, file change, test run, and result.
-  - FAILURE_POINTS.md — "Predetermined" (from PLAN.md) and "Discovered during execution" (what happened, cause, fix, how to prevent it next time).
-  - REVIEW.md — every review iteration: per-task scores, phase execution score, findings, and the reasons behind any low score.
-  - LEDGER.md — every finding with status (open, fixed, deferred with owner, withdrawn), carried across iterations.
+Follow the loop in phases/README.md. Log every action in EXECUTION_LOG.md and write the
+FAILURE_POINTS row at the same moment as the LEDGER row - Phase 00 left both blank and a
+reviewer called it a contradiction. Sonnet subagents write and implement; Opus runs the
+critical agents and the phase reviewer.
 
-3. LOOP FOR EVERY PHASE
-a. Pre-implementation: read all earlier phases' EXECUTION_LOG, FAILURE_POINTS, REVIEW, and LESSONS. Write the patterns that apply to this phase into its PLAN.md (recurring failure types, estimates that ran over, tests that turned out unpassable, tools that misbehaved).
-b. Implementation: execute PLAN.md step by step. Log everything in EXECUTION_LOG.md and add each new failure point the moment it appears. The documents never claim the phase is complete; the reviewers decide.
-c. Review gate — execution stops here until the review returns:
-   - Critical agents, one per task in the phase: check that task against its plan steps and acceptance tests using real evidence (files, test output, logs, screenshots) and score it out of 10.
-   - Phase reviewer, one agent for the phase as a whole: score execution out of 10 against PLAN.md and the master plan and, if the score is low, explain why.
-   - Reviewers never see the implementer's reasoning. They receive PLAN.md, LEDGER.md, and the artifacts, and they mark every ledger item closed, not closed, or regressed before raising new findings. New findings count only if they are contradictions or problems that block this phase's exit criteria.
-d. Fix and repeat: gather all feedback into LEDGER.md, fix, and review again until the phase meets its bar — phase score at least 8/10, every task at least 7/10, no open Blocker or Major, every exit test passing. Before each re-review, sweep all changed files for superseded wording. If three review iterations fail to reach the bar, stop and bring me the ledger summary and your diagnosis instead of looping further.
-e. Close: update LESSONS.md and the README status; update the affected master and docs sections (numbers only in the Provisional Values Register; every design change gets a Review Decision Log row); add a Change Log row. Then start the next phase.
+Review pace for this phase, per decision D83: P0.4 is documentation - spot-check it
+rather than convening a panel. P0.6 and P0.7 are code and get one critical agent each
+plus a phase reviewer.
 
-WORKING RULES
-- Sonnet subagents write code and documents; Opus runs the critical agents and phase reviewers.
-- Keep every rule and number in exactly one place.
-- Send genuine design contradictions or scope changes to me as short multiple-choice questions; never resolve them silently.
-- Once the repository exists, commit documentation and implementation changes together.
-- Phase 0 runs Prompt 2 (connection test and project creation) and then Prompt 3 (skills) from D:\Gamedev\NEXT_SESSION.md.
+Send genuine design contradictions or scope changes to the author as short
+multiple-choice questions. Never write that a gate is passed, satisfied, or ready.
+Commit documentation and implementation together, and push to origin/main.
 ```
 
 ---
 
-## Prompt 2 — Godot ↔ agent connection test and project creation
+## What needs the author, and when
 
-```text
-Prove a reliable local connection between Claude Code (including its subagents) and Godot 4.7.1 on this machine, then create the Godot project and control it end to end.
-
-CONTEXT
-- Godot 4.7.1: D:\godot\Godot_v4.7.1-stable_win64.exe, with the console build beside it.
-- MCP servers configured for D:/Gamedev in local scope: godot-comprehensive (github:tugcantopaloglu/godot-mcp) and godot-coding-solo (@coding-solo/godot-mcp@latest), both with GODOT_PATH set, plus a filesystem MCP. Their tools are allowed in D:\Gamedev\.claude\settings.json; deletes, exports, and network calls still ask. Neither server version is pinned.
-
-STEPS
-1. Research first and write a short comparison of the ways agents control Godot:
-   - MCP servers that drive Godot through its command line
-   - MCP servers or editor plugins that open a local TCP or WebSocket bridge into the running editor and game
-   - Godot's built-in ports: GDScript language server (default 6005), Debug Adapter Protocol (default 6006), remote debugger (default 6007)
-   - headless command-line runs (--headless, --script, --export-release)
-   - any newer approach you find
-   Compare capabilities (edit scenes, run the game, read output, inspect the live scene tree, change properties, take screenshots, send input), reliability on Windows, and security (localhost only).
-2. Create a sandbox at D:\Gamedev\sandbox\connection_test, separate from the real project, and run this connection test matrix with every viable method. Record pass or fail with evidence for each item:
-   - read the Godot version
-   - create a project, a scene, and nodes; save them and read them back
-   - create, attach, and validate a GDScript
-   - run the project, capture debug output, stop it
-   - inspect the running game's scene tree, change a property live, take a screenshot, inject input
-   - run a headless script and read its exit code
-   - failure behaviour and recovery: Godot not running, port already in use, editor closed mid-command
-   - whether Sonnet and Opus subagents can call the same tools
-   - rough latency per call
-   Install a bridge addon that a server needs only after reading its code, and only into the sandbox first.
-3. Choose a primary method and a fallback. Pin both MCP servers to exact versions (task P0.5). Record known failure points and workarounds.
-4. Document everything in the Phase 0 folder (PLAN, EXECUTION_LOG, FAILURE_POINTS) and in docs/28 under "Godot Connection".
-5. Only after the connection is proven, create the real project exactly as task P0.2 specifies (pinned settings, the 16 collision layer names, input map, folder layout, 4.7.1 export templates) and control it through the chosen method. Initialise git first (task P0.1) if the phase plan orders it that way.
-
-Stop and ask me before opening any port beyond localhost, installing software outside the project, or deleting files.
-```
+- **Now, if you want it closed:** the Change Log row recording Phase 00's gate. Only the designer writes it; an agent may propose the text but must never write it into the Change Log. Proposed wording is in the Phase 00 execution log.
+- **Phase 03 (P2.7):** the feel check. You play it with hand-placed enemies and record go or adjust. This cannot be delegated — it is the point of the prototype.
+- **Phase 06 (P2.16):** five external testers who have never seen the game.
+- **Phase 06 (P2.18):** the prototype gate rows.
+- **Open question worth revisiting:** the skill pack was chosen partly because it covered gdUnit4 for P0.7. Finding F-11 falsified that justification. The pack is not harmful and the working commands are recorded independently, but the choice was never re-decided.
 
 ---
 
-## Prompt 3 — Godot skill installation
+## The original prompts
 
-```text
-Install Godot skills for Claude Code in this project, safely.
-
-CONTEXT
-No Godot skills are installed. Candidates found on 2026-09-14:
-- Randroids-Dojo/Godot-Claude-Skills — Godot 4.x development, GdUnit4 tests, PlayGodot automation. Installed with: /plugin marketplace add Randroids-Dojo/Godot-Claude-Skills, then /plugin install godot
-- alexmeckes/godot-claude-skills — GDScript patterns and live editor sessions.
-Search for newer or better-maintained options too.
-
-STEPS
-1. Compare the candidates: contents (SKILL.md files, scripts, hooks, any MCP servers they add), maintenance activity, license, Godot 4.7 compatibility, and overlap with the Godot connection method chosen in Prompt 2.
-2. Security review before installing: read every script and hook. Reject anything that makes unexplained network calls, reads credentials, or writes outside the project.
-3. Pick one primary skill, plus a second only if it adds something distinct. Plugin marketplace commands are typed by me, so give me the exact commands to run. If a skill is a plain folder, copy it into D:\Gamedev\.claude\skills after review.
-4. Verify: after a restart the skill appears in the skill list, and it works once on the sandbox project from Prompt 2 (D:\Gamedev\sandbox\connection_test).
-5. Check fit with the plan: GdUnit4 matches task P0.7's test harness; note any conflict with the master's Godot standards.
-6. Record the choice, versions, and verification results in docs/28 (AI Development Workflow) and in Phase 0's EXECUTION_LOG.md.
-```
+Prompts 1 to 3 from the 2026-09-14 session (phase split, connection test, skill install) have all been executed. They are preserved in git history at commit `a2db130` if the original wording is ever needed.
