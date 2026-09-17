@@ -12,7 +12,8 @@
       "mcp__godot-comprehensive__manage_docker_export",
       "mcp__godot-comprehensive__manage_ci_pipeline",
       "mcp__godot-comprehensive__game_http_request",
-      "mcp__godot-comprehensive__game_websocket"
+      "mcp__godot-comprehensive__game_websocket",
+      "mcp__godot-comprehensive__game_multiplayer"
     ]
   },
   "enabledPlugins": {

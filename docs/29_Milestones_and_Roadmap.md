@@ -6,7 +6,7 @@
 
 Prototype milestones, vertical slice, alpha, beta, content milestones, polish phase, release planning, and post-launch roadmap.
 
-**Owns:** the Development Phase Map in this document, in expanded form, and its status tracking.
+**Owns:** the Development Phase Map in MASTER_SDLC.md, in expanded form, and its status tracking. (The Documentation Structure entry in the master reads in this document, where this document means the master; the referent is resolved here because it would otherwise read as circular.)
 
 ---
 

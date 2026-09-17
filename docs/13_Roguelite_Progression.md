@@ -1,7 +1,7 @@
 # 13 - Roguelite Progression
 
 **Version:** 0.1.0  
-**Status:** Stub - not yet a working document. The master's defaults are binding for this system until this document reaches working status (MASTER_SDLC.md > Document Control).
+**Status:** Stub - not yet a working document. Under MASTER_SDLC.md > Document Control, the master default policies remain binding for this system until this document explicitly overrides them.
 
 Run progression systems, experience levels, temporary upgrades, rerolls, rarity systems, and run balancing.
 

@@ -4,7 +4,7 @@
 Read `phases/README.md` first: the 20-phase execution table, the supervised review loop rules, and every phase's status. The phase in progress has its own folder (`phases/PHASE_NN_<Name>/`) with PLAN, EXECUTION_LOG, FAILURE_POINTS, REVIEW, and LEDGER. `NEXT_SESSION.md` holds the original prompts and the session-to-session state.
 
 ## What this project is
-A Godot 4.7.1 top-down 2D dual-entity survival roguelite: protect yourself and a central Tower at the same time. No code or Godot project exists yet; the design is ready for prototype work.
+A Godot 4.7.1 top-down 2D dual-entity survival roguelite: protect yourself and a central Tower at the same time. The Godot project skeleton exists (project.godot with the pinned settings, the 16 collision layers, the input map, a BootCheck autoload, and a Windows release export); no gameplay code exists yet.
 
 ## Source of truth
 - `MASTER_SDLC.md` (v0.8.2) — intent, rules, gates, Acceptance Test Matrix, Development Phase Map for Phases 0–2 (including E0.1 and E0.2), Provisional Values Register, Review Decision Log.
@@ -30,6 +30,6 @@ The `godot-prompter` plugin (v1.13.3) adds 55 Godot skills and 8 specialist agen
 
 ## Tools
 - Godot 4.7.1 at `D:\godot`.
-- Godot MCP servers `godot-comprehensive` and `godot-coding-solo` are configured for this project and allowed in `.claude/settings.json`; deletes, exports, and network calls still ask. Both are pinned to exact commits and run from locally built copies under `tools/mcp/` (gitignored), because npx on this machine cannot install commit-pinned git specs. The commits and the rebuild steps are recorded in docs/28.
+- Godot MCP servers `godot-comprehensive` and `godot-coding-solo` are configured for this project and allowed in `.claude/settings.json`; file deletion and project export still ask; Docker export, CI pipeline, HTTP request, WebSocket and multiplayer server creation are denied outright. Note that the ask gate does NOT intercept subagents (Phase 00 finding F-06), so every delegation prompt must carry the sandbox-only and no-delete/no-export constraints explicitly. Both are pinned to exact commits and run from locally built copies under `tools/mcp/` (gitignored), because npx on this machine cannot install commit-pinned git specs. The commits and the rebuild steps are recorded in docs/28.
 - `godot-comprehensive`’s `run_project` and every `game_*` tool are sandbox-only (author decision): `run_project` injects an autoload into `project.godot` and opens a local listener exposing arbitrary GDScript. Its authoring tools do not inject and stay available for the real project.
 - Godot skill pack: `godot-prompter` 1.13.3 (MIT), installed from the `godot-prompter-marketplace` marketplace, project-scoped to this project. See the GodotPrompter section above.
