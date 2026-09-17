@@ -49,7 +49,7 @@ A naming note carried into every step below: the master and NEXT_SESSION.md refe
 3. Create `D:\Gamedev\.gitignore` with at least these entries, each with a short comment:
    - `.godot/` - Godot's local editor cache, regenerated per machine.
    - `.import/` - legacy import cache (pre-4.x layout; harmless to exclude even if unused under 4.7).
-   - `export_presets.cfg` - can embed export secrets (keystore paths, signing passwords); excluded whole rather than partially.
+   - `export_presets.cfg` - NO LONGER EXCLUDED. Reversed at P0.2 and recorded as decision D80: P4.5.3 requires two consecutive byte-identical exports from the same commit, which is not reproducible while the preset is untracked, and the preset carries no secrets today. If signing is ever added, the keystore path and password go in environment variables, never in this file.
    - `*.translation` - compiled translation binaries generated from source `.csv`/`.po` files.
    - Build output: `builds/`, `export/`, `*.pck`, `*.exe`, `*.exp`, `*.lib`, `*.pdb` - the release export artifacts P0.2 produces are not committed.
    - `sandbox/` - the entire E0.1/E0.2 sandbox tree (`D:\Gamedev\sandbox\connection_test` and anything else under `sandbox/`) is throwaway test scaffolding and must not enter the repository.

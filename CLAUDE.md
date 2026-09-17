@@ -7,7 +7,7 @@ Read `phases/README.md` first: the 20-phase execution table, the supervised revi
 A Godot 4.7.1 top-down 2D dual-entity survival roguelite: protect yourself and a central Tower at the same time. No code or Godot project exists yet; the design is ready for prototype work.
 
 ## Source of truth
-- `MASTER_SDLC.md` (v0.8.1) — intent, rules, gates, Acceptance Test Matrix, Development Phase Map for Phases 0–2 (including E0.1 and E0.2), Provisional Values Register, Review Decision Log.
+- `MASTER_SDLC.md` (v0.8.2) — intent, rules, gates, Acceptance Test Matrix, Development Phase Map for Phases 0–2 (including E0.1 and E0.2), Provisional Values Register, Review Decision Log.
 - `docs/` — draft system documents: 09 Enemy AI, 11 Wave Director, 19 UI/UX, 20 Technical Architecture, 29 Milestones and Roadmap (Phases 3–4, Deferred Review Findings).
 - The master wins on intent; the Provisional Values Register wins on any numeric conflict.
 

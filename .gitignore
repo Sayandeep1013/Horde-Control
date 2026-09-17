@@ -30,3 +30,9 @@ sandbox/
 # source: node_modules and compiled output, rebuilt from the pinned commits
 # recorded in docs/28. Never committed.
 tools/
+
+# Local permission overrides. .claude/settings.json IS versioned, but its
+# *.local.* sibling carries machine-specific permission grants and must never be
+# published. Do not rely on a machine-global ignore file for this: that file does
+# not travel with a clone, and this repository now has a remote.
+.claude/settings.local.json
