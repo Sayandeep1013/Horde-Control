@@ -12,5 +12,8 @@
       "mcp__godot-comprehensive__game_http_request",
       "mcp__godot-comprehensive__game_websocket"
     ]
+  },
+  "enabledPlugins": {
+    "godot-prompter@godot-prompter-marketplace": true
   }
 }
