@@ -1,0 +1,25 @@
+# Godot 4.x project ignores (task P0.1)
+
+# Godot's local editor cache, regenerated per machine
+.godot/
+
+# Legacy import cache (pre-4.x layout; harmless to exclude under 4.7)
+.import/
+
+# Can embed export secrets (keystore paths, signing passwords); excluded whole
+export_presets.cfg
+
+# Compiled translation binaries, generated from source .csv/.po files
+*.translation
+
+# Build output: the release exports P0.2 produces are not committed
+builds/
+export/
+*.pck
+*.exe
+*.exp
+*.lib
+*.pdb
+
+# E0.1/E0.2 connection-test scaffolding: throwaway, never enters the repository
+sandbox/
