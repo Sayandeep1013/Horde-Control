@@ -4,6 +4,10 @@
 **Status:** Working system document. Its sections were moved, with ledger FIX edits applied, from MASTER_SDLC.md 0.7.0 on 2026-09-14 so the master keeps intent, rules, gates, and the Provisional Values Register while implementation detail lives here.  
 **Authority:** Binding for the Minimum Playable Prototype under the master's Provisional Defaults Policy. The master wins on intent; the master's Provisional Values Register wins on any numeric conflict.
 
+Enemy categories, behaviors, targeting priorities, movement systems, elite enemies, and AI state machines. Spawning logic belongs wholly to document 11.
+
+**Owns:** all enemy behaviour edge cases, target intent definitions, the Intent Behaviour Defaults (body-block, leash, Opportunist events, stuck rules, telegraph minimums), pathing fallbacks, stuck detection, contact behaviour and the contact tick, and splitter behaviour at the entity cap.
+
 ---
 
 ### Intent Behaviour Defaults

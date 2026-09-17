@@ -4,6 +4,10 @@
 **Status:** Working system document. Its sections were moved, with ledger FIX edits applied, from MASTER_SDLC.md 0.7.0 on 2026-09-14 so the master keeps intent, rules, gates, and the Provisional Values Register while implementation detail lives here.  
 **Authority:** Binding for the Minimum Playable Prototype under the master's Provisional Defaults Policy. The master wins on intent; the master's Provisional Values Register wins on any numeric conflict.
 
+Enemy spawning, wave progression, pacing, difficulty escalation, special events, and encounter generation.
+
+**Owns:** the encounter taxonomy in implementation form, composition rules, the wave runtime model, boss wave placement, encounter budgets and intent mixes, the encounter priorities and recovery gaps, the Spawn Ring geometry and on-screen spawn exceptions, spawn validation, entity throttling behaviour at the cap, the inter-wave gap, the post-draft grace period, the single Overtime trigger, the Pressure Metric algorithm and its bounds, the win-condition-impossible resolution, and the prototype wave sequence.
+
 ---
 
 ## Wave Runtime Model

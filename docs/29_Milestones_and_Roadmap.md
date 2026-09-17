@@ -4,6 +4,10 @@
 **Status:** Working system document. Its sections were moved, with ledger FIX edits applied, from MASTER_SDLC.md 0.7.0 on 2026-09-14 so the master keeps intent, rules, gates, and the Provisional Values Register while implementation detail lives here.  
 **Authority:** Binding for the Minimum Playable Prototype under the master's Provisional Defaults Policy. The master wins on intent; the master's Provisional Values Register wins on any numeric conflict.
 
+Prototype milestones, vertical slice, alpha, beta, content milestones, polish phase, release planning, and post-launch roadmap.
+
+**Owns:** the Development Phase Map in this document, in expanded form, and its status tracking.
+
 ---
 
 ## Phase 3 — Vertical Slice

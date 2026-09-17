@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__godot-coding-solo",
+      "mcp__godot-comprehensive"
+    ],
+    "ask": [
+      "mcp__godot-comprehensive__delete_file",
+      "mcp__godot-comprehensive__export_project",
+      "mcp__godot-comprehensive__manage_docker_export",
+      "mcp__godot-comprehensive__manage_ci_pipeline",
+      "mcp__godot-comprehensive__game_http_request",
+      "mcp__godot-comprehensive__game_websocket"
+    ]
+  }
+}

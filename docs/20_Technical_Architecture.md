@@ -4,6 +4,10 @@
 **Status:** Working system document. Its sections were moved, with ledger FIX edits applied, from MASTER_SDLC.md 0.7.0 on 2026-09-14 so the master keeps intent, rules, gates, and the Provisional Values Register while implementation detail lives here.  
 **Authority:** Binding for the Minimum Playable Prototype under the master's Provisional Defaults Policy. The master wins on intent; the master's Provisional Values Register wins on any numeric conflict.
 
+Project architecture, singleton design, system communication, modular architecture, signals, and coding standards.
+
+**Owns:** the architectural rules, Technical Edge Cases, the performance budget and every entity cap number, the reference machine and performance protocol, the Performance Fallback Ladder, the Global Simulation Authority implementation (SimClock, PauseAuthority, process-mode mapping), the Biome Transition Rule implementation, the binding collision layer table, determinism scope and the resolution order, Godot version pinning, audio bus implementation, the test harness, debugging and telemetry tools, and animation/hitbox cleanup implementation.
+
 ---
 
 ## Godot 4.x Implementation Standards

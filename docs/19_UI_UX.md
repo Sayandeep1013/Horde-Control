@@ -4,6 +4,10 @@
 **Status:** Working system document. Its sections were moved, with ledger FIX edits applied, from MASTER_SDLC.md 0.7.0 on 2026-09-14 so the master keeps intent, rules, gates, and the Provisional Values Register while implementation detail lives here.  
 **Authority:** Binding for the Minimum Playable Prototype under the master's Provisional Defaults Policy. The master wins on intent; the master's Provisional Values Register wins on any numeric conflict.
 
+HUD, menus, upgrade screens, health bars, damage numbers, accessibility, animations, and usability guidelines.
+
+**Owns:** the three second rule, the readability hierarchy, device prompt switching, pause authority in the interface layer, UI text expansion, dynamic container rules, the Level-Up Draft interface, the Tower Console interface, the HUD, hold-to-confirm, sector selection, the Movement-only controls setting, the player-versus-Tower card differentiation rules, the visual half of Directional Threat Feedback, and the Hub interface.
+
 ---
 
 ## Upgrade Draft UI & Navigation
