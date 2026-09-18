@@ -63,6 +63,31 @@ One further finding was raised by the orchestrator against itself and is recorde
 
 One process finding applies to that re-review. F01-27 records that implementation continued after iteration 1's gate was convened, so its reviewers were briefed on a tree that then moved under them. Iteration 2's changes were all made after every iteration 1 reviewer had reported.
 
+## Iteration 3 - re-review on a frozen tree
+
+The tree was committed and tagged `phase01-review-iter3` at `8145333` before the gate opened, and no edit of any kind was made until all four reviewers had reported. This was the fix for F01-41, the Major raised at iteration 2, and it is the first iteration in which it held.
+
+| Plan ID | Score /10 | Change | Findings | Reasons |
+| --- | --- | --- | --- | --- |
+| P0.4 | 8 | +1 | 1 Major (F01-50), 2 Minor (F01-56) | Both iteration 2 Majors closed. The reviewer resolved **all 30** citations rather than a sample, against a section-to-row map re-derived from the Register's own headings, and all 30 resolve - the property iteration 1 established and iteration 2's fix broke. The remaining Major is that document 01 undercounted its own inferred legs, graded Major because it is the third consecutive iteration in which a fix for that finding shipped with an inaccuracy about the same mapping |
+| P0.6 | 9 | = | 2 Minor, 1 observation (F01-48, F01-49) | The instrument went from protecting none of the struct sub-fields to 108 of 111, verified on ground nobody had used, and the manifest is one-to-one with docs/20 in both directions. Held rather than raised because the one class left out was left out on a premise a single search of the master refutes, and because the implementer's own request to escalate it never became a row |
+| P0.7 | 8 | +1 | 1 Major (F01-52), 4 Minor (F01-53) | Twenty-one attacks, no false green: forged binaries, a truncated anchor, a read-only pre-seeded log, concurrent runs, a Turkish locale, and a clean checkout with no cache all handled correctly. The Major is the mirror image of the one it replaced - the guard that stopped the script reporting success wrongly was scoped too widely and stopped it reporting 103 and 1 correctly |
+| Phase | 8 | +1 | 0 Major, 7 Minor (F01-54, F01-55, F01-56) | The freeze held, verified at seventeen sampled moments. The reviewer reconstructed F01-47's bug independently, built its own corrected ledger check, **falsified it four ways**, and arrived at the same nine-of-sixteen Major attribution the record claims - calling the count "accurate and, if anything, conservative". Eleven claims tested, eleven reproduced |
+
+### What iteration 3 changed
+
+Iteration 2's judgement was "a 9-quality artifact set held down by a 5-quality gate process". Its successor recorded that as no longer true: the tree was frozen by a mechanism rather than an intention, and it held for every reviewer. What remained was record hygiene and provenance.
+
+The most serious finding was not about the artifacts at all. Decision **D92 carried the label "Author decision" and had never been put to the author** - written by the orchestrator in response to a reviewer finding, with the label applied reflexively. The record's own precision is what exposed it: consultations are logged for D84-D87 and D88-D91, and D92 and D93 had none. It matters because D93, its neighbour, is the row discharging the gate requirement whose substance was that an agent had decided something on the author's behalf. Put to the author at iteration 3, who kept the substance and corrected the label; the log now records D93's genuine consultation and D92's absence of one.
+
+Two findings landed in the same place for the third time. Document 01's inferred-leg count was wrong again, in the third successive fix for the same finding. And `LESSONS.md`'s own table was broken by blank lines so that nine of its rows rendered detached from the header - the third recurrence of the ledger-structure defect class, in the file that holds the lesson about it, because the widened structural check from F01-34 was run against one file and not the others. The phase's own trailer - that a lesson is reliably applied to the artifact it was learned on and reliably not generalised one artifact over - describes the body of the file that states it.
+
+### Iteration 3's findings, fixed
+
+Every Major from iteration 3 is fixed and falsified: the runner's guard rescoped so all four exit codes are distinguishable again, proven with shims returning each code; the temp-file dependency removed at the root, so an unwritable TEMP no longer turns a passing suite into a failure; `BandedValue` mapped from D87 and falsified on both cases the reviewer showed passing; the inferred-leg count corrected in document 01, D92 and the Change Log; D92 relabelled; and the LESSONS table repaired and verified contiguous.
+
+Regression after all of it: Settings check 0, Schema check 0, harness 0 and 100, doc lint clean, no banned vocabulary in documents 00-02.
+
 ## The bar
 
 - Phase score at least 8/10.

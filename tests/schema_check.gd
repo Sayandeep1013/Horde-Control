@@ -381,6 +381,18 @@ const REQUIRED_FIELD_MANIFEST := {
 ## script or sample under src/data/ yet - the entry starts being exercised
 ## the day that contract is built.
 const STRUCT_REQUIRED_FIELD_MANIFEST := {
+	## BandedValue's shape is stated in MASTER_SDLC.md > Review Decision Log >
+	## D87, not in docs/20, which types the value and the band label as two
+	## separate rows of the shared table and never writes the combined struct.
+	## This entry was omitted in the first struct-manifest pass on the ground
+	## that no document of record wrote the shape, which a reviewer showed was
+	## false - D87 names all three fields. Transcribed from D87, not from
+	## banded_value.gd, so the manifest and the script can still disagree.
+	"BandedValue": [
+		{"docs20": "BandedValue struct (MASTER Review Decision Log D87, author decision): an integer value.", "exports": ["value"]},
+		{"docs20": "BandedValue struct (MASTER Review Decision Log D87, author decision): a {Low, Mid, High} band label.", "exports": ["band_label"]},
+		{"docs20": "BandedValue struct (MASTER Review Decision Log D87, author decision): a boolean recording whether the label is set.", "exports": ["has_band_label"]},
+	],
 	"ReadabilityProfile": [
 		{"docs20": "Readability profile struct (Shared fields and struct types): silhouette class.", "exports": ["silhouette_class"]},
 		{"docs20": "Readability profile struct (Shared fields and struct types): reserved colour.", "exports": ["reserved_colour"]},
@@ -699,11 +711,11 @@ func _check_struct_required_fields(class_name_str: String, instance: Object, pat
 		if field.has("method"):
 			var method_name: String = field["method"]
 			if not instance.has_method(method_name):
-				failures.append("%s (%s): docs/20 field \"%s\" (derived) has no method %s() on the struct" % [path_prefix, class_name_str, docs20_text, method_name])
+				failures.append("%s (%s): required field \"%s\" (derived) has no method %s() on the struct" % [path_prefix, class_name_str, docs20_text, method_name])
 		else:
 			for export_name in field["exports"]:
 				if not declared.has(export_name):
-					failures.append("%s (%s): docs/20 field \"%s\" has no matching @export \"%s\" on the struct (STRUCT_REQUIRED_FIELD_MANIFEST)" % [path_prefix, class_name_str, docs20_text, export_name])
+					failures.append("%s (%s): required field \"%s\" has no matching @export \"%s\" on the struct (STRUCT_REQUIRED_FIELD_MANIFEST)" % [path_prefix, class_name_str, docs20_text, export_name])
 
 ## Recursively validates one Resource instance against a freshly constructed
 ## default of the same class. path_prefix is the dotted path from the

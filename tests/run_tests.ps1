@@ -97,8 +97,6 @@ if (-not (Test-Path -LiteralPath $ProjectFile -PathType Leaf)) {
     exit 1
 }
 
-$SuiteLog = Join-Path ([System.IO.Path]::GetTempPath()) "gdunit_suite_$PID.log"
-
 # --- Import pass ----------------------------------------------------------
 # $LASTEXITCODE is cleared first so a stale value from the calling shell can
 # never be mistaken for this command's result.
@@ -118,42 +116,53 @@ if ($importExit -ne 0) {
 
 # --- Test suite -----------------------------------------------------------
 Write-Host "Test suite: $GodotPath --headless --path $ProjectRoot -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a $TestPath --ignoreHeadlessMode"
+# Captured in memory rather than through a temp file: an unwritable TEMP used to
+# turn a genuinely passing suite into a reported failure, and discarded every
+# diagnostic line with it (finding NEW-7a).
 $global:LASTEXITCODE = $null
-& $GodotPath --headless --path $ProjectRoot -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a $TestPath --ignoreHeadlessMode *> $SuiteLog
+$suiteLines = & $GodotPath --headless --path $ProjectRoot -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a $TestPath --ignoreHeadlessMode 2>&1
 $testExit = $LASTEXITCODE
-
-$suiteOutput = if (Test-Path -LiteralPath $SuiteLog) { Get-Content -LiteralPath $SuiteLog -Raw } else { "" }
+$suiteOutput = ($suiteLines | Out-String)
 Write-Host $suiteOutput
-Remove-Item -LiteralPath $SuiteLog -ErrorAction SilentlyContinue
 
 if ($null -eq $testExit) {
     Write-Host "NOT A USABLE RUN: the suite produced no exit code, so it never actually ran." -ForegroundColor Red
     exit 1
 }
 
-# --- Guard 3: a run that executed nothing is not a pass. ------------------
-# gdUnit4 exits 0 when it finds no test cases, so this must run BEFORE the
-# exit-code switch. It is deliberately written as a POSITIVE assertion: the run
-# is trusted only if gdUnit4 actually reported executing at least one test case.
+# --- Guard 3: a claimed pass must prove it executed something. ------------
+# This gates ONLY the exit-code-0 case, and that scoping is load-bearing.
+# A real 103 (headless flag missing) and a real 1 (import pass not run) both
+# fail before gdUnit4 prints any summary, so an unconditional anchor check
+# swallowed those two codes and relayed both as 1 with a message naming causes
+# that had not occurred - breaking the four-way distinction CI depends on
+# (finding NEW-6). The four codes are only distinguishable if this guard
+# refuses to speak about anything but a claimed success.
 #
-# An earlier version matched negatively on "No test cases found" in stdout, and
-# a reviewer showed that fails OPEN: whenever stdout is not captured - an
-# unwritable TEMP, or a -GodotPath pointing at some other program that exits 0
-# quietly - the marker is absent, $testExit is 0, and the script reported PASS
-# for a run that executed nothing. Requiring the anchor inverts that: if the
-# output is missing for ANY reason, the run is not trusted.
-$executed = $null
-if ($suiteOutput -match 'Executed test cases\s*:\s*\((\d+)\s*/\s*(\d+)\)') {
-    $executed = [int]$Matches[1]
-}
+# Within exit 0 the check is a POSITIVE assertion, because gdUnit4 exits 0 when
+# it finds no test cases at all. An earlier version matched negatively on
+# "No test cases found", which failed OPEN whenever stdout was not captured:
+# the marker was simply absent, the exit code was still 0, and the script
+# reported PASS for a run that executed nothing (finding F01-36).
+if ($testExit -eq 0) {
+    if ($suiteOutput -match 'No test cases found') {
+        Write-Host "NOT A USABLE RUN: gdUnit4 found no test cases under '$TestPath' and aborted. Zero tests executed is never a pass - check the path for a typo." -ForegroundColor Red
+        exit 1
+    }
 
-if ($null -eq $executed) {
-    Write-Host "NOT A USABLE RUN: gdUnit4's 'Executed test cases' summary was not found in the suite output, so there is no evidence any test ran (reported exit $testExit). This is what a lost stdout, an unwritable TEMP directory, or a -GodotPath pointing at something other than Godot looks like." -ForegroundColor Red
-    exit 1
-}
-if ($executed -lt 1) {
-    Write-Host "NOT A USABLE RUN: gdUnit4 executed 0 test cases under '$TestPath' and exited $testExit. Zero tests executed is never a pass - check the path for a typo." -ForegroundColor Red
-    exit 1
+    $executed = $null
+    if ($suiteOutput -match 'Executed test cases\s*:\s*\((\d+)\s*/\s*(\d+)\)') {
+        $executed = [int]$Matches[1]
+    }
+
+    if ($null -eq $executed) {
+        Write-Host "NOT A USABLE RUN: the run reported exit 0, but gdUnit4's 'Executed test cases' summary is absent, so there is no evidence any test ran. This is what a lost stdout or a -GodotPath pointing at something other than Godot looks like." -ForegroundColor Red
+        exit 1
+    }
+    if ($executed -lt 1) {
+        Write-Host "NOT A USABLE RUN: gdUnit4 executed 0 test cases under '$TestPath' and exited 0. Zero tests executed is never a pass." -ForegroundColor Red
+        exit 1
+    }
 }
 
 switch ($testExit) {
