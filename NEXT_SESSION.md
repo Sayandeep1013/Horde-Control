@@ -1,6 +1,6 @@
 # Next Session — Start Here
 
-**State on 2026-09-18.** Phase 00 is built and reviewed. **Phase 01 (Contracts, Core Documents, Harness) has been built and taken through two review-gate iterations** - P0.4, P0.6 and P0.7 are implemented, and iteration 2 scored P0.4 7/10, P0.6 9/10, P0.7 7/10 and phase execution 7/10. Its closure is the designer's decision under the Gate Approval rule, as Phase 00's still is. Read `phases/README.md` for the 20-phase table, then this file, then `phases/PHASE_01_Contracts_Docs_Harness/REVIEW.md` for what the four reviewers found.
+**State on 2026-09-18.** Phase 00 built and reviewed. **Phase 01 built and taken through three review-gate iterations** (P0.4 8/10, P0.6 9/10, P0.7 8/10, phase execution 8/10 at iteration 3); its closure is the designer's decision, as Phase 00's still is. **Phase 02 (Technical Foundations) is in progress**, started at the author's direction. Read `phases/README.md` for the 20-phase table, then this file, then `phases/PHASE_02_Technical_Foundations/PLAN.md` and its EXECUTION_LOG for where the phase actually is.
 
 ---
 
@@ -10,7 +10,8 @@
 - `tests/settings_check.gd` — the Settings check, asserting effective values and exact sets. Falsified ten ways; it fails on a rogue autoload, a rogue action, a rebound key, a mutated deadzone, a missing main scene, and a wrong features array.
 - 31 design documents (`docs/00..30`). Five are drafts with real content (09, 11, 19, 20, 29); `docs/28` is at 1.0.0; the rest are stubs carrying their remit and Owns list.
 - A pinned, locally built agent-to-Godot toolchain, and `phases/` holding the plan, log, ledger, failure points and review record for all 20 phases.
-- **No gameplay code.** That starts in Phase 02 (engine spine) and becomes visible in Phase 03.
+- **From Phase 01**: documents 00, 01 and 02 at 1.0.0; 54 typed `Resource` schemas under `src/data/` covering the eleven prototype contracts and their shared structs, with 11 sample resources; `tests/schema_check.gd`, whose required-field manifests are transcribed from the master and document 20 rather than derived from the scripts, and which has been falsified more than a dozen ways; gdUnit4 6.2.1 vendored at `addons/gdUnit4` and pinned in document 28 by version, file count and a SHA-256 over its contents, protected from line-ending drift by `.gitattributes`; and `tests/run_tests.ps1`, which distinguishes all four gdUnit4 exit codes and refuses to report a pass unless at least one test actually executed.
+- **No gameplay code yet.** The engine spine is what Phase 02 is building now; it becomes visible in Phase 03.
 
 ## Phase 00's standing
 
@@ -40,7 +41,7 @@ Read `phases/LESSONS.md` in full. These cost real time:
 
 ---
 
-## Facts Phase 01 must not re-derive
+## Facts later phases must not re-derive
 
 **gdUnit4 harness (P0.7).** Verified twice in the sandbox. Take the command from here, never from the skill pack, whose documented runner file and flag do not exist in v6.2.1 and which never mentions `--ignoreHeadlessMode`:
 
@@ -65,7 +66,61 @@ Both `tools/.gdignore` and `sandbox/.gdignore` must exist — they are not in th
 
 ---
 
-## Prompt — Phase 01
+## Phase 02 — where it stands
+
+**Entry is done and recorded.** Both MCP pins verified against their shas, both `.gdignore` files present, gdUnit4 still 6.2.1 with its tree hash unchanged, and the full Phase 01 regression green (Settings check 0, Schema check 0, harness 0). Loop rule (a) satisfied: the placeholder "Carried lessons" section in `PHASE_02.../PLAN.md` is filled with eight patterns drawn from Phases 00 and 01, each naming the task it changes.
+
+**Three decisions were taken at entry** rather than mid-flight, because a Phase 01 delegation was once written that contradicted a decision taken hours earlier:
+- **D94** — the review gate groups Phase 02's seven tasks into four critical agents by coupled subsystem (P1.1+P1.2, P1.3+P1.5, P1.4, P1.6) plus the phase reviewer, who also covers P1.7. Five reviewers per iteration rather than eight. This narrows D83 and is recorded in advance, as D83 requires.
+- **D95** — P1.6 implements from document 20's audio section; document 26 stays a stub and is not read.
+- **D96** — the six entity caps change under the ordinary Provisional Default rule, with no separate sign-off gate. A Performance Fallback Ladder step 4 outcome still comes to the author, because that means the design is being revised rather than tuned.
+
+**Dependency order**, which is why this phase cannot be parallelised far: P1.1 → P1.2 → P1.3 → P1.5 → P1.7, with P1.4 needing P1.1 and P1.2, and P1.6 needing only the project skeleton.
+
+| Task | State |
+| --- | --- |
+| P1.1 SimClock, PauseAuthority, SimLoop, keyed RNG, banned-API check | delegated |
+| P1.6 audio buses, ducking node, 32-voice AudioPool | delegated |
+| P1.2 EventBus, EntityRegistry, CombatStats | waits on P1.1 |
+| P1.3 pools and the six caps, gameplay root scene | waits on P1.2 |
+| P1.4 debug overlay, Run Recorder, pseudo-localization | waits on P1.1, P1.2 |
+| P1.5 collision layers, hitbox/hurtbox, death state | waits on P1.3 |
+| P1.7 swarm stress test | waits on P1.3, P1.4, P1.5 |
+
+**Two traps in this phase that are already known:**
+1. `tests/settings_check.gd` asserts an **exact** autoload set. Registering SimClock and PauseAuthority breaks Phase 00's regression guard unless that check is updated — and it must stay falsifiable, since a version of it that could not fail was Phase 00's worst defect.
+2. P1.7 must be measured on an **exported release build** on the reference machine with V-Sync off and 60 s of CSV frame data. An editor run is the fast path and is not the test. The plan names this as a predetermined failure point precisely because it is the tempting shortcut.
+
+## Prompt — resuming Phase 02
+
+```text
+Act as the supervising orchestrator continuing this project in Phase 02.
+
+Read first: D:\Gamedev\CLAUDE.md; phases/README.md; phases/LESSONS.md; this file;
+then phases/PHASE_02_Technical_Foundations/PLAN.md, EXECUTION_LOG.md and LEDGER.md
+to see which of P1.1-P1.7 are done, and Phase 01's REVIEW.md for what its gate found.
+
+Re-run the phase-entry checks before continuing: both MCP pins, both .gdignore files,
+the gdUnit4 tree hash against docs/28, and the Phase 01 regression (settings_check,
+schema_check, and the gdUnit4 pass suite).
+
+Continue the dependency chain from wherever EXECUTION_LOG.md says it stopped. Sonnet
+subagents implement; every delegation prompt carries the no-delete, no-export,
+sandbox-only constraints explicitly, because the ask gate does not intercept subagents.
+Every acceptance test is falsified before its result is recorded - Phase 01 shipped
+three checks that could not fail.
+
+Review at the pace D94 fixes: four critical agents grouped by subsystem plus a phase
+reviewer, on a TAGGED, FROZEN tree, with reviewers told to falsify against git archive
+copies rather than the shared working directory. Do not edit anything while the gate
+is open.
+
+Send genuine design contradictions to the author as short multiple-choice questions.
+Never write that a gate is passed, satisfied, or ready. Commit documentation and
+implementation together.
+```
+
+## Prompt — Phase 01 (executed; kept for reference)
 
 ```text
 Act as the supervising orchestrator continuing this project at Phase 01.

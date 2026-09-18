@@ -1,6 +1,6 @@
 # Phase 02 - Technical Foundations
 
-Status: Not started; Executes: MASTER_SDLC.md > Development Phase Map > Phase 1 - Technical Foundations (the swarm test closes the phase); Plan task IDs: P1.1, P1.2, P1.3, P1.4, P1.5, P1.6, P1.7
+Status: In progress since 2026-09-18; Executes: MASTER_SDLC.md > Development Phase Map > Phase 1 - Technical Foundations (the swarm test closes the phase); Plan task IDs: P1.1, P1.2, P1.3, P1.4, P1.5, P1.6, P1.7
 
 ## Goal
 
@@ -9,12 +9,25 @@ The engine-level spine, proven under load: SimClock, SimLoop, PauseAuthority, an
 ## Entry conditions
 
 - Phase 01 exit criteria recorded: Schema check (P0.6) recorded against all eleven prototype-scope contracts under `src/data/`; Harness check (P0.7) recorded for gdUnit4 running headless through the pinned console executable; documents 00-02 at 1.0.0 with doc lint clean; the master's "Phase 0 accepted" row proposed to the author (phases/README.md phase-table row 01 gate).
-- The Godot 4.7.1 project skeleton (P0.2) and its gameplay-root scene container layout (docs/20_Technical_Architecture.md > Godot 4.x Implementation Standards > Scene Tree: the `Entities`, `Projectiles`, `Pickups`, `Effects`, `Environment`, and `Audio` containers) exist for P1.3 onward to attach to.
+- The Godot 4.7.1 project skeleton (P0.2) exists. **Corrected at phase entry, 2026-09-18**: this bullet also required the gameplay-root container layout to exist before the phase starts, which contradicts the task table - building that scene is P1.3's own deliverable, and `scenes/main.tscn` is a bare `Node2D` today. The condition is read as applying from P1.3's completion onward, not at phase entry. Recorded in LEDGER.md as F02-01.
 - The eleven typed contract schemas under `src/data/` (P0.6 deliverable) exist, since later phases' placeholder content (for example P1.5's placeholder enemy, P1.7's 300 placeholder enemies) is instanced from Enemy, Weapon, and related schemas.
 
 ## Carried lessons
 
-phases/LESSONS.md and every earlier phase's (00 and 01) EXECUTION_LOG.md, FAILURE_POINTS.md, and REVIEW.md are read at phase entry, per loop rule (a), and the patterns that apply to this phase are written into this section before implementation starts: recurring failure types, estimates that ran over, tests that turned out unpassable, tools that misbehaved. At the time this PLAN.md was drafted, phases/LESSONS.md contains no rows and phases 00 and 01 have not run, so this section is a placeholder. It must be filled in with whatever those phases actually recorded before any P1.x work in this phase begins.
+Filled on 2026-09-18 at phase entry from phases/LESSONS.md and the full records of Phases 00 and 01, per loop rule (a). Phase 01 alone produced 56 findings across three review iterations; the patterns below are the ones that bear on an engine-spine phase.
+
+| # | Pattern | What it changes in Phase 02 |
+| --- | --- | --- |
+| 1 | **A check is not believed until it has been made to fail.** Phase 01 shipped three separate checks that could not fail: a schema check that asked the script under test what fields to expect, a CI guard that matched negatively on output so it passed whenever output was lost, and a ledger check reading the wrong column whose green result was reported to the author twice as evidence | Every acceptance test in this phase - and there are nine named ones - is falsified before its result is recorded. The RNG, pause-clock, cap, pool, recorder, ghost-hit and audio-priority checks each get at least one deliberate break proving the check goes red, and the break targets the assertion the implementer is least confident in |
+| 2 | **A validator that derives its expectations from the thing it validates cannot detect an omission.** The fix was an independent manifest transcribed from the source document | P1.4's Recorder schema check takes its column list directly from docs/20's Run Recorder section, transcribed, not read back from the writer. P1.3's cap check takes the six cap values from the Provisional Values Register, not from the spawner's own constants |
+| 3 | **Never write a cause, or a negative claim, without an experiment.** Recorded three times in Phase 01, and broken three times in the same phase - including "this cannot be reproduced here", which a reviewer disproved in two minutes | This phase measures rather than reasons. P1.7 in particular: the Performance Fallback Ladder step adopted is the one that was *measured* to pass, on an exported release build on the reference machine, never the one predicted to |
+| 4 | **Freeze the tree when the review gate opens, and falsify against an exported copy rather than the shared working directory.** Phase 01 broke this twice; the third iteration fixed it with a tag and it held for every reviewer | Phase 02's gate opens on a tagged commit. Reviewers are told to falsify against `git archive` copies, not the live tree, since a reviewer mutating a shared file gave iteration 2 a false failure |
+| 5 | **Verify by reading the artifact back; a tool reporting success is not evidence.** | Applies directly to P1.3 and P1.5: `Pool.acquire()` must be verified by reading back every flag Logical Death changed, not by the absence of an error. The Ghost hit test exists precisely because a clean return proves nothing |
+| 6 | **Structural checks over the record must cover row position, column count and column identity - not just width.** Phase 01's ledger broke three times, twice in ways a column count could not see, once in the file holding the lesson about it | The structural check runs over *every* record file in this phase, not the one that broke last time |
+| 7 | **When a decision lands mid-phase, re-check every already-written delegation scope against it.** A Phase 01 delegation forbade `docs/` edits hours after a decision required a docs edit, leaving the implementer structurally unable to satisfy an exit condition | Phase 02 takes its decisions at entry (D94-D96) rather than mid-flight, and any later decision triggers a sweep of open delegations before dispatch |
+| 8 | **Nine of Phase 01's sixteen Majors were the orchestrator's, not the implementers'.** The blind gate is what caught them, including a decision mislabelled as the author's | The gate is not a formality to get through. Reviewer findings against the orchestrator's own work are expected and are recorded as such rather than attributed to implementers |
+
+Two engine-specific carries from Phase 00 also apply here. **Everything under the Godot project root is a resource**, so P1.7's stress scene and any placeholder assets must be export-excluded or deliberately shipped, not left to chance. And **Godot 4.7.1 silently nulls a type-mismatched resource property** with no engine diagnostic (Phase 01 F01-08, reproduced twice), so P1.3's pool and P1.5's components cannot rely on the engine to surface a wrong-class reference.
 
 ## Tasks
 
@@ -112,7 +125,7 @@ Plus, per P1.1's own exit criterion: the banned-API grep check finds zero calls 
 
 Sonnet subagents implement and write: one Sonnet subagent per task (P1.1 through P1.7).
 
-Opus runs one critical agent per task (seven critical agents, P1.1 through P1.7) plus one phase reviewer for Phase 02 as a whole. Each critical agent and the phase reviewer receive this PLAN.md, LEDGER.md, and the artifacts each task produced, but never the implementer's reasoning or chat transcript, per phases/README.md loop rule (c).
+Opus runs the review gate at the pace decision **D94** fixes in advance, which narrows D83's literal one-agent-per-task rule for this phase and records the narrowing as D83 requires: **four critical agents grouped by coupled subsystem** - P1.1 with P1.2, P1.3 with P1.5, P1.4 alone, P1.6 alone - **plus one phase reviewer**, who also covers P1.7 as the phase's load test. Five reviewers per iteration rather than eight. The grouping follows the dependency chain so that a reviewer sees a whole subsystem rather than half of one. Each critical agent and the phase reviewer receive this PLAN.md, LEDGER.md, and the artifacts each task produced, but never the implementer's reasoning or chat transcript, per phases/README.md loop rule (c).
 
 ## Open questions for the author
 
