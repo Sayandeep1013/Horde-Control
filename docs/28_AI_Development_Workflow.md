@@ -1,7 +1,7 @@
 # 28 - AI Development Workflow
 
-**Version:** 1.0.0  
-**Status:** Working system document, raised from stub to 1.0.0 under task P0.5 (Phase 00). Stable status under MASTER_SDLC.md > Document Control additionally requires this document to be reviewed against the master with that review recorded in the master's own Change Log; that review has not happened, and this document does not claim stable status for itself.  
+**Version:** 1.1.0  
+**Status:** Working system document, raised from stub to 1.0.0 under task P0.5 (Phase 00), and to 1.1.0 under task P0.7 (Phase 01), which added the gdUnit4 version pin and its verification commands to Pinned Tool Versions under decision D86, and recorded the export-exclusion measure that keeps the test surface out of a release build. Stable status under MASTER_SDLC.md > Document Control additionally requires this document to be reviewed against the master with that review recorded in the master's own Change Log; that review has not happened, and this document does not claim stable status for itself.  
 **Authority:** Binding for the Minimum Playable Prototype under the master's Provisional Defaults Policy. The master wins on intent; the master's Provisional Values Register wins on any numeric conflict.
 
 Claude integration, MCP workflow, documentation workflow, coding workflow, automation pipeline, and AI collaboration standards.
@@ -67,7 +67,8 @@ The connection method for this project is settled, not open for re-derivation by
 
 - **godot-coding-solo**: commit `1209744fad78f3998f98c7394fd0f6ef50da5281`, which carries the RCE fix "prevent arbitrary GDScript instantiation via add_node/create_scene" (PR #99). This fix was never published to npm; npm's only published version, `0.1.1`, predates it (published 2026-02-03, six commits before the fix landed).
 - **godot-comprehensive**: commit `fcbc29e03297900b9a1fcc6c7cbae116fe9d532a`.
-- Both are cloned and **built locally** under `tools/mcp/` (gitignored) and run as `node <path>/build/index.js`, because `npx` on this machine cannot install commit-pinned git specs: it fails with `GitFetcher requires an Arborist constructor to pack a tarball` (npm 10.9.3), reproduced directly against both pinned specs (finding F-04). `Coding-Solo/godot-mcp` gitignores `build/` and ships `bin -> ./build/index.js` only inside the npm tarball, so a git install must compile `build/index.js` via the package's `prepare` script, which a broken `npx` git-fetch never reaches.
+- **gdUnit4**: version `6.2.1`, the test harness P0.7 configures. Installed at `addons/gdUnit4/` **inside the repository**, unlike the two MCP servers, so it travels with a clone and needs no rebuild step. Upstream is `godot-gdunit-labs/gdUnit4`, moved from `MikeSchulze/gdUnit4` (Phase 00 finding F-12). **No commit sha is recorded, and that is a real limitation of this pin, not an omission**: the addon was installed from a release distribution rather than a git clone, so there is no `.git` directory in it to resolve a sha from. What can be verified instead is the content: 516 files, 2.0 MB, and a SHA-256 over the sorted file list and contents of `5ae43377c9501520d2a6191c59e4e156aa3525ad4d9c69716db62e1d78ab8b9a`. The verification commands are in "Pin verification check" below. Recorded here rather than only in a phase log by decision D86, because a harness version drifting from Godot 4.7.1 is a named risk and a phase log is not where a later phase would look for the pin.
+- Both MCP servers are cloned and **built locally** under `tools/mcp/` (gitignored) and run as `node <path>/build/index.js`, because `npx` on this machine cannot install commit-pinned git specs: it fails with `GitFetcher requires an Arborist constructor to pack a tarball` (npm 10.9.3), reproduced directly against both pinned specs (finding F-04). `Coding-Solo/godot-mcp` gitignores `build/` and ships `bin -> ./build/index.js` only inside the npm tarball, so a git install must compile `build/index.js` via the package's `prepare` script, which a broken `npx` git-fetch never reaches.
 
 ### Rebuild steps
 
@@ -91,6 +92,17 @@ git -C tools/mcp/comprehensive rev-parse HEAD
 ```
 
 The first command's output must equal `1209744fad78f3998f98c7394fd0f6ef50da5281`; the second must equal `fcbc29e03297900b9a1fcc6c7cbae116fe9d532a`. Both `tools/.gdignore` and `sandbox/.gdignore` must also exist (as empty files - their presence, not their content, is what matters, per the CRITICAL note below). A mismatch on either commit, or either `.gdignore` file missing, means the pin or the export-packaging protection no longer holds and must be re-established before the phase proceeds.
+
+For gdUnit4, which is committed rather than gitignored, the equivalent check is:
+
+```
+grep '^version=' addons/gdUnit4/plugin.cfg
+find addons/gdUnit4 -type f | LC_ALL=C sort | xargs sha256sum | sha256sum
+```
+
+The first must report `version="6.2.1"`; the second must equal `5ae43377c9501520d2a6191c59e4e156aa3525ad4d9c69716db62e1d78ab8b9a`. A changed hash with an unchanged version means the addon was modified in place, which is the case a version string alone cannot catch. `.gitattributes` marks `addons/gdUnit4/** -text` so git never normalises the addon's line endings: without that, a clone on a machine whose `core.autocrlf` differs from this one would check out different bytes and the hash would fail for a correct copy.
+
+**Also verify, at any phase entry that runs an export**, that the test surface is still excluded from the build. `export_presets.cfg` carries `exclude_filter="addons/gdUnit4/*, tests/*, reports/*, src/data/samples/*"` - the last arm added after a reviewer found the eleven placeholder contract fixtures shipping in the pack. Note that a `.gdignore` is the wrong instrument here and must not be used: inside `addons/gdUnit4/` it would hide the addon from the engine's own resource scanner and break the harness itself, which is why the `tools/`/`sandbox/` pattern below does not transfer to it. gdUnit4 also writes HTML and XML reports to `res://reports/` on every headless run; that directory is gitignored and export-excluded, and is safe to delete at any time.
 
 ### CRITICAL note for rebuilders: `.gdignore`
 

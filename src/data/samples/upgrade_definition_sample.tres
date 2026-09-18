@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/upgrade_definition.gd" id="1_p3dwi"]
+
+[resource]
+script = ExtResource("1_p3dwi")
+unique_id = "PLACEHOLDER_upgrade_001"
+pool_ownership = 2
+rarity = 1
+max_rank = 5
+has_max_rank = true
+prerequisites = Array[String](["PLACEHOLDER_upgrade_000"])
+exclusions = Array[String](["PLACEHOLDER_upgrade_099"])
+effect_description = "PLACEHOLDER effect description"
+effect_target = 3
+effect_per_rank = 2.5
+console_price_per_rank = 47
+recursive_interaction_guard = "PLACEHOLDER_guard_no_self_trigger"
+has_recursive_interaction_guard = true
+visual_readability_impact = 2
+performance_cost_category = 1

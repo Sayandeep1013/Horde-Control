@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="WaveDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/enemy_intent_mix_entry.gd" id="1_g8xko"]
+[ext_resource type="Script" path="res://src/data/drop_table.gd" id="2_xxpdf"]
+[ext_resource type="Script" path="res://src/data/finisher_spawn_rate.gd" id="3_fsfv1"]
+[ext_resource type="Script" path="res://src/data/overtime_condition.gd" id="4_b3vgm"]
+[ext_resource type="Script" path="res://src/data/pressure_metric_constants.gd" id="5_fu7e0"]
+[ext_resource type="Script" path="res://src/data/wave_definition.gd" id="6_mdowh"]
+
+[sub_resource type="Resource" id="Resource_cy2kj"]
+script = ExtResource("1_g8xko")
+target_intent = 1
+proportion = 0.6
+
+[sub_resource type="Resource" id="Resource_fsyg3"]
+script = ExtResource("1_g8xko")
+target_intent = 2
+proportion = 0.4
+
+[sub_resource type="Resource" id="Resource_pq1xa"]
+script = ExtResource("2_xxpdf")
+xp_shards = 2
+scrap = 2
+cores = 1
+
+[sub_resource type="Resource" id="Resource_e6slm"]
+script = ExtResource("3_fsfv1")
+count = 2
+interval_seconds = 5.0
+
+[sub_resource type="Resource" id="Resource_aatgq"]
+script = ExtResource("4_b3vgm")
+stall_threshold = 5
+finisher_enemy_id = "PLACEHOLDER_enemy_finisher"
+finisher_spawn_rate = SubResource("Resource_e6slm")
+finisher_drop_override = SubResource("Resource_pq1xa")
+
+[sub_resource type="Resource" id="Resource_8b08n"]
+script = ExtResource("5_fu7e0")
+escalation_threshold = 1.8
+escalation_hold_time_seconds = 3.0
+minimum_gap_between_escalations_seconds = 4.0
+de_escalation_threshold = 0.6
+de_escalation_lift_threshold = 1.2
+de_escalation_expiry_seconds = 10.0
+re_arm_lockout_seconds = 6.0
+
+[resource]
+script = ExtResource("6_mdowh")
+unique_id = "PLACEHOLDER_wave_001"
+biome_context_id = "PLACEHOLDER_biome_ashlands"
+difficulty_band = 1
+encounter_sequence = Array[String](["PLACEHOLDER_encounter_001", "PLACEHOLDER_encounter_002"])
+enemy_intent_mix = Array[ExtResource("1_g8xko")]([SubResource("Resource_cy2kj"), SubResource("Resource_fsyg3")])
+elite_chance = 0.05
+maximum_duration_seconds = 95.0
+has_maximum_duration = true
+target_duration_seconds = 80.0
+inter_wave_gap_seconds = 6.5
+overtime_condition = SubResource("Resource_aatgq")
+pressure_metric_constants = SubResource("Resource_8b08n")
+boss_overlap_rules = 1

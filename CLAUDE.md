@@ -7,12 +7,12 @@ Read `phases/README.md` first: the 20-phase execution table, the supervised revi
 A Godot 4.7.1 top-down 2D dual-entity survival roguelite: protect yourself and a central Tower at the same time. The Godot project skeleton exists (project.godot with the pinned settings, the 16 collision layers, the input map, a BootCheck autoload, and a Windows release export); no gameplay code exists yet.
 
 ## Source of truth
-- `MASTER_SDLC.md` (v0.8.2) — intent, rules, gates, Acceptance Test Matrix, Development Phase Map for Phases 0–2 (including E0.1 and E0.2), Provisional Values Register, Review Decision Log.
+- `MASTER_SDLC.md` (v0.8.4) — intent, rules, gates, Acceptance Test Matrix, Development Phase Map for Phases 0–2 (including E0.1 and E0.2), Provisional Values Register, Review Decision Log.
 - `docs/` — draft system documents: 09 Enemy AI, 11 Wave Director, 19 UI/UX, 20 Technical Architecture, 29 Milestones and Roadmap (Phases 3–4, Deferred Review Findings).
 - The master wins on intent; the Provisional Values Register wins on any numeric conflict.
 
 ## Rules for any agent working here
-- Every gameplay number lives in the Provisional Values Register; every other place references it.
+- Every gameplay number lives in the Provisional Values Register; every other place references it. One carve-out, and only one (decision D91): a count the master itself states as **structure** rather than tuning — "four nested structures", "the four prototype encounter types", "exactly two boss-class encounters" — is not a gameplay number and needs no Register citation. A number that could be tuned without changing the shape of the game is a gameplay number and cites the Register, even when it looks structural. If a count is arguable, cite the Register.
 - Every design change gets a Review Decision Log row naming the alternative. Decisions labelled "Author decision" were made by the author; change them only with the author's approval.
 - Never write that a gate is passed, satisfied, or ready; reviewers and the author decide.
 - Send genuine design contradictions or scope changes to the author as short multiple-choice questions.

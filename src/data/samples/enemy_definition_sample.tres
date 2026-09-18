@@ -1,0 +1,67 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/attack_profile.gd" id="1_oiucl"]
+[ext_resource type="Script" path="res://src/data/banded_value.gd" id="2_ocpop"]
+[ext_resource type="Script" path="res://src/data/drop_table.gd" id="3_wwvg3"]
+[ext_resource type="Script" path="res://src/data/movement_profile.gd" id="4_5o3tx"]
+[ext_resource type="Script" path="res://src/data/readability_profile.gd" id="5_sy8ay"]
+[ext_resource type="Script" path="res://src/data/enemy_definition.gd" id="6_f08m2"]
+[ext_resource type="Script" path="res://src/data/telegraph_data.gd" id="7_e23m7"]
+
+[sub_resource type="Resource" id="Resource_7lp4w"]
+script = ExtResource("1_oiucl")
+attack_type = 1
+damage_per_hit_or_tick = 13
+cycle_or_tick_interval_seconds = 0.73
+reach_or_range_px = 233
+
+[sub_resource type="Resource" id="Resource_k8ghd"]
+script = ExtResource("2_ocpop")
+value = 19
+
+[sub_resource type="Resource" id="Resource_7olmj"]
+script = ExtResource("3_wwvg3")
+xp_shards = 5
+scrap = 7
+cores = 1
+
+[sub_resource type="Resource" id="Resource_e3w2q"]
+script = ExtResource("2_ocpop")
+value = 137
+
+[sub_resource type="Resource" id="Resource_fogw2"]
+script = ExtResource("4_5o3tx")
+speed_multiplier = 1.37
+body_radius_px = 17
+
+[sub_resource type="Resource" id="Resource_4r3v1"]
+script = ExtResource("5_sy8ay")
+silhouette_class = 1
+reserved_colour = Color(0.2, 0.8, 0.3, 1)
+minimum_on_screen_size_px = 28
+
+[sub_resource type="Resource" id="Resource_qmqhh"]
+script = ExtResource("7_e23m7")
+windup_duration_seconds = 0.65
+telegraph_shape = 2
+telegraph_colour = Color(0.91, 0.13, 0.44, 1)
+audio_cue_id = "PLACEHOLDER_cue_enemy_telegraph"
+lead_time_seconds = 0.85
+
+[resource]
+script = ExtResource("6_f08m2")
+unique_id = "PLACEHOLDER_enemy_001"
+target_intent = 1
+movement_profile = SubResource("Resource_fogw2")
+attack_profile = SubResource("Resource_7lp4w")
+telegraph_data = SubResource("Resource_qmqhh")
+health_band = SubResource("Resource_e3w2q")
+damage_band = SubResource("Resource_k8ghd")
+contact_behaviour = 1
+pathing_fallback_behavior = 1
+entity_cap_weight = 3
+elite_eligibility = true
+allowed_affixes = Array[String](["PLACEHOLDER_affix_scorch"])
+biome_tags = Array[String](["PLACEHOLDER_biome_ashlands"])
+readability_profile = SubResource("Resource_4r3v1")
+drop_table = SubResource("Resource_7olmj")

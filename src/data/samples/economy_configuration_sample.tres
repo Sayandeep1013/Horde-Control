@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="EconomyConfiguration" format=3]
+
+[ext_resource type="Script" path="res://src/data/console_price_formula.gd" id="1_vl3un"]
+[ext_resource type="Script" path="res://src/data/dominance_audit_parameters.gd" id="2_omg38"]
+[ext_resource type="Script" path="res://src/data/hopper_conversion_rule.gd" id="3_wuftv"]
+[ext_resource type="Script" path="res://src/data/run_end_settlement_rates.gd" id="4_gduc1"]
+[ext_resource type="Script" path="res://src/data/economy_configuration.gd" id="5_l0bsi"]
+[ext_resource type="Script" path="res://src/data/xp_level_cost.gd" id="6_g6ftt"]
+
+[sub_resource type="Resource" id="Resource_pveh5"]
+script = ExtResource("1_vl3un")
+scrap_per_rank = 19
+
+[sub_resource type="Resource" id="Resource_w63qa"]
+script = ExtResource("2_omg38")
+threshold_fraction = 0.68
+minimum_runs = 13
+
+[sub_resource type="Resource" id="Resource_saqt1"]
+script = ExtResource("3_wuftv")
+rate_scrap_per_core = 11
+trigger = "PLACEHOLDER_trigger_enters_interaction_radius"
+
+[sub_resource type="Resource" id="Resource_nk85y"]
+script = ExtResource("4_gduc1")
+per_biome_cleared_cores = 7
+per_boss_killed_cores = 5
+per_full_minute_cores = 2
+
+[sub_resource type="Resource" id="Resource_hq57d"]
+script = ExtResource("6_g6ftt")
+shard_value = 3
+base_cost = 13
+per_level_increment = 7
+
+[resource]
+script = ExtResource("5_l0bsi")
+unique_id = "PLACEHOLDER_economy_001"
+merge_radius_px = 71
+xp_level_cost = SubResource("Resource_hq57d")
+xp_cap_during_teaching_waves = 17
+scrap_cap = 233
+overflow_hopper_capacity = 113
+hopper_conversion_rule = SubResource("Resource_saqt1")
+core_persistence_write_cadence_seconds = 4.5
+run_end_settlement_rates = SubResource("Resource_nk85y")
+console_price_formula = SubResource("Resource_pveh5")
+dominance_audit_parameters = SubResource("Resource_w63qa")

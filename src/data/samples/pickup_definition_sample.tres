@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="PickupDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/merge_rule.gd" id="1_jffth"]
+[ext_resource type="Script" path="res://src/data/pickup_definition.gd" id="2_rdjqv"]
+[ext_resource type="Script" path="res://src/data/visual_audio_cue.gd" id="3_iqnv2"]
+
+[sub_resource type="Resource" id="Resource_61niv"]
+script = ExtResource("1_jffth")
+trigger = "PLACEHOLDER_trigger_at_pickup_cap"
+same_type_only = true
+resulting_behaviour = "PLACEHOLDER_behaviour_merge_into_nearest_same_type_else_expire_oldest"
+
+[sub_resource type="Resource" id="Resource_psebd"]
+script = ExtResource("3_iqnv2")
+sprite_reference = "PLACEHOLDER_sprite_scrap_icon"
+audio_cue_id = "PLACEHOLDER_cue_pickup_collect"
+
+[resource]
+script = ExtResource("2_rdjqv")
+unique_id = "PLACEHOLDER_pickup_001"
+pickup_type = 1
+value = 17
+magnet_behaviour = 1
+merge_rule = SubResource("Resource_61niv")
+lifetime_seconds = 45.5
+visual_audio_cue = SubResource("Resource_psebd")

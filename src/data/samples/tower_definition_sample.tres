@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="TowerDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/max_health_and_shield_fraction.gd" id="1_li30x"]
+[ext_resource type="Script" path="res://src/data/persistent_asset_rule.gd" id="2_3bwjy"]
+[ext_resource type="Script" path="res://src/data/repair_price.gd" id="3_ulap2"]
+[ext_resource type="Script" path="res://src/data/tower_definition.gd" id="4_diwud"]
+[ext_resource type="Script" path="res://src/data/shield_regeneration.gd" id="5_c4848"]
+[ext_resource type="Script" path="res://src/data/targeting_rule_parameters.gd" id="6_nvmn0"]
+[ext_resource type="Script" path="res://src/data/tower_footprint.gd" id="7_naybj"]
+
+[sub_resource type="Resource" id="Resource_hhr0g"]
+script = ExtResource("1_li30x")
+maximum_health = 733
+base_shield_fraction = 0.35
+
+[sub_resource type="Resource" id="Resource_m6kuy"]
+script = ExtResource("2_3bwjy")
+asset_class = "PLACEHOLDER_asset_drone"
+persists_across_biomes = true
+
+[sub_resource type="Resource" id="Resource_tykw8"]
+script = ExtResource("3_ulap2")
+scrap_cost = 41
+health_restored = 59
+pro_ration_rule = "PLACEHOLDER_pro_ration_linear"
+
+[sub_resource type="Resource" id="Resource_260hb"]
+script = ExtResource("5_c4848")
+rate_percent_per_second = 11.0
+delay_seconds = 8.5
+
+[sub_resource type="Resource" id="Resource_3p8gr"]
+script = ExtResource("6_nvmn0")
+range_px = 487
+intent_preference = 2
+
+[sub_resource type="Resource" id="Resource_dcaqq"]
+script = ExtResource("7_naybj")
+footprint_radius_px = 113
+interaction_radius_px = 167
+
+[resource]
+script = ExtResource("4_diwud")
+unique_id = "PLACEHOLDER_tower_001"
+max_health_and_shield_fraction = SubResource("Resource_hhr0g")
+shield_regeneration = SubResource("Resource_260hb")
+tower_footprint = SubResource("Resource_dcaqq")
+base_weapon_reference_id = "PLACEHOLDER_weapon_001"
+targeting_rule_parameters = SubResource("Resource_3p8gr")
+evolution_stage_thresholds = Array[int]([7, 23, 61, 109])
+repair_price = SubResource("Resource_tykw8")
+persistent_asset_rules = Array[ExtResource("2_3bwjy")]([SubResource("Resource_m6kuy")])

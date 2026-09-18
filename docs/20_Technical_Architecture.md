@@ -162,7 +162,7 @@ Every field name used in the contracts below has one meaning, stated here so a p
 | Inter-wave gap | float seconds (simulation time) | Time that must pass after this wave ends before the next wave's first spawn group may start |
 | Minimum recovery gap | float seconds (simulation time) | Time that must pass after this encounter completes before another encounter may open (C-DEFER; Wave Director › Wave Runtime Model) |
 | Stall threshold | integer | Kills per 30 seconds below which Overtime may fire |
-| Telegraph data | struct {wind-up duration: float seconds, telegraph shape: enum {Wedge, Line, Circle, Ring}, telegraph colour reference: colour reference, audio cue ID: string} | Describes how an attack or spawn is signalled before it resolves |
+| Telegraph data | struct {wind-up duration: float seconds, telegraph shape: enum {Wedge, Line, Circle, Ring}, telegraph colour reference: colour reference, audio cue ID: string, lead time: float seconds} | Describes how an attack or spawn is signalled before it resolves. Lead time is not wind-up duration: wind-up is how long the telegraph plays before the attack resolves, lead time is how far ahead of an on-screen spawn the telegraph must be scheduled, which is what the Encounter contract's "Telegraph requirements ... with lead time" needs (decision D90) |
 | Spawn group | struct {enemy definition: Enemy Unique ID, count: integer, start offset: float seconds from encounter open, spawn interval: float seconds between individual spawns, direction weighting override: nullable reference to the encounter's Directional Weighting rule} | One wave of enemies an encounter emits; a spawn group starts at its start offset or earlier if the Escalation Trigger starts it (Wave Director › Wave Runtime Model); an encounter is an ordered list of these |
 | Movement profile | struct {speed multiplier: float (relative to the player's base speed), body radius: integer px} | The enemy's locomotion values; pathing behaviour itself is the separate Pathing fallback behavior field |
 | Attack profile | struct {attack type: enum {Melee, Ranged, Contact}, damage per hit or tick: integer, cycle or tick interval: float seconds, reach or range: integer px} | The enemy's damage-dealing values; wind-up timing lives in Telegraph data |
@@ -357,7 +357,7 @@ The Pickup Definition Contract carries no Entity cap weight field; the pickup ca
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| XP shard value and level cost formula | struct {shard value: integer, cost formula: L → 10 + 5(L+1)} | XP granted per shard, and the cost to advance a level |
+| XP shard value and level cost formula | struct {shard value: integer, base cost: integer, per-level increment: integer} | XP granted per shard, and the cost to advance a level. The formula is `cost(L) = base cost + per-level increment × (L + 1)`; the Provisional Default coefficients are 10 and 5, and they are authored as data rather than hardcoded because the formula is a Provisional Default owned by document 13 (decision D89) |
 | XP cap during teaching waves | integer | XP ceiling while T1–T4 are open, before the forced first Draft |
 | Merge radius | integer px | Default same-type pickup merge distance at the pickup cap (default 64 px; Fallback Ladder step 1 raises it to 128 px) |
 | Scrap cap | integer | Maximum carried Scrap before overflow |

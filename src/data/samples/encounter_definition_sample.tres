@@ -1,0 +1,74 @@
+[gd_resource type="Resource" script_class="EncounterDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/directional_weighting_entry.gd" id="1_mrxal"]
+[ext_resource type="Script" path="res://src/data/intent_budget_override.gd" id="2_il7v8"]
+[ext_resource type="Script" path="res://src/data/reward.gd" id="3_fusln"]
+[ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="4_lwmco"]
+[ext_resource type="Script" path="res://src/data/spawn_group.gd" id="5_d6c6d"]
+[ext_resource type="Script" path="res://src/data/telegraph_data.gd" id="6_1obxw"]
+
+[sub_resource type="Resource" id="Resource_rxnjs"]
+script = ExtResource("1_mrxal")
+encounter_type = 3
+lane_count = 2
+lane_width_degrees = 45.0
+lane_separation_rule = 1
+heavy_share = 0.65
+ring = 1
+hunt_arc_degrees = 120.0
+hunt_arc_share = 0.8
+
+[sub_resource type="Resource" id="Resource_fyu7f"]
+script = ExtResource("2_il7v8")
+target_intent = 1
+count = 6
+
+[sub_resource type="Resource" id="Resource_3l3t8"]
+script = ExtResource("3_fusln")
+xp = 4
+scrap = 6
+cores = 3
+
+[sub_resource type="Resource" id="Resource_cu8l2"]
+script = ExtResource("3_fusln")
+xp = 11
+scrap = 13
+cores = 2
+
+[sub_resource type="Resource" id="Resource_ther3"]
+script = ExtResource("5_d6c6d")
+enemy_definition_id = "PLACEHOLDER_enemy_001"
+count = 6
+start_offset_seconds = 2.5
+spawn_interval_seconds = 0.8
+
+[sub_resource type="Resource" id="Resource_omgc2"]
+script = ExtResource("6_1obxw")
+windup_duration_seconds = 0.4
+telegraph_shape = 1
+telegraph_colour = Color(0.9, 0.9, 0.1, 1)
+audio_cue_id = "PLACEHOLDER_cue_encounter_telegraph"
+lead_time_seconds = 1.35
+
+[resource]
+script = ExtResource("4_lwmco")
+unique_id = "PLACEHOLDER_encounter_001"
+encounter_type = 3
+design_intent = "PLACEHOLDER encounter design intent"
+pressure_target = 1.42
+player_answer = "PLACEHOLDER player answer"
+failure_signature = "PLACEHOLDER failure signature"
+spawn_groups = Array[ExtResource("5_d6c6d")]([SubResource("Resource_ther3")])
+intent_budget_overrides = Array[ExtResource("2_il7v8")]([SubResource("Resource_fyu7f")])
+directional_weighting_override = SubResource("Resource_rxnjs")
+telegraph_requirements = Array[ExtResource("6_1obxw")]([SubResource("Resource_omgc2")])
+minimum_recovery_gap_seconds = 8.0
+priority = 62
+entity_cap_behavior = 1
+encounter_alive_cap = 9
+allowed_encounter_tags = Array[String](["PLACEHOLDER_tag_open_field"])
+excluded_encounter_tags = Array[String](["PLACEHOLDER_tag_siege_active"])
+reward = SubResource("Resource_cu8l2")
+failure_resolution = 1
+partial_reward_rules = SubResource("Resource_3l3t8")
+pause_and_deferral_behavior = 1

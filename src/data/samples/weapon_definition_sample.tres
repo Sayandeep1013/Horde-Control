@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/banded_value.gd" id="1_ugvxl"]
+[ext_resource type="Script" path="res://src/data/engagement_rhythm.gd" id="2_4esqi"]
+[ext_resource type="Script" path="res://src/data/weapon_evolution_requirement.gd" id="3_cu5vr"]
+[ext_resource type="Script" path="res://src/data/projectile_definition.gd" id="4_gc82s"]
+[ext_resource type="Script" path="res://src/data/weapon_definition.gd" id="5_e2qqe"]
+
+[sub_resource type="Resource" id="Resource_pvunm"]
+script = ExtResource("1_ugvxl")
+value = 27
+
+[sub_resource type="Resource" id="Resource_5vjo3"]
+script = ExtResource("2_4esqi")
+rhythm = 1
+fire_rate_per_second = 4.5
+
+[sub_resource type="Resource" id="Resource_xrhjf"]
+script = ExtResource("3_cu5vr")
+prerequisites = Array[String](["PLACEHOLDER_upgrade_evo_001"])
+evolution_target_id = "PLACEHOLDER_weapon_002"
+
+[sub_resource type="Resource" id="Resource_6obl5"]
+script = ExtResource("4_gc82s")
+speed_px_per_second = 877
+lifetime_seconds = 2.3
+pooling_class = "PLACEHOLDER_pool_bolt"
+
+[resource]
+script = ExtResource("5_e2qqe")
+unique_id = "PLACEHOLDER_weapon_001"
+effective_range_px = 311
+coverage_shape = 1
+target_count = 3
+engagement_rhythm = SubResource("Resource_5vjo3")
+damage_band = SubResource("Resource_pvunm")
+projectile_definition = SubResource("Resource_6obl5")
+evolution_requirement = SubResource("Resource_xrhjf")
+evolution_changes_axes = Array[int]([0, 2])

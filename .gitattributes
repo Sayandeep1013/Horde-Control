@@ -1,0 +1,5 @@
+# The gdUnit4 addon is pinned in docs/28 by a SHA-256 over its file contents.
+# Any line-ending normalisation would change those bytes on checkout and make the
+# pin fail for anyone whose core.autocrlf differs from this machine, so the addon
+# is stored and checked out verbatim.
+addons/gdUnit4/** -text

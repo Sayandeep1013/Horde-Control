@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="PlayerDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/input_buffer_duration.gd" id="1_uao47"]
+[ext_resource type="Script" path="res://src/data/player_definition.gd" id="2_q5ft6"]
+
+[sub_resource type="Resource" id="Resource_8123n"]
+script = ExtResource("1_uao47")
+duration_ms = 113.0
+ticks = 9
+
+[resource]
+script = ExtResource("2_q5ft6")
+unique_id = "PLACEHOLDER_player_001"
+max_health = 173
+base_speed_px_per_second = 337.5
+acceleration_time_seconds = 0.09
+deceleration_time_seconds = 0.06
+body_radius_px = 19
+collector_area_radius_px = 29
+magnet_radius_px = 211
+input_buffer = SubResource("Resource_8123n")
+starting_weapon_reference_id = "PLACEHOLDER_weapon_001"
