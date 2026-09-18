@@ -287,6 +287,299 @@ const REQUIRED_FIELD_MANIFEST := {
 	],
 }
 
+## Struct-level required-field manifest (P0.6 review iteration 2 follow-up,
+## closing the residual the same reviewer scored 9/10 and flagged in a fresh
+## pass). REQUIRED_FIELD_MANIFEST above closes R1 at the CONTRACT level: it
+## independently asserts that every MASTER bullet has a matching @export on
+## the contract's own schema script. But roughly a dozen of MASTER's bullets
+## are compound and name sub-quantities the schema puts inside a struct
+## Resource (e.g. "XP shard value and level cost formula" -> the wrapper
+## export xp_level_cost, whose class XpLevelCost has its own shard_value,
+## base_cost, and per_level_increment fields). REQUIRED_FIELD_MANIFEST only
+## ever asserted the wrapper export exists - it had nothing to say about
+## XpLevelCost's own three fields - so deleting XpLevelCost.shard_value (or
+## TowerFootprint.interaction_radius_px, docs/20's other reviewer-demonstrated
+## case) from both the struct script and its sample left the whole check at
+## exit 0: the wrapper export (xp_level_cost / tower_footprint) still existed,
+## and Pass 3's generic default-value walk below can only ever see what the
+## struct script currently declares, so a field deleted from script AND
+## sample together vanishes from that walk too.
+##
+## STRUCT_REQUIRED_FIELD_MANIFEST closes that residual one level down, using
+## the exact same independence rule as REQUIRED_FIELD_MANIFEST: every entry
+## is hand-transcribed from docs/20_Technical_Architecture.md, section
+## "Contract Field Semantics" - the "Shared fields and struct types" table
+## (whose struct types are written out in full: Telegraph data, Spawn group,
+## Movement profile, Attack profile, Effect, Overtime condition, Pressure
+## Metric constants, Drop table, Reward) plus the contract-specific tables
+## beneath it, for the struct types unique to one contract (Tower's
+## footprint/interaction radius pair, Economy's XP cost struct, Pickup's
+## merge rule, and so on) - NEVER from the struct .gd scripts themselves,
+## so a script and its manifest entry can disagree.
+##
+## Keyed by STRUCT CLASS NAME (Script.get_global_name(), matching the key
+## _validate_resource() below already computes), not by contract display
+## name or by MASTER bullet, because one struct class is routinely reused
+## across more than one contract or more than one field on the same
+## contract (TelegraphData is EnemyDefinition.telegraph_data AND every
+## element of EncounterDefinition.telegraph_requirements; DropTable is
+## EnemyDefinition.drop_table AND OvertimeCondition.finisher_drop_override;
+## PressureMetricConstants is both DirectorConfiguration's and
+## WaveDefinition's field of that name; RingDefinition is both
+## SpawnRingGeometry.tower_ring and .view_ring). One entry here covers
+## every place that class appears - no separate per-contract or per-field
+## copy is kept, so there is nothing to let drift out of sync.
+##
+## Each entry's dictionaries use "docs20" rather than REQUIRED_FIELD_MANIFEST's
+## "master" key, on purpose: these strings are transcribed from docs/20's
+## struct-shape prose, not from a MASTER bullet (MASTER never itemises a
+## struct's own sub-fields; only docs/20 does). Same {"...": ..., "exports":
+## [...]} / {"...": ..., "method": "..."} shape as REQUIRED_FIELD_MANIFEST
+## otherwise, including the "method" form for a sub-quantity docs/20 types
+## as part of a struct but the schema correctly resolves rather than
+## authors (Merge rule's "match radius" is a reference to Economy
+## Configuration's own Merge radius field, not a per-pickup number - see
+## merge_rule.gd; Upgrade Console price formula's "formula" is a pure
+## function of scrap_per_rank and a caller-supplied rank, not stored data -
+## see console_price_formula.gd - both follow the precedent Wave's Spawn
+## budget already set in REQUIRED_FIELD_MANIFEST above).
+##
+## Checked by _check_struct_required_fields(), called from inside
+## _validate_resource() below for every Resource instance the recursive
+## walk visits - the contract root, every nested struct at any depth, and
+## every element of every typed array - so an entry here is exercised
+## wherever a sample actually instantiates that class, with no separate
+## per-contract driver list to keep in sync (unlike CONTRACTS below, which
+## IS a hand-kept driver list, because contract roots are not reached by
+## any recursion of their own).
+##
+## A struct class with no entry below is either: contract_enums.gd
+## (ContractEnums holds only enum definitions - no @export instance fields
+## exist to require, so it is not a struct resource at all), or BandedValue
+## (src/data/banded_value.gd, used by EnemyDefinition.health_band,
+## EnemyDefinition.damage_band, and WeaponDefinition.damage_band): docs/20
+## types BandedValue's two sub-quantities as separate shared-table rows -
+## "Health" (integer) and "Band label" (nullable enum {Low, Mid, High}) -
+## and never writes out a combined struct shape resembling BandedValue's
+## three fields (value, band_label, has_band_label). Grouping Health and
+## Band label into one Resource is a P0.6 schema convention (see
+## banded_value.gd's own header comment, "P0.6 convention 5"), not a
+## docs/20-stated struct - giving it an entry here would mean transcribing
+## the schema's own convention back into the manifest, the exact derivation
+## this manifest exists to avoid. BandedValue.value is still exercised by
+## the generic default-value walk (Pass 3, below) and BandedValue.band_label
+## already has its own NULLABLE_PRIMITIVE_PAIRS entry above; only a full
+## deletion of BandedValue.value from script and sample together would
+## still slip through undetected - recorded as a known gap in
+## evidence/p06_fixes_iter2.md rather than fixed this pass.
+##
+## EffectData has an entry below (docs/20's shared "Effect" struct is
+## written out in full), but it is inert today: none of the CONTRACTS
+## below instantiate it anywhere in their sample graphs. docs/20 says
+## Effect is "used by a status effect's Tick effect field", and Status
+## Effect Definition is a slice-only, deferred contract with no schema
+## script or sample under src/data/ yet - the entry starts being exercised
+## the day that contract is built.
+const STRUCT_REQUIRED_FIELD_MANIFEST := {
+	"ReadabilityProfile": [
+		{"docs20": "Readability profile struct (Shared fields and struct types): silhouette class.", "exports": ["silhouette_class"]},
+		{"docs20": "Readability profile struct (Shared fields and struct types): reserved colour.", "exports": ["reserved_colour"]},
+		{"docs20": "Readability profile struct (Shared fields and struct types): minimum on-screen size.", "exports": ["minimum_on_screen_size_px"]},
+	],
+	"TelegraphData": [
+		{"docs20": "Telegraph data struct (Shared fields and struct types): wind-up duration.", "exports": ["windup_duration_seconds"]},
+		{"docs20": "Telegraph data struct (Shared fields and struct types): telegraph shape.", "exports": ["telegraph_shape"]},
+		{"docs20": "Telegraph data struct (Shared fields and struct types): telegraph colour reference.", "exports": ["telegraph_colour"]},
+		{"docs20": "Telegraph data struct (Shared fields and struct types): audio cue ID.", "exports": ["audio_cue_id"]},
+		{"docs20": "Telegraph data struct (Shared fields and struct types): lead time.", "exports": ["lead_time_seconds"]},
+	],
+	"SpawnGroup": [
+		{"docs20": "Spawn group struct (Shared fields and struct types): enemy definition.", "exports": ["enemy_definition_id"]},
+		{"docs20": "Spawn group struct (Shared fields and struct types): count.", "exports": ["count"]},
+		{"docs20": "Spawn group struct (Shared fields and struct types): start offset.", "exports": ["start_offset_seconds"]},
+		{"docs20": "Spawn group struct (Shared fields and struct types): spawn interval.", "exports": ["spawn_interval_seconds"]},
+		{"docs20": "Spawn group struct (Shared fields and struct types): direction weighting override.", "exports": ["direction_weighting_override"]},
+	],
+	"MovementProfile": [
+		{"docs20": "Movement profile struct (Shared fields and struct types): speed multiplier.", "exports": ["speed_multiplier"]},
+		{"docs20": "Movement profile struct (Shared fields and struct types): body radius.", "exports": ["body_radius_px"]},
+	],
+	"AttackProfile": [
+		{"docs20": "Attack profile struct (Shared fields and struct types): attack type.", "exports": ["attack_type"]},
+		{"docs20": "Attack profile struct (Shared fields and struct types): damage per hit or tick.", "exports": ["damage_per_hit_or_tick"]},
+		{"docs20": "Attack profile struct (Shared fields and struct types): cycle or tick interval.", "exports": ["cycle_or_tick_interval_seconds"]},
+		{"docs20": "Attack profile struct (Shared fields and struct types): reach or range.", "exports": ["reach_or_range_px"]},
+	],
+	"EffectData": [
+		{"docs20": "Effect struct (Shared fields and struct types): kind.", "exports": ["kind"]},
+		{"docs20": "Effect struct (Shared fields and struct types): magnitude.", "exports": ["magnitude"]},
+		{"docs20": "Effect struct (Shared fields and struct types): target.", "exports": ["target"]},
+	], # inert today - see header note; no CONTRACTS sample instantiates EffectData yet
+	"OvertimeCondition": [
+		{"docs20": "Overtime condition struct (Shared fields and struct types): stall threshold.", "exports": ["stall_threshold"]},
+		{"docs20": "Overtime condition struct (Shared fields and struct types): finisher enemy reference.", "exports": ["finisher_enemy_id"]},
+		{"docs20": "Overtime condition struct (Shared fields and struct types): finisher spawn rate.", "exports": ["finisher_spawn_rate"]},
+		{"docs20": "Overtime condition struct (Shared fields and struct types): finisher drop override.", "exports": ["finisher_drop_override"]},
+	],
+	"FinisherSpawnRate": [
+		{"docs20": "Overtime condition struct > finisher spawn rate sub-struct (Shared fields and struct types): count.", "exports": ["count"]},
+		{"docs20": "Overtime condition struct > finisher spawn rate sub-struct (Shared fields and struct types): interval.", "exports": ["interval_seconds"]},
+	],
+	"PressureMetricConstants": [
+		{"docs20": "Pressure Metric constants struct (Shared fields and struct types): escalation threshold.", "exports": ["escalation_threshold"]},
+		{"docs20": "Pressure Metric constants struct (Shared fields and struct types): escalation hold time.", "exports": ["escalation_hold_time_seconds"]},
+		{"docs20": "Pressure Metric constants struct (Shared fields and struct types): minimum gap between escalations.", "exports": ["minimum_gap_between_escalations_seconds"]},
+		{"docs20": "Pressure Metric constants struct (Shared fields and struct types): de-escalation threshold.", "exports": ["de_escalation_threshold"]},
+		{"docs20": "Pressure Metric constants struct (Shared fields and struct types): de-escalation lift threshold.", "exports": ["de_escalation_lift_threshold"]},
+		{"docs20": "Pressure Metric constants struct (Shared fields and struct types): de-escalation expiry.", "exports": ["de_escalation_expiry_seconds"]},
+		{"docs20": "Pressure Metric constants struct (Shared fields and struct types): re-arm lockout.", "exports": ["re_arm_lockout_seconds"]},
+	],
+	"DropTable": [
+		{"docs20": "Drop table struct (Shared fields and struct types): XP shards.", "exports": ["xp_shards"]},
+		{"docs20": "Drop table struct (Shared fields and struct types): Scrap.", "exports": ["scrap"]},
+		{"docs20": "Drop table struct (Shared fields and struct types): Cores.", "exports": ["cores"]},
+	],
+	"Reward": [
+		{"docs20": "Reward struct (Shared fields and struct types): XP.", "exports": ["xp"]},
+		{"docs20": "Reward struct (Shared fields and struct types): Scrap.", "exports": ["scrap"]},
+		{"docs20": "Reward struct (Shared fields and struct types): Cores.", "exports": ["cores"]},
+	],
+	"IntentBudgetOverride": [
+		{"docs20": "Encounter Definition Contract fields > Intent budget overrides entry: target intent.", "exports": ["target_intent"]},
+		{"docs20": "Encounter Definition Contract fields > Intent budget overrides entry: count.", "exports": ["count"]},
+	],
+	"EnemyIntentMixEntry": [
+		{"docs20": "Wave Definition Contract fields > Enemy intent mix entry: target intent.", "exports": ["target_intent"]},
+		{"docs20": "Wave Definition Contract fields > Enemy intent mix entry: proportion.", "exports": ["proportion"]},
+	],
+	"MaxHealthAndShieldFraction": [
+		{"docs20": "Tower Definition Contract fields > Maximum health and base shield fraction struct: maximum health.", "exports": ["maximum_health"]},
+		{"docs20": "Tower Definition Contract fields > Maximum health and base shield fraction struct: base shield fraction.", "exports": ["base_shield_fraction"]},
+	],
+	"ShieldRegeneration": [
+		{"docs20": "Tower Definition Contract fields > Shield regeneration rate and delay struct: rate.", "exports": ["rate_percent_per_second"]},
+		{"docs20": "Tower Definition Contract fields > Shield regeneration rate and delay struct: delay.", "exports": ["delay_seconds"]},
+	],
+	"TowerFootprint": [
+		{"docs20": "Tower Definition Contract fields > Footprint radius and Interaction Radius struct: footprint radius.", "exports": ["footprint_radius_px"]},
+		{"docs20": "Tower Definition Contract fields > Footprint radius and Interaction Radius struct: Interaction Radius.", "exports": ["interaction_radius_px"]},
+	],
+	"TargetingRuleParameters": [
+		{"docs20": "Tower Definition Contract fields > Targeting rule parameters struct: range.", "exports": ["range_px"]},
+		{"docs20": "Tower Definition Contract fields > Targeting rule parameters struct: intent preference.", "exports": ["intent_preference"]},
+	],
+	"RepairPrice": [
+		{"docs20": "Tower Definition Contract fields > Repair price struct: Scrap cost.", "exports": ["scrap_cost"]},
+		{"docs20": "Tower Definition Contract fields > Repair price struct: health restored.", "exports": ["health_restored"]},
+		{"docs20": "Tower Definition Contract fields > Repair price struct: pro-ration rule.", "exports": ["pro_ration_rule"]},
+	],
+	"PersistentAssetRule": [
+		{"docs20": "Tower Definition Contract fields > Persistent asset rules entry: asset class.", "exports": ["asset_class"]},
+		{"docs20": "Tower Definition Contract fields > Persistent asset rules entry: persists across biomes.", "exports": ["persists_across_biomes"]},
+	],
+	"EngagementRhythm": [
+		{"docs20": "Weapon and Evolution Definition Contract fields > Engagement rhythm and fire rate struct: rhythm.", "exports": ["rhythm"]},
+		{"docs20": "Weapon and Evolution Definition Contract fields > Engagement rhythm and fire rate struct: fire rate.", "exports": ["fire_rate_per_second"]},
+	],
+	"ProjectileDefinition": [
+		{"docs20": "Weapon and Evolution Definition Contract fields > Projectile definition struct: speed.", "exports": ["speed_px_per_second"]},
+		{"docs20": "Weapon and Evolution Definition Contract fields > Projectile definition struct: lifetime.", "exports": ["lifetime_seconds"]},
+		{"docs20": "Weapon and Evolution Definition Contract fields > Projectile definition struct: pooling class.", "exports": ["pooling_class"]},
+	],
+	"WeaponEvolutionRequirement": [
+		{"docs20": "Weapon and Evolution Definition Contract fields > Evolution prerequisites and the evolution target struct: prerequisites.", "exports": ["prerequisites"]},
+		{"docs20": "Weapon and Evolution Definition Contract fields > Evolution prerequisites and the evolution target struct: evolution target.", "exports": ["evolution_target_id"]},
+	],
+	"MergeRule": [
+		{"docs20": "Pickup Definition Contract fields > Merge rule struct: trigger.", "exports": ["trigger"]},
+		{"docs20": "Pickup Definition Contract fields > Merge rule struct: same type only.", "exports": ["same_type_only"]},
+		{"docs20": "Pickup Definition Contract fields > Merge rule struct: match radius (reference to Economy Configuration's Merge radius field; derived, not authored - see merge_rule.gd).", "method": "get_match_radius_px"},
+		{"docs20": "Pickup Definition Contract fields > Merge rule struct: resulting behaviour.", "exports": ["resulting_behaviour"]},
+	],
+	"VisualAudioCue": [
+		{"docs20": "Pickup Definition Contract fields > Visual and audio cue struct: sprite reference.", "exports": ["sprite_reference"]},
+		{"docs20": "Pickup Definition Contract fields > Visual and audio cue struct: audio cue ID.", "exports": ["audio_cue_id"]},
+	],
+	"InputBufferDuration": [
+		{"docs20": "Player Definition Contract fields > Input buffer duration struct: duration.", "exports": ["duration_ms"]},
+		{"docs20": "Player Definition Contract fields > Input buffer duration struct: ticks.", "exports": ["ticks"]},
+	],
+	"SpawnRingGeometry": [
+		{"docs20": "Director Configuration Contract fields > Spawn ring geometry struct: Tower ring.", "exports": ["tower_ring"]},
+		{"docs20": "Director Configuration Contract fields > Spawn ring geometry struct: view ring.", "exports": ["view_ring"]},
+	],
+	"RingDefinition": [
+		{"docs20": "Director Configuration Contract fields > Spawn ring geometry > Tower ring / view ring sub-struct: inner radius.", "exports": ["inner_radius_px"]},
+		{"docs20": "Director Configuration Contract fields > Spawn ring geometry > Tower ring / view ring sub-struct: width.", "exports": ["width_px"]},
+	],
+	"SpawnValidationRetry": [
+		{"docs20": "Director Configuration Contract fields > Spawn validation retry steps and angle increment struct: steps.", "exports": ["steps"]},
+		{"docs20": "Director Configuration Contract fields > Spawn validation retry steps and angle increment struct: angle.", "exports": ["angle_degrees"]},
+	],
+	"MarkerLeadTimes": [
+		{"docs20": "Director Configuration Contract fields > Off-screen and on-screen marker lead times struct: off-screen.", "exports": ["off_screen_seconds"]},
+		{"docs20": "Director Configuration Contract fields > Off-screen and on-screen marker lead times struct: on-screen minimum.", "exports": ["on_screen_minimum_seconds"]},
+	],
+	"DirectionalWeightingEntry": [
+		{"docs20": "Director Configuration Contract fields > Directional weighting rules per encounter type: encounter type (the key).", "exports": ["encounter_type"]},
+		{"docs20": "Director Configuration Contract fields > Directional weighting rules per encounter type: lane count.", "exports": ["lane_count"]},
+		{"docs20": "Director Configuration Contract fields > Directional weighting rules per encounter type: lane width.", "exports": ["lane_width_degrees"]},
+		{"docs20": "Director Configuration Contract fields > Directional weighting rules per encounter type: lane separation rule.", "exports": ["lane_separation_rule"]},
+		{"docs20": "Director Configuration Contract fields > Directional weighting rules per encounter type: heavy share.", "exports": ["heavy_share"]},
+		{"docs20": "Director Configuration Contract fields > Directional weighting rules per encounter type: ring.", "exports": ["ring"]},
+		{"docs20": "Director Configuration Contract fields > Directional weighting rules per encounter type: hunt arc.", "exports": ["hunt_arc_degrees"]},
+		{"docs20": "Director Configuration Contract fields > Directional weighting rules per encounter type: hunt arc share.", "exports": ["hunt_arc_share"]},
+	],
+	"EncounterPriorityEntry": [
+		{"docs20": "Director Configuration Contract fields > Encounter priority table entry: encounter type.", "exports": ["encounter_type"]},
+		{"docs20": "Director Configuration Contract fields > Encounter priority table entry: priority.", "exports": ["priority"]},
+	],
+	"RecoveryGapEntry": [
+		{"docs20": "Director Configuration Contract fields > Default recovery gap table entry: encounter type.", "exports": ["encounter_type"]},
+		{"docs20": "Director Configuration Contract fields > Default recovery gap table entry: recovery gap.", "exports": ["recovery_gap_seconds"]},
+	],
+	"InterWaveGapDefaults": [
+		{"docs20": "Director Configuration Contract fields > Inter-wave gap defaults struct: standard.", "exports": ["standard_seconds"]},
+		{"docs20": "Director Configuration Contract fields > Inter-wave gap defaults struct: teaching-wave.", "exports": ["teaching_wave_seconds"]},
+	],
+	"PressureIntentWeightEntry": [
+		{"docs20": "Director Configuration Contract fields > Pressure Metric intent weights entry: target intent.", "exports": ["target_intent"]},
+		{"docs20": "Director Configuration Contract fields > Pressure Metric intent weights entry: weight.", "exports": ["weight"]},
+	],
+	"OffscreenUpdateThresholds": [
+		{"docs20": "Director Configuration Contract fields > Off-screen update reduction thresholds struct: distance multiplier.", "exports": ["distance_multiplier"]},
+		{"docs20": "Director Configuration Contract fields > Off-screen update reduction thresholds struct: tick divisor.", "exports": ["tick_divisor"]},
+		{"docs20": "Director Configuration Contract fields > Off-screen update reduction thresholds struct: Tower exclusion radius.", "exports": ["tower_exclusion_radius_px"]},
+	],
+	"SiegeVolumeConstants": [
+		{"docs20": "Director Configuration Contract fields > Siege volume formula constants struct: multiplier defaults.", "exports": ["multiplier_defaults"]},
+		{"docs20": "Director Configuration Contract fields > Siege volume formula constants struct: Hunter percentage.", "exports": ["hunter_percentage"]},
+		{"docs20": "Director Configuration Contract fields > Siege volume formula constants struct: spawn window.", "exports": ["spawn_window_fraction"]},
+	],
+	"XpLevelCost": [
+		{"docs20": "Economy Configuration Contract fields > XP shard value and level cost formula struct: shard value.", "exports": ["shard_value"]},
+		{"docs20": "Economy Configuration Contract fields > XP shard value and level cost formula struct: base cost.", "exports": ["base_cost"]},
+		{"docs20": "Economy Configuration Contract fields > XP shard value and level cost formula struct: per-level increment.", "exports": ["per_level_increment"]},
+	],
+	"HopperConversionRule": [
+		{"docs20": "Economy Configuration Contract fields > Hopper-to-Core conversion rate and trigger struct: rate.", "exports": ["rate_scrap_per_core"]},
+		{"docs20": "Economy Configuration Contract fields > Hopper-to-Core conversion rate and trigger struct: trigger.", "exports": ["trigger"]},
+	],
+	"RunEndSettlementRates": [
+		{"docs20": "Economy Configuration Contract fields > Run-End Settlement rates struct: per biome cleared.", "exports": ["per_biome_cleared_cores"]},
+		{"docs20": "Economy Configuration Contract fields > Run-End Settlement rates struct: per boss killed.", "exports": ["per_boss_killed_cores"]},
+		{"docs20": "Economy Configuration Contract fields > Run-End Settlement rates struct: per full minute.", "exports": ["per_full_minute_cores"]},
+	],
+	"ConsolePriceFormula": [
+		{"docs20": "Economy Configuration Contract fields > Upgrade Console price formula struct: Scrap per rank.", "exports": ["scrap_per_rank"]},
+		{"docs20": "Economy Configuration Contract fields > Upgrade Console price formula struct: formula (price = Scrap-per-rank x rank being bought; derived, not authored - see console_price_formula.gd).", "method": "compute_price"},
+	],
+	"DominanceAuditParameters": [
+		{"docs20": "Economy Configuration Contract fields > Dominance audit threshold and sample size struct: threshold.", "exports": ["threshold_fraction"]},
+		{"docs20": "Economy Configuration Contract fields > Dominance audit threshold and sample size struct: minimum runs.", "exports": ["minimum_runs"]},
+	],
+}
+
 ## Contract manifest: display name -> {script, sample}.
 const CONTRACTS := [
 	{"name": "Enemy Definition", "script": "res://src/data/enemy_definition.gd", "sample": "res://src/data/samples/enemy_definition_sample.tres"},
@@ -382,6 +675,36 @@ func _check_required_field_manifest(contract_name: String, instance: Object) -> 
 				if not declared.has(export_name):
 					_fail("%s: MASTER field \"%s\" has no matching @export \"%s\" on the schema (REQUIRED_FIELD_MANIFEST)" % [contract_name, master_text, export_name])
 
+## Struct-level counterpart of _check_required_field_manifest() above, driven
+## by STRUCT_REQUIRED_FIELD_MANIFEST instead of REQUIRED_FIELD_MANIFEST (P0.6
+## review iteration 2 follow-up). Called from _validate_resource() for every
+## Resource instance the recursive walk visits, keyed by that instance's own
+## class name; a no-op whenever class_name_str has no entry (most visited
+## classes - including every contract root - are not mapped structs, see
+## STRUCT_REQUIRED_FIELD_MANIFEST's header for which classes are and are not
+## keys and why). Appends into the caller's failures array (the same
+## per-contract local_failures list _validate_resource already threads
+## through) rather than calling _fail() directly, so a struct-manifest
+## failure is counted against the same contract _check_contract() is
+## currently validating.
+func _check_struct_required_fields(class_name_str: String, instance: Object, path_prefix: String, failures: Array[String]) -> void:
+	if not STRUCT_REQUIRED_FIELD_MANIFEST.has(class_name_str):
+		return
+	var declared: Dictionary = {}
+	for prop in _exported_properties(instance):
+		declared[prop["name"]] = true
+	var manifest: Array = STRUCT_REQUIRED_FIELD_MANIFEST[class_name_str]
+	for field in manifest:
+		var docs20_text: String = field["docs20"]
+		if field.has("method"):
+			var method_name: String = field["method"]
+			if not instance.has_method(method_name):
+				failures.append("%s (%s): docs/20 field \"%s\" (derived) has no method %s() on the struct" % [path_prefix, class_name_str, docs20_text, method_name])
+		else:
+			for export_name in field["exports"]:
+				if not declared.has(export_name):
+					failures.append("%s (%s): docs/20 field \"%s\" has no matching @export \"%s\" on the struct (STRUCT_REQUIRED_FIELD_MANIFEST)" % [path_prefix, class_name_str, docs20_text, export_name])
+
 ## Recursively validates one Resource instance against a freshly constructed
 ## default of the same class. path_prefix is the dotted path from the
 ## contract root, used only for readable failure messages. visited guards
@@ -405,6 +728,13 @@ func _validate_resource(sample_obj: Resource, path_prefix: String, failures: Arr
 	var class_name_str: String = str(script.get_global_name())
 	if class_name_str == "":
 		failures.append("%s: script has no class_name (cannot key exception/domain tables)" % path_prefix)
+
+	# Struct-level required-field manifest (P0.6 review iteration 2 follow-up,
+	# R1 extended one level down) - independent of the per-property walk
+	# below, the same relationship REQUIRED_FIELD_MANIFEST has to it at the
+	# contract level. A no-op when class_name_str has no entry in
+	# STRUCT_REQUIRED_FIELD_MANIFEST.
+	_check_struct_required_fields(class_name_str, sample_obj, path_prefix, failures)
 
 	for prop in _exported_properties(sample_obj):
 		var pname: String = prop["name"]

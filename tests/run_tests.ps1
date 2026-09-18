@@ -61,10 +61,10 @@
     loudly instead of going green.
 
 .EXAMPLE
-    pwsh -File tests/run_tests.ps1
+    powershell -NoProfile -File tests/run_tests.ps1
 
 .EXAMPLE
-    pwsh -File tests/run_tests.ps1 -TestPath res://tests/harness/fail
+    powershell -NoProfile -File tests/run_tests.ps1 -TestPath res://tests/harness/fail
 #>
 
 param(
@@ -77,8 +77,16 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 # --- Guard 1: the executable must exist. ----------------------------------
 # Without this, `& $GodotPath` fails non-terminatingly and leaves a stale
 # $LASTEXITCODE behind for the guards below to misread as success.
-if (-not (Test-Path -LiteralPath $GodotPath -PathType Leaf)) {
+if ([string]::IsNullOrWhiteSpace($GodotPath) -or -not (Test-Path -LiteralPath $GodotPath -PathType Leaf)) {
     Write-Host "NOT A USABLE RUN: Godot executable not found at '$GodotPath'. Pass -GodotPath, or install the pinned 4.7.1 console build." -ForegroundColor Red
+    exit 1
+}
+
+# --- Guard 1b: the test path must be a res:// path. ------------------------
+# An empty -TestPath makes gdUnit4 exit 100, which the switch below would
+# otherwise report as "an assertion failed" - the wrong cause entirely.
+if ([string]::IsNullOrWhiteSpace($TestPath) -or -not $TestPath.StartsWith("res://")) {
+    Write-Host "NOT A USABLE RUN: -TestPath must be a res:// path inside this project; got '$TestPath'." -ForegroundColor Red
     exit 1
 }
 
@@ -124,14 +132,32 @@ if ($null -eq $testExit) {
 }
 
 # --- Guard 3: a run that executed nothing is not a pass. ------------------
-# gdUnit4 exits 0 here, so this check must come BEFORE the exit-code switch.
-if ($suiteOutput -match "No test cases found") {
-    Write-Host "NOT A USABLE RUN: gdUnit4 found no test cases under '$TestPath' and exited $testExit. Zero tests executed is never a pass - check the path for a typo." -ForegroundColor Red
+# gdUnit4 exits 0 when it finds no test cases, so this must run BEFORE the
+# exit-code switch. It is deliberately written as a POSITIVE assertion: the run
+# is trusted only if gdUnit4 actually reported executing at least one test case.
+#
+# An earlier version matched negatively on "No test cases found" in stdout, and
+# a reviewer showed that fails OPEN: whenever stdout is not captured - an
+# unwritable TEMP, or a -GodotPath pointing at some other program that exits 0
+# quietly - the marker is absent, $testExit is 0, and the script reported PASS
+# for a run that executed nothing. Requiring the anchor inverts that: if the
+# output is missing for ANY reason, the run is not trusted.
+$executed = $null
+if ($suiteOutput -match 'Executed test cases\s*:\s*\((\d+)\s*/\s*(\d+)\)') {
+    $executed = [int]$Matches[1]
+}
+
+if ($null -eq $executed) {
+    Write-Host "NOT A USABLE RUN: gdUnit4's 'Executed test cases' summary was not found in the suite output, so there is no evidence any test ran (reported exit $testExit). This is what a lost stdout, an unwritable TEMP directory, or a -GodotPath pointing at something other than Godot looks like." -ForegroundColor Red
+    exit 1
+}
+if ($executed -lt 1) {
+    Write-Host "NOT A USABLE RUN: gdUnit4 executed 0 test cases under '$TestPath' and exited $testExit. Zero tests executed is never a pass - check the path for a typo." -ForegroundColor Red
     exit 1
 }
 
 switch ($testExit) {
-    0   { Write-Host "PASS (exit 0): the suite ran and every test under $TestPath passed." -ForegroundColor Green; exit 0 }
+    0   { Write-Host "PASS (exit 0): $executed test case(s) executed under $TestPath, all passed." -ForegroundColor Green; exit 0 }
     100 { Write-Host "FAIL (exit 100): the suite ran; at least one assertion failed under $TestPath." -ForegroundColor Red; exit 100 }
     103 { Write-Host "MISCONFIGURED (exit 103): gdUnit4 refused to run headless. This script always passes --ignoreHeadlessMode, so the invocation above must have been changed or bypassed." -ForegroundColor Yellow; exit 103 }
     1   { Write-Host "NOT A USABLE RUN (exit 1): gdUnit4 failed to load. On a fresh checkout this means the import pass has not built the script-class cache - reproduced in Phase 01 as 'Parse Error: Could not find type GdUnitTestCIRunner'. This script runs the import pass first, so seeing it here means the import silently did not take effect." -ForegroundColor Yellow; exit 1 }

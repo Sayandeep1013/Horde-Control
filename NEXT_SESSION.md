@@ -1,6 +1,6 @@
 # Next Session — Start Here
 
-**State on 2026-09-18.** Phase 00 (Environment & Connection) is built and reviewed. Phase 01 is next. Read `phases/README.md` for the 20-phase table, then this file.
+**State on 2026-09-18.** Phase 00 is built and reviewed. **Phase 01 (Contracts, Core Documents, Harness) has been built and taken through two review-gate iterations** - P0.4, P0.6 and P0.7 are implemented, and iteration 2 scored P0.4 7/10, P0.6 9/10, P0.7 7/10 and phase execution 7/10. Its closure is the designer's decision under the Gate Approval rule, as Phase 00's still is. Read `phases/README.md` for the 20-phase table, then this file, then `phases/PHASE_01_Contracts_Docs_Harness/REVIEW.md` for what the four reviewers found.
 
 ---
 
@@ -104,6 +104,22 @@ Commit documentation and implementation together, and push to origin/main.
 ---
 
 ## What needs the author, and when
+
+### Open from Phase 01, with nothing blocked on them
+
+These are the ledger rows whose owner is the author. None blocks Phase 02; each is a judgement that is not an agent's to make. Full text in `phases/PHASE_01_Contracts_Docs_Harness/LEDGER.md`.
+
+| Ledger row | The question | Why it is yours |
+| --- | --- | --- |
+| F01-02 | The `ask` permission gate does not intercept a subagent. `deny` is the only setting that does, and you declined it twice (D81, D84) to keep the export path. **Untested option**: a PreToolUse hook runs in the harness rather than the permission layer and might gate the two tools for subagents. Nobody has tried it | It changes the tooling configuration, and this project's own rule is to prove a tooling change before applying it |
+| F01-06 | The moment-to-moment loop scale is the only one of four with no Provisional Values Register row. Add a row, or state that it is a reference frame the way Session Shape's ranges are | Either answer changes what the Register contains |
+| F01-32 | The Schema check does not compare field types against document 20 - only that required fields exist and are populated. Build the type check, narrow the risk row's wording to match what the check does, or defer it with an owner | The phase's own top predetermined risk lists the Schema check as a type-mismatch detector, so this decides whether that row is accurate |
+| F01-33 | `console_price_per_rank` is authored independently of the Economy Configuration's price formula that document 20 says it resolves from. Weaker than the merge-radius case that was fixed, and no drift is demonstrated | It is a contract-shape question, not a defect |
+| F01-21 | No document under `docs/` has a Change Log section at all, so D86's "a Change Log row" was satisfied in the master instead. Should working documents carry their own Change Logs? | It sets a convention for all 31 documents |
+
+### Still open from before Phase 01
+
+
 
 - **Now, if you want it closed:** the Change Log row recording Phase 00's gate. Only the designer writes it; an agent may propose the text but must never write it into the Change Log. Proposed wording is in the Phase 00 execution log.
 - **Phase 03 (P2.7):** the feel check. You play it with hand-placed enemies and record go or adjust. This cannot be delegated — it is the point of the prototype.

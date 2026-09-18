@@ -21,6 +21,27 @@ Every one of the four reviewers went beyond its brief in a way that changed the 
 
 Two of the eight Majors are against the orchestrator rather than any implementer (F01-10, F01-11), and a third (F01-19) falsified reasoning the orchestrator had written into the ledger. That is recorded here so a later reader does not attribute them to the implementers.
 
+## Iteration 2 - re-review
+
+The same four reviewers' roles were re-run against the fixed artifacts, at the pace D83 fixes. Each was given its predecessor's report as the standard to check against, and told to verify by doing rather than by reading.
+
+| Plan ID | Score /10 | Change | Findings | Reasons |
+| --- | --- | --- | --- | --- |
+| P0.4 | 7 | = | 1 Major carried (F01-12 half-closed), 1 Major newly introduced by a fix (F01-29), 3 Minor (F01-30) | Same number, different composition. The quality moved up - D91 and D88 both hold, and the reviewer judged the circularity fix "removed, not relocated" - but a fix aimed at numbers-rule fidelity broke a citation, in a phase whose strongest single result had been that all 20 citations resolved. The carried half was the enforcement mapping, which no decision row covered and one leg of which the master does not support |
+| P0.6 | 9 | +1 | 4 Minor, 3 observations, no Major | Both Majors closed and verified by execution rather than reading. The manifest was falsified on four contract fields nobody had used and on the one derived field; the merge-radius fix was proved by running the resolution, including under the Fallback-Ladder escalation it had previously been beyond reach of. Held below 10 by two residuals of the same Major one level down: the manifest stops at the contract level, and the type-comparison half was never addressed under a row that read "fixed" |
+| P0.7 | 7 | +1 | 1 Major (F01-36), 4 Minor | Thirteen of fifteen attacks survived, but the zero-test guard added this iteration was written in the negative form when iteration 1 had prescribed the positive one, and it fails open whenever stdout is lost. The reviewer also ran `runtest.cmd` rather than reading it and proved a docs/28 claim exactly backwards - the third recurrence in this phase of the rule about untested causes |
+| Phase | 7 | -1 | 1 Major (F01-41), 6 Minor | A drop against better artifacts, and the reviewer's reason is the finding: a 9-quality artifact set held down by a 5-quality gate process. Every one of the eleven claims it tested reproduced, including the Provisional Values Register being genuinely untouched. What pulled it down is that loop rule (c) was broken continuously while it reviewed - five edits landed in the live tree, one gave it a false failure, and no reviewer was told - and that three of the phase's newest LESSONS rows were violated during the gate that wrote them |
+
+### What iteration 2 established
+
+Two things are worth separating, because the scores blur them.
+
+**The artifacts held up.** Across both iterations the reviewers found zero missing and zero unrequired contract fields, all 28 enums exact, no shared struct typed twice, all four harness exit codes reproducible, the export pack clean against every excluded path, the gdUnit4 hash reproducing character for character across four clones at different line-ending settings, and the Provisional Values Register untouched. Every factual claim the phase recorded was tested by some reviewer, and all but one reproduced; the exception was corrected in place with the original left legible.
+
+**The process did not.** Every Major raised at iteration 2 was against the orchestrator rather than an implementer: a guard written in the weaker of two forms after the stronger had been specified, a citation broken while fixing citations, a finding read as one claim when it was two, and a review gate conducted over a moving tree. Counting both iterations, **nine of the sixteen Majors were caused by the orchestrator**: F01-10 a delegation scope that contradicted a decision taken minutes earlier; F01-11 a rule invented in a prompt and then cited as if it were project policy; F01-19 a cause written into the ledger without an experiment; F01-24 a gate requirement simply not done; F01-25 a ledger whose Status column did not exist; F01-29 a citation broken while fixing citations; F01-36 a guard written in the weaker of two forms after the stronger had been specified; F01-41 a review gate run over a moving tree; and F01-47 an integrity check that could not fail. The remaining seven are implementer defects or inherited environment. That count was itself first written as "ten" from a keyword search that confused rows the orchestrator *fixed* with rows it *caused*, and corrected by listing them. The implementers' work has been more reliable than the supervision of it, which is the argument for a blind gate rather than against one.
+
+The sharpest single observation came from the phase reviewer: a lesson in this project is reliably applied to the artifact it was learned on and reliably **not** generalised one artifact over. Iteration 1 found that pattern in P0.7 - falsification applied thoroughly to the schema check and not at all to the script consuming its exit codes. Iteration 2 found the same pattern one level up, in the gate itself. That observation is now in LESSONS.md as a caution about how to read LESSONS.md.
+
 ## Iteration 2 - fixes applied
 
 Every Major from iteration 1 is now fixed or deferred with an owner, and the Minors are fixed, recorded, or routed. The substantive changes:
@@ -34,6 +55,10 @@ Every Major from iteration 1 is now fixed or deferred with an owner, and the Min
 - **F01-24** the "Phase 0 accepted" row is deliberately not proposed, and the reason is now on the record.
 - **F01-02** deferred with the author as owner: there is no fix available from this project's side, and the author has twice decided against the only control that works.
 
+Iteration 2's own findings were then fixed in turn: the runner's guard rewritten in the positive form and falsified against both fail-open reproductions; the broken citation corrected; D92 and D93 recorded with the master raised to 0.8.5; the author-owned rows carried into `NEXT_SESSION.md`; F01-02's absolute negative claim replaced with what is established plus the untested option it had dismissed; and the README row stopped assessing the phase's own gate.
+
+One further finding was raised by the orchestrator against itself and is recorded as F01-47: the ledger-integrity check it had been running, and twice reported to the author as evidence the bar was clear, tested the wrong column and could not have failed. Rewritten to derive its column positions from the header, and falsified against a planted open Major before being believed.
+
 **This document does not assert that the bar is met.** Loop rule (d) requires a re-review after fixes, and the artefacts changed substantially: the Schema check, the runner script, the ledger, four documents, CLAUDE.md and the master. A re-review is the next step, and the sweep for superseded wording that loop rule (d) requires before it has been run.
 
 One process finding applies to that re-review. F01-27 records that implementation continued after iteration 1's gate was convened, so its reviewers were briefed on a tree that then moved under them. Iteration 2's changes were all made after every iteration 1 reviewer had reported.
@@ -45,4 +70,4 @@ One process finding applies to that re-review. F01-27 records that implementatio
 - No open Blocker or Major finding in LEDGER.md.
 - Every exit test in PLAN.md > Exit criteria and acceptance tests passing.
 
-Three failed iterations stop the loop and bring the author the ledger summary and a diagnosis, per phases/README.md loop rule (d). Iteration 1 is the only completed iteration so far.
+Three failed iterations stop the loop and bring the author the ledger summary and a diagnosis, per phases/README.md loop rule (d). Two iterations are complete. A third would be the last before loop rule (d) requires stopping and bringing the author a ledger summary and a diagnosis instead of looping further.
