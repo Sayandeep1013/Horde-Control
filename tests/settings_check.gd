@@ -22,8 +22,11 @@ extends SceneTree
 ##    meta) plus its deadzone, not merely that some binding exists
 ##    (docs/19 > Input Map, plus the F1/F2 debug toggles);
 ## 6. the EXACT SET of autoload/* keys ProjectSettings actually carries --
-##    only autoload/BootCheck, nothing else -- and that it points at
-##    res://src/core/boot_check.gd;
+##    only autoload/BootCheck, autoload/SimClock, autoload/PauseAuthority,
+##    nothing else -- and that EVERY one of them points at its expected
+##    script (docs/20 > Version for BootCheck; MASTER_SDLC.md > Global
+##    Simulation Authority for SimClock and PauseAuthority; P1.1 deliverable
+##    paths);
 ## 7. the pinned 4.7.1 export templates are present.
 ## Exits 0 on pass, 1 on failure, so it can gate CI.
 
@@ -79,10 +82,12 @@ const BUILTIN_UI_ACTIONS := [
 	"ui_undo", "ui_unicode_start", "ui_up",
 ]
 
-# The only autoload this project defines (docs/20 > Godot 4.x Implementation
-# Standards). Unlike input/*, ProjectSettings carries no engine-reserved
-# autoload/* keys, so this set is asserted with no allowance list.
-const AUTOLOADS := ["BootCheck"]
+# The only autoloads this project defines (docs/20 > Godot 4.x
+# Implementation Standards; MASTER_SDLC.md > Global Simulation Authority for
+# SimClock and PauseAuthority, added at P1.1). Unlike input/*, ProjectSettings
+# carries no engine-reserved autoload/* keys, so this set is asserted with no
+# allowance list.
+const AUTOLOADS := ["BootCheck", "SimClock", "PauseAuthority"]
 
 # Project Settings (pinned) (docs/20). "default" is the Godot 4.7.1 engine
 # default, used only as a get_setting() fallback; "expected" is the pinned
@@ -99,7 +104,18 @@ const PINNED_SETTINGS := [
 	{"key": "display/window/vsync/vsync_mode", "default": 1, "expected": 1},
 ]
 
-const BOOTCHECK_PATH := "res://src/core/boot_check.gd"
+# Every autoload's expected res:// script path, checked by exact equality
+# per autoload -- not merely that SOME path is set -- so a name that
+# resolves to the wrong script still fails even though the exact-set check
+# above saw the right NAME present. This is an independent manifest
+# transcribed from the owning documents, not read back from the autoloads
+# themselves (Phase 02 carried lesson 2: a validator that derives its
+# expectations from the thing it validates cannot detect an omission).
+const AUTOLOAD_PATHS := {
+	"BootCheck": "res://src/core/boot_check.gd",
+	"SimClock": "res://src/core/sim_clock.gd",
+	"PauseAuthority": "res://src/core/pause_authority.gd",
+}
 
 # The project's recorded entry scene (Phase 00 P0.2 execution log, which
 # records what was created to satisfy docs/20's project-skeleton pin); the
@@ -297,21 +313,28 @@ func _init() -> void:
 			_fail("%s events are %s, docs/19 expects %s" % [action_name, str(got_sigs), str(expected_sigs)])
 
 	# 6. autoload: the EXACT SET of autoload/* keys ProjectSettings carries
-	# -- only BootCheck, nothing else -- so a rogue extra autoload is caught
-	# even though this script never named it, then BootCheck's target path.
+	# -- only the entries in AUTOLOADS, nothing else -- so a rogue extra
+	# autoload is caught even though this script never named it, then EVERY
+	# expected autoload's target path (not just one), since a name that
+	# resolves to the wrong script is as broken as a missing autoload and
+	# the exact-set check alone would not catch it.
 	var actual_autoload_names := _keys_with_prefix("autoload/")
 	var autoload_diff := _extra_and_missing(actual_autoload_names, AUTOLOADS, AUTOLOADS)
 	if not (autoload_diff["extra"] as Array).is_empty():
 		_fail("unexpected autoload/* entry(ies) present: %s" % str(autoload_diff["extra"]))
 	if not (autoload_diff["missing"] as Array).is_empty():
 		_fail("expected autoload/* entry(ies) missing: %s" % str(autoload_diff["missing"]))
-	if (actual_autoload_names as Array).has("BootCheck"):
-		var raw_autoload: String = str(ProjectSettings.get_setting("autoload/BootCheck", ""))
+	for autoload_name in AUTOLOADS:
+		var name_str: String = str(autoload_name)
+		if not (actual_autoload_names as Array).has(name_str):
+			continue # already reported as missing above
+		var expected_path: String = str(AUTOLOAD_PATHS.get(name_str, ""))
+		var raw_autoload: String = str(ProjectSettings.get_setting("autoload/" + name_str, ""))
 		var autoload_path := raw_autoload.trim_prefix("*")
-		if autoload_path != BOOTCHECK_PATH:
-			_fail("autoload/BootCheck points at '%s', expected '%s'" % [autoload_path, BOOTCHECK_PATH])
-		elif not FileAccess.file_exists(BOOTCHECK_PATH):
-			_fail("autoload/BootCheck points at %s but no such file exists on disk, so the autoload cannot load and the 4.7.1 boot assertion never runs" % BOOTCHECK_PATH)
+		if autoload_path != expected_path:
+			_fail("autoload/%s points at '%s', expected '%s'" % [name_str, autoload_path, expected_path])
+		elif not FileAccess.file_exists(expected_path):
+			_fail("autoload/%s points at %s but no such file exists on disk, so the autoload cannot load" % [name_str, expected_path])
 
 	# 7. Pinned 4.7.1 export templates present.
 	var tpl := OS.get_data_dir().path_join("Godot/export_templates/4.7.1.stable/version.txt")

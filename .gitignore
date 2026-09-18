@@ -29,7 +29,16 @@ sandbox/
 # Locally built, commit-pinned MCP servers (E0.1/P0.5). Tooling, not project
 # source: node_modules and compiled output, rebuilt from the pinned commits
 # recorded in docs/28. Never committed.
-tools/
+#
+# Narrowed from `tools/` to `tools/mcp/` in Phase 02 (LEDGER F02-05). The broad
+# rule matched this comment's intent but not its wording: it also swallowed
+# `tools/checks/`, where the P1.1 banned-API check lives, so a required build
+# check could never be committed - and it swallowed `tools/.gdignore`, the file
+# that keeps the servers out of an exported build, which docs/28 then had to
+# describe as something recreated by hand after every rebuild. Both are now
+# committed. `sandbox/` stays fully ignored, so `sandbox/.gdignore` is still a
+# manual step.
+tools/mcp/
 
 # Local permission overrides. .claude/settings.json IS versioned, but its
 # *.local.* sibling carries machine-specific permission grants and must never be

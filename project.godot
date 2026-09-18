@@ -191,3 +191,5 @@ debug_pseudoloc_toggle={
 [autoload]
 
 BootCheck="*res://src/core/boot_check.gd"
+SimClock="*res://src/core/sim_clock.gd"
+PauseAuthority="*res://src/core/pause_authority.gd"
