@@ -169,6 +169,40 @@ func deregister_entity(entity: Node2D) -> bool:
 	return true
 
 
+## Slots whose entity was freed without being deregistered. Collected during a
+## query and released after it, because the grid cannot be mutated while it is
+## being iterated.
+var _dangling: PackedInt32Array = PackedInt32Array()
+
+
+## Releases slots whose entity reference has been freed.
+##
+## Phase 02 LEDGER F02-15. A registered entity that is freed without
+## `deregister_entity()` leaves a dangling reference in `_slot_entity`.
+## Appending that reference to a typed `Array[Node2D]` makes Godot emit
+## "Attempted to push_back an invalid (previously freed?) object instance" -
+## an engine-level error that gdUnit4 does NOT count as a test error, so a
+## suite reporting "172 tests, 0 errors, exit 0" was emitting thirty of them.
+##
+## Freeing without deregistering is a caller bug, but the registry is queried
+## by Tower targeting, weapon auto-targeting, the magnet and the Pressure
+## Metric - every tick, from several systems - so it self-heals rather than
+## propagating one caller's mistake into a query result or an engine error.
+func _reap_dangling() -> void:
+	if _dangling.is_empty():
+		return
+	for slot in _dangling:
+		var stale: Variant = _slot_entity[slot]
+		_remove_from_grid(slot, _slot_position[slot])
+		if stale != null:
+			_entity_to_slot.erase(stale)
+		_slot_entity[slot] = null
+		_slot_tag_mask[slot] = 0
+		_slot_alive[slot] = 0
+		_free_slots.append(slot)
+	_dangling.clear()
+
+
 ## Typed command. Moves a registered entity's tracked position, updating the
 ## spatial grid incrementally (remove from the old cell, add to the new
 ## one). Refuses an unregistered entity.
@@ -245,7 +279,12 @@ func get_entities_in_radius(origin: Vector2, radius: float, tag: StringName = &"
 					continue
 				var pos: Vector2 = _slot_position[slot]
 				if origin.distance_squared_to(pos) <= r2:
-					result.append(_slot_entity[slot])
+					var entity: Node2D = _slot_entity[slot]
+					if not is_instance_valid(entity):
+						_dangling.append(slot)
+						continue
+					result.append(entity)
+	_reap_dangling()
 	return result
 
 
@@ -268,10 +307,14 @@ func get_entities_with_tag(tag: StringName, include_dead: bool = false) -> Array
 	for slot in _slot_entity.size():
 		if _slot_entity[slot] == null:
 			continue
+		if not is_instance_valid(_slot_entity[slot]):
+			_dangling.append(slot)
+			continue
 		if not include_dead and _slot_alive[slot] == 0:
 			continue
 		if (_slot_tag_mask[slot] & tag_mask) != 0:
 			result.append(_slot_entity[slot])
+	_reap_dangling()
 	return result
 
 

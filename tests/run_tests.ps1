@@ -165,6 +165,31 @@ if ($testExit -eq 0) {
     }
 }
 
+# --- Guard 4: gdUnit4's error count does not include Godot engine errors. ----
+# Measured, not assumed (Phase 02 LEDGER F02-14): a suite reporting
+# "172 test cases | 0 errors | 0 failures" at exit 0 was emitting sixty
+# engine-level ERROR lines, and a probe confirmed five deliberate push_error
+# calls leave the reported error count at zero and the exit code at 0.
+# gdUnit4 reports on assertions; the engine reports on itself, and nothing was
+# reading the second channel. A green run therefore never meant "the engine did
+# not error" - which is how a real dangling-reference bug in EntityRegistry
+# survived every green run in this phase.
+#
+# Engine errors are reported whatever the exit code, because they are just as
+# real in a suite that failed for another reason.
+$engineErrors = @($suiteLines | Where-Object { $_ -match '^(ERROR|SCRIPT ERROR|USER ERROR|USER SCRIPT ERROR):' })
+if ($engineErrors.Count -gt 0) {
+    Write-Host "ENGINE ERRORS: the Godot engine reported $($engineErrors.Count) error line(s) during this run. gdUnit4 does not count these, so the suite summary above can read 0 errors while this is non-zero." -ForegroundColor Red
+    $engineErrors | Select-Object -First 5 | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    if ($engineErrors.Count -gt 5) {
+        Write-Host "  ... and $($engineErrors.Count - 5) more." -ForegroundColor Red
+    }
+    if ($testExit -eq 0) {
+        Write-Host "NOT A USABLE RUN: every test passed, but the engine errored. Treating a green suite with engine errors as a pass is how a real bug hides behind a clean summary." -ForegroundColor Red
+        exit 1
+    }
+}
+
 switch ($testExit) {
     0   { Write-Host "PASS (exit 0): $executed test case(s) executed under $TestPath, all passed." -ForegroundColor Green; exit 0 }
     100 { Write-Host "FAIL (exit 100): the suite ran; at least one assertion failed under $TestPath." -ForegroundColor Red; exit 100 }
