@@ -23,10 +23,12 @@ extends SceneTree
 ##    (docs/19 > Input Map, plus the F1/F2 debug toggles);
 ## 6. the EXACT SET of autoload/* keys ProjectSettings actually carries --
 ##    only autoload/BootCheck, autoload/SimClock, autoload/PauseAuthority,
+##    autoload/EventBus, autoload/EntityRegistry, autoload/CombatStats,
 ##    nothing else -- and that EVERY one of them points at its expected
 ##    script (docs/20 > Version for BootCheck; MASTER_SDLC.md > Global
-##    Simulation Authority for SimClock and PauseAuthority; P1.1 deliverable
-##    paths);
+##    Simulation Authority for SimClock, PauseAuthority, EventBus,
+##    EntityRegistry and CombatStats; P1.1 deliverable paths; P1.2
+##    deliverable paths);
 ## 7. the pinned 4.7.1 export templates are present.
 ## Exits 0 on pass, 1 on failure, so it can gate CI.
 
@@ -84,10 +86,11 @@ const BUILTIN_UI_ACTIONS := [
 
 # The only autoloads this project defines (docs/20 > Godot 4.x
 # Implementation Standards; MASTER_SDLC.md > Global Simulation Authority for
-# SimClock and PauseAuthority, added at P1.1). Unlike input/*, ProjectSettings
-# carries no engine-reserved autoload/* keys, so this set is asserted with no
-# allowance list.
-const AUTOLOADS := ["BootCheck", "SimClock", "PauseAuthority"]
+# SimClock and PauseAuthority, added at P1.1, and for EventBus, EntityRegistry
+# and CombatStats, added at P1.2). Unlike input/*, ProjectSettings carries no
+# engine-reserved autoload/* keys, so this set is asserted with no allowance
+# list.
+const AUTOLOADS := ["BootCheck", "SimClock", "PauseAuthority", "EventBus", "EntityRegistry", "CombatStats"]
 
 # Project Settings (pinned) (docs/20). "default" is the Godot 4.7.1 engine
 # default, used only as a get_setting() fallback; "expected" is the pinned
@@ -115,6 +118,9 @@ const AUTOLOAD_PATHS := {
 	"BootCheck": "res://src/core/boot_check.gd",
 	"SimClock": "res://src/core/sim_clock.gd",
 	"PauseAuthority": "res://src/core/pause_authority.gd",
+	"EventBus": "res://src/core/event_bus.gd",
+	"EntityRegistry": "res://src/core/entity_registry.gd",
+	"CombatStats": "res://src/core/combat_stats.gd",
 }
 
 # The project's recorded entry scene (Phase 00 P0.2 execution log, which

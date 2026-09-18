@@ -193,3 +193,6 @@ debug_pseudoloc_toggle={
 BootCheck="*res://src/core/boot_check.gd"
 SimClock="*res://src/core/sim_clock.gd"
 PauseAuthority="*res://src/core/pause_authority.gd"
+EventBus="*res://src/core/event_bus.gd"
+EntityRegistry="*res://src/core/entity_registry.gd"
+CombatStats="*res://src/core/combat_stats.gd"

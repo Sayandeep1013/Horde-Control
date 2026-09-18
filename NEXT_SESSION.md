@@ -79,13 +79,23 @@ Both `tools/.gdignore` and `sandbox/.gdignore` must exist — they are not in th
 
 | Task | State |
 | --- | --- |
-| P1.1 SimClock, PauseAuthority, SimLoop, keyed RNG, banned-API check | delegated |
-| P1.6 audio buses, ducking node, 32-voice AudioPool | delegated |
-| P1.2 EventBus, EntityRegistry, CombatStats | waits on P1.1 |
-| P1.3 pools and the six caps, gameplay root scene | waits on P1.2 |
-| P1.4 debug overlay, Run Recorder, pseudo-localization | waits on P1.1, P1.2 |
+| P1.1 SimClock, PauseAuthority, SimLoop, keyed RNG, banned-API check | **done**, verified and committed |
+| P1.6 audio buses, ducking node, 32-voice AudioPool | **done**, verified and committed |
+| P1.2 EventBus, EntityRegistry, CombatStats | **done**, verified and committed; one Major open, see below |
+| P1.3 pools and the six caps, gameplay root scene | **next** — unblocked, nothing in its way |
+| P1.4 debug overlay, Run Recorder, pseudo-localization | unblocked; can run in parallel with P1.3 |
 | P1.5 collision layers, hitbox/hurtbox, death state | waits on P1.3 |
 | P1.7 swarm stress test | waits on P1.3, P1.4, P1.5 |
+
+**Resume here: P1.3 and P1.4 can both start immediately and in parallel.** P1.3 builds the pools, the six caps and the gameplay-root scene; P1.4 builds the debug overlay and Run Recorder. Neither blocks the other. P1.5 then waits on P1.3, and P1.7 waits on all three.
+
+**No review gate has been convened for Phase 02 yet.** Three of seven tasks are built. The gate runs at D94's pace - four critical agents grouped by subsystem plus the phase reviewer - on a tagged, frozen tree, once the implementation tasks are done.
+
+### The one thing needing the author before P1.7
+
+**F02-09 (Major, open).** The Registry query check's 0.05 ms bound is met on uniformly distributed entities (mean 15.4 us) and **not** on clustered ones (mean 72.4 us), and clustering is what this game produces - 300 enemies converging on the Tower is the Siege and Swarm Crush case. A brute-force baseline measured roughly the same on clustered data, so it is not a grid inefficiency; it is the cost of materialising ~300 results in an interpreted loop. The Acceptance Test Matrix names no distribution. For scale, 72 us is about 0.43% of a 16.67 ms frame, so the absolute cost is small and the real question is how many such queries a tick makes. Three options are drafted in `phases/PHASE_02_Technical_Foundations/evidence/p12_report.md`. One of them - changing the query API so the hot path does not build a result array - is currently **unevidenced**, because the probe meant to measure it errored before producing a figure.
+
+**F02-10 (Minor, open)** pairs with it: a genuine O(n) regression stayed *green* at 45.7 us against the 50 us bound. The correct implementation clears the bound by 3.2x and a broken one by 1.09x, so that assertion is measuring the machine nearly as much as the code.
 
 **Two traps in this phase that are already known:**
 1. `tests/settings_check.gd` asserts an **exact** autoload set. Registering SimClock and PauseAuthority breaks Phase 00's regression guard unless that check is updated — and it must stay falsifiable, since a version of it that could not fail was Phase 00's worst defect.
