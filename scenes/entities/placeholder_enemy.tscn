@@ -1,0 +1,41 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://src/combat/placeholder_enemy.gd" id="1_body"]
+[ext_resource type="Script" path="res://src/combat/hurtbox.gd" id="2_hurtbox"]
+[ext_resource type="Script" path="res://src/combat/hitbox.gd" id="3_hitbox"]
+[ext_resource type="Script" path="res://src/combat/death_state.gd" id="4_death"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+radius = 14.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hurtbox"]
+radius = 14.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hitbox"]
+radius = 20.0
+
+[node name="PlaceholderEnemy" type="CharacterBody2D"]
+script = ExtResource("1_body")
+
+[node name="BodyShape" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_body")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+script = ExtResource("2_hurtbox")
+
+[node name="HurtboxShape" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("CircleShape2D_hurtbox")
+
+[node name="Hitbox" type="Area2D" parent="."]
+script = ExtResource("3_hitbox")
+
+[node name="HitboxShape" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("CircleShape2D_hitbox")
+disabled = true
+
+[node name="DeathState" type="Node" parent="."]
+script = ExtResource("4_death")
+hitbox_paths = [NodePath("../Hitbox")]
+hurtbox_paths = [NodePath("../Hurtbox")]
+body_path = NodePath("..")
+registry_entity_path = NodePath("..")

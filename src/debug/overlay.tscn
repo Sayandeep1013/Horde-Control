@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/debug/overlay.gd" id="1_ovl"]
+
+[node name="DebugOverlay" type="CanvasLayer"]
+layer = 90
+script = ExtResource("1_ovl")
+
+[node name="Panel" type="PanelContainer" parent="."]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 460.0
+offset_bottom = 420.0
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="FieldsLabel" type="Label" parent="Panel/Margin"]
+layout_mode = 2
+text = "Debug Overlay"
+autowrap_mode = 0
