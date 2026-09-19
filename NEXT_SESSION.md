@@ -1,6 +1,6 @@
 # Next Session — Start Here
 
-**State on 2026-09-18.** Phase 00 built and reviewed. **Phase 01 built and taken through three review-gate iterations** (P0.4 8/10, P0.6 9/10, P0.7 8/10, phase execution 8/10 at iteration 3); its closure is the designer's decision, as Phase 00's still is. **Phase 02 (Technical Foundations) is in progress**, started at the author's direction. Read `phases/README.md` for the 20-phase table, then this file, then `phases/PHASE_02_Technical_Foundations/PLAN.md` and its EXECUTION_LOG for where the phase actually is.
+**State on 2026-09-19.** Phases 00 and 01 built and reviewed; both closures are still the designer's. **Phase 02 is six of seven tasks complete** - the whole engine spine - with P1.7 deferred by D97 and no review gate convened, by D98. **Phase 03 is in progress**, running ahead of its place in the plan under decisions D97-D100: the author redirected the project to reach a visible, playable prototype with real assets before returning to accumulated irregularities. Read `phases/README.md`, then this file, then the Phase 02 and Phase 03 EXECUTION_LOGs.
 
 ---
 
@@ -66,42 +66,32 @@ Both `tools/.gdignore` and `sandbox/.gdignore` must exist — they are not in th
 
 ---
 
-## Phase 02 — where it stands
+## Where the build actually is
 
-**Entry is done and recorded.** Both MCP pins verified against their shas, both `.gdignore` files present, gdUnit4 still 6.2.1 with its tree hash unchanged, and the full Phase 01 regression green (Settings check 0, Schema check 0, harness 0). Loop rule (a) satisfied: the placeholder "Carried lessons" section in `PHASE_02.../PLAN.md` is filled with eight patterns drawn from Phases 00 and 01, each naming the task it changes.
+**Phase 02, the engine spine — six of seven, all committed.** SimClock and PauseAuthority (determinism: pause requests apply at end of tick, never mid-resolution); SimLoop's fifteen-step order; keyed RNG on a hand-rolled FNV-1a; EventBus, EntityRegistry with a spatial hash, CombatStats; object pools with all six caps and the gameplay root scene; the debug overlay and Run Recorder; the seven-bus audio layout with a 32-voice pool; and the hitbox/hurtbox/Logical-Visual-death framework. 172 tests, zero engine errors.
 
-**Three decisions were taken at entry** rather than mid-flight, because a Phase 01 delegation was once written that contradicted a decision taken hours earlier:
-- **D94** — the review gate groups Phase 02's seven tasks into four critical agents by coupled subsystem (P1.1+P1.2, P1.3+P1.5, P1.4, P1.6) plus the phase reviewer, who also covers P1.7. Five reviewers per iteration rather than eight. This narrows D83 and is recorded in advance, as D83 requires.
-- **D95** — P1.6 implements from document 20's audio section; document 26 stays a stub and is not read.
-- **D96** — the six entity caps change under the ordinary Provisional Default rule, with no separate sign-off gate. A Performance Fallback Ladder step 4 outcome still comes to the author, because that means the design is being revised rather than tuned.
+**P1.7 (swarm stress test) is deferred, not dropped** (D97) — it will measure real Phase 03 entities rather than placeholder capsules. **No Phase 02 review gate has run** (D98).
 
-**Dependency order**, which is why this phase cannot be parallelised far: P1.1 → P1.2 → P1.3 → P1.5 → P1.7, with P1.4 needing P1.1 and P1.2, and P1.6 needing only the project skeleton.
+**Phase 03, the prototype slice — in progress.** P2.1 player, P2.2 arena and camera, P2.4 Tower delegated in parallel. Then P2.3 (handgun with auto-targeting), P2.5 (one enemy per target intent), P2.6 (HUD). Then **P2.7, the feel check, which is the author's** — they play it and record go or adjust. That is the point of the whole phase and cannot be delegated.
 
-| Task | State |
+**Art**: eight sprites under `assets/sprites/`, produced by `tools/art/generate_sprites.py` (D99, amended — the AI image route the author picked requires a paid plan the account lacks; nothing was generated or charged). Stylized geometric, not finished character art, and it says so in the decision. `--silhouette` regenerates flat-black variants; all five entities stay distinguishable with colour removed, which is the property the master actually requires.
+
+## Two things that bite, carried from Phase 02
+
+1. **A green gdUnit4 summary is not evidence the engine was happy.** gdUnit4's error count excludes Godot engine errors — measured: five `push_error` calls gave `0 errors` at exit 0. That blind spot hid a real dangling-reference bug in `EntityRegistry` for the whole phase. `tests/run_tests.ps1` now reads the engine's channel and fails on it; **run tests through that script, not the raw gdUnit4 command**.
+2. **Named acceptance tests keep being unable to catch their own defect class** — three times in two phases (F01-15, F02-02, F02-16). When a task's named test passes, that is not yet evidence; falsify it.
+
+## Open, and whose
+
+| Item | Whose |
 | --- | --- |
-| P1.1 SimClock, PauseAuthority, SimLoop, keyed RNG, banned-API check | **done**, verified and committed |
-| P1.6 audio buses, ducking node, 32-voice AudioPool | **done**, verified and committed |
-| P1.2 EventBus, EntityRegistry, CombatStats | **done**, verified and committed; one Major open, see below |
-| P1.3 pools and the six caps, gameplay root scene | **next** — unblocked, nothing in its way |
-| P1.4 debug overlay, Run Recorder, pseudo-localization | unblocked; can run in parallel with P1.3 |
-| P1.5 collision layers, hitbox/hurtbox, death state | waits on P1.3 |
-| P1.7 swarm stress test | waits on P1.3, P1.4, P1.5 |
+| Phase 00 and Phase 01 closure | author |
+| F02-09 clustered query bound; F02-16 Ghost hit test blind spot | author, parked by the prototype-first direction |
+| F02-03 five audio under-specifications; F03-01 enemy fixture constants with no Register rows | author |
+| `AudioDucking` needs `PROCESS_MODE_ALWAYS` but docs/20 forbids it under the gameplay root, and `main.tscn` is currently both | author - a real structural contradiction, left unwired |
+| P2.7 feel check | **author, and it is the deliverable** |
 
-**Resume here: P1.3 and P1.4 can both start immediately and in parallel.** P1.3 builds the pools, the six caps and the gameplay-root scene; P1.4 builds the debug overlay and Run Recorder. Neither blocks the other. P1.5 then waits on P1.3, and P1.7 waits on all three.
-
-**No review gate has been convened for Phase 02 yet.** Three of seven tasks are built. The gate runs at D94's pace - four critical agents grouped by subsystem plus the phase reviewer - on a tagged, frozen tree, once the implementation tasks are done.
-
-### The one thing needing the author before P1.7
-
-**F02-09 (Major, open).** The Registry query check's 0.05 ms bound is met on uniformly distributed entities (mean 15.4 us) and **not** on clustered ones (mean 72.4 us), and clustering is what this game produces - 300 enemies converging on the Tower is the Siege and Swarm Crush case. A brute-force baseline measured roughly the same on clustered data, so it is not a grid inefficiency; it is the cost of materialising ~300 results in an interpreted loop. The Acceptance Test Matrix names no distribution. For scale, 72 us is about 0.43% of a 16.67 ms frame, so the absolute cost is small and the real question is how many such queries a tick makes. Three options are drafted in `phases/PHASE_02_Technical_Foundations/evidence/p12_report.md`. One of them - changing the query API so the hot path does not build a result array - is currently **unevidenced**, because the probe meant to measure it errored before producing a figure.
-
-**F02-10 (Minor, open)** pairs with it: a genuine O(n) regression stayed *green* at 45.7 us against the 50 us bound. The correct implementation clears the bound by 3.2x and a broken one by 1.09x, so that assertion is measuring the machine nearly as much as the code.
-
-**Two traps in this phase that are already known:**
-1. `tests/settings_check.gd` asserts an **exact** autoload set. Registering SimClock and PauseAuthority breaks Phase 00's regression guard unless that check is updated — and it must stay falsifiable, since a version of it that could not fail was Phase 00's worst defect.
-2. P1.7 must be measured on an **exported release build** on the reference machine with V-Sync off and 60 s of CSV frame data. An editor run is the fast path and is not the test. The plan names this as a predetermined failure point precisely because it is the tempting shortcut.
-
-## Prompt — resuming Phase 02
+## Prompt — resuming the prototype build
 
 ```text
 Act as the supervising orchestrator continuing this project in Phase 02.
@@ -114,14 +104,14 @@ Re-run the phase-entry checks before continuing: both MCP pins, both .gdignore f
 the gdUnit4 tree hash against docs/28, and the Phase 01 regression (settings_check,
 schema_check, and the gdUnit4 pass suite).
 
-Continue the dependency chain from wherever EXECUTION_LOG.md says it stopped. Sonnet
+Continue Phase 03 from wherever its EXECUTION_LOG.md says it stopped; Phase 02's remaining task P1.7 is deferred by D97 and is not the next thing. Sonnet
 subagents implement; every delegation prompt carries the no-delete, no-export,
 sandbox-only constraints explicitly, because the ask gate does not intercept subagents.
 Every acceptance test is falsified before its result is recorded - Phase 01 shipped
 three checks that could not fail.
 
-Review at the pace D94 fixes: four critical agents grouped by subsystem plus a phase
-reviewer, on a TAGGED, FROZEN tree, with reviewers told to falsify against git archive
+Review per D98: a spot-check during the prototype push, then one full gate on the
+finished prototype, on a TAGGED, FROZEN tree, with reviewers told to falsify against git archive
 copies rather than the shared working directory. Do not edit anything while the gate
 is open.
 
