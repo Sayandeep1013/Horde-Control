@@ -1,0 +1,45 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/floor_tile.png" id="1_floor"]
+[ext_resource type="Script" path="res://src/environment/arena_bounds.gd" id="2_bounds"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_north"]
+size = Vector2(4928, 64)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_south"]
+size = Vector2(4928, 64)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_west"]
+size = Vector2(64, 3200)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_east"]
+size = Vector2(64, 3200)
+
+[node name="Arena" type="Node2D"]
+
+[node name="Floor" type="Sprite2D" parent="."]
+z_index = 0
+texture = ExtResource("1_floor")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 4800, 3200)
+texture_repeat = 2
+
+[node name="ArenaBounds" type="StaticBody2D" parent="."]
+script = ExtResource("2_bounds")
+
+[node name="WallNorth" type="CollisionShape2D" parent="ArenaBounds"]
+position = Vector2(0, -1632)
+shape = SubResource("RectangleShape2D_north")
+
+[node name="WallSouth" type="CollisionShape2D" parent="ArenaBounds"]
+position = Vector2(0, 1632)
+shape = SubResource("RectangleShape2D_south")
+
+[node name="WallWest" type="CollisionShape2D" parent="ArenaBounds"]
+position = Vector2(-2432, 0)
+shape = SubResource("RectangleShape2D_west")
+
+[node name="WallEast" type="CollisionShape2D" parent="ArenaBounds"]
+position = Vector2(2432, 0)
+shape = SubResource("RectangleShape2D_east")

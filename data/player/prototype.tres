@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="PlayerDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/input_buffer_duration.gd" id="1_ibd"]
+[ext_resource type="Script" path="res://src/data/player_definition.gd" id="2_pdef"]
+
+[sub_resource type="Resource" id="Resource_input_buffer"]
+script = ExtResource("1_ibd")
+duration_ms = 100.0
+ticks = 6
+
+[resource]
+script = ExtResource("2_pdef")
+unique_id = "player_prototype"
+max_health = 100
+base_speed_px_per_second = 320.0
+acceleration_time_seconds = 0.08
+deceleration_time_seconds = 0.05
+body_radius_px = 14
+hurtbox_definition = 0
+collector_area_radius_px = 22
+magnet_radius_px = 96
+input_buffer = SubResource("Resource_input_buffer")
+starting_weapon_reference_id = "handgun_prototype"

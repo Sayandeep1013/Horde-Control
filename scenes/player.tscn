@@ -1,0 +1,52 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://src/player/player.gd" id="1_player"]
+[ext_resource type="Resource" path="res://data/player/prototype.tres" id="2_definition"]
+[ext_resource type="Script" path="res://src/combat/hurtbox.gd" id="3_hurtbox"]
+[ext_resource type="Script" path="res://src/player/collector.gd" id="4_collector"]
+[ext_resource type="Script" path="res://src/combat/death_state.gd" id="5_death"]
+[ext_resource type="Script" path="res://src/player/player_animator.gd" id="6_animator"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player.png" id="7_sprite"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+radius = 14.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hurtbox"]
+radius = 14.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_collector"]
+radius = 22.0
+
+[node name="Player" type="CharacterBody2D"]
+script = ExtResource("1_player")
+definition = ExtResource("2_definition")
+
+[node name="BodyShape" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_body")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+script = ExtResource("3_hurtbox")
+faction = 0
+
+[node name="HurtboxShape" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("CircleShape2D_hurtbox")
+
+[node name="Collector" type="Area2D" parent="."]
+script = ExtResource("4_collector")
+
+[node name="CollectorShape" type="CollisionShape2D" parent="Collector"]
+shape = SubResource("CircleShape2D_collector")
+
+[node name="DeathState" type="Node" parent="."]
+script = ExtResource("5_death")
+hitbox_paths = Array[NodePath]([])
+hurtbox_paths = Array[NodePath]([NodePath("../Hurtbox")])
+body_path = NodePath("..")
+registry_entity_path = NodePath("..")
+
+[node name="Visuals" type="Node2D" parent="."]
+script = ExtResource("6_animator")
+sprite_path = NodePath("Sprite2D")
+
+[node name="Sprite2D" type="Sprite2D" parent="Visuals"]
+texture = ExtResource("7_sprite")

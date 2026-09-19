@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="TowerDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/max_health_and_shield_fraction.gd" id="1_hpfrac"]
+[ext_resource type="Script" path="res://src/data/shield_regeneration.gd" id="2_regen"]
+[ext_resource type="Script" path="res://src/data/tower_footprint.gd" id="3_footprint"]
+[ext_resource type="Script" path="res://src/data/targeting_rule_parameters.gd" id="4_targeting"]
+[ext_resource type="Script" path="res://src/data/repair_price.gd" id="5_repair"]
+[ext_resource type="Script" path="res://src/data/persistent_asset_rule.gd" id="6_asset_rule"]
+[ext_resource type="Script" path="res://src/data/tower_definition.gd" id="7_tower"]
+
+[sub_resource type="Resource" id="Resource_hpfrac"]
+script = ExtResource("1_hpfrac")
+maximum_health = 500
+base_shield_fraction = 0.25
+
+[sub_resource type="Resource" id="Resource_regen"]
+script = ExtResource("2_regen")
+rate_percent_per_second = 10.0
+delay_seconds = 8.0
+
+[sub_resource type="Resource" id="Resource_footprint"]
+script = ExtResource("3_footprint")
+footprint_radius_px = 106
+interaction_radius_px = 160
+
+[sub_resource type="Resource" id="Resource_targeting"]
+script = ExtResource("4_targeting")
+range_px = 480
+intent_preference = 0
+
+[sub_resource type="Resource" id="Resource_repair"]
+script = ExtResource("5_repair")
+scrap_cost = 1
+health_restored = 2
+pro_ration_rule = "Affordable when the Tower is missing >= 2 health and the player holds >= 1 Scrap; one purchase restores min(50, missing health rounded down to an even number, 2 x Scrap held) health at 1 Scrap per 2 health (scrap_cost:health_restored = 1:2 above is that ratio, not a fixed single-purchase price); at 0 Scrap, Repair is greyed and does not count toward opening the Console (C-REPAIR)."
+
+[resource]
+script = ExtResource("7_tower")
+unique_id = "tower_base"
+max_health_and_shield_fraction = SubResource("Resource_hpfrac")
+shield_regeneration = SubResource("Resource_regen")
+tower_footprint = SubResource("Resource_footprint")
+base_weapon_reference_id = "tower_base_weapon"
+targeting_rule_parameters = SubResource("Resource_targeting")
+evolution_stage_thresholds = Array[int]([0, 1, 3, 6])
+repair_price = SubResource("Resource_repair")
+persistent_asset_rules = Array[ExtResource("6_asset_rule")]([])

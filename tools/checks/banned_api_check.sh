@@ -71,7 +71,28 @@ if [ "${#existing_roots[@]}" -eq 0 ]; then
 	exit 2
 fi
 
-matches="$(grep -rnE --include='*.gd' "$PATTERN" "${existing_roots[@]}" 2>/dev/null | grep -Ev '(^|/)ui/')"
+# Comments are stripped before matching (Phase 03 LEDGER F03-07). The check is
+# about CALLS, not about text. A codebase that documents its own rules will
+# quote the banned call in a comment - `src/tower/tower_visuals.gd` did exactly
+# that, explaining which tween API to use and why, and turned a P1.1 exit
+# criterion red. Rewording every such comment is a workaround that pushes the
+# cost onto every future author; not reading comments is the fix.
+#
+# The strip is deliberately simple: drop from the first `#` to end of line. A
+# `#` inside a string literal would also be dropped, which can only ever cause
+# a FALSE NEGATIVE on a line that both contains a string with a `#` and makes a
+# real banned call after it. That combination is vanishingly unlikely, and the
+# failure direction is stated here rather than left for someone to discover.
+strip_comments() { sed 's/#.*$//'; }
+
+matches="$(grep -rnE --include='*.gd' "$PATTERN" "${existing_roots[@]}" 2>/dev/null   | grep -Ev '(^|/)ui/'   | while IFS= read -r line; do
+      # line is path:lineno:text -- re-test only the text, comments stripped.
+      text="${line#*:}"; text="${text#*:}"
+      if printf '%s' "$text" | strip_comments | grep -qE "$PATTERN"; then
+        printf '%s
+' "$line"
+      fi
+    done)"
 
 if [ -n "$matches" ]; then
 	echo "Banned-API check: FAIL" >&2
