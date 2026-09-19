@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="EncounterDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="1_enc"]
+[ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
+
+; MASTER_SDLC.md > Encounter Types > "Siege". Spawn groups: Register >
+; Encounter Budgets > "Combat wave 4 heavy Siege x2.0, final (max 90 s,
+; C-FINAL)": "Seekers 57 @3 s interval 1.18 s; Hunters 9 @0 s interval
+; 7.5 s; encounter alive cap 120 counts ALL living enemies." Counts are the
+; Siege volume formula's own result at x2.0 (Register: "x2.0 gives 57 (+9
+; Hunters)"), transcribed as authored numbers, same convention as
+; combat_2_siege.tres. This wave is the FINAL wave in the prototype
+; sequence -- src/director/wave_director.gd detects that structurally (last
+; element of its `waves` array), not from a field on this resource.
+
+[sub_resource type="Resource" id="Resource_group_1"]
+script = ExtResource("2_group")
+enemy_definition_id = "tower_seeker"
+count = 57
+start_offset_seconds = 3.0
+spawn_interval_seconds = 1.18
+
+[sub_resource type="Resource" id="Resource_group_2"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 9
+start_offset_seconds = 0.0
+spawn_interval_seconds = 7.5
+
+[resource]
+script = ExtResource("1_enc")
+unique_id = "combat_4_siege"
+encounter_type = 2
+design_intent = "Threaten the Tower specifically and pull the player home."
+; pressure_target: NO REGISTER ROW -- escalated. See t1_standard_assault.tres.
+pressure_target = 0.0
+player_answer = "Abandon the map periphery, commit to close defence, and accept the loss of resource income for the duration."
+failure_signature = "The player keeps farming the map edges and returns to a critically damaged Tower."
+spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("Resource_group_2")])
+intent_budget_overrides = Array[IntentBudgetOverride]([])
+directional_weighting_override = null
+telegraph_requirements = Array[TelegraphData]([])
+minimum_recovery_gap_seconds = 10.0
+priority = 80
+entity_cap_behavior = 0
+; "encounter alive cap 120 counts ALL living enemies" (Register). NOT
+; enforced by src/director/wave_director.gd's own spawn-cap logic in this
+; pass -- the runtime relies on the global 300-enemy EntityCaps throttle
+; (which IS enforced, via EntitySpawner/Pool) and this field is transcribed
+; for contract completeness and a later phase to read. Named as a
+; limitation in the evidence report, not silently omitted.
+encounter_alive_cap = 120
+allowed_encounter_tags = Array[String]([])
+excluded_encounter_tags = Array[String]([])
+reward = null
+failure_resolution = 0
+partial_reward_rules = null
+pause_and_deferral_behavior = 0

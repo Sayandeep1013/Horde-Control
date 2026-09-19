@@ -1,0 +1,69 @@
+[gd_resource type="Resource" script_class="WaveDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/wave_definition.gd" id="1_wave"]
+[ext_resource type="Script" path="res://src/data/overtime_condition.gd" id="2_overtime"]
+[ext_resource type="Script" path="res://src/data/finisher_spawn_rate.gd" id="3_rate"]
+[ext_resource type="Script" path="res://src/data/drop_table.gd" id="4_drop"]
+
+; MASTER_SDLC.md > Provisional Values Register > Spawning & Waves >
+; "Prototype sequence": "T1-T4 then combat waves 1-4, no boss waves." T1 is
+; the first teaching wave (docs/11 > "Wave Runtime Model" > C-TEACH).
+;
+; overtime_condition is authored (Register > "Overtime finishers": "Player
+; Hunters at 25% Hunter HP, 160% Hunter speed, 2 per 5 s on the view ring
+; ... drop 1 XP, no Scrap") but NOT consumed by src/director/wave_director.gd
+; -- C-TEACH is explicit that T1-T4 "never run the stall rule, Overtime, or
+; escalation", and Overtime itself is out of scope for this task (see that
+; file's header, "Scope"). Present here for Wave Definition Contract
+; completeness and for the phase that builds Overtime.
+[sub_resource type="Resource" id="Resource_finisher_rate"]
+script = ExtResource("3_rate")
+count = 2
+interval_seconds = 5.0
+
+[sub_resource type="Resource" id="Resource_finisher_drop"]
+script = ExtResource("4_drop")
+xp_shards = 1
+scrap = 0
+cores = 0
+
+[sub_resource type="Resource" id="Resource_overtime"]
+script = ExtResource("2_overtime")
+stall_threshold = 5
+finisher_enemy_id = "player_hunter"
+finisher_spawn_rate = SubResource("Resource_finisher_rate")
+finisher_drop_override = SubResource("Resource_finisher_drop")
+
+[resource]
+script = ExtResource("1_wave")
+unique_id = "wave_t1"
+; biome_context_id: an out-of-scope Biome Definition Contract reference
+; (docs/20: "Biome Unique ID (out-of-scope contract referenced by ID)").
+; No Biome Definition resource exists yet in this repository; this string
+; is a placeholder identifier only, not a Register-cited value.
+biome_context_id = "biome_1_prototype"
+; difficulty_band: NOT Register-specified for this wave and not consumed by
+; wave_director.gd's runtime (informational contract field only). Left at
+; the schema default (Low) rather than an invented Mid/High tier.
+difficulty_band = 0
+encounter_sequence = Array[String](["t1_standard_assault"])
+; enemy_intent_mix: not authored. This wave's exact composition comes from
+; its encounter's spawn groups directly (Encounter Budgets), not from
+; proportions -- the Register gives no proportion table for the prototype
+; sequence, and this field exists for the general procedural-wave contract
+; this hand-authored prototype sequence does not use.
+enemy_intent_mix = Array[EnemyIntentMixEntry]([])
+elite_chance = 0.0
+maximum_duration_seconds = 20.0
+has_maximum_duration = true
+; target_duration_seconds: NO REGISTER ROW cited for this specific wave;
+; field unused by this task's runtime (informational contract field only).
+target_duration_seconds = 0.0
+; inter_wave_gap_seconds: Register > "Inter-wave gap": "5 s after T1, T2,
+; T3." wave_director.gd's actual effective gap is
+; max(this field, the closing encounter's own recovery gap) -- see
+; wave_director.gd's `_end_current_wave()`.
+inter_wave_gap_seconds = 5.0
+overtime_condition = SubResource("Resource_overtime")
+pressure_metric_constants = null
+boss_overlap_rules = 0

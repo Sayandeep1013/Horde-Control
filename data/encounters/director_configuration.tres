@@ -1,0 +1,243 @@
+[gd_resource type="Resource" script_class="DirectorConfiguration" format=3]
+
+[ext_resource type="Script" path="res://src/data/director_configuration.gd" id="1_dir"]
+[ext_resource type="Script" path="res://src/data/spawn_ring_geometry.gd" id="2_ring_geo"]
+[ext_resource type="Script" path="res://src/data/ring_definition.gd" id="3_ring_def"]
+[ext_resource type="Script" path="res://src/data/spawn_validation_retry.gd" id="4_retry"]
+[ext_resource type="Script" path="res://src/data/marker_lead_times.gd" id="5_marker"]
+[ext_resource type="Script" path="res://src/data/directional_weighting_entry.gd" id="6_weight"]
+[ext_resource type="Script" path="res://src/data/encounter_priority_entry.gd" id="7_prio"]
+[ext_resource type="Script" path="res://src/data/recovery_gap_entry.gd" id="8_recov"]
+[ext_resource type="Script" path="res://src/data/inter_wave_gap_defaults.gd" id="9_gap"]
+[ext_resource type="Script" path="res://src/data/pressure_intent_weight_entry.gd" id="10_pweight"]
+[ext_resource type="Script" path="res://src/data/pressure_metric_constants.gd" id="11_pconst"]
+[ext_resource type="Script" path="res://src/data/offscreen_update_thresholds.gd" id="12_offscreen"]
+[ext_resource type="Script" path="res://src/data/siege_volume_constants.gd" id="13_siege"]
+
+; Register > Spawning & Waves > "Spawn Rings": "Tower ring (Tower Seekers) /
+; view ring (Hunters, Opportunists, finishers); both inner radius ~1331 px
+; (largest-view half-diagonal + 64), width 128 px (outer ~1459), clipped to
+; arena inset 32 px." Both rings share the same authored geometry.
+[sub_resource type="Resource" id="Resource_tower_ring"]
+script = ExtResource("3_ring_def")
+inner_radius_px = 1331
+width_px = 128
+
+[sub_resource type="Resource" id="Resource_view_ring"]
+script = ExtResource("3_ring_def")
+inner_radius_px = 1331
+width_px = 128
+
+[sub_resource type="Resource" id="Resource_ring_geometry"]
+script = ExtResource("2_ring_geo")
+tower_ring = SubResource("Resource_tower_ring")
+view_ring = SubResource("Resource_view_ring")
+
+; Register > "Ring validation": "shift along the ring, alternating
+; directions, up to 8 steps of 10 degrees."
+[sub_resource type="Resource" id="Resource_retry"]
+script = ExtResource("4_retry")
+steps = 8
+angle_degrees = 10.0
+
+; Register > "Off-screen spawn markers" / "On-screen spawn exceptions": 0.75s
+; off-screen marker lead, 1.0s minimum for the on-screen exceptions (Ambush,
+; Pincer, Breach -- none of which are in this task's scope; transcribed for
+; contract completeness, NOT consumed by src/director/wave_director.gd,
+; which does not build spawn markers -- see that file's header, "Scope").
+[sub_resource type="Resource" id="Resource_marker"]
+script = ExtResource("5_marker")
+off_screen_seconds = 0.75
+on_screen_minimum_seconds = 1.0
+
+; Register > "Directional weighting": "Standard Assault uniform on each
+; ring ... Siege uniform on the Tower ring." lane_count=0 / hunt_arc_*=0 is
+; this project's convention for "no directional bias" (ContractEnums has no
+; explicit Uniform member) -- src/director/wave_director.gd's
+; `_base_angle_for()` reads a StandardAssault/Siege match branch as a plain
+; full-circle draw regardless of this entry's `ring` field, which is
+; therefore a placeholder here (each spawn's actual ring is chosen by the
+; SPAWNED ENEMY's own target_intent, not by this entry).
+[sub_resource type="Resource" id="Resource_weight_standard"]
+script = ExtResource("6_weight")
+encounter_type = 0
+lane_count = 0
+lane_width_degrees = 0.0
+lane_separation_rule = 0
+heavy_share = 0.0
+ring = 0
+hunt_arc_degrees = 0.0
+hunt_arc_share = 0.0
+
+; Register > "Directional weighting" > "Split Assault": "two 40 degree
+; lanes on the Tower ring, fixed when the encounter opens, prototype lane
+; centres 180 degrees apart ... 60% heavier lane / 40% lighter, Opportunists
+; split the same way on the view ring." `ring` is likewise a placeholder --
+; wave_director.gd applies this lane rule to whichever physical ring a
+; given spawn resolves to by intent (Tower ring for Seekers, view ring for
+; Opportunists), matching "Opportunists split the same way across the view
+; ring" literally.
+[sub_resource type="Resource" id="Resource_weight_split"]
+script = ExtResource("6_weight")
+encounter_type = 1
+lane_count = 2
+lane_width_degrees = 40.0
+lane_separation_rule = 0
+heavy_share = 0.6
+ring = 0
+hunt_arc_degrees = 0.0
+hunt_arc_share = 0.0
+
+[sub_resource type="Resource" id="Resource_weight_siege"]
+script = ExtResource("6_weight")
+encounter_type = 2
+lane_count = 0
+lane_width_degrees = 0.0
+lane_separation_rule = 0
+heavy_share = 0.0
+ring = 0
+hunt_arc_degrees = 0.0
+hunt_arc_share = 0.0
+
+; Register > "Directional weighting" > "Hunt": "80% inside a 120 degree
+; view-ring arc pointing away from the Tower ... 20% uniform elsewhere."
+[sub_resource type="Resource" id="Resource_weight_hunt"]
+script = ExtResource("6_weight")
+encounter_type = 3
+lane_count = 0
+lane_width_degrees = 0.0
+lane_separation_rule = 0
+heavy_share = 0.0
+ring = 1
+hunt_arc_degrees = 120.0
+hunt_arc_share = 0.8
+
+; Register > "Priorities & recovery gaps": "Siege 80 / 10 s; Split Assault
+; 60 / 8 s; Hunt 40 / 8 s; Standard Assault 20 / 5 s." NOT consumed for
+; priority-based deferral by wave_director.gd (out of scope -- moot in this
+; scope, since every prototype wave carries exactly one encounter, so two
+; encounters are never due at once); transcribed for contract completeness.
+; Each EncounterDefinition .tres also carries its own `priority` field
+; directly (matching this same table), which IS what this task's code
+; reads.
+[sub_resource type="Resource" id="Resource_prio_standard"]
+script = ExtResource("7_prio")
+encounter_type = 0
+priority = 20
+
+[sub_resource type="Resource" id="Resource_prio_split"]
+script = ExtResource("7_prio")
+encounter_type = 1
+priority = 60
+
+[sub_resource type="Resource" id="Resource_prio_siege"]
+script = ExtResource("7_prio")
+encounter_type = 2
+priority = 80
+
+[sub_resource type="Resource" id="Resource_prio_hunt"]
+script = ExtResource("7_prio")
+encounter_type = 3
+priority = 40
+
+[sub_resource type="Resource" id="Resource_recov_standard"]
+script = ExtResource("8_recov")
+encounter_type = 0
+recovery_gap_seconds = 5.0
+
+[sub_resource type="Resource" id="Resource_recov_split"]
+script = ExtResource("8_recov")
+encounter_type = 1
+recovery_gap_seconds = 8.0
+
+[sub_resource type="Resource" id="Resource_recov_siege"]
+script = ExtResource("8_recov")
+encounter_type = 2
+recovery_gap_seconds = 10.0
+
+[sub_resource type="Resource" id="Resource_recov_hunt"]
+script = ExtResource("8_recov")
+encounter_type = 3
+recovery_gap_seconds = 8.0
+
+; Register > "Inter-wave gap": "max(8 s default (5 s after T1, T2, T3), the
+; last encounter's recovery gap)." Each Wave Definition's own
+; `inter_wave_gap_seconds` field carries the per-wave default (5.0 for
+; T1-T3, 8.0 otherwise); wave_director.gd computes the effective gap as
+; max(that field, the closing encounter's own recovery gap).
+[sub_resource type="Resource" id="Resource_gap_defaults"]
+script = ExtResource("9_gap")
+standard_seconds = 8.0
+teaching_wave_seconds = 5.0
+
+; Register > "Pressure & Overtime" > "Threat formula": intent weights
+; Hunter 1.0, Seeker 1.25, Opportunist 1.1. NOT consumed -- the Pressure
+; Metric is out of scope for this task (see wave_director.gd header,
+; "Scope"); transcribed for contract completeness and for a later phase
+; that builds P2.9.
+[sub_resource type="Resource" id="Resource_pweight_seeker"]
+script = ExtResource("10_pweight")
+target_intent = 0
+weight = 1.25
+
+[sub_resource type="Resource" id="Resource_pweight_hunter"]
+script = ExtResource("10_pweight")
+target_intent = 1
+weight = 1.0
+
+[sub_resource type="Resource" id="Resource_pweight_opportunist"]
+script = ExtResource("10_pweight")
+target_intent = 2
+weight = 1.1
+
+; Register > "Pressure & Overtime": escalation/de-escalation timers. NOT
+; consumed -- see above.
+[sub_resource type="Resource" id="Resource_pressure_timers"]
+script = ExtResource("11_pconst")
+escalation_threshold = 0.6
+escalation_hold_time_seconds = 3.0
+minimum_gap_between_escalations_seconds = 4.0
+de_escalation_threshold = 1.8
+de_escalation_lift_threshold = 1.2
+de_escalation_expiry_seconds = 10.0
+re_arm_lockout_seconds = 6.0
+
+; Register > "Off-screen update reduction": distance multiplier 1.5x,
+; every 3rd tick, exempt within 2 Interaction Radii (320 px) of the Tower.
+; NOT consumed by this task -- a performance system, not a wave-scheduling
+; one; transcribed for contract completeness only.
+[sub_resource type="Resource" id="Resource_offscreen"]
+script = ExtResource("12_offscreen")
+distance_multiplier = 1.5
+tick_divisor = 3
+tower_exclusion_radius_px = 320
+
+; Register > "Siege volume formula". NOT consumed -- this task transcribes
+; the FORMULA'S OWN RESULT directly into each Siege wave's spawn groups
+; (Register: "these are authored numbers; transcribe them into .tres
+; resources, do not compute them"), so nothing in src/director/ evaluates
+; this formula at runtime. Transcribed here for contract completeness and
+; for a later phase that adds upgrade-aware Sieges.
+[sub_resource type="Resource" id="Resource_siege_volume"]
+script = ExtResource("13_siege")
+multiplier_defaults = Array[float]([1.5, 2.0])
+hunter_percentage = 0.15
+spawn_window_fraction = 0.75
+
+[resource]
+script = ExtResource("1_dir")
+unique_id = "prototype_director"
+spawn_ring_geometry = SubResource("Resource_ring_geometry")
+camera_exclusion_margin_px = 64
+spawn_validation_retry = SubResource("Resource_retry")
+marker_lead_times = SubResource("Resource_marker")
+directional_weighting_rules = Array[DirectionalWeightingEntry]([SubResource("Resource_weight_standard"), SubResource("Resource_weight_split"), SubResource("Resource_weight_siege"), SubResource("Resource_weight_hunt")])
+encounter_priority_table = Array[EncounterPriorityEntry]([SubResource("Resource_prio_standard"), SubResource("Resource_prio_split"), SubResource("Resource_prio_siege"), SubResource("Resource_prio_hunt")])
+default_recovery_gap_table = Array[RecoveryGapEntry]([SubResource("Resource_recov_standard"), SubResource("Resource_recov_split"), SubResource("Resource_recov_siege"), SubResource("Resource_recov_hunt")])
+inter_wave_gap_defaults = SubResource("Resource_gap_defaults")
+post_draft_grace_period_seconds = 1.5
+pressure_metric_intent_weights = Array[PressureIntentWeightEntry]([SubResource("Resource_pweight_seeker"), SubResource("Resource_pweight_hunter"), SubResource("Resource_pweight_opportunist")])
+pressure_metric_timers = SubResource("Resource_pressure_timers")
+offscreen_update_thresholds = SubResource("Resource_offscreen")
+siege_volume_constants = SubResource("Resource_siege_volume")
+health_quadrant_threshold = 0.4

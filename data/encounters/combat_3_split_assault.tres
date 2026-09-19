@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="EncounterDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="1_enc"]
+[ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
+
+; MASTER_SDLC.md > Encounter Types > "Split Assault". Spawn groups:
+; Register > Encounter Budgets > "Combat wave 3 Split (max 90 s)": "Seekers
+; 14 @0 s interval 1.5 s (9 heavy / 5 light); Opportunists 6 @20 s interval
+; 1.0 s (4 heavy / 2 light)." Heavy/light split computed at runtime, same as
+; t3_split_assault.tres (ceil(0.6*14)=9, ceil(0.6*6)=4, both cross-check).
+
+[sub_resource type="Resource" id="Resource_group_1"]
+script = ExtResource("2_group")
+enemy_definition_id = "tower_seeker"
+count = 14
+start_offset_seconds = 0.0
+spawn_interval_seconds = 1.5
+
+[sub_resource type="Resource" id="Resource_group_2"]
+script = ExtResource("2_group")
+enemy_definition_id = "opportunist"
+count = 6
+start_offset_seconds = 20.0
+spawn_interval_seconds = 1.0
+
+[resource]
+script = ExtResource("1_enc")
+unique_id = "combat_3_split_assault"
+encounter_type = 1
+design_intent = "Force the player to choose a side of the battlefield."
+; pressure_target: NO REGISTER ROW -- escalated. See t1_standard_assault.tres.
+pressure_target = 0.0
+player_answer = "Pick the heavier lane, accept damage on the lighter one, and rely on Tower weapons to hold what the player abandons."
+failure_signature = "The player oscillates between lanes, arrives late to both, and loses Tower health to both."
+spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("Resource_group_2")])
+intent_budget_overrides = Array[IntentBudgetOverride]([])
+directional_weighting_override = null
+telegraph_requirements = Array[TelegraphData]([])
+minimum_recovery_gap_seconds = 8.0
+priority = 60
+entity_cap_behavior = 0
+encounter_alive_cap = 0
+allowed_encounter_tags = Array[String]([])
+excluded_encounter_tags = Array[String]([])
+reward = null
+failure_resolution = 0
+partial_reward_rules = null
+pause_and_deferral_behavior = 0

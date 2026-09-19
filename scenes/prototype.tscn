@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://src/integration/prototype_integration.gd" id="1_integration"]
 [ext_resource type="PackedScene" path="res://scenes/main.tscn" id="2_main"]
@@ -17,6 +17,7 @@
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/ui/cycle.ogg" id="15_cycle"]
 [ext_resource type="Script" path="res://src/audio/audio_ducking.gd" id="16_ducking"]
 [ext_resource type="PackedScene" path="res://src/debug/overlay.tscn" id="17_overlay"]
+[ext_resource type="Script" path="res://src/director/wave_director.gd" id="18_director"]
 
 [node name="Prototype" type="Node2D"]
 script = ExtResource("1_integration")
@@ -64,3 +65,26 @@ script = ExtResource("16_ducking")
 ; counts, both health pools, and SimClock. It was built in Phase 02 and
 ; bound to F1, but was not in this scene, so F1 did nothing.
 [node name="DebugOverlay" parent="." instance=ExtResource("17_overlay")]
+
+; The Wave Director (P2.8), brought forward after the author's P2.7 feel
+; verdict named its absence directly. Runs the Register's prototype
+; sequence: T1-T4 teaching waves, then combat waves 1-4, with enemies
+; arriving from the Tower and view spawn rings on schedule rather than
+; sitting in the arena from the first frame.
+;
+; Placed under Main, not beside it, so it inherits the gameplay root's
+; PROCESS_MODE_PAUSABLE and stops when the game pauses -- a wave clock that
+; kept running through a pause would spawn a wave into a paused arena.
+;
+; The three enemy scenes are supplied here rather than hardcoded in the
+; director, per the data-over-code rule, and the camera is supplied so the
+; ring's camera-exclusion check tests against the real view rather than a
+; guess (Register > Spawning & Waves > "Camera exclusion").
+[node name="WaveDirector" type="Node" parent="Main"]
+script = ExtResource("18_director")
+entity_spawner_path = NodePath("../EntitySpawner")
+tower_path = NodePath("../Tower")
+camera_path = NodePath("../Player/GameCamera")
+tower_seeker_scene = ExtResource("7_seeker")
+player_hunter_scene = ExtResource("8_hunter")
+opportunist_scene = ExtResource("9_opportunist")

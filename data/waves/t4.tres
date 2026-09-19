@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="WaveDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/wave_definition.gd" id="1_wave"]
+[ext_resource type="Script" path="res://src/data/overtime_condition.gd" id="2_overtime"]
+[ext_resource type="Script" path="res://src/data/finisher_spawn_rate.gd" id="3_rate"]
+[ext_resource type="Script" path="res://src/data/drop_table.gd" id="4_drop"]
+
+; See data/waves/t1.tres for the full citation notes shared by every wave
+; in this prototype sequence.
+
+[sub_resource type="Resource" id="Resource_finisher_rate"]
+script = ExtResource("3_rate")
+count = 2
+interval_seconds = 5.0
+
+[sub_resource type="Resource" id="Resource_finisher_drop"]
+script = ExtResource("4_drop")
+xp_shards = 1
+scrap = 0
+cores = 0
+
+[sub_resource type="Resource" id="Resource_overtime"]
+script = ExtResource("2_overtime")
+stall_threshold = 5
+finisher_enemy_id = "player_hunter"
+finisher_spawn_rate = SubResource("Resource_finisher_rate")
+finisher_drop_override = SubResource("Resource_finisher_drop")
+
+[resource]
+script = ExtResource("1_wave")
+unique_id = "wave_t4"
+biome_context_id = "biome_1_prototype"
+difficulty_band = 0
+encounter_sequence = Array[String](["t4_siege"])
+enemy_intent_mix = Array[EnemyIntentMixEntry]([])
+elite_chance = 0.0
+maximum_duration_seconds = 40.0
+has_maximum_duration = true
+target_duration_seconds = 0.0
+; inter_wave_gap_seconds: T4 is not T1/T2/T3, so the standard 8 s default
+; applies (Register > "Inter-wave gap"); the effective gap wave_director.gd
+; computes is max(8, t4_siege.tres's own 10 s Siege recovery gap) = 10 s,
+; matching Register > Onboarding & Session > "Teaching wave budgets": "the
+; 10 s Siege recovery gap follows the Draft" (the Draft itself is out of
+; scope for this task; the 10 s recovery gap is what this field's max()
+; produces regardless).
+inter_wave_gap_seconds = 8.0
+overtime_condition = SubResource("Resource_overtime")
+pressure_metric_constants = null
+boss_overlap_rules = 0

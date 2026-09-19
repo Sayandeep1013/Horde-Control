@@ -1,0 +1,59 @@
+[gd_resource type="Resource" script_class="EncounterDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="1_enc"]
+[ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
+
+; MASTER_SDLC.md > Encounter Types > "Standard Assault" (Intent/Player
+; Answer/Failure Signature transcribed verbatim). Spawn groups: Register >
+; Encounter Budgets > "T1 (max 20 s)": "Hunters 4 @0 s, 4 @6 s, 4 @12 s;
+; interval 0.5 s (12 Hunters total)." T1 is the "Hunters only" onboarding
+; variant of Standard Assault named in the same row.
+
+[sub_resource type="Resource" id="Resource_group_1"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 4
+start_offset_seconds = 0.0
+spawn_interval_seconds = 0.5
+
+[sub_resource type="Resource" id="Resource_group_2"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 4
+start_offset_seconds = 6.0
+spawn_interval_seconds = 0.5
+
+[sub_resource type="Resource" id="Resource_group_3"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 4
+start_offset_seconds = 12.0
+spawn_interval_seconds = 0.5
+
+[resource]
+script = ExtResource("1_enc")
+unique_id = "t1_standard_assault"
+encounter_type = 0
+design_intent = "Establish rhythm and baseline pressure. This is the default encounter and the one every wave falls back to."
+; pressure_target: NO REGISTER ROW -- escalated. The Register defines the
+; Pressure Metric's formulas and thresholds but never a per-encounter
+; numeric "pressure_target"; the Pressure Metric itself is out of scope for
+; this task (src/director/wave_director.gd header, "Scope"). 0.0 rather
+; than an invented number, per this project's escalation convention.
+pressure_target = 0.0
+player_answer = "Roam, collect, and let auto-fire resolve most of it."
+failure_signature = "The player is forced into the Tower's radius during a Standard Assault, which means either the encounter is overtuned or the build is behind."
+spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("Resource_group_2"), SubResource("Resource_group_3")])
+intent_budget_overrides = Array[IntentBudgetOverride]([])
+directional_weighting_override = null
+telegraph_requirements = Array[TelegraphData]([])
+minimum_recovery_gap_seconds = 5.0
+priority = 20
+entity_cap_behavior = 0
+encounter_alive_cap = 0
+allowed_encounter_tags = Array[String]([])
+excluded_encounter_tags = Array[String]([])
+reward = null
+failure_resolution = 0
+partial_reward_rules = null
+pause_and_deferral_behavior = 0

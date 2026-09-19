@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="EncounterDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="1_enc"]
+[ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
+
+; MASTER_SDLC.md > Encounter Types > "Standard Assault". Spawn groups:
+; Register > Encounter Budgets > "T2 (max 25 s)": "Hunters 4 @0 s; Seekers
+; 5 @0 s interval 1.0 s; Hunters 4 @10 s (8 Hunters + 5 Seekers total)."
+; Hunters' own interval is 0.5 s per the same row's group shape (matching
+; T1's and docs/11's explicit statement).
+
+[sub_resource type="Resource" id="Resource_group_1"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 4
+start_offset_seconds = 0.0
+spawn_interval_seconds = 0.5
+
+[sub_resource type="Resource" id="Resource_group_2"]
+script = ExtResource("2_group")
+enemy_definition_id = "tower_seeker"
+count = 5
+start_offset_seconds = 0.0
+spawn_interval_seconds = 1.0
+
+[sub_resource type="Resource" id="Resource_group_3"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 4
+start_offset_seconds = 10.0
+spawn_interval_seconds = 0.5
+
+[resource]
+script = ExtResource("1_enc")
+unique_id = "t2_standard_assault"
+encounter_type = 0
+design_intent = "Establish rhythm and baseline pressure. This is the default encounter and the one every wave falls back to."
+; pressure_target: NO REGISTER ROW -- escalated. See t1_standard_assault.tres.
+pressure_target = 0.0
+player_answer = "Roam, collect, and let auto-fire resolve most of it."
+failure_signature = "The player is forced into the Tower's radius during a Standard Assault, which means either the encounter is overtuned or the build is behind."
+spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("Resource_group_2"), SubResource("Resource_group_3")])
+intent_budget_overrides = Array[IntentBudgetOverride]([])
+directional_weighting_override = null
+telegraph_requirements = Array[TelegraphData]([])
+minimum_recovery_gap_seconds = 5.0
+priority = 20
+entity_cap_behavior = 0
+encounter_alive_cap = 0
+allowed_encounter_tags = Array[String]([])
+excluded_encounter_tags = Array[String]([])
+reward = null
+failure_resolution = 0
+partial_reward_rules = null
+pause_and_deferral_behavior = 0
