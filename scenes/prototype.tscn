@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://src/integration/prototype_integration.gd" id="1_integration"]
 [ext_resource type="PackedScene" path="res://scenes/main.tscn" id="2_main"]
@@ -16,6 +16,7 @@
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/ui/cancel.ogg" id="14_cancel"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/ui/cycle.ogg" id="15_cycle"]
 [ext_resource type="Script" path="res://src/audio/audio_ducking.gd" id="16_ducking"]
+[ext_resource type="PackedScene" path="res://src/debug/overlay.tscn" id="17_overlay"]
 
 [node name="Prototype" type="Node2D"]
 script = ExtResource("1_integration")
@@ -55,3 +56,11 @@ cycle_stream = ExtResource("15_cycle")
 
 [node name="SharedAudioDucking" type="Node" parent="."]
 script = ExtResource("16_ducking")
+
+; The debug overlay (P1.4), toggled by F1 (docs/19 > Input Map; Author
+; decision D78). Present here because the feel check at P2.7 is the point
+; of this scene, and the overlay carries exactly what a feel verdict needs
+; to be more than an impression: FPS current/median/1st-percentile, entity
+; counts, both health pools, and SimClock. It was built in Phase 02 and
+; bound to F1, but was not in this scene, so F1 did nothing.
+[node name="DebugOverlay" parent="." instance=ExtResource("17_overlay")]

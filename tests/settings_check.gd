@@ -126,7 +126,7 @@ const AUTOLOAD_PATHS := {
 # The project's recorded entry scene (Phase 00 P0.2 execution log, which
 # records what was created to satisfy docs/20's project-skeleton pin); the
 # only .tscn under scenes/ that is the game's entry point.
-const MAIN_SCENE_PATH := "res://scenes/main.tscn"
+const MAIN_SCENE_PATH := "res://scenes/prototype.tscn"
 
 # config/features (docs/20 > Version: "project.godot itself records only
 # 4.7", not 4.4 -- Phase 00 finding F-03 -- carried alongside the project's
