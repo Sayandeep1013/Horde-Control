@@ -17,8 +17,9 @@ class_name TowerVisuals
 ## GAMEPLAY deadlines; a cosmetic tween bound to this node pauses with it
 ## exactly as the master's own carve-out describes).
 ##
-## Two-layer approach: `Sprite` (native scale -- see the P2.4 evidence
-## report for why no additional Sprite2D.scale is applied) carries the
+## Two-layer approach: `Sprite` (no per-sprite scale of its own; the
+## parent `Visuals` node carries a 4.0 scale so the 64x64 Kenney tiles span
+## this Tower's 212 px footprint -- see scenes/tower.tscn) carries the
 ## health-tracked colour tint; `ShieldShimmer`, a second Sprite2D using the
 ## SAME texture as `Sprite` in additive-ish overlay (a brighter,
 ## cyan-shifted modulate with alpha driven by the shield fraction), carries

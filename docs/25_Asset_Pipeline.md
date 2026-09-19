@@ -24,15 +24,46 @@ This selects the alternative that decision D99 itself named and rejected. It the
 
 `LICENSE_CC0.txt` is the licence text shipped inside the packs themselves, copied verbatim rather than paraphrased or linked.
 
-## What the third-party assets do and do not cover
+## What the third-party assets cover
 
-They cover the environment, the Tower and its evolution stages, projectiles, pickups, telegraph shapes, and the sound effects - including the Tower damage cue, which until now was a procedurally generated placeholder tone (finding F03-18).
+They cover the environment, the decorative scatter, the Tower and its evolution stages, projectiles,
+pickups, telegraph shapes, the sound effects - including the Tower damage cue, which was previously a
+procedurally generated placeholder tone (F03-18) - **and, since the author's P2.7 feel verdict, the
+player and the three enemies.**
 
-They **do not** cover the player or the three enemies. Those keep the generated sprites from `tools/art/generate_sprites.py`.
+### Why the entity art is Kenney UNIT sprites and not Kenney CHARACTER sprites
 
-The reason is measured, not assumed. Kenney's `top-down-shooter` pack is the obvious CC0 fit for a top-down game, but rendered flat black from their own alpha channels, its `zoimbie1_stand` and `robot1_stand` sprites are near-identical ovals, and `survivor1_gun` and `soldier1_gun` differ only by a protruding gun stub. Every character in the pack is the same human-seen-from-above silhouette. The one readability property the master constrains is that a Tower Seeker, a Player Hunter and an Opportunist stay distinguishable at a glance under load, and a stock human pack cannot supply it without reshaping - which removes the reason to use stock art. Recorded as finding F03-21, before any sprite was wired in.
+The master constrains exactly one readability property: a Tower Seeker, a Player Hunter and an
+Opportunist must stay distinguishable at a glance under load. Colour-only distinctions are banned
+outright (Visual Edge Cases), so that means distinguishable by **shape**.
 
-The generator therefore stays in the repository rather than being deleted, and with it the `--silhouette` mode that renders every entity flat black so the distinguishability claim can be **checked rather than asserted**.
+Kenney's top-down *character* packs cannot supply it. Rendered flat black from their own alpha
+channels, `zoimbie1_stand` and `robot1_stand` are near-identical ovals and `survivor1_gun` and
+`soldier1_gun` differ only by a protruding gun stub - every character in the pack is the same
+human-seen-from-above outline. That was measured before anything was wired and is recorded as F03-21.
+
+Kenney's top-down *unit* sprites do supply it. A tank is a chunky body with a barrel stub, an aircraft
+is a cross, a small vehicle is a smooth oval, and a human survivor is asymmetric with a protruding gun.
+Four outlines with nothing in common, verified the same way (F03-31). So the mapping is Tower Seeker to
+tank, Player Hunter to aircraft, Opportunist to small vehicle, player to survivor - which also reads
+correctly: a lone person defending a structure against machines.
+
+`tools/art/generate_sprites.py` and its output stay in the repository as a fallback rather than being
+deleted, so the `--silhouette` mode that renders every entity flat black remains available for checking
+the distinguishability claim rather than asserting it. The named silhouette test now derives each
+silhouette from the alpha channel of the sprite the scenes **actually render**, so the art and the test
+that guards it cannot drift apart - which they had already begun to do when the art was swapped and the
+test went on comparing generated files nothing drew.
+
+### Sizing, and a regression worth not repeating
+
+Entity art must be sized against the entity's **body collider**, not dropped in at whatever resolution
+the source pack happens to use. The first swap wired 64x64 Kenney tower tiles in place of 256x256
+generated art without compensating scale, and the Tower rendered at a quarter of its own 212 px
+footprint: enemies would have attacked ground that looked empty (F03-32). Small entities carry art at
+roughly 2.3x their body radius, which is the overhang ratio the generated art established; the Tower
+carries a 4.0 scale on its `Visuals` node for the same reason. `tests/unit/entity_visual_test.gd`
+asserts rendered art is at least 80% of its body collider's diameter.
 
 ## Directory layout
 
@@ -43,7 +74,9 @@ assets/
     kenney/
       LICENSE_CC0.txt         verbatim licence text from the packs
       PROVENANCE.md           per-file source, original name and hash
+      entities/               player and the three enemies (derived; see PROVENANCE)
       environment/            floor and wall tiles
+      scenery/                non-colliding decorative scatter
       tower/                  base platform and the four evolution stages
       projectiles/            player and Tower projectiles
       pickups/                XP, Scrap, Core
@@ -52,13 +85,13 @@ assets/
       audio/ui/               interface cues
 ```
 
-Asset paths are referenced as fields on the relevant `.tres` contract, never as hardcoded references in code - the rule D99 established so that replacing art later is a data edit rather than a code change. That rule is what makes the generated-versus-stock split above reversible in either direction.
+Asset paths are referenced as fields on the relevant `.tres` contract, never as hardcoded references in code - the rule D99 established so that replacing art later is a data edit rather than a code change. That rule is what let the entity art be replaced wholesale after the author's feel verdict without touching a single line of gameplay code, and it is what keeps the generated art usable as a fallback.
 
 ## Import settings
 
 The prototype uses Godot's **default** texture import and filtering. `project.godot` carries no `[rendering]` section, so the default canvas texture filter (linear) applies.
 
-This is correct for the assets actually in use: the Kenney packs selected here are smooth vector-style PNGs at native scale, not pixel art, and linear filtering is what they are drawn for. It would be wrong for a pixel-art pack such as `pixel-shmup`, which would need the nearest-neighbour filter to stay crisp. If a pixel-art asset is ever adopted, the filter becomes a per-texture or per-node setting rather than a project-wide one, because a project-wide change would alter every existing sprite and `project.godot` is pinned by `docs/20_Technical_Architecture.md`.
+This is correct for the assets actually in use: the Kenney packs selected here are smooth vector-style PNGs rather than pixel art, so linear filtering is what they are drawn for - and it also means the four entity sprites survive being cropped and rescaled (see Sizing, above) without the stair-stepping a nearest-neighbour pixel-art asset would show. It would be wrong for a pixel-art pack such as `pixel-shmup`, which would need the nearest-neighbour filter to stay crisp. If a pixel-art asset is ever adopted, the filter becomes a per-texture or per-node setting rather than a project-wide one, because a project-wide change would alter every existing sprite and `project.godot` is pinned by `docs/20_Technical_Architecture.md`.
 
 No `project.godot` change was needed or made for this asset set. That is recorded here so a later reader knows it was checked rather than overlooked.
 

@@ -34,7 +34,13 @@ script = ExtResource("1_tower")
 definition = ExtResource("2_basedef")
 weapon_definition = ExtResource("3_baseweapon")
 
+; scale 4.0: the Kenney tower tiles are 64x64, while the generated art they
+; replaced was 256x256 for this Tower's 106 px footprint radius (212 px
+; across). At native scale the Tower rendered at a quarter of its own
+; collider, so enemies attacked ground that looked empty. 4.0 restores the
+; 256 px the rest of this scene was built against.
 [node name="Visuals" type="Node2D" parent="."]
+scale = Vector2(4, 4)
 script = ExtResource("4_visuals")
 sprite_path = NodePath("Sprite")
 shield_shimmer_path = NodePath("ShieldShimmer")

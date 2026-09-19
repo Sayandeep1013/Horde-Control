@@ -125,17 +125,28 @@ func test_each_entity_texture_actually_resolves_to_image_data() -> void:
 		remove_child(inst)
 
 
-func test_the_three_enemies_use_the_generated_art_not_a_stock_pack() -> void:
-	# LEDGER F03-21: Kenney's top-down character sprites are all the same
-	# human-from-above oval and fail this project's silhouette requirement,
-	# so the four combat entities keep the generated art (docs/25 > "What the
-	# third-party assets do and do not cover"). This asserts that decision is
-	# still true in the scenes, so a later asset sweep cannot quietly undo it
-	# and leave the silhouette requirement unmet with every test still green.
+func test_the_three_enemies_use_the_silhouette_distinct_unit_art() -> void:
+	# LEDGER F03-21 and F03-31. The constraint is the master's: a Tower
+	# Seeker, a Player Hunter and an Opportunist must stay distinguishable at
+	# a glance under load, which means distinguishable by SHAPE, since
+	# colour-only distinctions are banned outright (Visual Edge Cases >
+	# "Colour-only distinctions").
+	#
+	# Kenney's top-down CHARACTER packs cannot supply that: every one of them
+	# is the same human-from-above oval, and rendered flat black the zombie
+	# and robot sprites are indistinguishable (F03-21). Kenney's top-down
+	# UNIT sprites can and do: a tank is a chunky body with a barrel stub, a
+	# plane is a cross, a small vehicle is a smooth oval, and the player is
+	# an asymmetric human with a protruding gun. Four shapes, no shared
+	# outline (F03-31).
+	#
+	# This test pins that outcome to the scenes, so a later asset sweep
+	# cannot quietly reintroduce character sprites and leave the silhouette
+	# requirement unmet with every other test still green.
 	var expected: Dictionary = {
-		"tower_seeker": "res://assets/sprites/enemy_tower_seeker.png",
-		"player_hunter": "res://assets/sprites/enemy_player_hunter.png",
-		"opportunist": "res://assets/sprites/enemy_opportunist.png",
+		"tower_seeker": "res://assets/third_party/kenney/entities/enemy_tower_seeker.png",
+		"player_hunter": "res://assets/third_party/kenney/entities/enemy_player_hunter.png",
+		"opportunist": "res://assets/third_party/kenney/entities/enemy_opportunist.png",
 	}
 	for name in expected:
 		var packed: PackedScene = load(ENTITY_SCENES[name]) as PackedScene
@@ -150,8 +161,73 @@ func test_the_three_enemies_use_the_generated_art_not_a_stock_pack() -> void:
 			for c in n.get_children():
 				stack.append(c)
 		assert_array(paths).append_failure_message(
-			"%s must render the generated sprite %s (F03-21: the stock top-down "
+			"%s must render the silhouette-distinct unit sprite %s (F03-21 and F03-31: the stock top-down "
 			% [name, expected[name]]
-			+ "character packs fail the silhouette requirement). Rendered instead: %s" % [paths]
+			+ "CHARACTER packs are all the same oval and fail the requirement). Rendered instead: %s" % [paths]
 		).contains([expected[name]])
+		remove_child(inst)
+
+
+## An entity's art must be at least as big as the thing it collides with.
+##
+## Swapping the Tower's art from the 256x256 generated sprite to a 64x64
+## Kenney tile without adding scale rendered the Tower at roughly a QUARTER
+## of its own 212 px collision footprint: enemies walked up to a 212 px
+## radius and attacked ground that looked empty, and the 160 px Interaction
+## Radius was far larger than anything visible to stand next to. Every
+## other test passed, because every other test asks whether a texture loads,
+## not whether it covers the body it belongs to.
+##
+## The assertion is deliberately loose - rendered extent must be at least
+## 80% of the collider's diameter, not equal to it - because the project's
+## convention is that entity art OVERHANGS its collision circle (the
+## generated art used ~2.3x for small entities). This catches an order-of-
+## magnitude mismatch, which is the failure that actually happens on an
+## asset swap, without pinning an art ratio that is a style choice.
+func test_rendered_art_is_not_smaller_than_the_collider_it_belongs_to() -> void:
+	for name in ENTITY_SCENES:
+		var packed: PackedScene = load(ENTITY_SCENES[name]) as PackedScene
+		var inst: Node = auto_free(packed.instantiate())
+		add_child(inst)
+
+		var biggest_radius: float = 0.0
+		var widest_render: float = 0.0
+		var stack: Array[Node] = [inst]
+		while not stack.is_empty():
+			var n: Node = stack.pop_back()
+			# Only BODY colliders count. An Area2D radius is often deliberately
+			# larger than the entity -- the Tower's 160 px Interaction Radius is
+			# the trigger you stand inside, and the player's Collector and magnet
+			# radii are the same idea -- so comparing art against those would
+			# demand art far bigger than the thing itself. The first version of
+			# this test did exactly that and measured the Tower against a 320 px
+			# Interaction Radius, which happened to still catch the bug but for
+			# the wrong reason and with almost no margin.
+			if n is CollisionShape2D and n.get_parent() is PhysicsBody2D:
+				var shape: Shape2D = (n as CollisionShape2D).shape
+				if shape is CircleShape2D:
+					biggest_radius = maxf(biggest_radius, (shape as CircleShape2D).radius)
+			if n is Sprite2D and (n as Sprite2D).texture != null and not _is_telegraph(n):
+				var s: Sprite2D = n as Sprite2D
+				# Accumulate scale up to the scene root, since the scale that
+				# fixed the Tower lives on a parent node, not on the sprite.
+				var eff: float = float(s.texture.get_width())
+				var walk: Node = s
+				while walk != null and walk != inst.get_parent():
+					if walk is Node2D:
+						eff *= absf((walk as Node2D).scale.x)
+					walk = walk.get_parent()
+				widest_render = maxf(widest_render, eff)
+			for c in n.get_children():
+				stack.append(c)
+
+		if biggest_radius <= 0.0:
+			continue # no circular collider to compare against
+		var diameter: float = biggest_radius * 2.0
+		assert_float(widest_render).append_failure_message(
+			"%s renders at %.0f px wide but collides as a circle %.0f px across. "
+			% [name, widest_render, diameter]
+			+ "Art smaller than its own collider means the entity is attacked, "
+			+ "blocked and targeted well outside anything the player can see."
+		).is_greater_equal(diameter * 0.8)
 		remove_child(inst)

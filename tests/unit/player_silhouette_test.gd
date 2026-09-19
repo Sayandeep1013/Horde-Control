@@ -29,12 +29,24 @@ extends GdUnitTestSuite
 
 const PlayerScene: PackedScene = preload("res://scenes/player.tscn")
 
-const PLAYER_SILHOUETTE_PATH: String = "res://assets/sprites/player_silhouette.png"
-const PLAYER_SPRITE_PATH: String = "res://assets/sprites/player.png"
+# These point at the sprites the SCENES ACTUALLY RENDER, and the silhouette
+# is derived from each one's own alpha channel by _alpha_grid() rather than
+# read from a separate pre-rendered *_silhouette.png.
+#
+# That indirection is deliberate. This suite previously compared a set of
+# generated *_silhouette.png files, and when the entity art was replaced
+# (F03-31) those files stayed on disk unchanged -- so this named acceptance
+# test would have kept passing while comparing the silhouettes of sprites
+# the game no longer draws. A test that cannot notice the thing it guards
+# was swapped out is the same failure class as F03-27, where art existed on
+# disk that nothing rendered. Deriving the silhouette from the rendered
+# sprite's own alpha makes that divergence impossible by construction.
+const PLAYER_SPRITE_PATH: String = "res://assets/third_party/kenney/entities/player.png"
+const PLAYER_SILHOUETTE_PATH: String = PLAYER_SPRITE_PATH
 const ENEMY_SILHOUETTES: Dictionary = {
-	"tower_seeker": "res://assets/sprites/enemy_tower_seeker_silhouette.png",
-	"player_hunter": "res://assets/sprites/enemy_player_hunter_silhouette.png",
-	"opportunist": "res://assets/sprites/enemy_opportunist_silhouette.png",
+	"tower_seeker": "res://assets/third_party/kenney/entities/enemy_tower_seeker.png",
+	"player_hunter": "res://assets/third_party/kenney/entities/enemy_player_hunter.png",
+	"opportunist": "res://assets/third_party/kenney/entities/enemy_opportunist.png",
 }
 
 # Register > Readability row: "draw order z_index: environment 0, pickups

@@ -1,8 +1,17 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/third_party/kenney/environment/floor_tile.png" id="1_floor"]
 [ext_resource type="Script" path="res://src/environment/arena_bounds.gd" id="2_bounds"]
 [ext_resource type="Texture2D" path="res://assets/third_party/kenney/environment/wall_tile.png" id="3_wall"]
+[ext_resource type="Script" path="res://src/environment/scenery_scatter.gd" id="4_scatter"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/rock_a.png" id="5_rock_a"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/rock_b.png" id="5_rock_b"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/rock_c.png" id="5_rock_c"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/bush_a.png" id="5_bush_a"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/bush_b.png" id="5_bush_b"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/plant_a.png" id="5_plant_a"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/plant_b.png" id="5_plant_b"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/crater.png" id="5_crater"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_north"]
 size = Vector2(4928, 64)
@@ -80,3 +89,11 @@ shape = SubResource("RectangleShape2D_west")
 [node name="WallEast" type="CollisionShape2D" parent="ArenaBounds"]
 position = Vector2(2432, 0)
 shape = SubResource("RectangleShape2D_east")
+
+; Decorative floor scatter. NOT obstacles: bare Sprite2D nodes with no
+; collision and no registry entry, so the master's "no interior obstacles"
+; rule for the prototype arena is untouched. See src/environment/scenery_scatter.gd.
+[node name="SceneryScatter" type="Node2D" parent="."]
+z_index = 0
+script = ExtResource("4_scatter")
+textures = Array[Texture2D]([ExtResource("5_rock_a"), ExtResource("5_rock_b"), ExtResource("5_rock_c"), ExtResource("5_bush_a"), ExtResource("5_bush_b"), ExtResource("5_plant_a"), ExtResource("5_plant_b"), ExtResource("5_crater")])

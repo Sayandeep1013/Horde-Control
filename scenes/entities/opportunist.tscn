@@ -9,7 +9,7 @@
 [ext_resource type="Texture2D" path="res://assets/third_party/kenney/telegraphs/telegraph_diamond.png" id="7_diamond"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_hit.ogg" id="8_hit"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_death.ogg" id="9_death_sfx"]
-[ext_resource type="Texture2D" path="res://assets/sprites/enemy_opportunist.png" id="10_sprite"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/entities/enemy_opportunist.png" id="10_sprite"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 14.0
