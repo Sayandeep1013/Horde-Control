@@ -1,0 +1,74 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://src/enemy/enemy_controller.gd" id="1_body"]
+[ext_resource type="Script" path="res://src/combat/hurtbox.gd" id="2_hurtbox"]
+[ext_resource type="Script" path="res://src/combat/hitbox.gd" id="3_hitbox"]
+[ext_resource type="Script" path="res://src/combat/death_state.gd" id="4_death"]
+[ext_resource type="Resource" path="res://data/enemies/player_hunter.tres" id="5_def"]
+[ext_resource type="Script" path="res://src/enemy/telegraph_visual.gd" id="6_telegraph"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/telegraphs/telegraph_diamond.png" id="7_diamond"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_hit.ogg" id="8_hit"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_death.ogg" id="9_death_sfx"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemy_player_hunter.png" id="10_sprite"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+radius = 12.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hurtbox"]
+radius = 12.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hitbox"]
+radius = 18.0
+
+[node name="PlayerHunter" type="CharacterBody2D"]
+script = ExtResource("1_body")
+definition = ExtResource("5_def")
+hit_sfx = ExtResource("8_hit")
+death_sfx = ExtResource("9_death_sfx")
+
+[node name="BodyShape" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_body")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+script = ExtResource("2_hurtbox")
+faction = 1
+
+[node name="HurtboxShape" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("CircleShape2D_hurtbox")
+
+[node name="Hitbox" type="Area2D" parent="."]
+script = ExtResource("3_hitbox")
+damage = 8.0
+targets_tower = false
+
+[node name="HitboxShape" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("CircleShape2D_hitbox")
+disabled = true
+
+; visual_death_duration = 0.5 -- NO REGISTER ROW, NO Enemy Definition
+; Contract field -- escalated. See tower_seeker.tscn's identical note and
+; the P2.5 evidence report, "Escalations".
+[node name="DeathState" type="Node" parent="."]
+script = ExtResource("4_death")
+hitbox_paths = [NodePath("../Hitbox")]
+hurtbox_paths = [NodePath("../Hurtbox")]
+body_path = NodePath("..")
+registry_entity_path = NodePath("..")
+visual_death_duration = 0.5
+
+[node name="TelegraphVisual" type="Node2D" parent="."]
+script = ExtResource("6_telegraph")
+texture = ExtResource("7_diamond")
+
+; The entity sprite. Generated art from tools/art/generate_sprites.py, not a
+; third-party pack: Kenney's top-down characters are all the same
+; human-from-above oval and fail this project's silhouette requirement
+; (LEDGER F03-21). Native size, no scale override, matching
+; scenes/player.tscn -- the generator sizes each sprite to its own body
+; radius, so the visual overhang is already consistent across entities.
+; No z_index here: the `Entities` container supplies z_index 20 and the
+; Y-sort group (docs/20 > Scene Tree; Register > Readability).
+[node name="Visuals" type="Node2D" parent="."]
+
+[node name="Sprite2D" type="Sprite2D" parent="Visuals"]
+texture = ExtResource("10_sprite")

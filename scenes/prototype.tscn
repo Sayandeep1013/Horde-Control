@@ -1,0 +1,57 @@
+[gd_scene load_steps=18 format=3]
+
+[ext_resource type="Script" path="res://src/integration/prototype_integration.gd" id="1_integration"]
+[ext_resource type="PackedScene" path="res://scenes/main.tscn" id="2_main"]
+[ext_resource type="PackedScene" path="res://scenes/arena.tscn" id="3_arena"]
+[ext_resource type="PackedScene" path="res://scenes/tower.tscn" id="4_tower"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="5_player"]
+[ext_resource type="Script" path="res://src/camera/game_camera.gd" id="6_camera"]
+[ext_resource type="PackedScene" path="res://scenes/entities/tower_seeker.tscn" id="7_seeker"]
+[ext_resource type="PackedScene" path="res://scenes/entities/player_hunter.tscn" id="8_hunter"]
+[ext_resource type="PackedScene" path="res://scenes/entities/opportunist.tscn" id="9_opportunist"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="10_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/threat_feedback.tscn" id="11_threatfeedback"]
+[ext_resource type="Script" path="res://src/ui/ui_sfx.gd" id="12_uisfx"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/ui/confirm.ogg" id="13_confirm"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/ui/cancel.ogg" id="14_cancel"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/ui/cycle.ogg" id="15_cycle"]
+[ext_resource type="Script" path="res://src/audio/audio_ducking.gd" id="16_ducking"]
+
+[node name="Prototype" type="Node2D"]
+script = ExtResource("1_integration")
+enemy_paths = Array[NodePath]([NodePath("Main/Entities/TowerSeeker"), NodePath("Main/Entities/PlayerHunter"), NodePath("Main/Entities/Opportunist")])
+
+[node name="Main" parent="." instance=ExtResource("2_main")]
+
+[node name="ArenaInstance" parent="Main/Environment" instance=ExtResource("3_arena")]
+
+[node name="Tower" parent="Main" instance=ExtResource("4_tower")]
+
+[node name="Player" parent="Main" instance=ExtResource("5_player")]
+position = Vector2(280, 0)
+
+[node name="GameCamera" type="Camera2D" parent="Main/Player"]
+script = ExtResource("6_camera")
+target = NodePath("..")
+
+[node name="TowerSeeker" parent="Main/Entities" instance=ExtResource("7_seeker")]
+position = Vector2(220, -160)
+
+[node name="PlayerHunter" parent="Main/Entities" instance=ExtResource("8_hunter")]
+position = Vector2(-260, 120)
+
+[node name="Opportunist" parent="Main/Entities" instance=ExtResource("9_opportunist")]
+position = Vector2(0, 320)
+
+[node name="Hud" parent="." instance=ExtResource("10_hud")]
+
+[node name="ThreatFeedbackLayer" parent="." instance=ExtResource("11_threatfeedback")]
+
+[node name="UiSfx" type="Node" parent="."]
+script = ExtResource("12_uisfx")
+confirm_stream = ExtResource("13_confirm")
+cancel_stream = ExtResource("14_cancel")
+cycle_stream = ExtResource("15_cycle")
+
+[node name="SharedAudioDucking" type="Node" parent="."]
+script = ExtResource("16_ducking")

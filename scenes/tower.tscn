@@ -1,16 +1,22 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://src/tower/tower.gd" id="1_tower"]
 [ext_resource type="Resource" path="res://data/tower/base.tres" id="2_basedef"]
 [ext_resource type="Resource" path="res://data/tower/base_weapon.tres" id="3_baseweapon"]
 [ext_resource type="Script" path="res://src/tower/tower_visuals.gd" id="4_visuals"]
-[ext_resource type="Texture2D" path="res://assets/sprites/tower.png" id="5_towertex"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_stage1_base.png" id="5_towertex"]
 [ext_resource type="Script" path="res://src/combat/hurtbox.gd" id="6_hurtbox"]
 [ext_resource type="Script" path="res://src/combat/death_state.gd" id="7_deathstate"]
 [ext_resource type="Script" path="res://src/tower/tower_health.gd" id="8_health"]
 [ext_resource type="Script" path="res://src/tower/tower_weapon.gd" id="9_weapon"]
 [ext_resource type="Script" path="res://src/tower/tower_interaction_radius.gd" id="10_interaction"]
 [ext_resource type="Script" path="res://src/tower/tower_evolution_stage.gd" id="11_stage"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_platform.png" id="12_platform"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_stage2_reinforced.png" id="13_stage2"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_stage3_armed.png" id="14_stage3"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_stage4_fortress.png" id="15_stage4"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/projectiles/projectile_tower.png" id="16_projtower"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/tower_fire.ogg" id="17_towerfire"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 106.0
@@ -32,6 +38,12 @@ weapon_definition = ExtResource("3_baseweapon")
 script = ExtResource("4_visuals")
 sprite_path = NodePath("Sprite")
 shield_shimmer_path = NodePath("ShieldShimmer")
+platform_path = NodePath("Platform")
+platform_texture = ExtResource("12_platform")
+stage_textures = Array[Texture2D]([ExtResource("5_towertex"), ExtResource("13_stage2"), ExtResource("14_stage3"), ExtResource("15_stage4")])
+
+[node name="Platform" type="Sprite2D" parent="Visuals"]
+texture = ExtResource("12_platform")
 
 [node name="Sprite" type="Sprite2D" parent="Visuals"]
 texture = ExtResource("5_towertex")
@@ -68,6 +80,8 @@ death_state_path = NodePath("../DeathState")
 script = ExtResource("9_weapon")
 origin_path = NodePath("..")
 projectiles_container_path = NodePath("../Projectiles")
+projectile_texture = ExtResource("16_projtower")
+fire_sfx = ExtResource("17_towerfire")
 
 [node name="InteractionRadius" type="Area2D" parent="."]
 script = ExtResource("10_interaction")
@@ -80,3 +94,4 @@ script = ExtResource("11_stage")
 
 [node name="Projectiles" type="Node2D" parent="."]
 z_index = 30
+z_as_relative = false

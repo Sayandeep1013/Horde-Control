@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1_player"]
 [ext_resource type="Resource" path="res://data/player/prototype.tres" id="2_definition"]
@@ -7,6 +7,10 @@
 [ext_resource type="Script" path="res://src/combat/death_state.gd" id="5_death"]
 [ext_resource type="Script" path="res://src/player/player_animator.gd" id="6_animator"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player.png" id="7_sprite"]
+[ext_resource type="Script" path="res://src/combat/auto_weapon.gd" id="8_auto_weapon"]
+[ext_resource type="Resource" path="res://data/weapons/handgun.tres" id="9_handgun"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/player_fire.ogg" id="10_playerfire"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/player_damage.ogg" id="11_playerdamage"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 14.0
@@ -20,6 +24,7 @@ radius = 22.0
 [node name="Player" type="CharacterBody2D"]
 script = ExtResource("1_player")
 definition = ExtResource("2_definition")
+damage_sfx = ExtResource("11_playerdamage")
 
 [node name="BodyShape" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_body")
@@ -50,3 +55,13 @@ sprite_path = NodePath("Sprite2D")
 
 [node name="Sprite2D" type="Sprite2D" parent="Visuals"]
 texture = ExtResource("7_sprite")
+
+[node name="AutoWeapon" type="Node" parent="."]
+script = ExtResource("8_auto_weapon")
+definition = ExtResource("9_handgun")
+origin_path = NodePath("..")
+projectiles_container_path = NodePath("../Projectiles")
+fire_sfx = ExtResource("10_playerfire")
+
+[node name="Projectiles" type="Node2D" parent="."]
+z_as_relative = false

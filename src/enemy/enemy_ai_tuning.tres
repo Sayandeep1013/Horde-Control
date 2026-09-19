@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EnemyAITuning" format=3]
+
+[ext_resource type="Script" path="res://src/enemy/enemy_ai_tuning.gd" id="1_tuning"]
+
+[resource]
+script = ExtResource("1_tuning")
+attack_slot_claim_radius_px = 64.0
+attack_slot_wait_offset_px = 32.0
+separation_neighbor_radius_px = 32.0
+body_block_window_seconds = 2.0
+body_block_min_progress_px = 8.0
+leash_timeout_seconds = 20.0
+leash_telegraph_seconds = 0.5
+opportunist_aggro_range_px = 400.0
+opportunist_out_of_range_seconds = 3.0
+opportunist_switch_closer_fraction = 0.25
+opportunist_switch_lockout_seconds = 3.0
+stuck_no_progress_seconds = 3.0
+stuck_no_progress_px = 8.0
+stuck_global_direct_approach_seconds = 8.0
+stuck_despawn_seconds = 20.0
+melee_windup_minimum_seconds = 0.4
+ranged_windup_minimum_seconds = 0.8

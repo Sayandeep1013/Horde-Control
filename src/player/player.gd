@@ -108,6 +108,14 @@ var _test_input_override: Vector2 = Vector2.INF
 ## gameplay code.
 var _registry: Node = null
 
+## Integration task, docs/25_Asset_Pipeline.md: the cue played through the
+## existing AudioPool on player damage. docs/20 > "Audio Mixing & Dynamic
+## Ducking" routes player damage to SFX_Priority (never ducks), so this is
+## played as a priority voice on that bus, not the ordinary SFX default --
+## still through the one shared AudioPool, never a second/duplicate pool.
+@export var damage_sfx: AudioStream
+var _audio_pool: Node = null
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -313,6 +321,10 @@ func clear_input_buffer() -> void:
 func _on_hurtbox_damage_received(_amount: float, _source: Variant, _hitbox: Node) -> void:
 	if _animator != null:
 		_animator.play_hit_flash()
+	if _audio_pool != null and damage_sfx != null and _audio_pool.has_method("play"):
+		# docs/20 > Audio Mixing & Dynamic Ducking: "Player damage ... routed
+		# to SFX_Priority" -- a priority voice, not the ordinary SFX default.
+		_audio_pool.play(damage_sfx, global_position, 10, true, "SFX_Priority")
 
 
 ## Typed command forwarding to death_state.gd, mirroring placeholder_
@@ -330,6 +342,12 @@ func is_dead() -> bool:
 
 func set_registry_for_test(registry: Node) -> void:
 	_registry = registry
+
+
+## Typed command (integration task): wires the shared AudioPool
+## `damage_sfx` plays through. Also usable directly from a test.
+func set_audio_pool_ref(pool: Node) -> void:
+	_audio_pool = pool
 
 
 func set_input_direction_for_test(direction: Vector2) -> void:

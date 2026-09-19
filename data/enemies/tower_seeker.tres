@@ -1,0 +1,87 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/attack_profile.gd" id="1_attack"]
+[ext_resource type="Script" path="res://src/data/banded_value.gd" id="2_band"]
+[ext_resource type="Script" path="res://src/data/drop_table.gd" id="3_drop"]
+[ext_resource type="Script" path="res://src/data/movement_profile.gd" id="4_move"]
+[ext_resource type="Script" path="res://src/data/readability_profile.gd" id="5_read"]
+[ext_resource type="Script" path="res://src/data/enemy_definition.gd" id="6_def"]
+[ext_resource type="Script" path="res://src/data/telegraph_data.gd" id="7_tele"]
+
+; Register > Enemies > "Tower Seeker" row: "Speed 0.55x (176 px/s); 60 HP;
+; body radius 14; melee 15 dmg per 1.5 s cycle (10 DPS), 0.4 s wind-up,
+; reach 20 px; Contact None; body-block after 2 s blocked with player in
+; reach attacks player (15) without changing intent; intent weight 1.25".
+; The 176 px/s absolute figure is DERIVED (0.55 x the player's 320 px/s,
+; data/player/prototype.tres) by src/enemy/enemy_controller.gd at runtime,
+; never authored as a literal here -- only the multiplier is Register data.
+
+[sub_resource type="Resource" id="Resource_attack"]
+script = ExtResource("1_attack")
+attack_type = 0
+damage_per_hit_or_tick = 15
+cycle_or_tick_interval_seconds = 1.5
+reach_or_range_px = 20
+
+[sub_resource type="Resource" id="Resource_health"]
+script = ExtResource("2_band")
+value = 60
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("2_band")
+value = 15
+
+[sub_resource type="Resource" id="Resource_drop"]
+script = ExtResource("3_drop")
+xp_shards = 1
+scrap = 1
+cores = 0
+
+[sub_resource type="Resource" id="Resource_move"]
+script = ExtResource("4_move")
+speed_multiplier = 0.55
+body_radius_px = 14
+
+; NO REGISTER ROW -- escalated. Neither docs/09 nor the Provisional Values
+; Register assigns a silhouette class, a reserved colour, or a minimum
+; on-screen size to any of the three P2.5 enemies; the Readability profile
+; struct's fields are simply absent from every Enemies row. Placeholder
+; values only, pending an author/doc-09 decision -- see the P2.5 evidence
+; report, "Escalations".
+[sub_resource type="Resource" id="Resource_readability"]
+script = ExtResource("5_read")
+silhouette_class = 0
+reserved_colour = Color(0.85, 0.25, 0.15, 1)
+minimum_on_screen_size_px = 28
+
+; NO REGISTER ROW -- escalated (telegraph_shape, telegraph_colour,
+; audio_cue_id). windup_duration_seconds = 0.4 IS a real Register/docs-09
+; number ("0.4 s wind-up"; also the exact "melee windup minimum" docs/09
+; states), not escalated. lead_time_seconds is not applicable to an attack
+; telegraph (docs/20's own field semantics scope it to spawn-marker
+; scheduling), so 0.0 here is a deliberate N/A, not a third escalation.
+[sub_resource type="Resource" id="Resource_telegraph"]
+script = ExtResource("7_tele")
+windup_duration_seconds = 0.4
+telegraph_shape = 0
+telegraph_colour = Color(0.85, 0.25, 0.15, 1)
+audio_cue_id = "PLACEHOLDER_cue_tower_seeker_attack"
+lead_time_seconds = 0.0
+
+[resource]
+script = ExtResource("6_def")
+unique_id = "tower_seeker"
+target_intent = 0
+movement_profile = SubResource("Resource_move")
+attack_profile = SubResource("Resource_attack")
+telegraph_data = SubResource("Resource_telegraph")
+health_band = SubResource("Resource_health")
+damage_band = SubResource("Resource_damage")
+contact_behaviour = 0
+pathing_fallback_behavior = 0
+entity_cap_weight = 1
+elite_eligibility = false
+allowed_affixes = Array[String]([])
+biome_tags = Array[String]([])
+readability_profile = SubResource("Resource_readability")
+drop_table = SubResource("Resource_drop")

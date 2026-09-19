@@ -1,7 +1,8 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
-[ext_resource type="Texture2D" path="res://assets/sprites/floor_tile.png" id="1_floor"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/environment/floor_tile.png" id="1_floor"]
 [ext_resource type="Script" path="res://src/environment/arena_bounds.gd" id="2_bounds"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/environment/wall_tile.png" id="3_wall"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_north"]
 size = Vector2(4928, 64)
@@ -23,6 +24,42 @@ texture = ExtResource("1_floor")
 centered = true
 region_enabled = true
 region_rect = Rect2(0, 0, 4800, 3200)
+texture_repeat = 2
+
+[node name="WallNorthSprite" type="Sprite2D" parent="."]
+position = Vector2(0, -1632)
+z_index = 0
+texture = ExtResource("3_wall")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 4928, 64)
+texture_repeat = 2
+
+[node name="WallSouthSprite" type="Sprite2D" parent="."]
+position = Vector2(0, 1632)
+z_index = 0
+texture = ExtResource("3_wall")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 4928, 64)
+texture_repeat = 2
+
+[node name="WallWestSprite" type="Sprite2D" parent="."]
+position = Vector2(-2432, 0)
+z_index = 0
+texture = ExtResource("3_wall")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 64, 3200)
+texture_repeat = 2
+
+[node name="WallEastSprite" type="Sprite2D" parent="."]
+position = Vector2(2432, 0)
+z_index = 0
+texture = ExtResource("3_wall")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 64, 3200)
 texture_repeat = 2
 
 [node name="ArenaBounds" type="StaticBody2D" parent="."]

@@ -84,6 +84,15 @@ func _ready() -> void:
 		weapon.fired.connect(func(t: float) -> void: visuals.on_fired(t))
 	if health != null:
 		health.tower_destroyed.connect(_on_tower_destroyed)
+	if evolution_stage != null and visuals != null:
+		evolution_stage.stage_changed.connect(visuals.on_stage_changed)
+		# TowerEvolutionStage.configure() (called below, from configure())
+		# sets the initial stage but only EMITS stage_changed on a later
+		# change -- prime the stage-0 (Base) texture directly so the Tower
+		# never renders with no stage texture applied at all before its
+		# first rank is taken. Integration task; see tower_visuals.gd's
+		# header, "Stage-to-texture mapping."
+		visuals.on_stage_changed(evolution_stage.get_current_stage(), evolution_stage.ranks_held)
 
 
 ## Typed command: applies both Register-sourced resources to every child

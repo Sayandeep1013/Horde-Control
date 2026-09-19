@@ -1,0 +1,86 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/attack_profile.gd" id="1_attack"]
+[ext_resource type="Script" path="res://src/data/banded_value.gd" id="2_band"]
+[ext_resource type="Script" path="res://src/data/drop_table.gd" id="3_drop"]
+[ext_resource type="Script" path="res://src/data/movement_profile.gd" id="4_move"]
+[ext_resource type="Script" path="res://src/data/readability_profile.gd" id="5_read"]
+[ext_resource type="Script" path="res://src/data/enemy_definition.gd" id="6_def"]
+[ext_resource type="Script" path="res://src/data/telegraph_data.gd" id="7_tele"]
+
+; Register > Enemies > "Player Hunter" row: "Speed 0.85x (272 px/s); 30 HP;
+; radius 12; Contact 8 dmg per 0.5 s tick (16 DPS), player only; leash 20 s
+; without reset -> 0.5 s telegraph -> converts to full Tower Seeker profile
+; keeping current HP; intent weight 1.0". 272 px/s is DERIVED (0.85 x the
+; player's 320 px/s) by src/enemy/enemy_controller.gd at runtime -- only the
+; multiplier is authored here. The leash timers themselves live on
+; src/enemy/enemy_ai_tuning.tres (no Contract field exists for them; see
+; that file's header for why), not on this resource.
+
+[sub_resource type="Resource" id="Resource_attack"]
+script = ExtResource("1_attack")
+attack_type = 2
+damage_per_hit_or_tick = 8
+cycle_or_tick_interval_seconds = 0.5
+; reach_or_range_px is DERIVED, not a second Register literal: Register >
+; Enemies > "All enemies" row: "contact hitbox radius = body + 6" ->
+; 12 + 6 = 18. Matches the P2.4 precedent (tower_projectile.gd's lifetime)
+; of naming a derived figure explicitly rather than presenting it as an
+; independent Provisional Default.
+reach_or_range_px = 18
+
+[sub_resource type="Resource" id="Resource_health"]
+script = ExtResource("2_band")
+value = 30
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("2_band")
+value = 8
+
+[sub_resource type="Resource" id="Resource_drop"]
+script = ExtResource("3_drop")
+xp_shards = 1
+scrap = 1
+cores = 0
+
+[sub_resource type="Resource" id="Resource_move"]
+script = ExtResource("4_move")
+speed_multiplier = 0.85
+body_radius_px = 12
+
+; NO REGISTER ROW -- escalated. See tower_seeker.tres's identical note.
+[sub_resource type="Resource" id="Resource_readability"]
+script = ExtResource("5_read")
+silhouette_class = 0
+reserved_colour = Color(0.95, 0.75, 0.15, 1)
+minimum_on_screen_size_px = 24
+
+; windup_duration_seconds = 0.0 is NOT escalated -- docs/09 > "Telegraph
+; minimums": "Body contact damage is exempt from these minimums, because
+; approaching into contact range is itself the telegraph." shape/colour/
+; audio_cue_id ARE escalated (NO REGISTER ROW), same as tower_seeker.tres.
+[sub_resource type="Resource" id="Resource_telegraph"]
+script = ExtResource("7_tele")
+windup_duration_seconds = 0.0
+telegraph_shape = 2
+telegraph_colour = Color(0.95, 0.75, 0.15, 1)
+audio_cue_id = "PLACEHOLDER_cue_player_hunter_contact"
+lead_time_seconds = 0.0
+
+[resource]
+script = ExtResource("6_def")
+unique_id = "player_hunter"
+target_intent = 1
+movement_profile = SubResource("Resource_move")
+attack_profile = SubResource("Resource_attack")
+telegraph_data = SubResource("Resource_telegraph")
+health_band = SubResource("Resource_health")
+damage_band = SubResource("Resource_damage")
+contact_behaviour = 1
+pathing_fallback_behavior = 0
+entity_cap_weight = 1
+elite_eligibility = false
+allowed_affixes = Array[String]([])
+biome_tags = Array[String]([])
+readability_profile = SubResource("Resource_readability")
+drop_table = SubResource("Resource_drop")

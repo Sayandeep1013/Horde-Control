@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/attack_profile.gd" id="1_attack"]
+[ext_resource type="Script" path="res://src/data/banded_value.gd" id="2_band"]
+[ext_resource type="Script" path="res://src/data/drop_table.gd" id="3_drop"]
+[ext_resource type="Script" path="res://src/data/movement_profile.gd" id="4_move"]
+[ext_resource type="Script" path="res://src/data/readability_profile.gd" id="5_read"]
+[ext_resource type="Script" path="res://src/data/enemy_definition.gd" id="6_def"]
+[ext_resource type="Script" path="res://src/data/telegraph_data.gd" id="7_tele"]
+
+; Register > Enemies > "Opportunist" row: "Speed 0.70x (224 px/s); 45 HP;
+; radius 14; melee 10 dmg per 1.2 s cycle (~8.3 DPS), 0.4 s wind-up, reach
+; 20; Contact None; event rule: damaged by other target, target outside
+; 400 px for 3 s, or target dies; switch needs >= 25% closer target and
+; >= 3 s since last switch; intent weight 1.1". 224 px/s is DERIVED
+; (0.70 x the player's 320 px/s) at runtime -- only the multiplier is
+; authored here. The event-rule numbers (400 px, 3 s, 25%, 3 s lockout)
+; live on src/enemy/enemy_ai_tuning.tres (no Contract field for them).
+
+[sub_resource type="Resource" id="Resource_attack"]
+script = ExtResource("1_attack")
+attack_type = 0
+damage_per_hit_or_tick = 10
+cycle_or_tick_interval_seconds = 1.2
+reach_or_range_px = 20
+
+[sub_resource type="Resource" id="Resource_health"]
+script = ExtResource("2_band")
+value = 45
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("2_band")
+value = 10
+
+[sub_resource type="Resource" id="Resource_drop"]
+script = ExtResource("3_drop")
+xp_shards = 1
+scrap = 1
+cores = 0
+
+[sub_resource type="Resource" id="Resource_move"]
+script = ExtResource("4_move")
+speed_multiplier = 0.70
+body_radius_px = 14
+
+; NO REGISTER ROW -- escalated. See tower_seeker.tres's identical note.
+[sub_resource type="Resource" id="Resource_readability"]
+script = ExtResource("5_read")
+silhouette_class = 0
+reserved_colour = Color(0.55, 0.35, 0.85, 1)
+minimum_on_screen_size_px = 28
+
+; NO REGISTER ROW -- escalated (telegraph_shape, telegraph_colour,
+; audio_cue_id). windup_duration_seconds = 0.4 is the real Register/docs-09
+; number.
+[sub_resource type="Resource" id="Resource_telegraph"]
+script = ExtResource("7_tele")
+windup_duration_seconds = 0.4
+telegraph_shape = 0
+telegraph_colour = Color(0.55, 0.35, 0.85, 1)
+audio_cue_id = "PLACEHOLDER_cue_opportunist_attack"
+lead_time_seconds = 0.0
+
+[resource]
+script = ExtResource("6_def")
+unique_id = "opportunist"
+target_intent = 2
+movement_profile = SubResource("Resource_move")
+attack_profile = SubResource("Resource_attack")
+telegraph_data = SubResource("Resource_telegraph")
+health_band = SubResource("Resource_health")
+damage_band = SubResource("Resource_damage")
+contact_behaviour = 0
+pathing_fallback_behavior = 0
+entity_cap_weight = 1
+elite_eligibility = false
+allowed_affixes = Array[String]([])
+biome_tags = Array[String]([])
+readability_profile = SubResource("Resource_readability")
+drop_table = SubResource("Resource_drop")

@@ -59,6 +59,21 @@ const ENEMY_TAG: StringName = &"enemy"
 @export var origin_path: NodePath # the Node2D whose global_position projectiles fire from
 @export var projectiles_container_path: NodePath # optional; null container is tolerated by Pool
 
+## Integration task, docs/25_Asset_Pipeline.md: the visual this weapon's
+## projectiles carry, assigned in scenes/tower.tscn -- never a hardcoded
+## path in this file's logic (D99). src/tower/tower_projectile.gd itself
+## has no Sprite2D and is on this integration task's explicit do-not-touch
+## list (F03-17 owns that file's real defect, the missing intersect_ray
+## sweep), so the visual is attached by composition from THIS file's own
+## factory instead of editing that one.
+@export var projectile_texture: Texture2D
+
+## Integration task: the cue this weapon plays through the existing
+## AudioPool (src/audio/audio_pool.gd) on every shot -- never a hardcoded
+## path (D99). Null is tolerated (no sound, matching every other optional
+## audio hook in this project).
+@export var fire_sfx: AudioStream
+
 var _weapon_definition: WeaponDefinition = null
 var _range_px: float = 0.0
 var _damage_per_shot: float = 0.0
@@ -78,6 +93,12 @@ var _registry: Node = null
 var _clock: Node = null
 var _combat_stats: Node = null
 
+## Integration task: the AudioPool (src/audio/audio_pool.gd) this weapon
+## plays `fire_sfx` through -- optional (a null pool, or a null fire_sfx,
+## is a silent no-op, matching every other optional audio hook in this
+## project). Never a second, duplicate pool.
+var _audio_pool: Node = null
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -91,6 +112,14 @@ func _ready() -> void:
 
 func set_registry_for_test(registry: Node) -> void:
 	_registry = registry
+
+
+## Typed command (integration task): wires the shared AudioPool this
+## weapon's fire_sfx plays through. Never called by gameplay code on its
+## own -- the integration scene's own wiring script is the real caller;
+## also usable directly from a test.
+func set_audio_pool_ref(pool: Node) -> void:
+	_audio_pool = pool
 
 
 func set_sim_clock_for_test(clock: Node) -> void:
@@ -129,8 +158,24 @@ func configure(weapon: WeaponDefinition, range_px: float) -> void:
 	_configured = true
 
 
-static func _projectile_factory() -> Node:
-	return TowerProjectile.new()
+## No longer `static`: attaching `projectile_texture` (an instance-level
+## exported property, integration task) requires reading this instance's
+## own field. `Pool` accepts any `Callable`, bound or unbound (its own
+## `_init()` docstring: "factory must return a fresh, unparented Node each
+## time it is called") -- a bare reference to an instance method inside
+## another instance method already binds `self`, so `Pool.new(
+## _projectile_factory, ...)` below needs no other change. Composition,
+## not an edit to src/tower/tower_projectile.gd itself (that file is on
+## this integration task's explicit do-not-touch list): the visual is a
+## plain Sprite2D child added here, after construction.
+func _projectile_factory() -> Node:
+	var projectile: TowerProjectile = TowerProjectile.new()
+	if projectile_texture != null:
+		var sprite := Sprite2D.new()
+		sprite.name = "Sprite2D"
+		sprite.texture = projectile_texture
+		projectile.add_child(sprite)
+	return projectile
 
 
 func get_current_target() -> Node2D:
@@ -201,6 +246,8 @@ func _fire_at(target: Node2D) -> void:
 	# Projectile Orphans (docs/20): source resolved BY VALUE, never a live
 	# Node reference to this Tower -- see tower_projectile.gd's header.
 	projectile.launch(origin_pos, direction * _projectile_speed, _damage_per_shot, &"tower", _projectile_lifetime_seconds)
+	if _audio_pool != null and fire_sfx != null and _audio_pool.has_method("play"):
+		_audio_pool.play(fire_sfx, origin_pos, 0, false, "SFX")
 	fired.emit(_now())
 
 

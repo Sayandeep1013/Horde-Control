@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/banded_value.gd" id="1_dmgband"]
+[ext_resource type="Script" path="res://src/data/engagement_rhythm.gd" id="2_rhythm"]
+[ext_resource type="Script" path="res://src/data/projectile_definition.gd" id="3_proj"]
+[ext_resource type="Script" path="res://src/data/weapon_definition.gd" id="4_weapon"]
+
+[sub_resource type="Resource" id="Resource_dmgband"]
+script = ExtResource("1_dmgband")
+value = 10
+band_label = 0
+has_band_label = false
+
+[sub_resource type="Resource" id="Resource_rhythm"]
+script = ExtResource("2_rhythm")
+rhythm = 0
+fire_rate_per_second = 2.0
+
+[sub_resource type="Resource" id="Resource_proj"]
+script = ExtResource("3_proj")
+speed_px_per_second = 1000
+lifetime_seconds = 0.286
+pooling_class = "player_projectile"
+
+[resource]
+script = ExtResource("4_weapon")
+unique_id = "handgun_prototype"
+effective_range_px = 260
+coverage_shape = 3
+target_count = 1
+engagement_rhythm = SubResource("Resource_rhythm")
+damage_band = SubResource("Resource_dmgband")
+projectile_definition = SubResource("Resource_proj")
+evolution_requirement = null
+evolution_changes_axes = Array[int]([])
