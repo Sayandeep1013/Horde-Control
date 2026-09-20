@@ -133,7 +133,40 @@ func _build_harness(seed_value: int) -> Dictionary:
 	var tower: Tower = TowerScene.instantiate() as Tower
 	container.add_child(tower)
 
+	# MEASURED DEFECT, fixed here: this harness used to build a bare
+	# EntitySpawner with NO container paths set. `Pool` only adds an instance
+	# to the scene tree when it has a container (src/core/pool.gd: "if
+	# _container != null and instance.get_parent() == null"), so every enemy
+	# this harness spawned was created and NEVER PARENTED - no `_ready()`, no
+	# `@onready` hitbox, no physics processing, and no Area2D in the physics
+	# world at all. The Tower therefore read exactly 500.0/500.0 in every
+	# seed because nothing was ever really in the world to attack it, and
+	# every T4 measurement taken through this harness - P2.14's and the two
+	# re-measurements after the F05-30 fix - was measuring nothing.
+	#
+	# Found by halving T4's spawn interval and watching the result not move
+	# at all: a change with zero effect is this project's own signal (F03-23)
+	# that the mechanism is disconnected rather than that the value is wrong.
+	# The real game does wire all four containers (scenes/main.tscn's own
+	# EntitySpawner node), so this was a defect in the instrument, not in the
+	# game.
+	var entities_container: Node = Node2D.new()
+	entities_container.name = "Entities"
+	container.add_child(entities_container)
+	var projectiles_container: Node = Node2D.new()
+	projectiles_container.name = "Projectiles"
+	container.add_child(projectiles_container)
+	var pickups_container: Node = Node2D.new()
+	pickups_container.name = "Pickups"
+	container.add_child(pickups_container)
+
 	var spawner: Node = EntitySpawnerScript.new()
+	# Set BEFORE add_child(): EntitySpawner builds its pools in `_ready()`,
+	# reading these paths once, so assigning them afterwards would leave the
+	# pools holding the null container this comment exists to describe.
+	spawner.entities_container_path = NodePath("../Entities")
+	spawner.projectiles_container_path = NodePath("../Projectiles")
+	spawner.pickups_container_path = NodePath("../Pickups")
 	container.add_child(spawner)
 
 	var director: WaveDirector = WaveDirectorScript.new() as WaveDirector

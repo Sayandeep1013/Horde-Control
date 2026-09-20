@@ -45,7 +45,7 @@ Group start times below are start offsets from encounter open (Wave Runtime Mode
 | T1 | Standard Assault (Hunters only) | Hunters 4 @0 s, 4 @6 s, 4 @12 s; interval 0.5 s | 20 s |
 | T2 | Standard Assault (with Seekers) | Hunters 4 @0 s interval 0.5 s; Seekers 5 @0 s interval 1.0 s; Hunters 4 @10 s interval 0.5 s | 25 s |
 | T3 | Split Assault (light) | Seekers 8 @0 s interval 1.25 s (5 heavy / 3 light); Opportunists 4 @10 s interval 1.0 s (3 heavy / 1 light) | 30 s |
-| T4 | Siege (teaching) | Seekers 12 @3 s interval 2.0 s (starting estimate; tuned in P2.14); Hunters 2 @10 s interval 0.5 s; exempt from the volume formula below | 40 s |
+| T4 | Siege (teaching) | Seekers 16 @3 s interval 1.5 s (tuned at P2.14, 2026-09-20, replacing the starting estimate of 12 @ 2.0 s); Hunters 2 @10 s interval 0.5 s; exempt from the volume formula below | 40 s |
 | Combat wave 1 | Hunt | Hunters 5 @0 s, 5 @15 s, 6 @30 s interval 0.5 s; Opportunists 4 @45 s interval 0.5 s | 90 s |
 | Combat wave 2 | Siege ×1.5 | Seekers 43 @3 s interval 1.57 s; Hunters 7 @0 s interval 9.6 s | 90 s |
 | Combat wave 3 | Split Assault | Seekers 14 @0 s interval 1.5 s (9 heavy / 5 light); Opportunists 6 @20 s interval 1.0 s (4 heavy / 2 light) | 90 s |

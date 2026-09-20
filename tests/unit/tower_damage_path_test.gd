@@ -185,3 +185,62 @@ func test_b_a_seeker_at_realistic_spawn_distance_with_the_tower_weapon_enabled()
 	assert_bool(seeker_died or seeker_landed_hit).append_failure_message(
 		"neither outcome resolved within %d ticks (%.1f s) -- inconclusive, not evidence for either hypothesis" % [iterations, iterations / 60.0]
 	).is_true()
+
+
+## Scenario C ("widen by exactly one variable, again"). Halving T4's Seeker
+## spawn interval from 2.0 s to 1.0 s - doubling the arrival rate - changed
+## the measured outcome by NOTHING: still exactly 500.0/500.0 in all five
+## seeds, with no variance at all. A change with zero effect is this
+## project's own signal (F03-23) that the mechanism is disconnected rather
+## than that the value is wrong, so the tuning question is not answerable
+## until this one is.
+##
+## The single variable this scenario adds over Scenario A is HOW THE SEEKER
+## IS CREATED: Scenario A instantiates the scene directly, while every enemy
+## in the T4 harness - and in the real game - is acquired from the object
+## Pool through EntitySpawner. Everything else here is Scenario A exactly:
+## melee distance, Tower weapon disabled, no set_tower_reference() call.
+func test_c_a_pooled_seeker_in_melee_range_with_the_tower_weapon_disabled_damages_the_tower() -> void:
+	_tower.weapon.process_mode = Node.PROCESS_MODE_DISABLED
+
+	# The first version of this scenario built a bare EntitySpawner with no
+	# container paths, and that is how the real defect was found: `Pool` only
+	# parents an instance when it HAS a container, so the spawned Seeker was
+	# never added to the tree, never ran `_ready()`, and had a null `hitbox`.
+	# The same omission in teaching_siege_tuning_test.gd's harness is why
+	# every T4 measurement read exactly 500.0/500.0 - nothing was ever in the
+	# physics world. Containers are wired here so this scenario tests the
+	# variable it claims to (pooled acquisition), not that defect again.
+	var entities_container: Node2D = Node2D.new()
+	entities_container.name = "Entities"
+	_container.add_child(entities_container)
+
+	var spawner: Node = auto_free(load("res://src/core/entity_spawner.gd").new())
+	spawner.entities_container_path = NodePath("../Entities")
+	_container.add_child(spawner)
+
+	var seeker: EnemyController = spawner.spawn_enemy(
+		_tower.global_position + Vector2(MELEE_DISTANCE_PX, 0.0),
+		func() -> Node2D: return TowerSeekerScene.instantiate()
+	) as EnemyController
+	assert_object(seeker).append_failure_message("EntitySpawner returned no enemy - a cap throttle or a missing pool, not a damage question").is_not_null()
+	seeker.global_position = _tower.global_position + Vector2(MELEE_DISTANCE_PX, 0.0)
+
+	var starting_pool: float = _total_tower_pool()
+	var hit_landed_count: Dictionary = {"n": 0}
+	seeker.hitbox.hit_landed.connect(func(_hb: Hurtbox, _d: float, _s: Variant) -> void: hit_landed_count["n"] += 1)
+
+	var iterations: int = 0
+	while int(hit_landed_count["n"]) < 1 and iterations < 240:
+		await get_tree().physics_frame
+		iterations += 1
+
+	var ending_pool: float = _total_tower_pool()
+
+	assert_int(int(hit_landed_count["n"])).append_failure_message(
+		"a POOLED Seeker landed no hit in %d ticks while a directly-instantiated one (Scenario A) does. The difference is acquisition through EntitySpawner/Pool, not the damage path itself - which is why doubling T4's arrival rate changed nothing." % iterations
+	).is_greater(0)
+	assert_float(ending_pool).append_failure_message(
+		"a pooled Seeker's hit landed but the Tower's pool did not drop (%.2f -> %.2f)" % [starting_pool, ending_pool]
+	).is_less(starting_pool)
+	spawner.clear_all_for_test()

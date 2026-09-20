@@ -99,10 +99,10 @@ ui_sfx_path = NodePath("../UiSfx")
 ; set_run_inventory() and SimLoop registration are required code calls --
 ; see PrototypeIntegration._wire_console().
 [node name="Console" parent="." instance=ExtResource("22_console")]
-tower_path = NodePath("Main/Tower")
-player_path = NodePath("Main/Player")
-upgrade_system_path = NodePath("Main/UpgradeSystem")
-camera_path = NodePath("Main/Player/GameCamera")
+tower_path = NodePath("../Main/Tower")
+player_path = NodePath("../Main/Player")
+upgrade_system_path = NodePath("../Main/UpgradeSystem")
+camera_path = NodePath("../Main/Player/GameCamera")
 
 ; Integration task (F05-27). RunFlowController: owns the run's
 ; RUNNING/PAUSED/ENDED state and which of the pause/settings/run-end
@@ -114,8 +114,8 @@ camera_path = NodePath("Main/Player/GameCamera")
 ; code calls -- see PrototypeIntegration._wire_run_flow_controller().
 [node name="RunFlowController" type="Node" parent="."]
 script = ExtResource("23_runflow")
-tower_path = NodePath("Main/Tower")
-wave_director_path = NodePath("Main/WaveDirector")
+tower_path = NodePath("../Main/Tower")
+wave_director_path = NodePath("../Main/WaveDirector")
 
 ; The debug overlay (P1.4), toggled by F1 (docs/19 > Input Map; Author
 ; decision D78). Present here because the feel check at P2.7 is the point

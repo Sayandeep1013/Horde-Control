@@ -4,8 +4,8 @@
 [ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
 
 ; MASTER_SDLC.md > Encounter Types > "Siege". Spawn groups: Register >
-; Encounter Budgets > "T4 Siege, teaching (max 40 s)": "Seekers 12 @3 s
-; interval 2.0 s (starting estimate; tuned in P2.14); Hunters 2 @10 s
+; Encounter Budgets > "T4 Siege, teaching (max 40 s)": "Seekers 16 @3 s
+; interval 1.5 s (tuned at P2.14, 2026-09-20); Hunters 2 @10 s
 ; interval 0.5 s; exempt from the volume formula" (docs/11's fuller
 ; statement carries the Hunters group's own 0.5 s interval; the Register's
 ; own abbreviated transcription of the same row omits it). T4 is exempt
@@ -15,9 +15,9 @@
 [sub_resource type="Resource" id="Resource_group_1"]
 script = ExtResource("2_group")
 enemy_definition_id = "tower_seeker"
-count = 12
+count = 16
 start_offset_seconds = 3.0
-spawn_interval_seconds = 2.0
+spawn_interval_seconds = 1.5
 
 [sub_resource type="Resource" id="Resource_group_2"]
 script = ExtResource("2_group")
