@@ -19,6 +19,21 @@ class_name HudTruncatableLabel
 ## `focus_mode = FOCUS_ALL` so the tooltip is also reachable "on gamepad/
 ## keyboard focus", per the same rule -- a Label does not accept focus by
 ## default.
+##
+## ## UI pass (phases/UI_PASS/BRIEF.md, package A, item 6)
+## The custom tooltip panel now carries `UiTheme.TOOLTIP` and its own
+## `theme = UiTheme.get_theme()`. The explicit `.theme` assignment (not just
+## the type variation) matters here specifically: Godot's tooltip system
+## reparents whatever `_make_custom_tooltip()` returns into its own
+## floating tooltip window, which this Label's own theme inheritance chain
+## does not reach -- an unassigned `.theme` on the returned panel would
+## silently fall back to the project's default (unthemed) Theme instead of
+## resolving `UiTheme.TOOLTIP` at all.
+
+## Widget metric with no matching UiPalette scale (see hud.gd's own
+## TODO(ui-pass) block for the same reasoning).
+const TOOLTIP_LABEL_MIN_WIDTH: float = 160.0
+
 
 func _ready() -> void:
 	text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -42,9 +57,13 @@ func set_full_text(value: String) -> void:
 ## not merely the engine's default one.
 func _make_custom_tooltip(for_text: String) -> Object:
 	var panel := PanelContainer.new()
+	panel.theme = UiTheme.get_theme()
+	panel.theme_type_variation = UiTheme.TOOLTIP
 	var label := Label.new()
+	label.theme_type_variation = UiTheme.SMALL
 	label.text = for_text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size = Vector2(160, 0)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.custom_minimum_size = Vector2(TOOLTIP_LABEL_MIN_WIDTH, 0)
 	panel.add_child(label)
 	return panel

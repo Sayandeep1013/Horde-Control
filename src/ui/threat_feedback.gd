@@ -65,6 +65,23 @@ class_name ThreatFeedback
 ## default, as the fallback for the degenerate case where `cue_stream` is
 ## explicitly cleared to null on a scene/instance -- so this file never
 ## hands `TowerCuePlayer.play_tower_damage()` a null stream.
+##
+## ## UI pass (phases/UI_PASS/BRIEF.md, package A, item 7): palette + polish
+## Every drawn `Color(...)` literal is now a `UiPalette` token: the vignette
+## wedges and the low-health warning diamond use `UiPalette.DANGER`, the
+## normal (not-low-health) indicator uses `UiPalette.ACCENT`, and every
+## bright stroke (the indicator's rim, the hit arc) is drawn over a wider,
+## darker `UiPalette.TEXT_OUTLINE` pass first, so it stays legible against
+## any background colour underneath. `get_indicator_shape()`/
+## `get_indicator_color()`'s call sites and branching are unchanged; only
+## the two literal `Color(...)` values `get_indicator_color()` returns
+## change (confirmed against tests/unit/threat_feedback_indicator_test.gd
+## first: it only asserts the two colours DIFFER from each other, never
+## their exact values). The vignette wedges gain a few extra vertices along
+## their inner/outer arcs (SEGMENT_ARC_SUBDIVISIONS) so the edge follows a
+## curve instead of a straight chord -- SEGMENT_COUNT (8 discrete wedges,
+## Register-cited) and every intensity/timing value feeding them are
+## unchanged; this only smooths how each wedge's own boundary is drawn.
 
 const SEGMENT_COUNT: int = 8
 const SEGMENT_ANGLE: float = TAU / float(SEGMENT_COUNT)
@@ -99,6 +116,20 @@ const DAMAGE_TO_FULL_INTENSITY_FRACTION_OF_MAX_HEALTH: float = 0.15
 const HIT_ARC_DISPLAY_SECONDS: float = FADE_SECONDS
 
 const NEIGHBOR_BLEED_FRACTION: float = 0.35
+
+## Cosmetic-only drawing constants (UI pass, phases/UI_PASS/BRIEF.md,
+## package A, item 7): none of these change SEGMENT_COUNT, a timing, or a
+## value any getter above returns -- only how `_draw()` renders them.
+## TODO(ui-pass): promote to UiPalette if a later pass wants a shared
+## "indicator geometry" scale.
+const SEGMENT_ARC_SUBDIVISIONS: int = 6 ## smooths each wedge's arc edges; SEGMENT_COUNT (the number of wedges) is unchanged
+const INDICATOR_RADIUS: float = 8.0 ## unchanged from the pre-pass circle radius
+const DIAMOND_HALF_EXTENT: float = 10.0 ## unchanged from the pre-pass diamond half-extent
+const HIT_ARC_RADIUS: float = 14.0
+const HIT_ARC_HALF_WIDTH: float = 0.4
+const HIT_ARC_SEGMENTS: int = 12 ## up from 8, for a smoother stroke; the arc's angular SPAN (HIT_ARC_HALF_WIDTH) is unchanged
+const HIT_ARC_LINE_WIDTH: float = 3.0
+const OUTLINE_EXTRA_WIDTH: float = 2.0 ## how much wider the dark outline pass is drawn than the bright stroke it sits under
 
 var _camera: GameCamera = null
 var _tower: Tower = null
@@ -340,7 +371,7 @@ func get_indicator_shape() -> StringName:
 
 
 func get_indicator_color() -> Color:
-	return Color(0.95, 0.15, 0.10) if is_indicator_low_health() else Color(0.90, 0.85, 0.20)
+	return UiPalette.DANGER if is_indicator_low_health() else UiPalette.ACCENT
 
 
 ## Register: "shows a short arc on the side of the Tower currently being
@@ -365,6 +396,21 @@ func _draw() -> void:
 		_draw_offscreen_indicator()
 
 
+## Cosmetic-only (UI pass): builds the points of an elliptical arc from
+## `angle_from` to `angle_to`, subdivided into `subdivisions` segments, so a
+## wedge's boundary can follow a curve instead of a single straight chord.
+## Used only by `_draw_vignette_segments()` -- SEGMENT_COUNT (how many
+## wedges exist) and every intensity feeding them are untouched.
+func _arc_points(center: Vector2, radius: Vector2, angle_from: float, angle_to: float, subdivisions: int) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in range(subdivisions + 1):
+		var t: float = float(i) / float(subdivisions)
+		var a: float = lerp(angle_from, angle_to, t)
+		var dir := Vector2(cos(a), sin(a))
+		pts.append(center + Vector2(dir.x * radius.x, dir.y * radius.y))
+	return pts
+
+
 func _draw_vignette_segments() -> void:
 	var box_size: Vector2 = size
 	if box_size.x <= 0.0 or box_size.y <= 0.0:
@@ -379,15 +425,20 @@ func _draw_vignette_segments() -> void:
 			continue
 		var mid_angle: float = i * SEGMENT_ANGLE
 		var half: float = SEGMENT_ANGLE / 2.0
+		# Inner boundary ascending, outer boundary descending, so the two
+		# arcs concatenate into one closed, non-self-intersecting loop (an
+		# annulus-segment wedge) -- same winding the pre-pass 4-point quad
+		# used, just with more vertices per arc so each edge curves.
 		var points := PackedVector2Array()
-		for a in [mid_angle - half, mid_angle + half]:
-			var dir := Vector2(cos(a), sin(a))
-			points.append(center + Vector2(dir.x * outer.x * INNER_SCALE, dir.y * outer.y * INNER_SCALE))
-		for a in [mid_angle + half, mid_angle - half]:
-			var dir := Vector2(cos(a), sin(a))
-			points.append(center + Vector2(dir.x * outer.x, dir.y * outer.y))
-		var color := Color(0.85, 0.05, 0.05, clampf(alpha, 0.0, 1.0) * 0.55)
+		points.append_array(_arc_points(center, outer * INNER_SCALE, mid_angle - half, mid_angle + half, SEGMENT_ARC_SUBDIVISIONS))
+		points.append_array(_arc_points(center, outer, mid_angle + half, mid_angle - half, SEGMENT_ARC_SUBDIVISIONS))
+		var color := UiPalette.with_alpha(UiPalette.DANGER, clampf(alpha, 0.0, 1.0) * 0.55)
 		draw_colored_polygon(points, color)
+		# A thin, consistent-weight dark outline under the bright fill, so
+		# the wedge's edge reads against any background colour behind it.
+		var outline_points := points.duplicate()
+		outline_points.append(points[0])
+		draw_polyline(outline_points, UiPalette.with_alpha(UiPalette.TEXT_OUTLINE, clampf(alpha, 0.0, 1.0)), 1.5, true)
 
 
 func _draw_offscreen_indicator() -> void:
@@ -401,14 +452,27 @@ func _draw_offscreen_indicator() -> void:
 	var radius: Vector2 = box_size / 2.0 * 0.85
 	var pos: Vector2 = center + Vector2(dir.x * radius.x, dir.y * radius.y)
 	var color: Color = get_indicator_color()
+	var outline_color: Color = UiPalette.TEXT_OUTLINE
 	if is_indicator_low_health():
-		var pts := PackedVector2Array([pos + Vector2(0, -10), pos + Vector2(10, 0), pos + Vector2(0, 10), pos + Vector2(-10, 0)])
-		draw_colored_polygon(pts, color)
+		# A slightly larger dark diamond drawn first, then the bright one on
+		# top, gives the bright shape a dark rim -- legible over any
+		# background, matching the circle case below.
+		draw_colored_polygon(_diamond_points(pos, DIAMOND_HALF_EXTENT + OUTLINE_EXTRA_WIDTH), outline_color)
+		draw_colored_polygon(_diamond_points(pos, DIAMOND_HALF_EXTENT), color)
 	else:
-		draw_circle(pos, 8.0, color)
+		draw_circle(pos, INDICATOR_RADIUS + OUTLINE_EXTRA_WIDTH, outline_color)
+		draw_circle(pos, INDICATOR_RADIUS, color)
 	if has_recent_hit_arc():
 		var bearing: float = get_hit_arc_bearing_from_tower()
-		draw_arc(pos, 14.0, bearing - 0.4, bearing + 0.4, 8, Color(1, 1, 1, 0.9), 3.0)
+		draw_arc(pos, HIT_ARC_RADIUS, bearing - HIT_ARC_HALF_WIDTH, bearing + HIT_ARC_HALF_WIDTH, HIT_ARC_SEGMENTS, outline_color, HIT_ARC_LINE_WIDTH + OUTLINE_EXTRA_WIDTH)
+		draw_arc(pos, HIT_ARC_RADIUS, bearing - HIT_ARC_HALF_WIDTH, bearing + HIT_ARC_HALF_WIDTH, HIT_ARC_SEGMENTS, UiPalette.with_alpha(UiPalette.TEXT, 0.9), HIT_ARC_LINE_WIDTH)
+
+
+## The low-health warning diamond's four points at the given half-extent
+## (used both for the bright diamond and, at a larger extent, its dark
+## outline -- see _draw_offscreen_indicator()).
+func _diamond_points(pos: Vector2, half_extent: float) -> PackedVector2Array:
+	return PackedVector2Array([pos + Vector2(0, -half_extent), pos + Vector2(half_extent, 0), pos + Vector2(0, half_extent), pos + Vector2(-half_extent, 0)])
 
 
 ## See header, "Placeholder cue audio". A short, procedurally generated,

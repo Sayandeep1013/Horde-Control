@@ -35,6 +35,11 @@ static var _display_font: Font = null
 
 
 static func get_theme() -> Theme:
+	# Every surface fetches the theme while it builds, before it sets any
+	# text, which makes this the one choke point that guarantees the UI's
+	# strings are registered first. See ui_strings.gd for why this is here
+	# and when to remove it.
+	UiStrings.ensure_registered()
 	if _theme == null:
 		_theme = _build()
 	return _theme

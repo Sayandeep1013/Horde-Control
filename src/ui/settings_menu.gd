@@ -38,6 +38,27 @@ class_name SettingsMenu
 ##
 ## ## Paused-menu timing carve-out (Author decision D104)
 ## Owns no timing of its own -- see src/run/paused_choice_bar.gd's header.
+##
+## ## UI pass (package D): look and feel only
+## `_build_ui()` now goes through `src/ui/menu_frame.gd`'s shared builders,
+## matching pause_menu.gd/run_end.gd. The choice bar itself is UNCHANGED:
+## still one `PausedChoiceBar`, still the same two options, still the same
+## `_refresh_toggle_label()` call that sets its Option0 text. `set_active()`
+## gained the same purely cosmetic fade/scale-in as the other two menus. No
+## signal, public method, node name, or `_for_test` seam changed. See
+## phases/UI_PASS/reports/D_menus.md.
+##
+## ## Follow-up (coordinator review): decorative row removed
+## An earlier version of this pass added a second, purely decorative
+## "labelled row" mirroring the toggle state above the choice bar -- the
+## coordinator's review (looking at the launched scene) found it read as a
+## redundant restatement of the SAME line the bar's own Option0 already
+## shows ("Movement-only controls: Off" twice). Removed; the toggle option
+## Label is instead given enough `custom_minimum_size.x` to fit its own
+## longest state on one line at 1920x1080 (`TOGGLE_OPTION_MIN_WIDTH`,
+## measured against the actual `UiTheme.VALUE` font -- see
+## phases/UI_PASS/reports/D_menus.md for the exact measurement), so the
+## one real control reads clearly without a duplicate.
 
 signal closed()
 
@@ -63,6 +84,14 @@ var _bar: PausedChoiceBar
 var _fill_ring: DraftFillRing
 var _title_label: Label
 var _toggle_label_prefix: String = ""
+var _frame: MenuFrame.Parts
+
+## The toggle option's own minimum width, wide enough that "Movement-only
+## controls: Off" (the longer of the two states, `UiTheme.VALUE` font,
+## measured directly against the shipped font) fits on one line at
+## 1920x1080 -- 340 px measured, this leaves headroom for the outline.
+## TODO(ui-pass): promote to UiPalette if another menu ever needs it.
+const TOGGLE_OPTION_MIN_WIDTH: float = 360.0
 
 
 func _ready() -> void:
@@ -95,9 +124,16 @@ func get_console_ref_for_test() -> Console:
 	return _console
 
 
+## The card's own fade/scale-in (UI pass) is purely cosmetic and runs
+## AFTER these two lines, never before or instead of them -- input
+## activation is never delayed by it (rule 6).
 func set_active(active: bool) -> void:
 	visible = active
 	_bar.set_active(active)
+	if active:
+		MenuFrame.animate_in(_frame)
+	else:
+		MenuFrame.reset_motion(_frame)
 
 
 func is_active_for_test() -> bool:
@@ -137,40 +173,14 @@ func _refresh_toggle_label() -> void:
 
 
 func _build_ui() -> void:
-	_root = Control.new()
-	_root.name = "Root"
-	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_root)
+	# UiPalette.SPACE_XL (24) replaces this file's own former literal
+	# separation (28); this menu's dim never had its own comment on the
+	# alpha (nothing to preserve there).
+	_frame = MenuFrame.build(self, 0.6, UiPalette.SPACE_XL)
+	_root = _frame.root
 
-	var dim := ColorRect.new()
-	dim.name = "Dim"
-	dim.color = Color(0.0, 0.0, 0.0, 0.6)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(dim)
-
-	var center := CenterContainer.new()
-	center.name = "Center"
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_PASS
-	_root.add_child(center)
-
-	var column := VBoxContainer.new()
-	column.name = "Column"
-	column.mouse_filter = Control.MOUSE_FILTER_PASS
-	column.add_theme_constant_override("separation", 28)
-	center.add_child(column)
-
-	_title_label = Label.new()
-	_title_label.name = "Title"
-	_title_label.text = tr("SETTINGS_MENU_TITLE")
-	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_title_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_title_label.custom_minimum_size = Vector2(360, 0)
-	column.add_child(_title_label)
+	_title_label = MenuFrame.build_title(_frame.column, tr("SETTINGS_MENU_TITLE"), UiTheme.HEADING, 360.0)
+	MenuFrame.build_separator(_frame.column)
 
 	_toggle_label_prefix = tr("SETTINGS_MOVEMENT_ONLY")
 
@@ -178,10 +188,28 @@ func _build_ui() -> void:
 	_bar.name = "ChoiceBar"
 	_bar.set_options(["%s: %s" % [_toggle_label_prefix, tr("SETTINGS_OFF")], tr("SETTINGS_BACK")])
 	_bar.option_confirmed.connect(_on_option_confirmed)
-	column.add_child(_bar)
+	_frame.column.add_child(_bar)
+	MenuFrame.style_choice_labels(_bar)
+	_widen_toggle_option(_bar)
+
+	var hold_footer: VBoxContainer = MenuFrame.build_hold_footer(_frame.column)
+	MenuFrame.build_highlight_row(hold_footer, _bar)
 
 	_fill_ring = DraftFillRing.new()
 	_fill_ring.name = "HoldRing"
 	_fill_ring.custom_minimum_size = Vector2(48, 48)
-	column.add_child(_fill_ring)
+	MenuFrame.style_fill_ring(_fill_ring)
+	hold_footer.add_child(_fill_ring)
 	_bar.set_fill_ring(_fill_ring)
+
+
+## Widens ONLY the toggle option's Label so its own longest state text
+## ("Movement-only controls: Off") fits on one line at 1920x1080, without
+## touching the shorter "Back" option next to it. Reached via
+## `get_children()` (positional -- Option0 is always built first by
+## `PausedChoiceBar.set_options()`), never the `_for_test` seam, matching
+## `MenuFrame.style_choice_labels()`'s own hard-boundary carve-out.
+func _widen_toggle_option(bar: PausedChoiceBar) -> void:
+	var children := bar.get_children()
+	if OPTION_TOGGLE >= 0 and OPTION_TOGGLE < children.size() and children[OPTION_TOGGLE] is Label:
+		(children[OPTION_TOGGLE] as Label).custom_minimum_size.x = TOGGLE_OPTION_MIN_WIDTH
