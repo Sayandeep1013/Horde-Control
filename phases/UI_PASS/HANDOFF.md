@@ -33,7 +33,9 @@ camera_path = NodePath("../Main/Player/GameCamera")
 
 **Confirmation.** With the four references injected by the capture tool and nothing else changed, the Console opened on the same staging (`open=true inside=true affordable=true`).
 
-**Until it is fixed**, every Console screenshot in `screenshots/` was taken with references injected by the capture tool. They show what the Console looks like, not that it opens in the real game.
+**Status, checked 2026-09-20 after the screenshots were taken:** `main` has since moved to `c076fc2`, and its commit `66e623e` changes these four paths to exactly the `../Main/...` form above (and the RunFlowController's two paths the same way). The defect was found independently on both sides. `ui-pass` was cut before that commit, so it still carries the broken paths until it is merged; a read-only `git merge-tree ui-pass main` reports no conflicts. No further action is requested for H-01 beyond the merge, and the proposed assembled-scene assertion if `main` does not already have one.
+
+**On this branch, until it is merged**, every Console screenshot in `screenshots/` was taken with references injected by the capture tool. They show what the Console looks like, not that it opens in the real game.
 
 ## H-02 - No translation file exists; every `tr()` key rendered as its raw key (Major for presentation)
 
