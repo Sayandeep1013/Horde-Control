@@ -69,19 +69,49 @@ class_name ThreatFeedback
 ## ## UI pass (phases/UI_PASS/BRIEF.md, package A, item 7): palette + polish
 ## Every drawn `Color(...)` literal is now a `UiPalette` token: the vignette
 ## wedges and the low-health warning diamond use `UiPalette.DANGER`, the
-## normal (not-low-health) indicator uses `UiPalette.ACCENT`, and every
-## bright stroke (the indicator's rim, the hit arc) is drawn over a wider,
-## darker `UiPalette.TEXT_OUTLINE` pass first, so it stays legible against
-## any background colour underneath. `get_indicator_shape()`/
-## `get_indicator_color()`'s call sites and branching are unchanged; only
-## the two literal `Color(...)` values `get_indicator_color()` returns
-## change (confirmed against tests/unit/threat_feedback_indicator_test.gd
-## first: it only asserts the two colours DIFFER from each other, never
-## their exact values). The vignette wedges gain a few extra vertices along
-## their inner/outer arcs (SEGMENT_ARC_SUBDIVISIONS) so the edge follows a
-## curve instead of a straight chord -- SEGMENT_COUNT (8 discrete wedges,
-## Register-cited) and every intensity/timing value feeding them are
-## unchanged; this only smooths how each wedge's own boundary is drawn.
+## normal (not-low-health) indicator uses `UiPalette.ACCENT`, and the
+## indicator's rim and the hit arc are drawn over a wider, darker
+## `UiPalette.TEXT_OUTLINE` pass first, so they stay legible against any
+## background colour underneath (see "UI pass round 2" below for why the
+## vignette itself does NOT get this outline treatment).
+## `get_indicator_shape()`/`get_indicator_color()`'s call sites and
+## branching are unchanged; only the two literal `Color(...)` values
+## `get_indicator_color()` returns change (confirmed against
+## tests/unit/threat_feedback_indicator_test.gd first: it only asserts the
+## two colours DIFFER from each other, never their exact values).
+##
+## ## UI pass round 2 (LEDGER UR-02, orchestrator direction after reviewing
+## the round-1 capture)
+## Round 1's vignette (a flat-alpha annulus wedge inset ~45% from the
+## screen edge, with a dark outline around each lit wedge) read as a solid
+## salmon block with a debug-overlay edge, not a directional glow: opaque
+## enough to hide enemies/pickups under it, its inner edge far enough from
+## the border to cover real playfield, and its 8 wedges meeting at hard
+## seams. `_draw_vignette_segments()` is rewritten below, cosmetically
+## only: `SEGMENT_COUNT`, `get_segment_intensities()`,
+## `NEIGHBOR_BLEED_FRACTION`, and every timing/Register-cited value feeding
+## them are untouched, and every getter a test reads still returns exactly
+## what it returned before.
+## 1. The wedge's OUTER boundary is now the literal screen edge (a ray from
+##    centre to this Control's own rectangle boundary, `_rect_edge_point()`)
+##    instead of a circle inset within it -- the vignette now actually hugs
+##    the border, per PLAN.md direction item 1 ("the screen centre stays
+##    clear").
+## 2. The wedge's INNER boundary sits at `INNER_REACH_FRACTION` of the
+##    shorter screen side, and alpha fades from 0 there to
+##    `VIGNETTE_PEAK_ALPHA` at the outer/screen-edge boundary, via
+##    per-vertex colours passed to `draw_polygon()` (Godot interpolates
+##    between them across the triangulated wedge) rather than one flat
+##    alpha for the whole shape.
+## 3. Alpha is also interpolated ACROSS each wedge's own angular span toward
+##    its two neighbours' intensities (`_blended_intensity_at_angle()`), so
+##    adjacent wedges blend into each other at their shared boundary instead
+##    of meeting at a hard seam -- purely a drawing-time smoothing of the
+##    same 8 values `get_segment_intensities()` already returns.
+## 4. No outline pass on the vignette at all: a dark outline reads as a
+##    debug-overlay edge on what is meant to be a soft glow. It stays on the
+##    small off-screen indicator below, where a hard edge is exactly what
+##    legibility needs.
 
 const SEGMENT_COUNT: int = 8
 const SEGMENT_ANGLE: float = TAU / float(SEGMENT_COUNT)
@@ -122,7 +152,25 @@ const NEIGHBOR_BLEED_FRACTION: float = 0.35
 ## value any getter above returns -- only how `_draw()` renders them.
 ## TODO(ui-pass): promote to UiPalette if a later pass wants a shared
 ## "indicator geometry" scale.
-const SEGMENT_ARC_SUBDIVISIONS: int = 6 ## smooths each wedge's arc edges; SEGMENT_COUNT (the number of wedges) is unchanged
+## UI pass round 2: `SEGMENT_ARC_SUBDIVISIONS` now also sets how many angular
+## samples each wedge draws (edge shape + alpha blend resolution), since the
+## outer boundary follows the screen's own rectangle instead of a circle.
+const SEGMENT_ARC_SUBDIVISIONS: int = 6 ## samples per wedge span, for both the screen-edge boundary shape and the neighbour-blended alpha; SEGMENT_COUNT (the number of wedges) is unchanged
+## UI pass round 2 (LEDGER UR-02): how far in from the screen edge the
+## vignette's fully-transparent inner boundary sits, as a fraction of the
+## shorter screen side -- keeps the screen centre clear (PLAN.md direction
+## item 1) no matter the aspect ratio.
+## TODO(ui-pass): promote to UiPalette if a later pass wants a shared
+## "vignette reach" scale.
+const INNER_REACH_FRACTION: float = 0.18
+## UI pass round 2 (LEDGER UR-02): alpha at the vignette's outer (screen-
+## edge) boundary at full intensity; fades to 0 at `INNER_REACH_FRACTION`.
+## Round 1's flat 0.55 read as an opaque block hiding enemies/pickups under
+## it; this is the peak of a radial GRADIENT, not a flat fill, so the
+## visible average is well under this number even at full intensity.
+## TODO(ui-pass): promote to UiPalette if a later pass wants a shared
+## "vignette reach" scale.
+const VIGNETTE_PEAK_ALPHA: float = 0.4
 const INDICATOR_RADIUS: float = 8.0 ## unchanged from the pre-pass circle radius
 const DIAMOND_HALF_EXTENT: float = 10.0 ## unchanged from the pre-pass diamond half-extent
 const HIT_ARC_RADIUS: float = 14.0
@@ -396,49 +444,84 @@ func _draw() -> void:
 		_draw_offscreen_indicator()
 
 
-## Cosmetic-only (UI pass): builds the points of an elliptical arc from
-## `angle_from` to `angle_to`, subdivided into `subdivisions` segments, so a
-## wedge's boundary can follow a curve instead of a single straight chord.
-## Used only by `_draw_vignette_segments()` -- SEGMENT_COUNT (how many
-## wedges exist) and every intensity feeding them are untouched.
-func _arc_points(center: Vector2, radius: Vector2, angle_from: float, angle_to: float, subdivisions: int) -> PackedVector2Array:
-	var pts := PackedVector2Array()
-	for i in range(subdivisions + 1):
-		var t: float = float(i) / float(subdivisions)
-		var a: float = lerp(angle_from, angle_to, t)
-		var dir := Vector2(cos(a), sin(a))
-		pts.append(center + Vector2(dir.x * radius.x, dir.y * radius.y))
-	return pts
+## UI pass round 2 (LEDGER UR-02): the point on this Control's own
+## rectangle boundary reached by a ray from `center` at `angle` -- literally
+## the screen edge, not a circle inset within it (see the header, "UI pass
+## round 2," point 1).
+func _rect_edge_point(center: Vector2, half_extent: Vector2, angle: float) -> Vector2:
+	var dir := Vector2(cos(angle), sin(angle))
+	var t: float = INF
+	if absf(dir.x) > 0.0001:
+		t = minf(t, half_extent.x / absf(dir.x))
+	if absf(dir.y) > 0.0001:
+		t = minf(t, half_extent.y / absf(dir.y))
+	if not is_finite(t):
+		t = 0.0
+	return center + dir * t
 
 
+## UI pass round 2 (LEDGER UR-02): smoothly interpolates between a wedge's
+## own intensity and its neighbours' as `angle` moves across the circle, so
+## the drawn vignette has no hard seam between segments (see the header,
+## "UI pass round 2," point 3). Purely a drawing-time smoothing --
+## `get_segment_intensities()` and `get_active_segment_index()` (the values
+## and the index this samples) are untouched.
+func _blended_intensity_at_angle(angle: float, intensities: Array) -> float:
+	var normalized: float = wrapf(angle, 0.0, TAU)
+	var raw_index: float = normalized / SEGMENT_ANGLE
+	var i0: int = int(floor(raw_index)) % SEGMENT_COUNT
+	var i1: int = (i0 + 1) % SEGMENT_COUNT
+	var t: float = raw_index - floor(raw_index)
+	return lerpf(float(intensities[i0]), float(intensities[i1]), t)
+
+
+## UI pass round 2 (LEDGER UR-02): see the header, "UI pass round 2," for
+## the full rationale. Draws each of the SEGMENT_COUNT wedges as an annulus
+## segment whose outer boundary is the literal screen edge and whose alpha
+## fades radially (per-vertex colours) from 0 at the inner boundary to the
+## neighbour-blended intensity at the outer one -- SEGMENT_COUNT,
+## `get_segment_intensities()`, `NEIGHBOR_BLEED_FRACTION`, and every
+## timing/Register-cited value feeding them are untouched; this only
+## changes how the same 8 values are drawn.
 func _draw_vignette_segments() -> void:
 	var box_size: Vector2 = size
 	if box_size.x <= 0.0 or box_size.y <= 0.0:
 		return
 	var intensities: Array = get_segment_intensities()
+	var has_any: bool = false
+	for value in intensities:
+		if float(value) > 0.0:
+			has_any = true
+			break
+	if not has_any:
+		return
+
 	var center: Vector2 = box_size / 2.0
-	var outer: Vector2 = box_size / 2.0
-	const INNER_SCALE: float = 0.55
+	var half_extent: Vector2 = box_size / 2.0
+	var inner_radius: float = minf(box_size.x, box_size.y) * INNER_REACH_FRACTION
+
 	for i in range(SEGMENT_COUNT):
-		var alpha: float = intensities[i]
-		if alpha <= 0.0:
-			continue
 		var mid_angle: float = i * SEGMENT_ANGLE
 		var half: float = SEGMENT_ANGLE / 2.0
-		# Inner boundary ascending, outer boundary descending, so the two
-		# arcs concatenate into one closed, non-self-intersecting loop (an
-		# annulus-segment wedge) -- same winding the pre-pass 4-point quad
-		# used, just with more vertices per arc so each edge curves.
 		var points := PackedVector2Array()
-		points.append_array(_arc_points(center, outer * INNER_SCALE, mid_angle - half, mid_angle + half, SEGMENT_ARC_SUBDIVISIONS))
-		points.append_array(_arc_points(center, outer, mid_angle + half, mid_angle - half, SEGMENT_ARC_SUBDIVISIONS))
-		var color := UiPalette.with_alpha(UiPalette.DANGER, clampf(alpha, 0.0, 1.0) * 0.55)
-		draw_colored_polygon(points, color)
-		# A thin, consistent-weight dark outline under the bright fill, so
-		# the wedge's edge reads against any background colour behind it.
-		var outline_points := points.duplicate()
-		outline_points.append(points[0])
-		draw_polyline(outline_points, UiPalette.with_alpha(UiPalette.TEXT_OUTLINE, clampf(alpha, 0.0, 1.0)), 1.5, true)
+		var colors := PackedColorArray()
+		# Inner boundary, ascending angle, alpha 0 -- the screen centre stays
+		# clear no matter how intense the hit.
+		for s in range(SEGMENT_ARC_SUBDIVISIONS + 1):
+			var t: float = float(s) / float(SEGMENT_ARC_SUBDIVISIONS)
+			var a: float = lerp(mid_angle - half, mid_angle + half, t)
+			var dir := Vector2(cos(a), sin(a))
+			points.append(center + dir * inner_radius)
+			colors.append(UiPalette.with_alpha(UiPalette.DANGER, 0.0))
+		# Outer boundary (the screen edge itself), descending angle, alpha
+		# from the neighbour-blended intensity at that angle.
+		for s in range(SEGMENT_ARC_SUBDIVISIONS, -1, -1):
+			var t: float = float(s) / float(SEGMENT_ARC_SUBDIVISIONS)
+			var a: float = lerp(mid_angle - half, mid_angle + half, t)
+			var blended: float = _blended_intensity_at_angle(a, intensities)
+			points.append(_rect_edge_point(center, half_extent, a))
+			colors.append(UiPalette.with_alpha(UiPalette.DANGER, clampf(blended, 0.0, 1.0) * VIGNETTE_PEAK_ALPHA))
+		draw_polygon(points, colors)
 
 
 func _draw_offscreen_indicator() -> void:

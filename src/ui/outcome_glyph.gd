@@ -6,7 +6,7 @@ class_name OutcomeGlyph
 ## defeat or UiPalette.SUCCESS for victory WITH a distinct glyph or word
 ## per outcome (never colour alone ...)").
 ##
-## Drawn, not a font character: `assets/ui/fonts/PixelifySans-Variable.ttf`
+## Drawn, not a font character: the shipped font (`UiPalette.FONT_PATH`)
 ## has none of the common dingbat/check/star/skull glyphs
 ## (`Font.has_char()` checked against it directly returns false for
 ## U+2713/2715/2717/2605/2606/2620/etc. -- only plain ASCII and a handful

@@ -119,11 +119,8 @@ const HOLD_CONFIRM_SECONDS: float = 1.0
 ## dimensions, not a reusable spacing/colour/font concept.
 ## TODO(ui-pass): promote to UiPalette if another surface needs the same
 ## card or ring size.
-const CARD_MIN_SIZE: Vector2 = Vector2(360, 420)
+const CARD_MIN_SIZE: Vector2 = Vector2(360, 300)
 const HOLD_RING_DIAMETER: float = 56.0
-## Hints the "hold up" gesture this ring times (docs/19 > "Movement-only");
-## drawn at the ring's centre by DraftFillRing.center_glyph (UI Pass).
-const HOLD_RING_GLYPH: String = "▲"
 ## `tr()` key for the heading Label; its English text is registered by
 ## src/ui/theme/ui_strings.gd.
 const HEADING_TEXT_KEY: String = "DRAFT_TITLE"
@@ -883,6 +880,10 @@ func _reset_input_state_for_open() -> void:
 # --- UI construction ----------------------------------------------------------
 
 func _build_ui() -> void:
+	# Round 2, UR-08: explicit, not only as UiTheme.get_theme()'s side effect
+	# below -- tr(HEADING_TEXT_KEY) a few lines down needs the key registered
+	# regardless of theme-build order.
+	UiStrings.ensure_registered()
 	_root = Control.new()
 	_root.name = "Root"
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -917,7 +918,7 @@ func _build_ui() -> void:
 	var column := VBoxContainer.new()
 	column.name = "Column"
 	column.mouse_filter = Control.MOUSE_FILTER_PASS
-	column.add_theme_constant_override("separation", UiPalette.SPACE_XL)
+	column.theme_type_variation = UiTheme.vbox("XL") # Round 2, UR-06
 	center.add_child(column)
 
 	# Heading (docs/19 > "Upgrade Draft UI & Navigation"; direction: "State
@@ -936,19 +937,23 @@ func _build_ui() -> void:
 	_card_row.name = "CardRow"
 	_card_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	_card_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_card_row.add_theme_constant_override("separation", UiPalette.SPACE_XXL)
+	_card_row.theme_type_variation = UiTheme.hbox("XXL") # Round 2, UR-06
 	column.add_child(_card_row)
 
 	var bottom_row := HBoxContainer.new()
 	bottom_row.name = "BottomRow"
 	bottom_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	bottom_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	bottom_row.add_theme_constant_override("separation", UiPalette.SPACE_L)
+	bottom_row.theme_type_variation = UiTheme.hbox("L") # Round 2, UR-06
 	column.add_child(bottom_row)
 
 	_fill_ring = DraftFillRing.new()
 	_fill_ring.name = "HoldRing"
-	_fill_ring.center_glyph = HOLD_RING_GLYPH
+	# Round 2, UR-03: a drawn triangle, not the "▲" character (not in the
+	# shipped font -- see draft_fill_ring.gd's own header), the same shape
+	# geometry as the Player pool glyph on the cards above, hinting the
+	# "hold up" gesture this ring times (docs/19 > "Movement-only").
+	_fill_ring.center_shape = UiShapeGlyph.Shape.TRIANGLE
 	_fill_ring.custom_minimum_size = Vector2(HOLD_RING_DIAMETER, HOLD_RING_DIAMETER)
 	bottom_row.add_child(_fill_ring)
 

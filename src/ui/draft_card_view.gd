@@ -59,6 +59,25 @@ class_name DraftCardView
 ## values tests/unit/draft_input_lockout_test.gd reads. See
 ## draft_controller.gd's own header for why a bare, node-bound
 ## `create_tween()` is permitted here at all.
+##
+## ## Round 2 (review fixes)
+## UR-03: `_glyph_label` is now a `UiShapeGlyph` (`extends Label`), drawn as
+## a vector triangle/square instead of the "▲"/"■" characters -- both
+## confirmed absent from the shipped font (`Font.has_char()` false for
+## U+25B2 and U+25A0 against the shipped font (`UiPalette.FONT_PATH`; false for Pixelify Sans and for Jersey 10),
+## checked directly for this pass; see package report). It keeps its node
+## name and its `text` (`get_glyph_label().text` is still exactly
+## `GLYPH_PLAYER`/`GLYPH_TOWER` -- `tests/unit/draft_input_lockout_test.gd`
+## reads that), and `get_glyph_label()` still returns `Label` (its declared
+## static type), since `UiShapeGlyph` IS a `Label` (see shape_glyph.gd's own
+## header for why it keeps the text at all -- it is invisible, painted fully
+## transparent, and exists only as the test seam).
+## Highlight cue: the review found the border-width gap between normal and
+## highlighted (2px/3px, UiPalette.BORDER_THIN/THICK) plus the 1.05 lift
+## "materially weaker than before" in a still frame. `_apply_highlight_style()`
+## now also sets the stylebox's own `shadow_color`/`shadow_size` when
+## highlighted (present vs. absent, a silhouette difference, not a colour
+## swap) and the border width/lift both grew -- see the constants below.
 
 ## Register > "Draft card display": "frame shape ... rounded for player,
 ## squared for Tower". NO REGISTER ROW for the exact pixel radius -- a
@@ -88,9 +107,28 @@ const HEADER_TOWER: String = "TOWER"
 ## subtler (Colour-only-distinctions rule: shape AND colour AND motion all
 ## differ, not colour alone).
 const BORDER_WIDTH_NORMAL: int = UiPalette.BORDER_THIN
-const BORDER_WIDTH_HIGHLIGHTED: int = UiPalette.BORDER_THICK
+## Round 2 (review): normal->highlighted stayed a 1px gap even with
+## UiPalette.BORDER_THICK; the review called the still-frame cue "materially
+## weaker than before." UiPalette has only a THIN/THICK pair, no third
+## "emphatic selection" tier, so this is a local const, not
+## UiPalette.BORDER_THICK. TODO(ui-pass): promote to UiPalette if another
+## surface wants a border weight beyond THICK for a selection/focus cue.
+const BORDER_WIDTH_HIGHLIGHTED: int = 5
 const BORDER_COLOR_NORMAL: Color = UiPalette.LINE_STRONG
 const BORDER_COLOR_HIGHLIGHTED: Color = UiPalette.ACCENT
+
+## Round 2 (review): a shadow, present only while highlighted, is a
+## silhouette difference (visible with colour desaturated, unlike a colour
+## swap alone) layered on top of the border-width/lift cues, not a
+## replacement for either. UiPalette has a colour and a spacing scale but no
+## "shadow blur/offset" scale. TODO(ui-pass): promote to UiPalette if
+## another surface wants the same elevation cue.
+const HIGHLIGHT_SHADOW_SIZE_PX: int = 10
+const HIGHLIGHT_SHADOW_OFFSET_PX: float = 3.0
+## Not `UiPalette.with_alpha(UiPalette.ACCENT, ...)` directly -- a `const`
+## initializer must be a constant expression, and `with_alpha()` is a
+## function call; the colour is built from these two constants where used.
+const HIGHLIGHT_SHADOW_ALPHA: float = 0.55
 
 ## No UiPalette token covers a card's inner content width or a highlight
 ## lift's scale factor -- the first is a single-widget minimum size, the
@@ -98,11 +136,16 @@ const BORDER_COLOR_HIGHLIGHTED: Color = UiPalette.ACCENT
 ## concept. TODO(ui-pass): promote to UiPalette if another surface needs the
 ## same content width or the same lift feel.
 const CONTENT_MIN_WIDTH: float = 300.0
-const HIGHLIGHT_LIFT_SCALE: float = 1.05
+## Round 2 (review): 1.05 read as too subtle in a still frame; raised
+## alongside the border-width/shadow changes above, same reasoning.
+const HIGHLIGHT_LIFT_SCALE: float = 1.09
 
 var _column: VBoxContainer
 var _accent_strip: ColorRect
 var _header_label: Label
+## Declared `Label` (get_glyph_label()'s own return type, unchanged --
+## tests/unit/draft_input_lockout_test.gd's seam) though the instance built
+## in _init() is a UiShapeGlyph, which extends Label (Round 2, UR-03).
 var _glyph_label: Label
 var _name_label: Label
 var _effect_label: Label
@@ -137,7 +180,7 @@ func _init() -> void:
 	_column = VBoxContainer.new()
 	_column.name = "Column"
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_column.add_theme_constant_override("separation", UiPalette.SPACE_M)
+	_column.theme_type_variation = UiTheme.vbox("M") # Round 2, UR-06
 	add_child(_column)
 
 	# Redundant colour cue (MASTER_SDLC.md > Visual Edge Cases >
@@ -153,12 +196,19 @@ func _init() -> void:
 	var header_row := HBoxContainer.new()
 	header_row.name = "HeaderRow"
 	header_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	header_row.add_theme_constant_override("separation", UiPalette.SPACE_S)
+	# Round 2, UR-06: SPACE_S is the theme's own HBoxContainer default
+	# (ui_theme.gd's _build_containers()) -- no override needed at all.
 	_column.add_child(header_row)
 
-	_glyph_label = Label.new()
+	# Round 2, UR-03: a UiShapeGlyph (extends Label), not a "▲"/"■" character
+	# -- see class header. Still named "Glyph"; setup() still sets its
+	# `.text` to GLYPH_PLAYER/GLYPH_TOWER (the test seam), and now also its
+	# `.shape`/`.glyph_color`. Sized with set_side() from a UiPalette
+	# font-size token in place of the old font-size override, so it tracks
+	# the text beside it the same way it did as a Label.
+	_glyph_label = UiShapeGlyph.new()
 	_glyph_label.name = "Glyph"
-	_glyph_label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_HEADING)
+	(_glyph_label as UiShapeGlyph).set_side(UiPalette.FONT_SIZE_HEADING)
 	header_row.add_child(_glyph_label)
 
 	# Clear hierarchy (task brief): header word small and dim.
@@ -183,12 +233,20 @@ func _init() -> void:
 	# Clear hierarchy: one-sentence effect in body -- the root Theme's own
 	# default Label styling (UiPalette.FONT_SIZE_BODY / UiPalette.TEXT),
 	# inherited from _root, needs no override here.
+	# Round 2 (review): this label used to be the VBoxContainer's only
+	# SIZE_EXPAND_FILL-vertical child, so it alone absorbed every pixel of
+	# slack between the card's fixed CARD_MIN_SIZE height
+	# (draft_controller.gd) and the column's natural content height -- read
+	# in a still frame as ~200px of dead space between the one-sentence
+	# effect and the "Rank n of 3" line below it. No child now claims
+	# vertical expansion, so the VBoxContainer's default top alignment packs
+	# every label tight against its neighbour and leaves any leftover slack
+	# at the BOTTOM of the card as a plain margin, never mid-content.
 	_effect_label = Label.new()
 	_effect_label.name = "Effect"
 	_effect_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_effect_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_effect_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_effect_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_effect_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_effect_label.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 0)
 	_column.add_child(_effect_label)
@@ -213,7 +271,13 @@ func setup(def: UpgradeDefinition, current_rank: int) -> void:
 	var is_player: bool = def.pool_ownership == ContractEnums.PoolOwnership.Player
 	var radius: int = CORNER_ROUNDED_PX if is_player else CORNER_SQUARED_PX
 	_style.set_corner_radius_all(radius)
+	# get_glyph_label().text stays exactly GLYPH_PLAYER/GLYPH_TOWER (the test
+	# seam); shape and glyph_color are the new UiShapeGlyph-only properties
+	# (Round 2, UR-03) and touch nothing a test reads.
 	_glyph_label.text = GLYPH_PLAYER if is_player else GLYPH_TOWER
+	var shape_glyph: UiShapeGlyph = _glyph_label as UiShapeGlyph
+	shape_glyph.shape = UiShapeGlyph.Shape.TRIANGLE if is_player else UiShapeGlyph.Shape.SQUARE
+	shape_glyph.glyph_color = UiPalette.PLAYER if is_player else UiPalette.TOWER
 	_header_label.text = HEADER_PLAYER if is_player else HEADER_TOWER
 	_accent_strip.color = UiPalette.PLAYER if is_player else UiPalette.TOWER
 
@@ -259,6 +323,13 @@ func _apply_highlight_style() -> void:
 	var color: Color = BORDER_COLOR_HIGHLIGHTED if _highlighted else BORDER_COLOR_NORMAL
 	_style.set_border_width_all(width)
 	_style.border_color = color
+	# Round 2 (review): a shadow, present only while highlighted, so the
+	# highlighted card reads as a distinct silhouette (not only a colour
+	# change) even in a still frame with colour desaturated -- see class
+	# header and the HIGHLIGHT_SHADOW_* constants above.
+	_style.shadow_size = HIGHLIGHT_SHADOW_SIZE_PX if _highlighted else 0
+	_style.shadow_color = UiPalette.with_alpha(UiPalette.ACCENT, HIGHLIGHT_SHADOW_ALPHA)
+	_style.shadow_offset = Vector2(0.0, HIGHLIGHT_SHADOW_OFFSET_PX) if _highlighted else Vector2.ZERO
 
 
 ## Cosmetic only (see class header): a bare, node-bound `create_tween()`

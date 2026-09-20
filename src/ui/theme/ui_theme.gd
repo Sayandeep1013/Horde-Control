@@ -15,6 +15,9 @@ class_name UiTheme
 ##   PanelContainer: &"UiPill", &"UiPanel", &"UiCard", &"UiTooltip", &"UiRow",
 ##                   &"UiRowHighlighted"
 ##   Label:          &"UiTitle", &"UiHeading", &"UiValue", &"UiDim", &"UiSmall"
+##   HBoxContainer / VBoxContainer: a separation step per UiPalette spacing
+##                   token, via `hbox(step)` / `vbox(step)`. SPACE_S is the
+##                   theme default and needs no variation.
 
 const PILL: StringName = &"UiPill"
 const PANEL: StringName = &"UiPanel"
@@ -28,6 +31,17 @@ const HEADING: StringName = &"UiHeading"
 const VALUE: StringName = &"UiValue"
 const DIM: StringName = &"UiDim"
 const SMALL: StringName = &"UiSmall"
+
+## Box-container separation steps: suffix -> UiPalette spacing token. A box
+## that wants a non-default gap sets `theme_type_variation = UiTheme.hbox("XS")`
+## rather than overriding the "separation" constant per node.
+const BOX_STEPS: Dictionary = {
+	"XS": UiPalette.SPACE_XS,
+	"M": UiPalette.SPACE_M,
+	"L": UiPalette.SPACE_L,
+	"XL": UiPalette.SPACE_XL,
+	"XXL": UiPalette.SPACE_XXL,
+}
 
 static var _theme: Theme = null
 static var _body_font: Font = null
@@ -57,6 +71,18 @@ static func get_display_font() -> Font:
 	return _display_font
 
 
+## Variation name for an HBoxContainer whose separation is `BOX_STEPS[step]`.
+static func hbox(step: String) -> StringName:
+	assert(BOX_STEPS.has(step), "UiTheme.hbox: unknown separation step '%s'" % step)
+	return StringName("UiHBox" + step)
+
+
+## Variation name for a VBoxContainer whose separation is `BOX_STEPS[step]`.
+static func vbox(step: String) -> StringName:
+	assert(BOX_STEPS.has(step), "UiTheme.vbox: unknown separation step '%s'" % step)
+	return StringName("UiVBox" + step)
+
+
 ## A flat box from palette tokens. Public so custom-drawn controls (HudBar,
 ## the fill rings, a card frame that changes shape at runtime) can build a
 ## matching box without restating colours.
@@ -83,6 +109,14 @@ static func _make_font(weight: int) -> Font:
 	variation.base_font = base
 	var wght_tag: int = TextServerManager.get_primary_interface().name_to_tag("wght")
 	variation.variation_opentype = {wght_tag: weight}
+	# Ligatures off. The pass's first font, Pixelify Sans, substituted "fi"
+	# with a single glyph that read as a capital A at UI sizes: the Rapid Fire
+	# card said "player Are rate" (phases/UI_PASS/LEDGER.md, UR-01). Kept off
+	# for any font: UI text at these sizes gains nothing from ligatures.
+	var features: Dictionary = {}
+	for feature: String in ["liga", "clig", "dlig", "hlig"]:
+		features[TextServerManager.get_primary_interface().name_to_tag(feature)] = 0
+	variation.opentype_features = features
 	return variation
 
 
@@ -103,7 +137,7 @@ static func _build_labels(t: Theme) -> void:
 	t.set_color("font_color", "Label", UiPalette.TEXT)
 	t.set_color("font_outline_color", "Label", UiPalette.TEXT_OUTLINE)
 	t.set_constant("outline_size", "Label", UiPalette.OUTLINE_BODY)
-	t.set_constant("line_spacing", "Label", 2)
+	t.set_constant("line_spacing", "Label", UiPalette.LINE_SPACING)
 
 	_label_variation(t, TITLE, UiPalette.FONT_SIZE_TITLE, UiPalette.TEXT, UiPalette.OUTLINE_DISPLAY, true)
 	_label_variation(t, HEADING, UiPalette.FONT_SIZE_HEADING, UiPalette.TEXT, UiPalette.OUTLINE_DISPLAY, true)
@@ -191,11 +225,11 @@ static func _button_box(fill: Color, border: Color, pad_h: int, pad_v: int) -> S
 
 static func _build_inputs(t: Theme) -> void:
 	var track := make_box(UiPalette.INK, UiPalette.LINE, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, 0)
-	track.content_margin_top = 5
-	track.content_margin_bottom = 5
+	track.content_margin_top = UiPalette.SLIDER_PAD
+	track.content_margin_bottom = UiPalette.SLIDER_PAD
 	var fill := make_box(UiPalette.ACCENT, UiPalette.ACCENT, UiPalette.RADIUS_SMALL, 0, 0)
-	fill.content_margin_top = 5
-	fill.content_margin_bottom = 5
+	fill.content_margin_top = UiPalette.SLIDER_PAD
+	fill.content_margin_bottom = UiPalette.SLIDER_PAD
 	t.set_stylebox("slider", "HSlider", track)
 	t.set_stylebox("grabber_area", "HSlider", fill)
 	t.set_stylebox("grabber_area_highlight", "HSlider", fill)
@@ -214,3 +248,8 @@ static func _build_containers(t: Theme) -> void:
 	t.set_constant("separation", "HBoxContainer", UiPalette.SPACE_S)
 	t.set_constant("h_separation", "GridContainer", UiPalette.SPACE_L)
 	t.set_constant("v_separation", "GridContainer", UiPalette.SPACE_S)
+	for step: String in BOX_STEPS:
+		t.set_type_variation(hbox(step), "HBoxContainer")
+		t.set_constant("separation", hbox(step), BOX_STEPS[step])
+		t.set_type_variation(vbox(step), "VBoxContainer")
+		t.set_constant("separation", vbox(step), BOX_STEPS[step])

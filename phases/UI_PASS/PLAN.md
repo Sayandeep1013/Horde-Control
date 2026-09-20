@@ -31,7 +31,7 @@ Reference: `G:\screenshots\Screenshot 2026-09-20 125749.png`, a similar game, us
 
 - `src/ui/theme/ui_palette.gd` - every cosmetic token: colour, spacing, radius, font size, motion duration.
 - `src/ui/theme/ui_theme.gd` - one shared `Theme` built in code from the palette, with type variations. Deviation from the task prompt, which named a `.tres`: every scene under `src/ui/` is built in code so that a test can instance it with no scene load, and a code-built theme keeps that property.
-- `assets/ui/fonts/PixelifySans-Variable.ttf` with `OFL.txt` beside it (SIL Open Font License 1.1). Chosen over a CC0 bitmap font because it covers the accented Latin range the F2 pseudo-localization toggle renders.
+- Superseded 2026-09-20 (author decision, LEDGER UR-15): the font is now `assets/ui/fonts/Jersey10-Regular.ttf`, same licence, because Pixelify Sans's digits misread. Original entry: `assets/ui/fonts/PixelifySans-Variable.ttf` with `OFL.txt` beside it (SIL Open Font License 1.1). Chosen over a CC0 bitmap font because it covers the accented Latin range the F2 pseudo-localization toggle renders.
 
 ## Work packages (Sonnet implementers, disjoint files)
 

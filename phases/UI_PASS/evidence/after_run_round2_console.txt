@@ -1,0 +1,4673 @@
+﻿Import pass: D:\godot\Godot_v4.7.1-stable_win64_console.exe --headless --path D:\Gamedev-ui-pass --import
+Test suite: D:\godot\Godot_v4.7.1-stable_win64_console.exe --headless --path D:\Gamedev-ui-pass -s 
+res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+
+Boot check: Godot 4.7.1 matches the pin in document 20.
+[2J[H
+--------------------------------------------------------------------------------------------------
+GdUnit4 Comandline Tool
+--------------------------------------------------------------------------------------------------
+
+Headless mode is ignored by option '--ignoreHeadlessMode'"
+
+Please note that tests that use UI interaction do not work correctly in headless mode.
+Godot 'InputEvents' are not transported by the Godot engine in headless mode and therefore
+have no effect in the test!
+
+Scanning for test suites in: res://tests
+Installing GdUnit4 session system hooks.
+Session hook 'GdUnitHtmlTestReporter' installed.
+Session hook 'GdUnitXMLTestReporter' installed.
+Run Test Suite: res://tests/harness/fail/test_trivial_fail.gd
+  res://tests/harness/fail/test_trivial_fail.gd > 
+test_false_condition_fails STARTED
+  res://tests/harness/fail/test_trivial_fail.gd > 
+test_false_condition_fails FAILED 13ms
+  Report:
+  Expecting: 'false' but is 
+'true'	at 'test_false_condition_fails' in 
+res://tests/harness/fail/test_trivial_fail.gd:12
+
+Statistics: 1 test cases | 0 errors | 1 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 25ms
+
+
+Run Test Suite: res://tests/harness/pass/test_trivial_pass.gd
+  res://tests/harness/pass/test_trivial_pass.gd > 
+test_true_condition_passes STARTED
+  res://tests/harness/pass/test_trivial_pass.gd > 
+test_true_condition_passes PASSED 6ms
+
+Statistics: 1 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 18ms
+
+
+Run Test Suite: res://tests/unit/arena_scene_test.gd
+  res://tests/unit/arena_scene_test.gd > 
+test_floor_covers_exactly_the_registers_arena_size 
+STARTED
+  res://tests/unit/arena_scene_test.gd > 
+test_floor_covers_exactly_the_registers_arena_size 
+PASSED 11ms
+
+  res://tests/unit/arena_scene_test.gd > 
+test_arena_bounds_body_is_on_the_arenabounds_layer_with_no_mask 
+STARTED
+  res://tests/unit/arena_scene_test.gd > 
+test_arena_bounds_body_is_on_the_arenabounds_layer_with_no_mask 
+PASSED 10ms
+
+  res://tests/unit/arena_scene_test.gd > 
+test_arena_bounds_has_exactly_four_wall_shapes_and_no_interior_obstacles 
+STARTED
+  res://tests/unit/arena_scene_test.gd > 
+test_arena_bounds_has_exactly_four_wall_shapes_and_no_interior_obstacles 
+PASSED 9ms
+
+  res://tests/unit/arena_scene_test.gd > 
+test_walls_fully_enclose_the_registers_arena_rectangle_with_no_gap 
+STARTED
+  res://tests/unit/arena_scene_test.gd > 
+test_walls_fully_enclose_the_registers_arena_rectangle_with_no_gap 
+PASSED 9ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 64ms
+
+
+Run Test Suite: res://tests/unit/attack_slot_manager_test.gd
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_slot_count_matches_the_registers_tower_seeker_worked_example 
+STARTED
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_slot_count_matches_the_registers_tower_seeker_worked_example 
+PASSED 6ms
+
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_slot_count_matches_the_registers_player_hunter_worked_example 
+STARTED
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_slot_count_matches_the_registers_player_hunter_worked_example 
+PASSED 8ms
+
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_ring_radius_is_the_sum_the_formula_itself_uses 
+STARTED
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_ring_radius_is_the_sum_the_formula_itself_uses 
+PASSED 5ms
+
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_claims_distinct_slots_for_distinct_claimants_and_reuses_none 
+STARTED
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_claims_distinct_slots_for_distinct_claimants_and_reuses_none 
+PASSED 6ms
+
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_a_full_ring_refuses_a_new_claim STARTED
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_a_full_ring_refuses_a_new_claim PASSED 8ms
+
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_releasing_a_claim_frees_it_for_another_claimant 
+STARTED
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_releasing_a_claim_frees_it_for_another_claimant 
+PASSED 5ms
+
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_a_freed_claimant_instance_is_reaped_and_its_slot_becomes_available 
+STARTED
+  res://tests/unit/attack_slot_manager_test.gd > 
+test_a_freed_claimant_instance_is_reaped_and_its_slot_becomes_available 
+PASSED 5ms
+
+Statistics: 7 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 71ms
+
+
+Run Test Suite: res://tests/unit/audio/test_audio_ducking.gd
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_idle_state_is_fully_unducked STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_idle_state_is_fully_unducked PASSED 7ms
+
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_attack_reaches_full_duck_in_50ms STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_attack_reaches_full_duck_in_50ms PASSED 5ms
+
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_attack_partway_is_proportional STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_attack_partway_is_proportional PASSED 5ms
+
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_release_returns_to_baseline_in_300ms 
+STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_release_returns_to_baseline_in_300ms PASSED 
+7ms
+
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_release_partway_is_proportional STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_release_partway_is_proportional PASSED 6ms
+
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_music_floor_clamps_when_base_is_already_near_floor 
+STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_music_floor_clamps_when_base_is_already_near_floor 
+PASSED 5ms
+
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_active_priority_count_does_not_go_negative 
+STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_active_priority_count_does_not_go_negative 
+PASSED 7ms
+
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_second_overlapping_priority_sound_keeps_it_ducked 
+STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_second_overlapping_priority_sound_keeps_it_ducked 
+PASSED 7ms
+
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_re_trigger_during_release_ramps_back_toward_ducked 
+STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_re_trigger_during_release_ramps_back_toward_ducked 
+PASSED 6ms
+
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_process_mode_is_always STARTED
+  res://tests/unit/audio/test_audio_ducking.gd > 
+test_process_mode_is_always PASSED 7ms
+
+Statistics: 10 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 98ms
+
+
+Run Test Suite: res://tests/unit/audio/test_audio_pool.gd
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_pool_has_32_voices_all_initially_free 
+STARTED
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_pool_has_32_voices_all_initially_free PASSED 
+9ms
+
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_free_voices_are_used_before_anything_is_stolen 
+STARTED
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_free_voices_are_used_before_anything_is_stolen 
+PASSED 9ms
+
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_general_steal_picks_lowest_priority_voice_first 
+STARTED
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_general_steal_picks_lowest_priority_voice_first 
+PASSED 8ms
+
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_general_steal_tie_is_broken_by_oldest 
+STARTED
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_general_steal_tie_is_broken_by_oldest PASSED 
+8ms
+
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_priority_cap_never_exceeds_8 STARTED
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_priority_cap_never_exceeds_8 PASSED 8ms
+
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_priority_cap_steals_oldest_priority_voice_not_lowest_priority 
+STARTED
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_priority_cap_steals_oldest_priority_voice_not_lowest_priority 
+PASSED 7ms
+
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_released_voice_no_longer_counts_as_active_priority 
+STARTED
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_released_voice_no_longer_counts_as_active_priority 
+PASSED 8ms
+
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_priority_cue_steals_voice_and_remains_audible_5_of_5 
+STARTED
+  res://tests/unit/audio/test_audio_pool.gd > 
+test_priority_cue_steals_voice_and_remains_audible_5_of_5 
+PASSED 16ms
+
+Statistics: 8 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 109ms
+
+
+Run Test Suite: res://tests/unit/audio/test_bus_layout.gd
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_default_bus_layout_setting_points_at_the_project_root_resource 
+STARTED
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_default_bus_layout_setting_points_at_the_project_root_resource 
+PASSED 9ms
+
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_seven_buses_exist_with_the_expected_names 
+STARTED
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_seven_buses_exist_with_the_expected_names 
+PASSED 6ms
+
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_master_is_bus_zero STARTED
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_master_is_bus_zero PASSED 5ms
+
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_music_sfx_sfx_priority_ui_ambience_send_to_master 
+STARTED
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_music_sfx_sfx_priority_ui_ambience_send_to_master 
+PASSED 7ms
+
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_tower_cue_sends_to_sfx_priority_not_master 
+STARTED
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_tower_cue_sends_to_sfx_priority_not_master 
+PASSED 7ms
+
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_tower_cue_carries_an_audio_effect_panner 
+STARTED
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_tower_cue_carries_an_audio_effect_panner 
+PASSED 7ms
+
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_no_other_bus_carries_an_effect STARTED
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_no_other_bus_carries_an_effect PASSED 6ms
+
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_sfx_priority_bus_never_ducks_meaning_it_is_not_a_ducking_target 
+STARTED
+  res://tests/unit/audio/test_bus_layout.gd > 
+test_sfx_priority_bus_never_ducks_meaning_it_is_not_a_ducking_target 
+PASSED 5ms
+
+Statistics: 8 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 82ms
+
+
+Run Test Suite: res://tests/unit/audio/test_cue_retrigger_limiter.gd
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_first_trigger_always_succeeds STARTED
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_first_trigger_always_succeeds PASSED 7ms
+
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_retrigger_before_limit_is_blocked STARTED
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_retrigger_before_limit_is_blocked PASSED 
+6ms
+
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_retrigger_at_exactly_the_limit_succeeds 
+STARTED
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_retrigger_at_exactly_the_limit_succeeds PASSED 
+7ms
+
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_retrigger_after_limit_succeeds STARTED
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_retrigger_after_limit_succeeds PASSED 6ms
+
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_blocked_trigger_does_not_reset_the_window 
+STARTED
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_blocked_trigger_does_not_reset_the_window 
+PASSED 7ms
+
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_different_cue_ids_are_independent STARTED
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_different_cue_ids_are_independent PASSED 
+7ms
+
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_player_damage_and_tower_damage_keep_their_own_register_values 
+STARTED
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_player_damage_and_tower_damage_keep_their_own_register_values 
+PASSED 6ms
+
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_reset_clears_a_single_cue STARTED
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_reset_clears_a_single_cue PASSED 5ms
+
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_time_since_last_trigger_reports_minus_one_before_any_trigger 
+STARTED
+  res://tests/unit/audio/test_cue_retrigger_limiter.gd > 
+test_time_since_last_trigger_reports_minus_one_before_any_trigger 
+PASSED 6ms
+
+Statistics: 9 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 93ms
+
+
+Run Test Suite: res://tests/unit/audio/test_tower_cue_player.gd
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_bus_is_towercue STARTED
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_bus_is_towercue PASSED 8ms
+
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_pan_formula_center STARTED
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_pan_formula_center PASSED 6ms
+
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_pan_formula_tower_to_the_right STARTED
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_pan_formula_tower_to_the_right PASSED 8ms
+
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_pan_formula_clamps_to_positive_one STARTED
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_pan_formula_clamps_to_positive_one PASSED 
+5ms
+
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_pan_formula_clamps_to_negative_one STARTED
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_pan_formula_clamps_to_negative_one PASSED 
+8ms
+
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_first_tower_damage_play_succeeds STARTED
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_first_tower_damage_play_succeeds PASSED 6ms
+
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_retrigger_within_250ms_is_blocked STARTED
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_retrigger_within_250ms_is_blocked PASSED 
+7ms
+
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_retrigger_after_250ms_succeeds STARTED
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_retrigger_after_250ms_succeeds PASSED 8ms
+
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_apply_pan_sets_the_towercue_bus_panner_when_bus_exists 
+STARTED
+  res://tests/unit/audio/test_tower_cue_player.gd > 
+test_apply_pan_sets_the_towercue_bus_panner_when_bus_exists 
+PASSED 8ms
+
+Statistics: 9 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 96ms
+
+
+Run Test Suite: res://tests/unit/camera_bounds_test.gd
+  res://tests/unit/camera_bounds_test.gd > test_visibl
+e_rect_stays_within_arena_bounds_across_the_full_view_scale_range 
+STARTED
+  res://tests/unit/camera_bounds_test.gd > test_visibl
+e_rect_stays_within_arena_bounds_across_the_full_view_scale_range PASSED 
+12ms
+
+  res://tests/unit/camera_bounds_test.gd > 
+test_camera_centred_at_arena_centre_stays_within_bounds 
+STARTED
+  res://tests/unit/camera_bounds_test.gd > 
+test_camera_centred_at_arena_centre_stays_within_bounds 
+PASSED 7ms
+
+  res://tests/unit/camera_bounds_test.gd > 
+test_visible_rect_respects_a_non_zero_arena_center 
+STARTED
+  res://tests/unit/camera_bounds_test.gd > 
+test_visible_rect_respects_a_non_zero_arena_center 
+PASSED 10ms
+
+  res://tests/unit/camera_bounds_test.gd > 
+test_view_scale_is_clamped_to_the_register_range 
+STARTED
+  res://tests/unit/camera_bounds_test.gd > 
+test_view_scale_is_clamped_to_the_register_range 
+PASSED 6ms
+
+  res://tests/unit/camera_bounds_test.gd > 
+test_max_trauma_shake_never_pushes_the_visible_rect_past_arena_bounds 
+STARTED
+  res://tests/unit/camera_bounds_test.gd > 
+test_max_trauma_shake_never_pushes_the_visible_rect_past_arena_bounds 
+PASSED 14ms
+
+  res://tests/unit/camera_bounds_test.gd > 
+test_view_wider_than_arena_on_an_axis_centres_rather_than_errors 
+STARTED
+  res://tests/unit/camera_bounds_test.gd > 
+test_view_wider_than_arena_on_an_axis_centres_rather_than_errors 
+PASSED 6ms
+
+Statistics: 6 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 85ms
+
+
+Run Test Suite: res://tests/unit/combat_stats_test.gd
+  res://tests/unit/combat_stats_test.gd > 
+test_process_mode_is_pausable STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_process_mode_is_pausable PASSED 6ms
+
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_is_damage_over_interval STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_is_damage_over_interval PASSED 
+5ms
+
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_guards_against_division_by_zero 
+STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_guards_against_division_by_zero 
+PASSED 7ms
+
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_from_attack_profile_reads_the_shared_struct 
+STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_from_attack_profile_reads_the_shared_struct 
+PASSED 8ms
+
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_from_attack_profile_handles_null 
+STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_from_attack_profile_handles_null 
+PASSED 6ms
+
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_from_weapon_reads_damage_band_and_engagement_rhythm 
+STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_from_weapon_reads_damage_band_and_engagement_rhythm 
+PASSED 7ms
+
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_from_weapon_handles_missing_substructs 
+STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_sheet_dps_from_weapon_handles_missing_substructs 
+PASSED 9ms
+
+  res://tests/unit/combat_stats_test.gd > 
+test_report_and_get_sheet_dps_round_trips_per_subject 
+STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_report_and_get_sheet_dps_round_trips_per_subject 
+PASSED 6ms
+
+  res://tests/unit/combat_stats_test.gd > 
+test_report_sheet_dps_refuses_negative_values 
+STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_report_sheet_dps_refuses_negative_values 
+PASSED 5ms
+
+  res://tests/unit/combat_stats_test.gd > 
+test_get_sheet_dps_defaults_to_zero_for_unreported_subject 
+STARTED
+  res://tests/unit/combat_stats_test.gd > 
+test_get_sheet_dps_defaults_to_zero_for_unreported_subject 
+PASSED 7ms
+
+Statistics: 10 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 105ms
+
+
+Run Test Suite: res://tests/unit/console_interaction_window_test.gd
+  res://tests/unit/console_interaction_window_test.gd > [38;2;250;235;21
+5mtest_opening_the_console_while_taking_damage_results_in_measurable_damage_and_never_closes 
+STARTED
+  res://tests/unit/console_interaction_window_test.gd > [38;2;250;235;21
+5mtest_opening_the_console_while_taking_damage_results_in_measurable_damage_and_never_closes 
+PASSED 30ms
+
+Statistics: 1 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 46ms
+
+
+Run Test Suite: res://tests/unit/console_non_pause_test.gd
+  res://tests/unit/console_non_pause_test.gd > test_co
+nsole_open_and_purchase_never_pauses_the_tree_and_enemies_keep_moving 
+STARTED
+  res://tests/unit/console_non_pause_test.gd > test_co
+nsole_open_and_purchase_never_pauses_the_tree_and_enemies_keep_moving 
+PASSED 1s 527ms
+
+Statistics: 1 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 1s 544ms
+
+
+Run Test Suite: res://tests/unit/console_rules_test.gd
+  res://tests/unit/console_rules_test.gd > 
+test_console_does_not_open_before_0_3_second_dwell 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_console_does_not_open_before_0_3_second_dwell 
+PASSED 30ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_console_does_not_open_if_player_speed_is_at_or_above_10_percent_base 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_console_does_not_open_if_player_speed_is_at_or_above_10_percent_base 
+PASSED 20ms
+
+  res://tests/unit/console_rules_test.gd > test_repair
+_at_zero_scrap_does_not_open_the_console_even_when_tower_is_damaged 
+STARTED
+  res://tests/unit/console_rules_test.gd > test_repair
+_at_zero_scrap_does_not_open_the_console_even_when_tower_is_damaged PASSED 
+23ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_repair_becomes_affordable_and_opens_the_console_once_scrap_is_held 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_repair_becomes_affordable_and_opens_the_console_once_scrap_is_held 
+PASSED 21ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_repair_entry_stays_greyed_while_console_is_open_for_another_reason 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_repair_entry_stays_greyed_while_console_is_open_for_another_reason 
+PASSED 20ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_console_closes_when_player_leaves_the_radius 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_console_closes_when_player_leaves_the_radius 
+PASSED 23ms
+
+  res://tests/unit/console_rules_test.gd > test_cancel
+_closes_the_console_and_blocks_reopening_until_leave_and_reenter 
+STARTED
+  res://tests/unit/console_rules_test.gd > test_cancel
+_closes_the_console_and_blocks_reopening_until_leave_and_reenter PASSED 
+23ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_console_closes_on_player_death STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_console_closes_on_player_death PASSED 22ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_draft_pause_reason_closes_the_console_without_requiring_reentry 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_draft_pause_reason_closes_the_console_without_requiring_reentry 
+PASSED 21ms
+
+  res://tests/unit/console_rules_test.gd > test_consol
+e_hidden_while_a_non_draft_pause_reason_is_active_but_stays_open_underneath 
+STARTED
+  res://tests/unit/console_rules_test.gd > test_consol
+e_hidden_while_a_non_draft_pause_reason_is_active_but_stays_open_underneath 
+PASSED 23ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_purchase_channel_completes_and_charges_scrap_exactly_once 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_purchase_channel_completes_and_charges_scrap_exactly_once 
+PASSED 22ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_purchase_channel_cancels_without_charge_above_10_percent_speed 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_purchase_channel_cancels_without_charge_above_10_percent_speed 
+PASSED 20ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_sector_purchase_after_1_second_dwell_and_then_rearm_rule 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_sector_purchase_after_1_second_dwell_and_then_rearm_rule 
+PASSED 21ms
+
+  res://tests/unit/console_rules_test.gd > test_placem
+ent_puts_the_panels_nearest_edge_exactly_200px_from_the_tower_along_the_opposite_bearing 
+STARTED
+  res://tests/unit/console_rules_test.gd > test_placem
+ent_puts_the_panels_nearest_edge_exactly_200px_from_the_tower_along_the_opposite_bearing 
+PASSED 23ms
+
+  res://tests/unit/console_rules_test.gd > 
+test_placement_does_not_flip_side_until_a_30_degree_bearing_change 
+STARTED
+  res://tests/unit/console_rules_test.gd > 
+test_placement_does_not_flip_side_until_a_30_degree_bearing_change 
+PASSED 26ms
+
+  res://tests/unit/console_rules_test.gd > test_placem
+ent_scale_follows_camera_view_scale_to_keep_entry_text_at_least_24px_tall 
+STARTED
+  res://tests/unit/console_rules_test.gd > test_placem
+ent_scale_follows_camera_view_scale_to_keep_entry_text_at_least_24px_tall 
+PASSED 21ms
+
+Statistics: 16 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 464ms
+
+
+Run Test Suite: res://tests/unit/console_ui_scaling_test.gd
+  res://tests/unit/console_ui_scaling_test.gd > test_c
+onsole_entries_survive_pseudolocalizations_30_percent_expansion_without_truncating 
+STARTED
+  res://tests/unit/console_ui_scaling_test.gd > test_c
+onsole_entries_survive_pseudolocalizations_30_percent_expansion_without_truncating 
+PASSED 416ms
+
+Statistics: 1 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 424ms
+
+
+Run Test Suite: res://tests/unit/death_state_player_died_test.gd
+  res://tests/unit/death_state_player_died_test.gd > 
+test_player_tagged_entity_emits_player_died_and_not_enemy_died 
+STARTED
+  res://tests/unit/death_state_player_died_test.gd > 
+test_player_tagged_entity_emits_player_died_and_not_enemy_died 
+PASSED 6ms
+
+  res://tests/unit/death_state_player_died_test.gd > 
+test_player_died_carries_the_same_shape_as_enemy_died 
+STARTED
+  res://tests/unit/death_state_player_died_test.gd > 
+test_player_died_carries_the_same_shape_as_enemy_died 
+PASSED 8ms
+
+  res://tests/unit/death_state_player_died_test.gd > 
+test_enemy_tagged_entity_still_emits_enemy_died_and_not_player_died 
+STARTED
+  res://tests/unit/death_state_player_died_test.gd > 
+test_enemy_tagged_entity_still_emits_enemy_died_and_not_player_died 
+PASSED 7ms
+
+  res://tests/unit/death_state_player_died_test.gd > 
+test_unregistered_entity_still_emits_enemy_died_and_not_player_died 
+STARTED
+  res://tests/unit/death_state_player_died_test.gd > 
+test_unregistered_entity_still_emits_enemy_died_and_not_player_died 
+PASSED 7ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 52ms
+
+
+Run Test Suite: res://tests/unit/death_state_test.gd
+  res://tests/unit/death_state_test.gd > 
+test_apply_damage_reduces_hp_without_killing_above_zero 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_apply_damage_reduces_hp_without_killing_above_zero 
+PASSED 6ms
+
+  res://tests/unit/death_state_test.gd > 
+test_apply_damage_at_or_below_zero_hp_triggers_logical_death 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_apply_damage_at_or_below_zero_hp_triggers_logical_death 
+PASSED 7ms
+
+  res://tests/unit/death_state_test.gd > 
+test_apply_damage_is_discarded_once_already_dead 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_apply_damage_is_discarded_once_already_dead 
+PASSED 6ms
+
+  res://tests/unit/death_state_test.gd > 
+test_apply_damage_ignores_non_positive_amounts 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_apply_damage_ignores_non_positive_amounts 
+PASSED 8ms
+
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_deactivates_every_hitbox_synchronously_and_deferred 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_deactivates_every_hitbox_synchronously_and_deferred 
+PASSED 8ms
+
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_clears_hurtbox_monitorable_and_layer_deferred 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_clears_hurtbox_monitorable_and_layer_deferred 
+PASSED 7ms
+
+  res://tests/unit/death_state_test.gd > test_logical_
+death_clears_body_layer_and_restricts_mask_to_world_and_arena_bounds_deferred 
+STARTED
+  res://tests/unit/death_state_test.gd > test_logical_
+death_clears_body_layer_and_restricts_mask_to_world_and_arena_bounds_deferred 
+PASSED 7ms
+
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_marks_the_registered_entity_not_alive 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_marks_the_registered_entity_not_alive 
+PASSED 6ms
+
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_does_not_touch_the_registry_for_an_unregistered_entity 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_does_not_touch_the_registry_for_an_unregistered_entity 
+PASSED 5ms
+
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_emits_event_bus_enemy_died_with_sim_time 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_emits_event_bus_enemy_died_with_sim_time 
+PASSED 9ms
+
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_signal_fires_with_entity_and_position 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_logical_death_signal_fires_with_entity_and_position 
+PASSED 6ms
+
+  res://tests/unit/death_state_test.gd > test_visual_d
+eath_finished_fires_only_after_the_configured_duration_of_sim_time 
+STARTED
+  res://tests/unit/death_state_test.gd > test_visual_d
+eath_finished_fires_only_after_the_configured_duration_of_sim_time PASSED 
+89ms
+
+  res://tests/unit/death_state_test.gd > 
+test_reset_for_reuse_clears_is_dead_and_restores_hp_and_child_flags 
+STARTED
+  res://tests/unit/death_state_test.gd > 
+test_reset_for_reuse_clears_is_dead_and_restores_hp_and_child_flags 
+PASSED 6ms
+
+Statistics: 13 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 229ms
+
+
+Run Test Suite: res://tests/unit/debug_overlay_test.gd
+  res://tests/unit/debug_overlay_test.gd > 
+test_process_mode_is_always STARTED
+  res://tests/unit/debug_overlay_test.gd > 
+test_process_mode_is_always PASSED 8ms
+
+  res://tests/unit/debug_overlay_test.gd > 
+test_every_docs20_field_appears_in_the_rendered_text 
+STARTED
+  res://tests/unit/debug_overlay_test.gd > 
+test_every_docs20_field_appears_in_the_rendered_text 
+PASSED 11ms
+
+  res://tests/unit/debug_overlay_test.gd > 
+test_unset_gameplay_fields_show_the_unset_label_not_a_fabricated_value 
+STARTED
+  res://tests/unit/debug_overlay_test.gd > 
+test_unset_gameplay_fields_show_the_unset_label_not_a_fabricated_value 
+PASSED 9ms
+
+  res://tests/unit/debug_overlay_test.gd > 
+test_injected_gameplay_state_is_displayed_once_set 
+STARTED
+  res://tests/unit/debug_overlay_test.gd > 
+test_injected_gameplay_state_is_displayed_once_set 
+PASSED 9ms
+
+  res://tests/unit/debug_overlay_test.gd > 
+test_f1_toggles_overlay_visibility STARTED
+  res://tests/unit/debug_overlay_test.gd > 
+test_f1_toggles_overlay_visibility PASSED 7ms
+
+  res://tests/unit/debug_overlay_test.gd > 
+test_f2_toggles_pseudolocalization_and_sets_the_registered_expansion_ratio 
+STARTED
+  res://tests/unit/debug_overlay_test.gd > 
+test_f2_toggles_pseudolocalization_and_sets_the_registered_expansion_ratio 
+PASSED 8ms
+
+Statistics: 6 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 80ms
+
+
+Run Test Suite: res://tests/unit/draft_determinism_test.gd
+  res://tests/unit/draft_determinism_test.gd > 
+test_same_run_seed_reproduces_identical_offers_10_of_10 
+STARTED
+  res://tests/unit/draft_determinism_test.gd > 
+test_same_run_seed_reproduces_identical_offers_10_of_10 
+PASSED 135ms
+
+  res://tests/unit/draft_determinism_test.gd > 
+test_a_different_run_seed_changes_at_least_one_offer 
+STARTED
+  res://tests/unit/draft_determinism_test.gd > 
+test_a_different_run_seed_changes_at_least_one_offer 
+PASSED 25ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 177ms
+
+
+Run Test Suite: res://tests/unit/draft_input_lockout_test.gd
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_confirm_is_ignored_during_the_0_4_second_lockout 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_confirm_is_ignored_during_the_0_4_second_lockout 
+PASSED 14ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_confirm_works_immediately_once_the_lockout_elapses 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_confirm_works_immediately_once_the_lockout_elapses 
+PASSED 12ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_hold_up_already_held_at_open_does_not_arm_after_lockout 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_hold_up_already_held_at_open_does_not_arm_after_lockout 
+PASSED 14ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_hold_up_arms_after_one_full_release_then_confirms_on_a_fresh_hold 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_hold_up_arms_after_one_full_release_then_confirms_on_a_fresh_hold 
+PASSED 12ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_hold_ring_fills_proportionally_and_resets_on_early_release 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_hold_ring_fills_proportionally_and_resets_on_early_release 
+PASSED 14ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_cycle_moves_one_step_per_press_and_repeats_every_0_3_seconds 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_cycle_moves_one_step_per_press_and_repeats_every_0_3_seconds 
+PASSED 15ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_cycle_wraps_at_both_ends STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_cycle_wraps_at_both_ends PASSED 14ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_movement_only_keys_also_cycle_with_the_same_rule 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_movement_only_keys_also_cycle_with_the_same_rule 
+PASSED 15ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_dim_background_covers_the_full_1920x1080_viewport 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_dim_background_covers_the_full_1920x1080_viewport 
+PASSED 15ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_card_views_render_on_screen_within_the_1920x1080_viewport 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_card_views_render_on_screen_within_the_1920x1080_viewport 
+PASSED 16ms
+
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_card_differentiation_is_never_colour_alone 
+STARTED
+  res://tests/unit/draft_input_lockout_test.gd > 
+test_card_differentiation_is_never_colour_alone 
+PASSED 13ms
+
+Statistics: 11 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 207ms
+
+
+Run Test Suite: res://tests/unit/draft_queue_test.gd
+  res://tests/unit/draft_queue_test.gd > 
+test_two_simultaneous_level_ups_queue_two_drafts_not_one 
+STARTED
+  res://tests/unit/draft_queue_test.gd > 
+test_two_simultaneous_level_ups_queue_two_drafts_not_one 
+PASSED 15ms
+
+  res://tests/unit/draft_queue_test.gd > 
+test_no_draft_is_dropped_across_the_whole_sequential_queue 
+STARTED
+  res://tests/unit/draft_queue_test.gd > 
+test_no_draft_is_dropped_across_the_whole_sequential_queue 
+PASSED 18ms
+
+  res://tests/unit/draft_queue_test.gd > 
+test_each_queued_draft_offers_the_one_of_each_guarantee 
+STARTED
+  res://tests/unit/draft_queue_test.gd > 
+test_each_queued_draft_offers_the_one_of_each_guarantee 
+PASSED 19ms
+
+  res://tests/unit/draft_queue_test.gd > 
+test_pause_reason_stays_active_until_the_whole_queue_drains 
+STARTED
+  res://tests/unit/draft_queue_test.gd > 
+test_pause_reason_stays_active_until_the_whole_queue_drains 
+PASSED 17ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 94ms
+
+
+Run Test Suite: res://tests/unit/drop_table_test.gd
+  res://tests/unit/drop_table_test.gd > 
+test_standard_enemy_death_drops_one_xp_and_one_scrap 
+STARTED
+  res://tests/unit/drop_table_test.gd > 
+test_standard_enemy_death_drops_one_xp_and_one_scrap 
+PASSED 7ms
+
+  res://tests/unit/drop_table_test.gd > 
+test_a_kill_with_zero_scrap_in_its_drop_table_spawns_no_scrap_pickup 
+STARTED
+  res://tests/unit/drop_table_test.gd > 
+test_a_kill_with_zero_scrap_in_its_drop_table_spawns_no_scrap_pickup 
+PASSED 6ms
+
+  res://tests/unit/drop_table_test.gd > test_finisher_
+flag_suppresses_scrap_even_though_its_definition_authors_some STARTED
+  res://tests/unit/drop_table_test.gd > test_finisher_
+flag_suppresses_scrap_even_though_its_definition_authors_some PASSED 
+8ms
+
+  res://tests/unit/drop_table_test.gd > test_stuck_des
+pawned_enemy_still_drops_via_the_real_removed_while_stuck_signal 
+STARTED
+  res://tests/unit/drop_table_test.gd > test_stuck_des
+pawned_enemy_still_drops_via_the_real_removed_while_stuck_signal PASSED 
+6ms
+
+  res://tests/unit/drop_table_test.gd > 
+test_a_null_drop_table_from_removed_while_stuck_drops_nothing 
+STARTED
+  res://tests/unit/drop_table_test.gd > 
+test_a_null_drop_table_from_removed_while_stuck_drops_nothing 
+PASSED 6ms
+
+  res://tests/unit/drop_table_test.gd > 
+test_a_drop_inside_terrain_is_placed_at_the_nearest_open_point 
+STARTED
+  res://tests/unit/drop_table_test.gd > 
+test_a_drop_inside_terrain_is_placed_at_the_nearest_open_point 
+PASSED 8ms
+
+Statistics: 6 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 66ms
+
+
+Run Test Suite: res://tests/unit/encounter_alive_cap_test.gd
+  res://tests/unit/encounter_alive_cap_test.gd > 
+test_an_ordinary_spawn_group_is_throttled_by_the_encounters_own_alive_cap 
+STARTED
+  res://tests/unit/encounter_alive_cap_test.gd > 
+test_an_ordinary_spawn_group_is_throttled_by_the_encounters_own_alive_cap 
+PASSED 14ms
+
+  res://tests/unit/encounter_alive_cap_test.gd > 
+test_the_alive_cap_counts_every_living_enemy_not_only_this_encounters_own 
+STARTED
+  res://tests/unit/encounter_alive_cap_test.gd > 
+test_the_alive_cap_counts_every_living_enemy_not_only_this_encounters_own 
+PASSED 10ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 43ms
+
+
+Run Test Suite: res://tests/unit/encounter_deferral_test.gd
+  res://tests/unit/encounter_deferral_test.gd > 
+test_simclock_is_frozen_for_the_whole_time_the_draft_is_open 
+STARTED
+  res://tests/unit/encounter_deferral_test.gd > 
+test_simclock_is_frozen_for_the_whole_time_the_draft_is_open 
+PASSED 106ms
+
+  res://tests/unit/encounter_deferral_test.gd > 
+test_notify_draft_closed_receives_the_close_instant_exactly_once 
+STARTED
+  res://tests/unit/encounter_deferral_test.gd > 
+test_notify_draft_closed_receives_the_close_instant_exactly_once 
+PASSED 60ms
+
+  res://tests/unit/encounter_deferral_test.gd > test_n
+otify_draft_closed_is_not_called_until_the_whole_two_draft_queue_drains 
+STARTED
+  res://tests/unit/encounter_deferral_test.gd > test_n
+otify_draft_closed_is_not_called_until_the_whole_two_draft_queue_drains 
+PASSED 38ms
+
+Statistics: 3 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 219ms
+
+
+Run Test Suite: res://tests/unit/encounter_recovery_test.gd
+  res://tests/unit/encounter_recovery_test.gd > test_t
+en_of_ten_scripted_double_schedules_open_by_priority_and_defer_by_recovery_gap 
+STARTED
+  res://tests/unit/encounter_recovery_test.gd > test_t
+en_of_ten_scripted_double_schedules_open_by_priority_and_defer_by_recovery_gap 
+PASSED 20ms
+
+  res://tests/unit/encounter_recovery_test.gd > test_a
+_genuinely_final_wave_defers_to_a_queued_encounter_instead_of_ending_early 
+STARTED
+  res://tests/unit/encounter_recovery_test.gd > test_a
+_genuinely_final_wave_defers_to_a_queued_encounter_instead_of_ending_early 
+PASSED 8ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 49ms
+
+
+Run Test Suite: res://tests/unit/enemy_tag_registration_test.gd
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_tower_seeker_registers_under_both_enemy_and_tower_seeker_tags 
+STARTED
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_tower_seeker_registers_under_both_enemy_and_tower_seeker_tags 
+PASSED 8ms
+
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_player_hunter_registers_under_enemy_only 
+STARTED
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_player_hunter_registers_under_enemy_only 
+PASSED 8ms
+
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_opportunist_registers_under_enemy_only 
+STARTED
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_opportunist_registers_under_enemy_only PASSED 
+6ms
+
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_a_real_tower_weapon_acquires_a_real_tower_seeker 
+STARTED
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_a_real_tower_weapon_acquires_a_real_tower_seeker 
+PASSED 10ms
+
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_a_hunter_that_converts_becomes_acquirable_by_the_real_tower_weapon 
+STARTED
+  res://tests/unit/enemy_tag_registration_test.gd > 
+test_a_hunter_that_converts_becomes_acquirable_by_the_real_tower_weapon 
+PASSED 30ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 88ms
+
+
+Run Test Suite: res://tests/unit/entity_cap_test.gd
+  res://tests/unit/entity_cap_test.gd > 
+test_enemy_cap_is_never_exceeded STARTED
+  res://tests/unit/entity_cap_test.gd > 
+test_enemy_cap_is_never_exceeded PASSED 24ms
+
+  res://tests/unit/entity_cap_test.gd > 
+test_pickup_cap_is_never_exceeded STARTED
+  res://tests/unit/entity_cap_test.gd > 
+test_pickup_cap_is_never_exceeded PASSED 14ms
+
+  res://tests/unit/entity_cap_test.gd > 
+test_projectile_cap_is_never_exceeded STARTED
+  res://tests/unit/entity_cap_test.gd > 
+test_projectile_cap_is_never_exceeded PASSED 
+22ms
+
+  res://tests/unit/entity_cap_test.gd > 
+test_damage_number_cap_is_never_exceeded STARTED
+  res://tests/unit/entity_cap_test.gd > 
+test_damage_number_cap_is_never_exceeded PASSED 
+9ms
+
+  res://tests/unit/entity_cap_test.gd > 
+test_telegraph_cap_is_never_exceeded STARTED
+  res://tests/unit/entity_cap_test.gd > 
+test_telegraph_cap_is_never_exceeded PASSED 8ms
+
+  res://tests/unit/entity_cap_test.gd > 
+test_high_intensity_vfx_cap_is_never_exceeded 
+STARTED
+  res://tests/unit/entity_cap_test.gd > 
+test_high_intensity_vfx_cap_is_never_exceeded 
+PASSED 8ms
+
+  res://tests/unit/entity_cap_test.gd > 
+test_spawn_enemy_registers_and_despawn_deregisters 
+STARTED
+  res://tests/unit/entity_cap_test.gd > 
+test_spawn_enemy_registers_and_despawn_deregisters 
+PASSED 10ms
+
+  res://tests/unit/entity_cap_test.gd > 
+test_damage_number_spawn_does_not_touch_entity_registry 
+STARTED
+  res://tests/unit/entity_cap_test.gd > 
+test_damage_number_spawn_does_not_touch_entity_registry 
+PASSED 6ms
+
+Statistics: 8 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 143ms
+
+
+Run Test Suite: res://tests/unit/entity_registry_query_perf_test.gd
+  res://tests/unit/entity_registry_query_perf_test.gd > 
+test_uniform_distribution_meets_the_bound 
+STARTED
+Registry query check (uniform): uniform: mean=18.95us worst=406.00us best=15.00us stddev=10.86us p50=17.00us 
+p99=48.00us (n=5000, warmup=300)
+  res://tests/unit/entity_registry_query_perf_test.gd > 
+test_uniform_distribution_meets_the_bound PASSED 
+122ms
+
+  res://tests/unit/entity_registry_query_perf_test.gd > 
+test_clustered_distribution_does_not_meet_the_bound 
+STARTED
+Registry query check (clustered, informational only): clustered: mean=102.32us worst=623.00us best=86.00us 
+stddev=34.28us p50=90.00us p99=252.00us (n=5000, warmup=300)
+  res://tests/unit/entity_registry_query_perf_test.gd > 
+test_clustered_distribution_does_not_meet_the_bound 
+PASSED 574ms
+
+  res://tests/unit/entity_registry_query_perf_test.gd > 
+test_wrong_set_guard_small_hand_checkable_scenario 
+STARTED
+  res://tests/unit/entity_registry_query_perf_test.gd > 
+test_wrong_set_guard_small_hand_checkable_scenario 
+PASSED 7ms
+
+Statistics: 3 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 727ms
+
+
+Run Test Suite: res://tests/unit/entity_registry_test.gd
+  res://tests/unit/entity_registry_test.gd > 
+test_process_mode_is_pausable STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_process_mode_is_pausable PASSED 7ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_register_refuses_null_and_duplicate STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_register_refuses_null_and_duplicate PASSED 
+7ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_deregister_refuses_unknown_entity STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_deregister_refuses_unknown_entity PASSED 
+7ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_update_position_refuses_unregistered_entity 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_update_position_refuses_unregistered_entity 
+PASSED 6ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_set_entity_alive_refuses_unregistered_entity 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_set_entity_alive_refuses_unregistered_entity 
+PASSED 6ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_returns_exactly_the_entities_inside_the_circle 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_returns_exactly_the_entities_inside_the_circle 
+PASSED 8ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_excludes_dead_entities_by_default 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_excludes_dead_entities_by_default 
+PASSED 8ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_filters_by_tag STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_filters_by_tag PASSED 10ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_update_position_moves_entity_between_grid_cells 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_update_position_moves_entity_between_grid_cells 
+PASSED 13ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_deregister_removes_entity_from_query_results 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_deregister_removes_entity_from_query_results 
+PASSED 9ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_deregistered_slot_is_recycled_by_the_next_registration 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_deregistered_slot_is_recycled_by_the_next_registration 
+PASSED 9ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_get_live_enemy_count_matches_wave_completion_semantics 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_get_live_enemy_count_matches_wave_completion_semantics 
+PASSED 7ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_get_entities_with_tag_returns_only_live_matches 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_get_entities_with_tag_returns_only_live_matches 
+PASSED 6ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_with_zero_or_negative_radius_returns_empty 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_with_zero_or_negative_radius_returns_empty 
+PASSED 7ms
+
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_works_across_multiple_grid_cells 
+STARTED
+  res://tests/unit/entity_registry_test.gd > 
+test_radius_query_works_across_multiple_grid_cells 
+PASSED 10ms
+
+Statistics: 15 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 194ms
+
+
+Run Test Suite: res://tests/unit/entity_visual_test.gd
+  res://tests/unit/entity_visual_test.gd > 
+test_every_entity_scene_renders_at_least_one_texture 
+STARTED
+  res://tests/unit/entity_visual_test.gd > 
+test_every_entity_scene_renders_at_least_one_texture 
+PASSED 10ms
+
+  res://tests/unit/entity_visual_test.gd > 
+test_each_entity_texture_actually_resolves_to_image_data 
+STARTED
+  res://tests/unit/entity_visual_test.gd > 
+test_each_entity_texture_actually_resolves_to_image_data 
+PASSED 9ms
+
+  res://tests/unit/entity_visual_test.gd > 
+test_the_three_enemies_use_the_silhouette_distinct_unit_art 
+STARTED
+  res://tests/unit/entity_visual_test.gd > 
+test_the_three_enemies_use_the_silhouette_distinct_unit_art 
+PASSED 9ms
+
+  res://tests/unit/entity_visual_test.gd > 
+test_rendered_art_is_not_smaller_than_the_collider_it_belongs_to 
+STARTED
+  res://tests/unit/entity_visual_test.gd > 
+test_rendered_art_is_not_smaller_than_the_collider_it_belongs_to 
+PASSED 10ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 68ms
+
+
+Run Test Suite: res://tests/unit/event_bus_test.gd
+  res://tests/unit/event_bus_test.gd > 
+test_process_mode_is_always STARTED
+  res://tests/unit/event_bus_test.gd > 
+test_process_mode_is_always PASSED 7ms
+
+  res://tests/unit/event_bus_test.gd > 
+test_emit_enemy_died_carries_entity_position_and_sim_time 
+STARTED
+  res://tests/unit/event_bus_test.gd > 
+test_emit_enemy_died_carries_entity_position_and_sim_time 
+PASSED 7ms
+
+  res://tests/unit/event_bus_test.gd > 
+test_emit_tower_damaged_carries_amount_and_resulting_pools 
+STARTED
+  res://tests/unit/event_bus_test.gd > 
+test_emit_tower_damaged_carries_amount_and_resulting_pools 
+PASSED 8ms
+
+  res://tests/unit/event_bus_test.gd > 
+test_emit_draft_opened_carries_sim_time STARTED
+  res://tests/unit/event_bus_test.gd > 
+test_emit_draft_opened_carries_sim_time PASSED 
+9ms
+
+  res://tests/unit/event_bus_test.gd > 
+test_signals_do_not_fire_without_an_explicit_emit_call 
+STARTED
+  res://tests/unit/event_bus_test.gd > 
+test_signals_do_not_fire_without_an_explicit_emit_call 
+PASSED 8ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 68ms
+
+
+Run Test Suite: res://tests/unit/focus_loss_test.gd
+  res://tests/unit/focus_loss_test.gd > 
+test_focus_loss_pauses_immediately_via_push_reason_immediate 
+STARTED
+  res://tests/unit/focus_loss_test.gd > 
+test_focus_loss_pauses_immediately_via_push_reason_immediate 
+PASSED 20ms
+
+  res://tests/unit/focus_loss_test.gd > 
+test_focus_regained_does_not_resume_on_its_own 
+STARTED
+  res://tests/unit/focus_loss_test.gd > 
+test_focus_regained_does_not_resume_on_its_own 
+PASSED 15ms
+
+  res://tests/unit/focus_loss_test.gd > 
+test_regaining_focus_alone_does_not_resume 
+STARTED
+  res://tests/unit/focus_loss_test.gd > 
+test_regaining_focus_alone_does_not_resume PASSED 
+20ms
+
+  res://tests/unit/focus_loss_test.gd > 
+test_resume_requires_an_explicit_confirmation 
+STARTED
+  res://tests/unit/focus_loss_test.gd > 
+test_resume_requires_an_explicit_confirmation 
+PASSED 15ms
+
+  res://tests/unit/focus_loss_test.gd > 
+test_controller_disconnect_opens_the_pause_menu_the_same_way 
+STARTED
+  res://tests/unit/focus_loss_test.gd > 
+test_controller_disconnect_opens_the_pause_menu_the_same_way 
+PASSED 17ms
+
+  res://tests/unit/focus_loss_test.gd > test_no_focus_
+pause_flag_disables_both_focus_loss_and_controller_disconnect STARTED
+  res://tests/unit/focus_loss_test.gd > test_no_focus_
+pause_flag_disables_both_focus_loss_and_controller_disconnect PASSED 
+16ms
+
+  res://tests/unit/focus_loss_test.gd > 
+test_flag_parsing_recognizes_the_literal_flag_and_nothing_else 
+STARTED
+  res://tests/unit/focus_loss_test.gd > 
+test_flag_parsing_recognizes_the_literal_flag_and_nothing_else 
+PASSED 16ms
+
+Statistics: 7 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 155ms
+
+
+Run Test Suite: res://tests/unit/ghost_hit_test.gd
+  res://tests/unit/ghost_hit_test.gd > 
+test_positive_control_hit_lands_when_attacker_is_not_killed 
+STARTED
+  res://tests/unit/ghost_hit_test.gd > 
+test_positive_control_hit_lands_when_attacker_is_not_killed 
+PASSED 37ms
+
+  res://tests/unit/ghost_hit_test.gd > 
+test_100_mid_attack_kills_produce_zero_post_death_damage_events_fresh 
+STARTED
+  res://tests/unit/ghost_hit_test.gd > 
+test_100_mid_attack_kills_produce_zero_post_death_damage_events_fresh 
+PASSED 4s 985ms
+
+  res://tests/unit/ghost_hit_test.gd > 
+test_100_mid_attack_kills_produce_zero_post_death_damage_events_pooled 
+STARTED
+  res://tests/unit/ghost_hit_test.gd > 
+test_100_mid_attack_kills_produce_zero_post_death_damage_events_pooled 
+PASSED 5s 13ms
+
+  res://tests/unit/ghost_hit_test.gd > 
+test_10_same_tick_race_kills_produce_zero_ghost_hits 
+STARTED
+  res://tests/unit/ghost_hit_test.gd > 
+test_10_same_tick_race_kills_produce_zero_ghost_hits 
+PASSED 482ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 10s 550ms
+
+
+Run Test Suite: res://tests/unit/guaranteed_first_draft_test.gd
+  res://tests/unit/guaranteed_first_draft_test.gd > 
+test_first_draft_opens_at_t4_end_in_5_of_5_runs_regardless_of_xp 
+STARTED
+  res://tests/unit/guaranteed_first_draft_test.gd > 
+test_first_draft_opens_at_t4_end_in_5_of_5_runs_regardless_of_xp 
+PASSED 34ms
+
+  res://tests/unit/guaranteed_first_draft_test.gd > 
+test_first_draft_does_not_open_when_an_earlier_teaching_wave_ends 
+STARTED
+  res://tests/unit/guaranteed_first_draft_test.gd > 
+test_first_draft_does_not_open_when_an_earlier_teaching_wave_ends 
+PASSED 8ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 56ms
+
+
+Run Test Suite: res://tests/unit/hitbox_hurtbox_test.gd
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_applies_enemy_hitbox_layer_and_player_only_mask_by_default 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_applies_enemy_hitbox_layer_and_player_only_mask_by_default 
+PASSED 7ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_extends_mask_to_tower_hurtbox_when_targeting_the_tower 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_extends_mask_to_tower_hurtbox_when_targeting_the_tower 
+PASSED 5ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hurtbox_layer_matches_faction_and_mask_is_always_zero 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hurtbox_layer_matches_faction_and_mask_is_always_zero 
+PASSED 5ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_joins_pool_hitbox_group STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_joins_pool_hitbox_group PASSED 8ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hurtbox_joins_pool_hurtbox_group STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hurtbox_joins_pool_hurtbox_group PASSED 5ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_activate_window_sets_synchronous_flag_immediately 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_activate_window_sets_synchronous_flag_immediately 
+PASSED 5ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_deactivate_window_clears_synchronous_flag_immediately 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_deactivate_window_clears_synchronous_flag_immediately 
+PASSED 5ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_activate_window_monitoring_change_is_deferred_not_immediate 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_activate_window_monitoring_change_is_deferred_not_immediate 
+PASSED 5ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_deactivate_window_monitoring_change_is_deferred_not_immediate 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_deactivate_window_monitoring_change_is_deferred_not_immediate 
+PASSED 7ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_receive_hit_accepts_and_emits_when_not_dead 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_receive_hit_accepts_and_emits_when_not_dead 
+PASSED 5ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_receive_hit_is_discarded_once_marked_dead 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_receive_hit_is_discarded_once_marked_dead 
+PASSED 5ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_apply_logical_death_layers_is_deferred 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_apply_logical_death_layers_is_deferred PASSED 
+5ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_reset_for_reuse_clears_window_flag 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_reset_for_reuse_clears_window_flag 
+PASSED 7ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hurtbox_reset_for_reuse_clears_dead_flag 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hurtbox_reset_for_reuse_clears_dead_flag 
+PASSED 6ms
+
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_ignores_an_overlapping_area_that_is_not_a_hurtbox 
+STARTED
+  res://tests/unit/hitbox_hurtbox_test.gd > 
+test_hitbox_ignores_an_overlapping_area_that_is_not_a_hurtbox 
+PASSED 6ms
+
+Statistics: 15 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 142ms
+
+
+Run Test Suite: res://tests/unit/hit_queue_real_combat_test.gd
+  res://tests/unit/hit_queue_real_combat_test.gd > tes
+t_a_real_contact_hit_populates_the_hit_queue_and_the_fake_player_takes_damage 
+STARTED
+  res://tests/unit/hit_queue_real_combat_test.gd > tes
+t_a_real_contact_hit_populates_the_hit_queue_and_the_fake_player_takes_damage 
+PASSED 561ms
+
+  res://tests/unit/hit_queue_real_combat_test.gd > 
+test_the_hit_queue_snapshot_on_the_landing_tick_names_the_real_target 
+STARTED
+  res://tests/unit/hit_queue_real_combat_test.gd > 
+test_the_hit_queue_snapshot_on_the_landing_tick_names_the_real_target 
+PASSED 576ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 1s 152ms
+
+
+Run Test Suite: res://tests/unit/hit_queue_resolution_test.gd
+  res://tests/unit/hit_queue_resolution_test.gd > test
+_two_hits_enqueued_out_of_order_resolve_in_target_then_attacker_serial_order 
+STARTED
+  res://tests/unit/hit_queue_resolution_test.gd > test
+_two_hits_enqueued_out_of_order_resolve_in_target_then_attacker_serial_order 
+PASSED 15ms
+
+  res://tests/unit/hit_queue_resolution_test.gd > 
+test_snapshot_reflects_the_sorted_order_used_for_resolution 
+STARTED
+  res://tests/unit/hit_queue_resolution_test.gd > 
+test_snapshot_reflects_the_sorted_order_used_for_resolution 
+PASSED 28ms
+
+  res://tests/unit/hit_queue_resolution_test.gd > 
+test_a_hit_against_a_target_already_dead_this_same_tick_is_discarded 
+STARTED
+  res://tests/unit/hit_queue_resolution_test.gd > 
+test_a_hit_against_a_target_already_dead_this_same_tick_is_discarded 
+PASSED 27ms
+
+  res://tests/unit/hit_queue_resolution_test.gd > 
+test_on_hit_accepted_callback_fires_only_for_accepted_hits 
+STARTED
+  res://tests/unit/hit_queue_resolution_test.gd > 
+test_on_hit_accepted_callback_fires_only_for_accepted_hits 
+PASSED 30ms
+
+  res://tests/unit/hit_queue_resolution_test.gd > 
+test_a_hit_record_with_no_target_hurtbox_resolves_to_a_no_op 
+STARTED
+  res://tests/unit/hit_queue_resolution_test.gd > 
+test_a_hit_record_with_no_target_hurtbox_resolves_to_a_no_op 
+PASSED 44ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 171ms
+
+
+Run Test Suite: res://tests/unit/hud_economy_display_test.gd
+  res://tests/unit/hud_economy_display_test.gd > 
+test_scrap_label_shows_current_over_cap STARTED
+  res://tests/unit/hud_economy_display_test.gd > 
+test_scrap_label_shows_current_over_cap PASSED 
+12ms
+
+  res://tests/unit/hud_economy_display_test.gd > 
+test_full_badge_hidden_below_cap_and_shown_at_cap 
+STARTED
+  res://tests/unit/hud_economy_display_test.gd > 
+test_full_badge_hidden_below_cap_and_shown_at_cap 
+PASSED 9ms
+
+  res://tests/unit/hud_economy_display_test.gd > 
+test_hopper_label_hidden_when_empty_and_shown_when_non_empty 
+STARTED
+  res://tests/unit/hud_economy_display_test.gd > 
+test_hopper_label_hidden_when_empty_and_shown_when_non_empty 
+PASSED 10ms
+
+  res://tests/unit/hud_economy_display_test.gd > 
+test_xp_bar_and_level_and_rerolls_labels STARTED
+  res://tests/unit/hud_economy_display_test.gd > 
+test_xp_bar_and_level_and_rerolls_labels PASSED 
+11ms
+
+  res://tests/unit/hud_economy_display_test.gd > 
+test_scrap_truncation_full_value_is_recoverable_via_tooltip 
+STARTED
+  res://tests/unit/hud_economy_display_test.gd > 
+test_scrap_truncation_full_value_is_recoverable_via_tooltip 
+PASSED 11ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 82ms
+
+
+Run Test Suite: res://tests/unit/hud_layout_check_test.gd
+  res://tests/unit/hud_layout_check_test.gd > 
+test_viewport_is_actually_1920x1080_for_this_check 
+STARTED
+  res://tests/unit/hud_layout_check_test.gd > 
+test_viewport_is_actually_1920x1080_for_this_check 
+PASSED 13ms
+
+  res://tests/unit/hud_layout_check_test.gd > 
+test_player_health_bar_sits_top_left STARTED
+  res://tests/unit/hud_layout_check_test.gd > 
+test_player_health_bar_sits_top_left PASSED 13ms
+
+  res://tests/unit/hud_layout_check_test.gd > 
+test_tower_health_bar_sits_top_centre_with_wave_label 
+STARTED
+  res://tests/unit/hud_layout_check_test.gd > 
+test_tower_health_bar_sits_top_centre_with_wave_label 
+PASSED 12ms
+
+  res://tests/unit/hud_layout_check_test.gd > 
+test_scrap_counter_sits_top_right STARTED
+  res://tests/unit/hud_layout_check_test.gd > 
+test_scrap_counter_sits_top_right PASSED 14ms
+
+  res://tests/unit/hud_layout_check_test.gd > 
+test_xp_bar_sits_at_the_bottom_with_level_and_rerolls 
+STARTED
+  res://tests/unit/hud_layout_check_test.gd > 
+test_xp_bar_sits_at_the_bottom_with_level_and_rerolls 
+PASSED 12ms
+
+  res://tests/unit/hud_layout_check_test.gd > 
+test_all_four_fields_are_entirely_within_the_viewport 
+STARTED
+  res://tests/unit/hud_layout_check_test.gd > 
+test_all_four_fields_are_entirely_within_the_viewport 
+PASSED 14ms
+
+  res://tests/unit/hud_layout_check_test.gd > 
+test_no_two_of_the_four_fields_overlap STARTED
+  res://tests/unit/hud_layout_check_test.gd > 
+test_no_two_of_the_four_fields_overlap PASSED 
+14ms
+
+Statistics: 7 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 126ms
+
+
+Run Test Suite: res://tests/unit/hud_layout_test.gd
+  res://tests/unit/hud_layout_test.gd > 
+test_player_health_bar_reflects_the_players_death_state 
+STARTED
+  res://tests/unit/hud_layout_test.gd > 
+test_player_health_bar_reflects_the_players_death_state 
+PASSED 16ms
+
+  res://tests/unit/hud_layout_test.gd > 
+test_player_health_bar_is_below_tick_under_40_percent 
+STARTED
+  res://tests/unit/hud_layout_test.gd > 
+test_player_health_bar_is_below_tick_under_40_percent 
+PASSED 13ms
+
+  res://tests/unit/hud_layout_test.gd > 
+test_player_health_bar_is_not_below_tick_above_40_percent 
+STARTED
+  res://tests/unit/hud_layout_test.gd > 
+test_player_health_bar_is_not_below_tick_above_40_percent 
+PASSED 17ms
+
+  res://tests/unit/hud_layout_test.gd > 
+test_tower_health_bar_reflects_health_and_shield_split 
+STARTED
+  res://tests/unit/hud_layout_test.gd > 
+test_tower_health_bar_reflects_health_and_shield_split 
+PASSED 13ms
+
+  res://tests/unit/hud_layout_test.gd > 
+test_tower_health_bar_is_below_tick_under_40_percent_health 
+STARTED
+  res://tests/unit/hud_layout_test.gd > 
+test_tower_health_bar_is_below_tick_under_40_percent_health 
+PASSED 11ms
+
+  res://tests/unit/hud_layout_test.gd > 
+test_wave_label_reads_from_the_hud_economy_state_seam 
+STARTED
+  res://tests/unit/hud_layout_test.gd > 
+test_wave_label_reads_from_the_hud_economy_state_seam 
+PASSED 10ms
+
+  res://tests/unit/hud_layout_test.gd > 
+test_four_fields_are_distinct_nodes STARTED
+  res://tests/unit/hud_layout_test.gd > 
+test_four_fields_are_distinct_nodes PASSED 12ms
+
+Statistics: 7 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 130ms
+
+
+Run Test Suite: res://tests/unit/hunt_test.gd
+  res://tests/unit/hunt_test.gd > 
+test_the_real_combat_1_hunt_spawns_exactly_its_own_data_defined_mix 
+STARTED
+  res://tests/unit/hunt_test.gd > 
+test_the_real_combat_1_hunt_spawns_exactly_its_own_data_defined_mix 
+PASSED 15ms
+
+  res://tests/unit/hunt_test.gd > test_generated_hunts
+_with_different_ratios_also_spawn_their_own_data_defined_mix STARTED
+  res://tests/unit/hunt_test.gd > test_generated_hunts
+_with_different_ratios_also_spawn_their_own_data_defined_mix PASSED 
+10ms
+
+  res://tests/unit/hunt_test.gd > 
+test_a_hunt_spawned_hunter_lands_a_real_hit_on_the_player 
+STARTED
+  res://tests/unit/hunt_test.gd > 
+test_a_hunt_spawned_hunter_lands_a_real_hit_on_the_player 
+PASSED 524ms
+
+Statistics: 3 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 570ms
+
+
+Run Test Suite: res://tests/unit/keyed_rng_test.gd
+  res://tests/unit/keyed_rng_test.gd > 
+test_same_key_reproduces_identically_10_of_10 
+STARTED
+  res://tests/unit/keyed_rng_test.gd > 
+test_same_key_reproduces_identically_10_of_10 
+PASSED 8ms
+
+  res://tests/unit/keyed_rng_test.gd > 
+test_seed_is_deterministic_across_calls STARTED
+  res://tests/unit/keyed_rng_test.gd > 
+test_seed_is_deterministic_across_calls PASSED 
+3ms
+
+  res://tests/unit/keyed_rng_test.gd > 
+test_different_run_seed_diverges STARTED
+  res://tests/unit/keyed_rng_test.gd > 
+test_different_run_seed_diverges PASSED 5ms
+
+  res://tests/unit/keyed_rng_test.gd > 
+test_different_purpose_key_diverges STARTED
+  res://tests/unit/keyed_rng_test.gd > 
+test_different_purpose_key_diverges PASSED 6ms
+
+  res://tests/unit/keyed_rng_test.gd > 
+test_different_roll_id_diverges STARTED
+  res://tests/unit/keyed_rng_test.gd > 
+test_different_roll_id_diverges PASSED 7ms
+
+  res://tests/unit/keyed_rng_test.gd > 
+test_part_boundary_does_not_collide STARTED
+  res://tests/unit/keyed_rng_test.gd > 
+test_part_boundary_does_not_collide PASSED 5ms
+
+Statistics: 6 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 73ms
+
+
+Run Test Suite: res://tests/unit/leash_test.gd
+  res://tests/unit/leash_test.gd > 
+test_hunter_does_not_convert_before_the_leash_timeout 
+STARTED
+  res://tests/unit/leash_test.gd > 
+test_hunter_does_not_convert_before_the_leash_timeout 
+PASSED 10ms
+
+  res://tests/unit/leash_test.gd > test_hunter_telegra
+phs_for_0_5s_then_converts_permanently_to_a_full_tower_seeker STARTED
+  res://tests/unit/leash_test.gd > test_hunter_telegra
+phs_for_0_5s_then_converts_permanently_to_a_full_tower_seeker PASSED 
+9ms
+
+  res://tests/unit/leash_test.gd > 
+test_finisher_hunters_carry_no_leash_timer 
+STARTED
+  res://tests/unit/leash_test.gd > 
+test_finisher_hunters_carry_no_leash_timer PASSED 
+7ms
+
+  res://tests/unit/leash_test.gd > 
+test_landing_a_real_hit_on_the_player_resets_the_leash_timer 
+STARTED
+  res://tests/unit/leash_test.gd > 
+test_landing_a_real_hit_on_the_player_resets_the_leash_timer 
+PASSED 511ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 570ms
+
+
+Run Test Suite: res://tests/unit/main_scene_structure_test.gd
+  res://tests/unit/main_scene_structure_test.gd > 
+test_gameplay_root_is_pausable STARTED
+  res://tests/unit/main_scene_structure_test.gd > 
+test_gameplay_root_is_pausable PASSED 4ms
+
+  res://tests/unit/main_scene_structure_test.gd > 
+test_all_six_named_containers_exist STARTED
+  res://tests/unit/main_scene_structure_test.gd > 
+test_all_six_named_containers_exist PASSED 7ms
+
+  res://tests/unit/main_scene_structure_test.gd > 
+test_entities_is_y_sorted_and_others_are_not 
+STARTED
+  res://tests/unit/main_scene_structure_test.gd > 
+test_entities_is_y_sorted_and_others_are_not PASSED 
+3ms
+
+  res://tests/unit/main_scene_structure_test.gd > 
+test_container_z_index_matches_docs_20_draw_order 
+STARTED
+  res://tests/unit/main_scene_structure_test.gd > 
+test_container_z_index_matches_docs_20_draw_order 
+PASSED 5ms
+
+  res://tests/unit/main_scene_structure_test.gd > 
+test_nothing_under_the_gameplay_root_is_process_mode_always 
+STARTED
+  res://tests/unit/main_scene_structure_test.gd > 
+test_nothing_under_the_gameplay_root_is_process_mode_always 
+PASSED 5ms
+
+  res://tests/unit/main_scene_structure_test.gd > 
+test_sim_loop_is_present_under_the_gameplay_root 
+STARTED
+  res://tests/unit/main_scene_structure_test.gd > 
+test_sim_loop_is_present_under_the_gameplay_root 
+PASSED 10ms
+
+  res://tests/unit/main_scene_structure_test.gd > 
+test_entity_spawner_is_wired_to_all_four_pooled_containers 
+STARTED
+  res://tests/unit/main_scene_structure_test.gd > 
+test_entity_spawner_is_wired_to_all_four_pooled_containers 
+PASSED 7ms
+
+  res://tests/unit/main_scene_structure_test.gd > 
+test_player_would_not_be_placed_inside_entities_container 
+STARTED
+  res://tests/unit/main_scene_structure_test.gd > 
+test_player_would_not_be_placed_inside_entities_container 
+PASSED 6ms
+
+Statistics: 8 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 81ms
+
+
+Run Test Suite: res://tests/unit/movement_only_test.gd
+  res://tests/unit/movement_only_test.gd > 
+test_every_level_up_draft_in_a_run_resolves_using_only_movement_input 
+STARTED
+  res://tests/unit/movement_only_test.gd > 
+test_every_level_up_draft_in_a_run_resolves_using_only_movement_input 
+PASSED 22ms
+
+  res://tests/unit/movement_only_test.gd > test_moveme
+nt_only_on_completes_a_console_purchase_from_position_and_standing_still_alone 
+STARTED
+  res://tests/unit/movement_only_test.gd > test_moveme
+nt_only_on_completes_a_console_purchase_from_position_and_standing_still_alone 
+PASSED 17ms
+
+  res://tests/unit/movement_only_test.gd > test_moveme
+nt_only_off_standing_beside_the_tower_for_sixty_seconds_buys_nothing 
+STARTED
+  res://tests/unit/movement_only_test.gd > test_moveme
+nt_only_off_standing_beside_the_tower_for_sixty_seconds_buys_nothing 
+PASSED 21ms
+
+Statistics: 3 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 79ms
+
+
+Run Test Suite: res://tests/unit/opportunist_test.gd
+  res://tests/unit/opportunist_test.gd > 
+test_picks_the_closer_target_at_spawn_player_case 
+STARTED
+  res://tests/unit/opportunist_test.gd > 
+test_picks_the_closer_target_at_spawn_player_case 
+PASSED 7ms
+
+  res://tests/unit/opportunist_test.gd > test_footprin
+t_edge_measurement_flips_the_spawn_pick_versus_a_naive_centre_distance 
+STARTED
+  res://tests/unit/opportunist_test.gd > test_footprin
+t_edge_measurement_flips_the_spawn_pick_versus_a_naive_centre_distance 
+PASSED 7ms
+
+  res://tests/unit/opportunist_test.gd > 
+test_damaged_by_the_other_target_switches_when_at_least_25_percent_closer 
+STARTED
+  res://tests/unit/opportunist_test.gd > 
+test_damaged_by_the_other_target_switches_when_at_least_25_percent_closer 
+PASSED 7ms
+
+  res://tests/unit/opportunist_test.gd > test_damaged_
+by_the_other_target_does_not_switch_when_not_25_percent_closer STARTED
+  res://tests/unit/opportunist_test.gd > test_damaged_
+by_the_other_target_does_not_switch_when_not_25_percent_closer PASSED 
+8ms
+
+  res://tests/unit/opportunist_test.gd > test_damage_f
+rom_the_currently_targeted_faction_is_not_a_reevaluation_event STARTED
+  res://tests/unit/opportunist_test.gd > test_damage_f
+rom_the_currently_targeted_faction_is_not_a_reevaluation_event PASSED 
+7ms
+
+  res://tests/unit/opportunist_test.gd > test_switch_l
+ockout_blocks_a_second_switch_within_3_seconds_then_allows_it_after 
+STARTED
+  res://tests/unit/opportunist_test.gd > test_switch_l
+ockout_blocks_a_second_switch_within_3_seconds_then_allows_it_after PASSED 
+10ms
+
+  res://tests/unit/opportunist_test.gd > test_out_of_r
+ange_event_fires_after_3_continuous_seconds_and_switches_when_qualified 
+STARTED
+  res://tests/unit/opportunist_test.gd > test_out_of_r
+ange_event_fires_after_3_continuous_seconds_and_switches_when_qualified 
+PASSED 11ms
+
+  res://tests/unit/opportunist_test.gd > 
+test_moving_back_into_range_before_3_seconds_resets_the_out_of_range_timer 
+STARTED
+  res://tests/unit/opportunist_test.gd > 
+test_moving_back_into_range_before_3_seconds_resets_the_out_of_range_timer 
+PASSED 13ms
+
+  res://tests/unit/opportunist_test.gd > test_current_
+target_dying_forces_a_switch_regardless_of_the_25_percent_gate_or_lockout 
+STARTED
+  res://tests/unit/opportunist_test.gd > test_current_
+target_dying_forces_a_switch_regardless_of_the_25_percent_gate_or_lockout 
+PASSED 6ms
+
+  res://tests/unit/opportunist_test.gd > 
+test_opportunist_registers_as_enemy_but_not_as_tower_seeker 
+STARTED
+  res://tests/unit/opportunist_test.gd > 
+test_opportunist_registers_as_enemy_but_not_as_tower_seeker 
+PASSED 6ms
+
+Statistics: 10 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 133ms
+
+
+Run Test Suite: res://tests/unit/overlay_spawner_counts_test.gd
+  res://tests/unit/overlay_spawner_counts_test.gd > 
+test_counts_that_the_registry_never_carried_are_reported 
+STARTED
+  res://tests/unit/overlay_spawner_counts_test.gd > 
+test_counts_that_the_registry_never_carried_are_reported 
+PASSED 8ms
+
+  res://tests/unit/overlay_spawner_counts_test.gd > 
+test_counts_the_registry_already_carried_still_work 
+STARTED
+  res://tests/unit/overlay_spawner_counts_test.gd > 
+test_counts_the_registry_already_carried_still_work 
+PASSED 8ms
+
+  res://tests/unit/overlay_spawner_counts_test.gd > 
+test_counts_follow_despawn_as_well_as_spawn 
+STARTED
+  res://tests/unit/overlay_spawner_counts_test.gd > 
+test_counts_follow_despawn_as_well_as_spawn PASSED 
+7ms
+
+  res://tests/unit/overlay_spawner_counts_test.gd > 
+test_every_mapped_count_method_exists_on_the_spawner 
+STARTED
+  res://tests/unit/overlay_spawner_counts_test.gd > 
+test_every_mapped_count_method_exists_on_the_spawner 
+PASSED 7ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 53ms
+
+
+Run Test Suite: res://tests/unit/overtime_test.gd
+  res://tests/unit/overtime_test.gd > 
+test_kills_at_the_threshold_do_not_stall_and_no_finisher_ever_spawns 
+STARTED
+  res://tests/unit/overtime_test.gd > 
+test_kills_at_the_threshold_do_not_stall_and_no_finisher_ever_spawns 
+PASSED 6ms
+
+  res://tests/unit/overtime_test.gd > 
+test_kills_one_below_the_threshold_stalls_and_finishers_spawn 
+STARTED
+  res://tests/unit/overtime_test.gd > 
+test_kills_one_below_the_threshold_stalls_and_finishers_spawn 
+PASSED 10ms
+
+  res://tests/unit/overtime_test.gd > 
+test_finisher_carries_the_reduced_stat_definition_and_the_is_finisher_flag 
+STARTED
+  res://tests/unit/overtime_test.gd > 
+test_finisher_carries_the_reduced_stat_definition_and_the_is_finisher_flag 
+PASSED 7ms
+
+  res://tests/unit/overtime_test.gd > 
+test_finishers_spawn_at_two_per_five_seconds 
+STARTED
+  res://tests/unit/overtime_test.gd > 
+test_finishers_spawn_at_two_per_five_seconds PASSED 
+10ms
+
+  res://tests/unit/overtime_test.gd > 
+test_finishers_are_throttled_by_the_same_alive_cap_as_an_ordinary_spawn 
+STARTED
+  res://tests/unit/overtime_test.gd > 
+test_finishers_are_throttled_by_the_same_alive_cap_as_an_ordinary_spawn 
+PASSED 12ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 83ms
+
+
+Run Test Suite: res://tests/unit/pause_authority_full_test.gd
+  res://tests/unit/pause_authority_full_test.gd > test
+_draft_open_freezes_every_enemy_projectile_pickup_and_telegraph_for_ten_seconds 
+STARTED
+  res://tests/unit/pause_authority_full_test.gd > test
+_draft_open_freezes_every_enemy_projectile_pickup_and_telegraph_for_ten_seconds 
+PASSED 10s 116ms
+
+  res://tests/unit/pause_authority_full_test.gd > test
+_pause_menu_open_freezes_every_enemy_projectile_pickup_and_telegraph_for_ten_seconds 
+STARTED
+  res://tests/unit/pause_authority_full_test.gd > test
+_pause_menu_open_freezes_every_enemy_projectile_pickup_and_telegraph_for_ten_seconds 
+PASSED 10s 124ms
+
+  res://tests/unit/pause_authority_full_test.gd > test
+_focus_lost_freezes_every_enemy_projectile_pickup_and_telegraph_for_ten_seconds 
+STARTED
+  res://tests/unit/pause_authority_full_test.gd > test
+_focus_lost_freezes_every_enemy_projectile_pickup_and_telegraph_for_ten_seconds 
+PASSED 10s 118ms
+
+Statistics: 3 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 30s 376ms
+
+
+Run Test Suite: res://tests/unit/pause_clock_test.gd
+  res://tests/unit/pause_clock_test.gd > 
+test_now_advances_each_unpaused_physics_tick 
+STARTED
+  res://tests/unit/pause_clock_test.gd > 
+test_now_advances_each_unpaused_physics_tick PASSED 
+53ms
+
+  res://tests/unit/pause_clock_test.gd > 
+test_now_stops_under_pause_and_resumes_exactly 
+STARTED
+  res://tests/unit/pause_clock_test.gd > 
+test_now_stops_under_pause_and_resumes_exactly 
+PASSED 137ms
+
+  res://tests/unit/pause_clock_test.gd > 
+test_push_reason_does_not_pause_until_flush 
+STARTED
+  res://tests/unit/pause_clock_test.gd > 
+test_push_reason_does_not_pause_until_flush PASSED 
+28ms
+
+  res://tests/unit/pause_clock_test.gd > 
+test_unpauses_only_when_reason_set_is_empty 
+STARTED
+  res://tests/unit/pause_clock_test.gd > 
+test_unpauses_only_when_reason_set_is_empty PASSED 
+6ms
+
+  res://tests/unit/pause_clock_test.gd > 
+test_flush_emits_reasons_changed_only_on_actual_change 
+STARTED
+  res://tests/unit/pause_clock_test.gd > 
+test_flush_emits_reasons_changed_only_on_actual_change 
+PASSED 21ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 270ms
+
+
+Run Test Suite: res://tests/unit/pickup_merge_cap_test.gd
+  res://tests/unit/pickup_merge_cap_test.gd > 
+test_cap_never_exceeds_150_across_many_widely_spaced_drops 
+STARTED
+  res://tests/unit/pickup_merge_cap_test.gd > 
+test_cap_never_exceeds_150_across_many_widely_spaced_drops 
+PASSED 33ms
+
+  res://tests/unit/pickup_merge_cap_test.gd > test_at_
+cap_the_oldest_of_the_incoming_type_expires_when_no_merge_partner_exists 
+STARTED
+  res://tests/unit/pickup_merge_cap_test.gd > test_at_
+cap_the_oldest_of_the_incoming_type_expires_when_no_merge_partner_exists 
+PASSED 16ms
+
+  res://tests/unit/pickup_merge_cap_test.gd > test_mer
+ge_sums_value_into_the_nearest_same_type_neighbour_and_keeps_its_position 
+STARTED
+  res://tests/unit/pickup_merge_cap_test.gd > test_mer
+ge_sums_value_into_the_nearest_same_type_neighbour_and_keeps_its_position 
+PASSED 15ms
+
+  res://tests/unit/pickup_merge_cap_test.gd > test_whe
+n_no_pickup_of_the_incoming_type_exists_the_oldest_xp_shard_expires_first 
+STARTED
+  res://tests/unit/pickup_merge_cap_test.gd > test_whe
+n_no_pickup_of_the_incoming_type_exists_the_oldest_xp_shard_expires_first 
+PASSED 16ms
+
+  res://tests/unit/pickup_merge_cap_test.gd > test_whe
+n_the_incoming_type_is_entirely_absent_the_oldest_xp_expires_before_any_scrap 
+STARTED
+  res://tests/unit/pickup_merge_cap_test.gd > test_whe
+n_the_incoming_type_is_entirely_absent_the_oldest_xp_expires_before_any_scrap 
+PASSED 14ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 126ms
+
+
+Run Test Suite: res://tests/unit/pickup_physics_test.gd
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_scene_renders_a_texture_even_before_configure 
+STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_scene_renders_a_texture_even_before_configure 
+PASSED 6ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_configure_swaps_the_sprite_to_the_correct_per_type_icon 
+STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_configure_swaps_the_sprite_to_the_correct_per_type_icon 
+PASSED 7ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_z_index_is_10_per_readability_row STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_z_index_is_10_per_readability_row PASSED 
+6ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_out_of_magnet_range_never_moves_or_attracts 
+STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_out_of_magnet_range_never_moves_or_attracts 
+PASSED 7ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_accelerates_toward_the_player_once_in_range 
+STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_accelerates_toward_the_player_once_in_range 
+PASSED 6ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_attraction_is_sticky_even_after_the_player_leaves_range 
+STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_attraction_is_sticky_even_after_the_player_leaves_range 
+PASSED 5ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_enemy_body_blocks_the_magnet_ray_and_the_pickup_holds_position 
+STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_enemy_body_blocks_the_magnet_ray_and_the_pickup_holds_position 
+PASSED 7ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_resumes_the_instant_the_blocking_ray_clears 
+STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_resumes_the_instant_the_blocking_ray_clears 
+PASSED 6ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_never_passes_through_terrain STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_never_passes_through_terrain PASSED 
+6ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_expires_after_its_lifetime STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_expires_after_its_lifetime PASSED 
+6ms
+
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_blinks_during_the_last_5_seconds_of_its_lifetime 
+STARTED
+  res://tests/unit/pickup_physics_test.gd > 
+test_pickup_blinks_during_the_last_5_seconds_of_its_lifetime 
+PASSED 7ms
+
+Statistics: 11 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 122ms
+
+
+Run Test Suite: res://tests/unit/player_animation_test.gd
+  res://tests/unit/player_animation_test.gd > 
+test_idle_bob_oscillates_while_stationary 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_idle_bob_oscillates_while_stationary PASSED 
+123ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_idle_bob_fades_out_at_full_speed STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_idle_bob_fades_out_at_full_speed PASSED 
+76ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_stretches_along_motion_when_accelerating 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_stretches_along_motion_when_accelerating 
+PASSED 7ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_squashes_when_stopping STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_squashes_when_stopping PASSED 5ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_scale_settles_back_to_neutral_at_steady_cruise 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_scale_settles_back_to_neutral_at_steady_cruise 
+PASSED 6ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_leans_into_rightward_movement STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_leans_into_rightward_movement PASSED 5ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_leans_into_leftward_movement_the_opposite_way 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_leans_into_leftward_movement_the_opposite_way 
+PASSED 6ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_lean_never_exceeds_its_configured_maximum 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_lean_never_exceeds_its_configured_maximum 
+PASSED 7ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_hit_flash_sets_flash_colour_immediately 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_hit_flash_sets_flash_colour_immediately PASSED 
+7ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_hit_flash_reverts_to_base_modulate_after_it_finishes 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_hit_flash_reverts_to_base_modulate_after_it_finishes 
+PASSED 58ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_a_second_rapid_hit_restarts_the_flash_instead_of_competing 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_a_second_rapid_hit_restarts_the_flash_instead_of_competing 
+PASSED 6ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_continuous_effects_freeze_while_the_player_is_paused 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_continuous_effects_freeze_while_the_player_is_paused 
+PASSED 158ms
+
+  res://tests/unit/player_animation_test.gd > 
+test_hurtbox_damage_triggers_the_hit_flash_through_player 
+STARTED
+  res://tests/unit/player_animation_test.gd > 
+test_hurtbox_damage_triggers_the_hit_flash_through_player 
+PASSED 75ms
+
+Statistics: 13 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 591ms
+
+
+Run Test Suite: res://tests/unit/player_input_buffer_test.gd
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_duration_matches_register_row 
+STARTED
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_duration_matches_register_row PASSED 
+5ms
+
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_holds_the_last_direction_immediately_after_release 
+STARTED
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_holds_the_last_direction_immediately_after_release 
+PASSED 50ms
+
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_expires_after_the_register_duration 
+STARTED
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_expires_after_the_register_duration 
+PASSED 149ms
+
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_refreshes_on_each_new_live_press 
+STARTED
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_refreshes_on_each_new_live_press PASSED 
+43ms
+
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_does_not_reintroduce_movement_after_release 
+STARTED
+  res://tests/unit/player_input_buffer_test.gd > 
+test_buffer_does_not_reintroduce_movement_after_release 
+PASSED 59ms
+
+  res://tests/unit/player_input_buffer_test.gd > 
+test_notification_paused_clears_the_buffer_directly 
+STARTED
+  res://tests/unit/player_input_buffer_test.gd > 
+test_notification_paused_clears_the_buffer_directly 
+PASSED 29ms
+
+  res://tests/unit/player_input_buffer_test.gd > 
+test_real_engine_pause_clears_the_buffer_end_to_end 
+STARTED
+  res://tests/unit/player_input_buffer_test.gd > 
+test_real_engine_pause_clears_the_buffer_end_to_end 
+PASSED 28ms
+
+  res://tests/unit/player_input_buffer_test.gd > 
+test_clear_input_buffer_is_a_public_typed_command 
+STARTED
+  res://tests/unit/player_input_buffer_test.gd > 
+test_clear_input_buffer_is_a_public_typed_command 
+PASSED 43ms
+
+Statistics: 8 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 445ms
+
+
+Run Test Suite: res://tests/unit/player_movement_test.gd
+  res://tests/unit/player_movement_test.gd > 
+test_accelerates_along_a_linear_curve_not_an_instant_snap 
+STARTED
+  res://tests/unit/player_movement_test.gd > 
+test_accelerates_along_a_linear_curve_not_an_instant_snap 
+PASSED 105ms
+
+  res://tests/unit/player_movement_test.gd > test_dece
+lerates_along_a_linear_curve_to_exactly_zero_in_register_stop_time 
+STARTED
+  res://tests/unit/player_movement_test.gd > test_dece
+lerates_along_a_linear_curve_to_exactly_zero_in_register_stop_time PASSED 
+58ms
+
+  res://tests/unit/player_movement_test.gd > 
+test_diagonal_input_caps_at_reference_speed_not_faster 
+STARTED
+  res://tests/unit/player_movement_test.gd > 
+test_diagonal_input_caps_at_reference_speed_not_faster 
+PASSED 153ms
+
+  res://tests/unit/player_movement_test.gd > 
+test_velocity_handed_to_move_and_slide_is_scaled_by_sim_clock_time_scale 
+STARTED
+  res://tests/unit/player_movement_test.gd > 
+test_velocity_handed_to_move_and_slide_is_scaled_by_sim_clock_time_scale 
+PASSED 28ms
+
+  res://tests/unit/player_movement_test.gd > 
+test_real_input_action_drives_movement_without_the_test_override 
+STARTED
+  res://tests/unit/player_movement_test.gd > 
+test_real_input_action_drives_movement_without_the_test_override 
+PASSED 146ms
+
+  res://tests/unit/player_movement_test.gd > 
+test_player_is_registered_with_the_player_tag_on_ready 
+STARTED
+  res://tests/unit/player_movement_test.gd > 
+test_player_is_registered_with_the_player_tag_on_ready 
+PASSED 15ms
+
+  res://tests/unit/player_movement_test.gd > 
+test_registry_position_tracks_the_player_as_it_moves 
+STARTED
+  res://tests/unit/player_movement_test.gd > 
+test_registry_position_tracks_the_player_as_it_moves 
+PASSED 175ms
+
+Statistics: 7 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 717ms
+
+
+Run Test Suite: res://tests/unit/player_projectile_test.gd
+  res://tests/unit/player_projectile_test.gd > 
+test_draws_at_z_index_30_and_at_most_70_percent_opacity 
+STARTED
+  res://tests/unit/player_projectile_test.gd > 
+test_draws_at_z_index_30_and_at_most_70_percent_opacity 
+PASSED 9ms
+
+  res://tests/unit/player_projectile_test.gd > 
+test_launch_source_is_a_value_not_a_live_node_reference 
+STARTED
+  res://tests/unit/player_projectile_test.gd > 
+test_launch_source_is_a_value_not_a_live_node_reference 
+PASSED 9ms
+
+  res://tests/unit/player_projectile_test.gd > 
+test_expires_after_its_lifetime_with_no_target_in_range 
+STARTED
+  res://tests/unit/player_projectile_test.gd > 
+test_expires_after_its_lifetime_with_no_target_in_range 
+PASSED 65ms
+
+  res://tests/unit/player_projectile_test.gd > 
+test_sweep_detects_a_hurtbox_the_projectile_would_otherwise_jump_over 
+STARTED
+  res://tests/unit/player_projectile_test.gd > 
+test_sweep_detects_a_hurtbox_the_projectile_would_otherwise_jump_over 
+PASSED 45ms
+
+  res://tests/unit/player_projectile_test.gd > 
+test_a_hit_deactivates_the_projectile_so_it_cannot_hit_a_second_target 
+STARTED
+  res://tests/unit/player_projectile_test.gd > 
+test_a_hit_deactivates_the_projectile_so_it_cannot_hit_a_second_target 
+PASSED 340ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 501ms
+
+
+Run Test Suite: res://tests/unit/player_scene_test.gd
+  res://tests/unit/player_scene_test.gd > 
+test_player_root_is_character_body_2d_with_floating_motion_mode 
+STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_player_root_is_character_body_2d_with_floating_motion_mode 
+PASSED 8ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_player_z_index_matches_register_readability_row 
+STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_player_z_index_matches_register_readability_row 
+PASSED 20ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_process_mode_is_pausable STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_process_mode_is_pausable PASSED 8ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_body_collision_layer_and_mask_match_binding_table 
+STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_body_collision_layer_and_mask_match_binding_table 
+PASSED 15ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_body_radius_is_read_from_definition STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_body_radius_is_read_from_definition PASSED 
+8ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_hurtbox_faction_layer_and_radius STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_hurtbox_faction_layer_and_radius PASSED 
+12ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_collector_layer_mask_and_radius STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_collector_layer_mask_and_radius PASSED 8ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_collector_emits_pickup_entered_on_overlap 
+STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_collector_emits_pickup_entered_on_overlap 
+PASSED 50ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_death_state_max_hp_and_current_hp_come_from_definition 
+STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_death_state_max_hp_and_current_hp_come_from_definition 
+PASSED 8ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_death_state_hitbox_paths_are_empty_player_has_no_hitbox 
+STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_death_state_hitbox_paths_are_empty_player_has_no_hitbox 
+PASSED 13ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_player_hurtbox_receives_damage_and_reduces_hp 
+STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_player_hurtbox_receives_damage_and_reduces_hp 
+PASSED 63ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_lethal_damage_kills_the_player STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_lethal_damage_kills_the_player PASSED 10ms
+
+  res://tests/unit/player_scene_test.gd > 
+test_dead_player_hurtbox_discards_a_further_hit_ghost_hit_guard 
+STARTED
+  res://tests/unit/player_scene_test.gd > 
+test_dead_player_hurtbox_discards_a_further_hit_ghost_hit_guard 
+PASSED 22ms
+
+Statistics: 13 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 308ms
+
+
+Run Test Suite: res://tests/unit/player_silhouette_test.gd
+  res://tests/unit/player_silhouette_test.gd > 
+test_player_sprite_and_silhouette_assets_exist_and_load 
+STARTED
+  res://tests/unit/player_silhouette_test.gd > 
+test_player_sprite_and_silhouette_assets_exist_and_load 
+PASSED 6ms
+
+  res://tests/unit/player_silhouette_test.gd > 
+test_player_silhouette_has_visible_non_transparent_content 
+STARTED
+  res://tests/unit/player_silhouette_test.gd > 
+test_player_silhouette_has_visible_non_transparent_content 
+PASSED 6ms
+
+  res://tests/unit/player_silhouette_test.gd > 
+test_player_silhouette_is_shape_distinct_from_each_enemy_silhouette 
+STARTED
+  res://tests/unit/player_silhouette_test.gd > 
+test_player_silhouette_is_shape_distinct_from_each_enemy_silhouette 
+PASSED 8ms
+
+  res://tests/unit/player_silhouette_test.gd > 
+test_player_z_index_is_above_the_register_enemy_z_index 
+STARTED
+  res://tests/unit/player_silhouette_test.gd > 
+test_player_z_index_is_above_the_register_enemy_z_index 
+PASSED 9ms
+
+  res://tests/unit/player_silhouette_test.gd > test_pl
+ayer_draws_above_enemies_surrounding_it_on_both_sides_of_its_y_position 
+STARTED
+  res://tests/unit/player_silhouette_test.gd > test_pl
+ayer_draws_above_enemies_surrounding_it_on_both_sides_of_its_y_position 
+PASSED 12ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 73ms
+
+
+Run Test Suite: res://tests/unit/pool_test.gd
+  res://tests/unit/pool_test.gd > 
+test_ten_thousand_single_object_cycles_keep_object_count_stable 
+STARTED
+  res://tests/unit/pool_test.gd > 
+test_ten_thousand_single_object_cycles_keep_object_count_stable 
+PASSED 488ms
+
+  res://tests/unit/pool_test.gd > 
+test_ten_thousand_batched_cycles_keep_object_count_stable 
+STARTED
+  res://tests/unit/pool_test.gd > 
+test_ten_thousand_batched_cycles_keep_object_count_stable 
+PASSED 458ms
+
+  res://tests/unit/pool_test.gd > 
+test_throttle_policy_refuses_once_cap_reached 
+STARTED
+  res://tests/unit/pool_test.gd > 
+test_throttle_policy_refuses_once_cap_reached 
+PASSED 7ms
+
+  res://tests/unit/pool_test.gd > 
+test_recycle_oldest_policy_never_exceeds_cap_and_reclaims_oldest 
+STARTED
+  res://tests/unit/pool_test.gd > 
+test_recycle_oldest_policy_never_exceeds_cap_and_reclaims_oldest 
+PASSED 5ms
+
+  res://tests/unit/pool_test.gd > 
+test_zero_cap_never_spawns_under_either_policy 
+STARTED
+  res://tests/unit/pool_test.gd > 
+test_zero_cap_never_spawns_under_either_policy 
+PASSED 8ms
+
+  res://tests/unit/pool_test.gd > 
+test_release_refuses_an_instance_it_never_handed_out 
+STARTED
+  res://tests/unit/pool_test.gd > 
+test_release_refuses_an_instance_it_never_handed_out 
+PASSED 8ms
+
+  res://tests/unit/pool_test.gd > 
+test_acquire_restores_all_four_logical_death_flags_on_reuse 
+STARTED
+  res://tests/unit/pool_test.gd > 
+test_acquire_restores_all_four_logical_death_flags_on_reuse 
+PASSED 7ms
+
+  res://tests/unit/pool_test.gd > 
+test_acquire_restore_is_a_no_op_for_an_instance_with_no_pool_groups 
+STARTED
+  res://tests/unit/pool_test.gd > 
+test_acquire_restore_is_a_no_op_for_an_instance_with_no_pool_groups 
+PASSED 7ms
+
+Statistics: 8 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 1s 32ms
+
+
+Run Test Suite: res://tests/unit/pressure_test.gd
+  res://tests/unit/pressure_test.gd > 
+test_compute_pressure_matches_threat_over_capacity_times_20s 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_compute_pressure_matches_threat_over_capacity_times_20s 
+PASSED 8ms
+
+  res://tests/unit/pressure_test.gd > 
+test_compute_pressure_is_zero_with_no_threat 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_compute_pressure_is_zero_with_no_threat PASSED 
+8ms
+
+  res://tests/unit/pressure_test.gd > test_compute_pre
+ssure_with_non_positive_capacity_and_positive_threat_is_the_documented_zero_fallback 
+STARTED
+  res://tests/unit/pressure_test.gd > test_compute_pre
+ssure_with_non_positive_capacity_and_positive_threat_is_the_documented_zero_fallback 
+PASSED 7ms
+
+  res://tests/unit/pressure_test.gd > 
+test_compute_threat_sums_hp_times_intent_weight_times_sheet_dps_over_10 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_compute_threat_sums_hp_times_intent_weight_times_sheet_dps_over_10 
+PASSED 7ms
+
+  res://tests/unit/pressure_test.gd > 
+test_compute_threat_is_zero_for_an_empty_or_all_dead_enemy_list 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_compute_threat_is_zero_for_an_empty_or_all_dead_enemy_list 
+PASSED 8ms
+
+  res://tests/unit/pressure_test.gd > 
+test_intent_weights_in_director_configuration_match_the_register 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_intent_weights_in_director_configuration_match_the_register 
+PASSED 6ms
+
+  res://tests/unit/pressure_test.gd > 
+test_compute_health_quadrant_boundary_and_nan_handling 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_compute_health_quadrant_boundary_and_nan_handling 
+PASSED 7ms
+
+  res://tests/unit/pressure_test.gd > 
+test_escalation_requires_3_seconds_continuously_below_threshold 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_escalation_requires_3_seconds_continuously_below_threshold 
+PASSED 6ms
+
+  res://tests/unit/pressure_test.gd > 
+test_escalation_resets_the_hold_timer_if_pressure_recovers_above_threshold 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_escalation_resets_the_hold_timer_if_pressure_recovers_above_threshold 
+PASSED 8ms
+
+  res://tests/unit/pressure_test.gd > 
+test_escalation_enforces_4_second_minimum_gap_between_escalations 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_escalation_enforces_4_second_minimum_gap_between_escalations 
+PASSED 8ms
+
+  res://tests/unit/pressure_test.gd > 
+test_escalation_does_nothing_in_a_siege STARTED
+  res://tests/unit/pressure_test.gd > 
+test_escalation_does_nothing_in_a_siege PASSED 
+7ms
+
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_activates_above_1_8_and_lifts_below_1_2 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_activates_above_1_8_and_lifts_below_1_2 
+PASSED 7ms
+
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_expires_after_10_seconds_even_if_pressure_stays_high 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_expires_after_10_seconds_even_if_pressure_stays_high 
+PASSED 7ms
+
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_re_arm_lockout_blocks_immediate_retrigger 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_re_arm_lockout_blocks_immediate_retrigger 
+PASSED 7ms
+
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_never_applies_during_a_siege 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_never_applies_during_a_siege 
+PASSED 8ms
+
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_never_applies_during_overtime 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_never_applies_during_overtime 
+PASSED 9ms
+
+  res://tests/unit/pressure_test.gd > 
+test_boundary_oscillation_cannot_retrigger_escalation_inside_its_own_gap 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_boundary_oscillation_cannot_retrigger_escalation_inside_its_own_gap 
+PASSED 7ms
+
+  res://tests/unit/pressure_test.gd > test_boundary_os
+cillation_cannot_retrigger_de_escalation_inside_its_own_lockout STARTED
+  res://tests/unit/pressure_test.gd > test_boundary_os
+cillation_cannot_retrigger_de_escalation_inside_its_own_lockout PASSED 
+7ms
+
+  res://tests/unit/pressure_test.gd > test_pressure_re
+produces_the_formula_end_to_end_with_a_scripted_enemy_and_capacity 
+STARTED
+  res://tests/unit/pressure_test.gd > test_pressure_re
+produces_the_formula_end_to_end_with_a_scripted_enemy_and_capacity PASSED 
+9ms
+
+  res://tests/unit/pressure_test.gd > 
+test_pressure_is_zero_with_no_enemies_end_to_end 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_pressure_is_zero_with_no_enemies_end_to_end 
+PASSED 7ms
+
+  res://tests/unit/pressure_test.gd > test_escalation_
+starts_the_next_pending_spawn_group_before_its_authored_offset STARTED
+  res://tests/unit/pressure_test.gd > test_escalation_
+starts_the_next_pending_spawn_group_before_its_authored_offset PASSED 
+9ms
+
+  res://tests/unit/pressure_test.gd > 
+test_escalation_does_nothing_when_no_spawn_group_remains 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_escalation_does_nothing_when_no_spawn_group_remains 
+PASSED 8ms
+
+  res://tests/unit/pressure_test.gd > 
+test_escalation_respects_the_minimum_gap_across_two_pending_groups 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_escalation_respects_the_minimum_gap_across_two_pending_groups 
+PASSED 9ms
+
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_doubles_spawn_intervals_while_active 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_de_escalation_doubles_spawn_intervals_while_active 
+PASSED 12ms
+
+  res://tests/unit/pressure_test.gd > 
+test_pressure_is_not_evaluated_during_a_teaching_wave 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_pressure_is_not_evaluated_during_a_teaching_wave 
+PASSED 9ms
+
+  res://tests/unit/pressure_test.gd > 
+test_pressure_is_not_evaluated_during_the_grace_period 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_pressure_is_not_evaluated_during_the_grace_period 
+PASSED 9ms
+
+  res://tests/unit/pressure_test.gd > test_health_quad
+rant_reports_low_for_either_pool_and_has_no_effect_on_spawn_selection 
+STARTED
+  res://tests/unit/pressure_test.gd > test_health_quad
+rant_reports_low_for_either_pool_and_has_no_effect_on_spawn_selection 
+PASSED 9ms
+
+  res://tests/unit/pressure_test.gd > test_overlay_rec
+eives_pressure_state_and_quadrant_pushed_by_the_wave_director STARTED
+  res://tests/unit/pressure_test.gd > test_overlay_rec
+eives_pressure_state_and_quadrant_pushed_by_the_wave_director PASSED 
+7ms
+
+  res://tests/unit/pressure_test.gd > test_capacity_fa
+lls_back_through_provider_then_combat_stats_then_base_weapon STARTED
+  res://tests/unit/pressure_test.gd > test_capacity_fa
+lls_back_through_provider_then_combat_stats_then_base_weapon PASSED 8ms
+
+  res://tests/unit/pressure_test.gd > 
+test_capacity_is_not_affected_by_an_unrelated_pause_reason 
+STARTED
+  res://tests/unit/pressure_test.gd > 
+test_capacity_is_not_affected_by_an_unrelated_pause_reason 
+PASSED 11ms
+
+Statistics: 30 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 382ms
+
+
+Run Test Suite: res://tests/unit/prototype_scene_test.gd
+  res://tests/unit/prototype_scene_test.gd > 
+test_every_required_node_is_present STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_every_required_node_is_present PASSED 38ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_main_still_carries_the_six_named_containers 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_main_still_carries_the_six_named_containers 
+PASSED 36ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_entities_is_y_sorted_and_the_other_five_containers_are_not 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_entities_is_y_sorted_and_the_other_five_containers_are_not 
+PASSED 43ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_nothing_under_main_the_gameplay_root_sets_process_mode_always 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_nothing_under_main_the_gameplay_root_sets_process_mode_always 
+PASSED 40ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_the_process_mode_always_nodes_this_scene_needs_exist_outside_main 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_the_process_mode_always_nodes_this_scene_needs_exist_outside_main 
+PASSED 43ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_is_not_a_child_of_entities_and_not_in_its_y_sort_group 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_is_not_a_child_of_entities_and_not_in_its_y_sort_group 
+PASSED 38ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_effective_z_index_is_50 STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_effective_z_index_is_50 PASSED 38ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_environment_floor_effective_z_index_is_0 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_environment_floor_effective_z_index_is_0 
+PASSED 35ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_enemies_effective_z_index_is_20 STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_enemies_effective_z_index_is_20 PASSED 40ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_effective_z_index_is_25 STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_effective_z_index_is_25 PASSED 41ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_telegraph_visual_effective_z_index_is_40 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_telegraph_visual_effective_z_index_is_40 
+PASSED 41ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_projectile_effective_z_index_is_30_not_accumulated 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_projectile_effective_z_index_is_30_not_accumulated 
+PASSED 1s 395ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_projectile_effective_z_index_is_30_not_accumulated 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_projectile_effective_z_index_is_30_not_accumulated 
+PASSED 1s 493ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_all_three_enemies_are_registered_under_the_enemy_tag 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_all_three_enemies_are_registered_under_the_enemy_tag 
+PASSED 36ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_only_the_tower_seeker_carries_the_tower_seeker_tag 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_only_the_tower_seeker_carries_the_tower_seeker_tag 
+PASSED 37ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_the_towers_real_targeting_query_finds_the_placed_tower_seeker 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_the_towers_real_targeting_query_finds_the_placed_tower_seeker 
+PASSED 38ms
+
+  res://tests/unit/prototype_scene_test.gd > test_the_
+tower_is_wired_to_every_enemy_so_seeker_and_opportunist_can_find_it 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > test_the_
+tower_is_wired_to_every_enemy_so_seeker_and_opportunist_can_find_it PASSED 
+33ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_arena_floor_and_wall_textures_resolve_to_kenney_files 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_arena_floor_and_wall_textures_resolve_to_kenney_files 
+PASSED 33ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_visuals_stage_and_platform_textures_are_all_non_null 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_visuals_stage_and_platform_textures_are_all_non_null 
+PASSED 34ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_weapon_projectile_texture_and_fire_sfx_are_non_null 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_weapon_projectile_texture_and_fire_sfx_are_non_null 
+PASSED 38ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_a_real_fired_tower_projectile_carries_the_wired_sprite 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_a_real_fired_tower_projectile_carries_the_wired_sprite 
+PASSED 1s 375ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_autoweapon_fire_sfx_and_projectile_texture_are_non_null 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_autoweapon_fire_sfx_and_projectile_texture_are_non_null 
+PASSED 35ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_a_real_fired_player_projectile_carries_the_kenney_texture 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_a_real_fired_player_projectile_carries_the_kenney_texture 
+PASSED 1s 469ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_damage_sfx_is_non_null_and_wired_to_the_audio_pool 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_player_damage_sfx_is_non_null_and_wired_to_the_audio_pool 
+PASSED 34ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_every_enemy_hit_and_death_sfx_are_non_null 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_every_enemy_hit_and_death_sfx_are_non_null 
+PASSED 31ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_every_telegraph_visual_texture_is_non_null_and_carries_a_real_sprite 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_every_telegraph_visual_texture_is_non_null_and_carries_a_real_sprite 
+PASSED 33ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_ui_sfx_cues_are_all_non_null_and_route_to_the_ui_bus 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_ui_sfx_cues_are_all_non_null_and_route_to_the_ui_bus 
+PASSED 34ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_cue_stream_is_the_real_kenney_asset_not_the_placeholder_tone 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_cue_stream_is_the_real_kenney_asset_not_the_placeholder_tone 
+PASSED 33ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_cue_player_is_routed_to_the_towercue_bus 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_tower_cue_player_is_routed_to_the_towercue_bus 
+PASSED 31ms
+
+  res://tests/unit/prototype_scene_test.gd > 
+test_shared_audio_ducking_wired_to_both_the_tower_cue_and_the_audio_pool 
+STARTED
+  res://tests/unit/prototype_scene_test.gd > 
+test_shared_audio_ducking_wired_to_both_the_tower_cue_and_the_audio_pool 
+PASSED 36ms
+
+Statistics: 30 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 6s 813ms
+
+
+Run Test Suite: res://tests/unit/prototype_wave_integration_test.gd
+  res://tests/unit/prototype_wave_integration_test.gd > 
+test_the_director_is_in_the_scene_at_all STARTED
+  res://tests/unit/prototype_wave_integration_test.gd > 
+test_the_director_is_in_the_scene_at_all PASSED 
+32ms
+
+  res://tests/unit/prototype_wave_integration_test.gd > 
+test_the_directors_node_paths_resolve_to_real_nodes 
+STARTED
+  res://tests/unit/prototype_wave_integration_test.gd > 
+test_the_directors_node_paths_resolve_to_real_nodes 
+PASSED 36ms
+
+  res://tests/unit/prototype_wave_integration_test.gd > 
+test_the_three_enemy_scenes_are_supplied_to_the_director 
+STARTED
+  res://tests/unit/prototype_wave_integration_test.gd > 
+test_the_three_enemy_scenes_are_supplied_to_the_director 
+PASSED 33ms
+
+  res://tests/unit/prototype_wave_integration_test.gd > [38;2;250;235;21
+5mtest_running_the_scene_actually_spawns_enemies_beyond_the_hand_placed_three 
+STARTED
+  res://tests/unit/prototype_wave_integration_test.gd > [38;2;250;235;21
+5mtest_running_the_scene_actually_spawns_enemies_beyond_the_hand_placed_three 
+PASSED 2s 413ms
+
+  res://tests/unit/prototype_wave_integration_test.gd > 
+test_the_director_left_its_idle_state_rather_than_sitting_still 
+STARTED
+  res://tests/unit/prototype_wave_integration_test.gd > 
+test_the_director_left_its_idle_state_rather_than_sitting_still 
+PASSED 2s 499ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 5s 42ms
+
+
+Run Test Suite: res://tests/unit/run_flow_check_test.gd
+  res://tests/unit/run_flow_check_test.gd > 
+test_player_death_shows_cause_wave_scrap_and_time 
+STARTED
+  res://tests/unit/run_flow_check_test.gd > 
+test_player_death_shows_cause_wave_scrap_and_time 
+PASSED 13ms
+
+  res://tests/unit/run_flow_check_test.gd > 
+test_tower_destroyed_shows_cause_wave_scrap_and_time 
+STARTED
+  res://tests/unit/run_flow_check_test.gd > 
+test_tower_destroyed_shows_cause_wave_scrap_and_time 
+PASSED 12ms
+
+  res://tests/unit/run_flow_check_test.gd > 
+test_sequence_completed_shows_wave_reached_with_no_cause_line 
+STARTED
+  res://tests/unit/run_flow_check_test.gd > 
+test_sequence_completed_shows_wave_reached_with_no_cause_line 
+PASSED 11ms
+
+  res://tests/unit/run_flow_check_test.gd > 
+test_run_end_screen_becomes_the_active_ui_once_the_run_ends 
+STARTED
+  res://tests/unit/run_flow_check_test.gd > 
+test_run_end_screen_becomes_the_active_ui_once_the_run_ends 
+PASSED 12ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 71ms
+
+
+Run Test Suite: res://tests/unit/run_inventory_test.gd
+  res://tests/unit/run_inventory_test.gd > 
+test_scrap_credits_up_to_the_register_cap 
+STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_scrap_credits_up_to_the_register_cap PASSED 
+7ms
+
+  res://tests/unit/run_inventory_test.gd > 
+test_scrap_overflow_beyond_the_cap_is_discarded_not_queued 
+STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_scrap_overflow_beyond_the_cap_is_discarded_not_queued 
+PASSED 6ms
+
+  res://tests/unit/run_inventory_test.gd > 
+test_xp_curve_matches_15_20_25_for_the_first_three_levels 
+STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_xp_curve_matches_15_20_25_for_the_first_three_levels 
+PASSED 8ms
+
+  res://tests/unit/run_inventory_test.gd > 
+test_xp_remainder_carries_over_toward_the_next_level 
+STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_xp_remainder_carries_over_toward_the_next_level 
+PASSED 6ms
+
+  res://tests/unit/run_inventory_test.gd > 
+test_a_single_large_credit_can_carry_through_multiple_level_ups 
+STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_a_single_large_credit_can_carry_through_multiple_level_ups 
+PASSED 7ms
+
+  res://tests/unit/run_inventory_test.gd > 
+test_consume_level_up_requested_reports_exactly_once_per_level_up 
+STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_consume_level_up_requested_reports_exactly_once_per_level_up 
+PASSED 7ms
+
+  res://tests/unit/run_inventory_test.gd > 
+test_player_death_zeroes_carried_scrap STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_player_death_zeroes_carried_scrap PASSED 
+7ms
+
+  res://tests/unit/run_inventory_test.gd > 
+test_connection_is_guarded_when_the_bus_has_no_player_died_signal 
+STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_connection_is_guarded_when_the_bus_has_no_player_died_signal 
+PASSED 7ms
+
+  res://tests/unit/run_inventory_test.gd > 
+test_double_configure_does_not_double_connect 
+STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_double_configure_does_not_double_connect 
+PASSED 6ms
+
+  res://tests/unit/run_inventory_test.gd > 
+test_apply_to_hud_state_copies_the_exact_field_shape 
+STARTED
+  res://tests/unit/run_inventory_test.gd > 
+test_apply_to_hud_state_copies_the_exact_field_shape 
+PASSED 7ms
+
+Statistics: 10 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 116ms
+
+
+Run Test Suite: res://tests/unit/run_recorder_behavior_test.gd
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_process_mode_is_pausable STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_process_mode_is_pausable PASSED 7ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_record_tick_sample_writes_current_injected_state 
+STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_record_tick_sample_writes_current_injected_state 
+PASSED 21ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_record_event_writes_sim_time_type_intent_bearing_amount 
+STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_record_event_writes_sim_time_type_intent_bearing_amount 
+PASSED 20ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_end_run_writes_a_run_end_event STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_end_run_writes_a_run_end_event PASSED 19ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_enemy_died_signal_is_recorded_as_a_death_event 
+STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_enemy_died_signal_is_recorded_as_a_death_event 
+PASSED 18ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_tower_damaged_signal_is_recorded_with_amount 
+STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_tower_damaged_signal_is_recorded_with_amount 
+PASSED 18ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_end_run_disconnects_from_event_bus STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_end_run_disconnects_from_event_bus PASSED 
+11ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_csv_fields_containing_commas_are_quoted 
+STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_csv_fields_containing_commas_are_quoted PASSED 
+18ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_idleness_does_not_flag_before_the_threshold 
+STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_idleness_does_not_flag_before_the_threshold 
+PASSED 12ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_idleness_flags_once_past_the_threshold_and_does_not_repeat 
+STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_idleness_flags_once_past_the_threshold_and_does_not_repeat 
+PASSED 18ms
+
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_idleness_respects_scheduled_gap_and_grace_period 
+STARTED
+  res://tests/unit/run_recorder_behavior_test.gd > 
+test_idleness_respects_scheduled_gap_and_grace_period 
+PASSED 25ms
+
+Statistics: 11 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 245ms
+
+
+Run Test Suite: res://tests/unit/run_recorder_schema_test.gd
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_ticks_csv_header_matches_docs20_schema 
+STARTED
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_ticks_csv_header_matches_docs20_schema PASSED 
+11ms
+
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_events_csv_header_matches_docs20_schema 
+STARTED
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_events_csv_header_matches_docs20_schema PASSED 
+13ms
+
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_ticks_and_events_files_both_exist_in_the_run_folder 
+STARTED
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_ticks_and_events_files_both_exist_in_the_run_folder 
+PASSED 12ms
+
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_run_folder_name_carries_seed_and_controller_id 
+STARTED
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_run_folder_name_carries_seed_and_controller_id 
+PASSED 11ms
+
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_header_csv_records_seed_build_hash_and_godot_version 
+STARTED
+  res://tests/unit/run_recorder_schema_test.gd > 
+test_header_csv_records_seed_build_hash_and_godot_version 
+PASSED 18ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 94ms
+
+
+Run Test Suite: res://tests/unit/scrap_loss_test.gd
+  res://tests/unit/scrap_loss_test.gd > 
+test_scrap_reads_zero_on_run_end_screen_when_run_inventory_connects_first 
+STARTED
+  res://tests/unit/scrap_loss_test.gd > 
+test_scrap_reads_zero_on_run_end_screen_when_run_inventory_connects_first 
+PASSED 13ms
+
+  res://tests/unit/scrap_loss_test.gd > 
+test_scrap_reads_zero_on_run_end_screen_when_controller_connects_first 
+STARTED
+  res://tests/unit/scrap_loss_test.gd > 
+test_scrap_reads_zero_on_run_end_screen_when_controller_connects_first 
+PASSED 12ms
+
+  res://tests/unit/scrap_loss_test.gd > test_scrap_sta
+ys_zero_after_death_and_a_fresh_inventory_also_starts_at_zero STARTED
+  res://tests/unit/scrap_loss_test.gd > test_scrap_sta
+ys_zero_after_death_and_a_fresh_inventory_also_starts_at_zero PASSED 
+7ms
+
+Statistics: 3 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 53ms
+
+
+Run Test Suite: res://tests/unit/siege_volume_formula_test.gd
+  res://tests/unit/siege_volume_formula_test.gd > 
+test_at_base_tower_dps_the_authored_literal_counts_are_used_unchanged 
+STARTED
+  res://tests/unit/siege_volume_formula_test.gd > 
+test_at_base_tower_dps_the_authored_literal_counts_are_used_unchanged 
+PASSED 11ms
+
+  res://tests/unit/siege_volume_formula_test.gd > 
+test_above_base_tower_dps_the_formula_is_recomputed_live 
+STARTED
+  res://tests/unit/siege_volume_formula_test.gd > 
+test_above_base_tower_dps_the_formula_is_recomputed_live 
+PASSED 8ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 36ms
+
+
+Run Test Suite: res://tests/unit/sim_loop_order_test.gd
+  res://tests/unit/sim_loop_order_test.gd > 
+test_one_tick_runs_all_fifteen_steps_in_order 
+STARTED
+  res://tests/unit/sim_loop_order_test.gd > 
+test_one_tick_runs_all_fifteen_steps_in_order 
+PASSED 30ms
+
+  res://tests/unit/sim_loop_order_test.gd > 
+test_hit_queue_sorts_by_target_then_attacker_serial 
+STARTED
+  res://tests/unit/sim_loop_order_test.gd > 
+test_hit_queue_sorts_by_target_then_attacker_serial 
+PASSED 26ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 74ms
+
+
+Run Test Suite: res://tests/unit/sim_loop_registration_test.gd
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_registered_node_is_stepped_exactly_once_per_tick 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_registered_node_is_stepped_exactly_once_per_tick 
+PASSED 39ms
+
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_register_refuses_the_same_node_twice_at_the_same_step 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_register_refuses_the_same_node_twice_at_the_same_step 
+PASSED 27ms
+
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_register_allows_the_same_node_at_two_different_steps 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_register_allows_the_same_node_at_two_different_steps 
+PASSED 27ms
+
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_same_step_nodes_run_in_registration_order_by_default 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_same_step_nodes_run_in_registration_order_by_default 
+PASSED 29ms
+
+  res://tests/unit/sim_loop_registration_test.gd > tes
+t_same_step_order_prefers_an_injected_entity_registry_serial_over_registration_order 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > tes
+t_same_step_order_prefers_an_injected_entity_registry_serial_over_registration_order 
+PASSED 28ms
+
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_unregistered_node_is_not_stepped_again 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_unregistered_node_is_not_stepped_again PASSED 
+43ms
+
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_unregister_refuses_a_node_that_was_never_registered 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_unregister_refuses_a_node_that_was_never_registered 
+PASSED 9ms
+
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_a_node_freed_mid_tree_is_never_stepped_and_does_not_break_the_step 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_a_node_freed_mid_tree_is_never_stepped_and_does_not_break_the_step 
+PASSED 47ms
+
+  res://tests/unit/sim_loop_registration_test.gd > tes
+t_a_node_unregistering_itself_mid_step_does_not_skip_or_duplicate_others 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > tes
+t_a_node_unregistering_itself_mid_step_does_not_skip_or_duplicate_others 
+PASSED 43ms
+
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_a_node_registered_mid_step_is_not_called_until_the_next_tick 
+STARTED
+  res://tests/unit/sim_loop_registration_test.gd > 
+test_a_node_registered_mid_step_is_not_called_until_the_next_tick 
+PASSED 61ms
+
+Statistics: 10 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 402ms
+
+
+Run Test Suite: res://tests/unit/sim_loop_step_dispatch_test.gd
+  res://tests/unit/sim_loop_step_dispatch_test.gd > 
+test_the_step_enum_still_has_the_documented_fifteen_steps 
+STARTED
+  res://tests/unit/sim_loop_step_dispatch_test.gd > 
+test_the_step_enum_still_has_the_documented_fifteen_steps 
+PASSED 7ms
+
+  res://tests/unit/sim_loop_step_dispatch_test.gd > 
+test_every_step_dispatches_its_registrants_exactly_once_per_tick 
+STARTED
+  res://tests/unit/sim_loop_step_dispatch_test.gd > 
+test_every_step_dispatches_its_registrants_exactly_once_per_tick 
+PASSED 16ms
+
+  res://tests/unit/sim_loop_step_dispatch_test.gd > 
+test_every_step_passes_the_real_delta_through_to_its_registrants 
+STARTED
+  res://tests/unit/sim_loop_step_dispatch_test.gd > 
+test_every_step_passes_the_real_delta_through_to_its_registrants 
+PASSED 27ms
+
+  res://tests/unit/sim_loop_step_dispatch_test.gd > 
+test_a_second_tick_steps_every_registrant_again 
+STARTED
+  res://tests/unit/sim_loop_step_dispatch_test.gd > 
+test_a_second_tick_steps_every_registrant_again 
+PASSED 43ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 118ms
+
+
+Run Test Suite: res://tests/unit/spawn_ring_test.gd
+  res://tests/unit/spawn_ring_test.gd > test_1000_scri
+pted_spawns_that_validate_never_land_in_the_camera_margin_or_interaction_radius_or_outside_the_arena_inset[38;2;34
+;139;34m STARTED
+  res://tests/unit/spawn_ring_test.gd > test_1000_scri
+pted_spawns_that_validate_never_land_in_the_camera_margin_or_interaction_radius_or_outside_the_arena_inset[38;2;34
+;139;34m PASSED 97ms
+
+  res://tests/unit/spawn_ring_test.gd > 
+test_shift_rescues_a_first_candidate_rejected_by_the_camera_view 
+STARTED
+  res://tests/unit/spawn_ring_test.gd > 
+test_shift_rescues_a_first_candidate_rejected_by_the_camera_view 
+PASSED 6ms
+
+  res://tests/unit/spawn_ring_test.gd > 
+test_shift_rescues_a_first_candidate_rejected_by_the_interaction_radius 
+STARTED
+  res://tests/unit/spawn_ring_test.gd > 
+test_shift_rescues_a_first_candidate_rejected_by_the_interaction_radius 
+PASSED 7ms
+
+  res://tests/unit/spawn_ring_test.gd > 
+test_candidate_outside_the_arena_inset_is_rejected 
+STARTED
+  res://tests/unit/spawn_ring_test.gd > 
+test_candidate_outside_the_arena_inset_is_rejected 
+PASSED 7ms
+
+  res://tests/unit/spawn_ring_test.gd > 
+test_no_valid_point_after_every_shift_reports_invalid 
+STARTED
+  res://tests/unit/spawn_ring_test.gd > 
+test_no_valid_point_after_every_shift_reports_invalid 
+PASSED 8ms
+
+  res://tests/unit/spawn_ring_test.gd > 
+test_nearest_valid_point_on_ring_finds_a_point_outside_a_blocked_arc 
+STARTED
+  res://tests/unit/spawn_ring_test.gd > 
+test_nearest_valid_point_on_ring_finds_a_point_outside_a_blocked_arc 
+PASSED 8ms
+
+  res://tests/unit/spawn_ring_test.gd > test_nearest_v
+alid_point_on_ring_returns_null_when_the_whole_ring_is_blocked STARTED
+  res://tests/unit/spawn_ring_test.gd > test_nearest_v
+alid_point_on_ring_returns_null_when_the_whole_ring_is_blocked PASSED 
+7ms
+
+  res://tests/unit/spawn_ring_test.gd > test_wave_dire
+ctor_places_tower_seeker_on_the_tower_ring_and_hunter_on_the_view_ring 
+STARTED
+  res://tests/unit/spawn_ring_test.gd > test_wave_dire
+ctor_places_tower_seeker_on_the_tower_ring_and_hunter_on_the_view_ring 
+PASSED 7ms
+
+Statistics: 8 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 201ms
+
+
+Run Test Suite: res://tests/unit/split_assault_test.gd
+  res://tests/unit/split_assault_test.gd > test_20_gen
+erated_split_assaults_assign_lanes_correctly_and_keep_centres_180_degrees_apart 
+STARTED
+  res://tests/unit/split_assault_test.gd > test_20_gen
+erated_split_assaults_assign_lanes_correctly_and_keep_centres_180_degrees_apart 
+PASSED 35ms
+
+Statistics: 1 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 51ms
+
+
+Run Test Suite: res://tests/unit/stuck_exemption_test.gd
+  res://tests/unit/stuck_exemption_test.gd > test_an_e
+nemy_waiting_for_a_full_ring_accrues_no_stuck_time_and_claims_a_freed_slot 
+STARTED
+  res://tests/unit/stuck_exemption_test.gd > test_an_e
+nemy_waiting_for_a_full_ring_accrues_no_stuck_time_and_claims_a_freed_slot 
+PASSED 35ms
+
+  res://tests/unit/stuck_exemption_test.gd > 
+test_a_tower_seeker_blocked_by_the_players_body_accrues_no_stuck_time 
+STARTED
+  res://tests/unit/stuck_exemption_test.gd > 
+test_a_tower_seeker_blocked_by_the_players_body_accrues_no_stuck_time 
+PASSED 17ms
+
+  res://tests/unit/stuck_exemption_test.gd > 
+test_a_genuinely_blocked_enemy_runs_the_3s_8s_20s_ladder 
+STARTED
+  res://tests/unit/stuck_exemption_test.gd > 
+test_a_genuinely_blocked_enemy_runs_the_3s_8s_20s_ladder 
+PASSED 20ms
+
+  res://tests/unit/stuck_exemption_test.gd > test_oppo
+rtunist_falls_back_to_the_other_target_at_3s_then_forces_direct_approach_at_8s_if_still_stuck 
+STARTED
+  res://tests/unit/stuck_exemption_test.gd > test_oppo
+rtunist_falls_back_to_the_other_target_at_3s_then_forces_direct_approach_at_8s_if_still_stuck 
+PASSED 15ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 117ms
+
+
+Run Test Suite: res://tests/unit/teaching_siege_tuning_test.gd
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a1_no_player_seed_4001 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a1_no_player_seed_4001 PASSED 40s 53ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a2_no_player_seed_4002 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a2_no_player_seed_4002 PASSED 40s 57ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a3_no_player_seed_4003 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a3_no_player_seed_4003 PASSED 40s 20ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a4_no_player_seed_4004 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a4_no_player_seed_4004 PASSED 40s 28ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a5_no_player_seed_4005 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_a5_no_player_seed_4005 PASSED 40s 37ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b1_responsive_bot_seed_4001 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b1_responsive_bot_seed_4001 PASSED 40s 50ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b2_responsive_bot_seed_4002 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b2_responsive_bot_seed_4002 PASSED 40s 40ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b3_responsive_bot_seed_4003 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b3_responsive_bot_seed_4003 PASSED 40s 42ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b4_responsive_bot_seed_4004 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b4_responsive_bot_seed_4004 PASSED 40s 28ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b5_responsive_bot_seed_4005 STARTED
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_b5_responsive_bot_seed_4005 PASSED 40s 49ms
+  Report:
+  WARNING: Detected 20 possible orphan nodes.
+	⚠️No details available. Run tests in debug mode to collect details.
+
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_z_aggregate_both_halves_of_the_t4_tuning_target 
+STARTED
+No-player T4 measurement (current authored numbers: Seekers 12 @3s interval 2.0s, Hunters 2 @10s):
+seed 4001: destroyed=false at t=40.02s (2402 ticks), final health=500.0/500.0
+seed 4002: destroyed=false at t=40.02s (2402 ticks), final health=500.0/500.0
+seed 4003: destroyed=false at t=40.00s (2401 ticks), final health=500.0/500.0
+seed 4004: destroyed=false at t=40.00s (2401 ticks), final health=500.0/500.0
+seed 4005: destroyed=false at t=40.00s (2401 ticks), final health=500.0/500.0
+Destroyed in 0 of 5 seeds (target: >= 3 of 5).
+Responsive-bot T4 measurement (current authored numbers):
+seed 4001: final health=500.0/500.0 (100.0%), above 50%=true, started_in_range=true, distance at 10s=198.2px (within 
+480px=true)
+seed 4002: final health=500.0/500.0 (100.0%), above 50%=true, started_in_range=true, distance at 10s=198.2px (within 
+480px=true)
+seed 4003: final health=500.0/500.0 (100.0%), above 50%=true, started_in_range=true, distance at 10s=198.2px (within 
+480px=true)
+seed 4004: final health=500.0/500.0 (100.0%), above 50%=true, started_in_range=true, distance at 10s=198.2px (within 
+480px=true)
+seed 4005: final health=500.0/500.0 (100.0%), above 50%=true, started_in_range=true, distance at 10s=198.2px (within 
+480px=true)
+Above 50% in 5 of 5 seeds (target: 5 of 5); within 480px of the Tower within 10s of the warning in 5 of 5 seeds 
+(precondition for the claim to be meaningful).
+  res://tests/unit/teaching_siege_tuning_test.gd > 
+test_z_aggregate_both_halves_of_the_t4_tuning_target 
+FAILED 12ms
+  Report:
+  Expecting to be greater than or equal:
+ 3 but was 0
+Additional info:
+ No-player T4 measurement (current authored numbers: Seekers 12 @3s interval 2.0s, Hunters 2 @10s):
+seed 4001: destroyed=false at t=40.02s (2402 ticks), final health=500.0/500.0
+seed 4002: destroyed=false at t=40.02s (2402 ticks), final health=500.0/500.0
+seed 4003: destroyed=false at t=40.00s (2401 ticks), final health=500.0/500.0
+seed 4004: destroyed=false at t=40.00s (2401 ticks), final health=500.0/500.0
+seed 4005: destroyed=false at t=40.00s (2401 ticks), final health=500.0/500.0
+Destroyed in 0 of 5 seeds (target: >= 3 of 5).	at 
+'test_z_aggregate_both_halves_of_the_t4_tuning_target' in 
+res://tests/unit/teaching_siege_tuning_test.gd:439
+
+Statistics: 11 test cases | 0 errors | 1 failures | 0 flaky | 0 skipped | 200 
+orphans | PASSED 6min 40s 485ms
+
+
+Run Test Suite: res://tests/unit/threat_feedback_indicator_test.gd
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_indicator_hidden_when_tower_is_onscreen 
+STARTED
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_indicator_hidden_when_tower_is_onscreen PASSED 
+13ms
+
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_indicator_shown_when_tower_is_offscreen 
+STARTED
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_indicator_shown_when_tower_is_offscreen PASSED 
+13ms
+
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_indicator_shape_and_colour_both_change_below_40_percent_health 
+STARTED
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_indicator_shape_and_colour_both_change_below_40_percent_health 
+PASSED 14ms
+
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_hit_arc_appears_after_a_hit_and_points_at_the_side_hit 
+STARTED
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_hit_arc_appears_after_a_hit_and_points_at_the_side_hit 
+PASSED 13ms
+
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_hit_arc_expires_after_its_display_window 
+STARTED
+  res://tests/unit/threat_feedback_indicator_test.gd > 
+test_hit_arc_expires_after_its_display_window 
+PASSED 13ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 102ms
+
+
+Run Test Suite: res://tests/unit/threat_feedback_vignette_test.gd
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_intensity_rises_immediately_on_damage 
+STARTED
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_intensity_rises_immediately_on_damage PASSED 
+14ms
+
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_intensity_holds_for_the_full_1s_window 
+STARTED
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_intensity_holds_for_the_full_1s_window PASSED 
+14ms
+
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_intensity_fades_gradually_not_as_an_instant_cliff 
+STARTED
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_intensity_fades_gradually_not_as_an_instant_cliff 
+PASSED 14ms
+
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_intensity_fully_fades_within_0point6_seconds_of_the_window_closing 
+STARTED
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_intensity_fully_fades_within_0point6_seconds_of_the_window_closing 
+PASSED 13ms
+
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_shield_damage_and_health_damage_both_raise_intensity 
+STARTED
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_shield_damage_and_health_damage_both_raise_intensity 
+PASSED 16ms
+
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_points_at_the_tower_when_it_is_offscreen 
+STARTED
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_points_at_the_tower_when_it_is_offscreen 
+PASSED 15ms
+
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_points_at_the_attacker_not_the_tower_when_the_tower_is_onscreen 
+STARTED
+  res://tests/unit/threat_feedback_vignette_test.gd > 
+test_points_at_the_attacker_not_the_tower_when_the_tower_is_onscreen 
+PASSED 14ms
+
+Statistics: 7 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 151ms
+
+
+Run Test Suite: res://tests/unit/tower_cue_audibility_test.gd
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_towercue_bus_routes_to_sfx_priority_which_routes_to_master 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_towercue_bus_routes_to_sfx_priority_which_routes_to_master 
+PASSED 13ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_cue_player_is_a_non_positional_audiostreamplayer_routed_to_towercue 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_cue_player_is_a_non_positional_audiostreamplayer_routed_to_towercue 
+PASSED 13ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_pan_matches_formula_for_tower_far_to_the_right 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_pan_matches_formula_for_tower_far_to_the_right 
+PASSED 13ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_pan_matches_formula_for_tower_far_to_the_left 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_pan_matches_formula_for_tower_far_to_the_left 
+PASSED 13ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_pan_matches_formula_for_an_unclamped_offset 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_pan_matches_formula_for_an_unclamped_offset 
+PASSED 13ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_retrigger_limit_holds_under_a_rapid_burst 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_retrigger_limit_holds_under_a_rapid_burst 
+PASSED 12ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_retrigger_limit_wired_through_real_tower_damage_events 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_retrigger_limit_wired_through_real_tower_damage_events 
+PASSED 13ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_cue_triggers_ducking_on_sfx_and_ambience_but_not_sfx_priority 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_cue_triggers_ducking_on_sfx_and_ambience_but_not_sfx_priority 
+PASSED 13ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_pinned_viewport_and_stretch_settings 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_pinned_viewport_and_stretch_settings PASSED 
+13ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_four_hud_fields_lay_out_within_the_pinned_viewport 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_four_hud_fields_lay_out_within_the_pinned_viewport 
+PASSED 16ms
+
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_hud_layout_survives_pseudolocalization_without_silent_truncation 
+STARTED
+  res://tests/unit/tower_cue_audibility_test.gd > 
+test_hud_layout_survives_pseudolocalization_without_silent_truncation 
+PASSED 39ms
+
+Statistics: 11 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 247ms
+
+
+Run Test Suite: res://tests/unit/tower_damage_path_test.gd
+  res://tests/unit/tower_damage_path_test.gd > test_a_
+a_seeker_already_in_melee_range_with_the_tower_weapon_disabled_damages_the_tower 
+STARTED
+  res://tests/unit/tower_damage_path_test.gd > test_a_
+a_seeker_already_in_melee_range_with_the_tower_weapon_disabled_damages_the_tower 
+PASSED 1s 557ms
+
+  res://tests/unit/tower_damage_path_test.gd > 
+test_b_a_seeker_at_realistic_spawn_distance_with_the_tower_weapon_enabled 
+STARTED
+ZZZSCENARIOB seeker_died=true seeker_landed_hit=false ticks_to_outcome=425 (7.08s) tower_pool 625.00 -> 625.00
+  res://tests/unit/tower_damage_path_test.gd > 
+test_b_a_seeker_at_realistic_spawn_distance_with_the_tower_weapon_enabled 
+PASSED 7s 84ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 8s 666ms
+
+
+Run Test Suite: res://tests/unit/tower_entity_registry_query_test.gd
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_tower_registers_itself_under_the_tower_tag_on_ready 
+STARTED
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_tower_registers_itself_under_the_tower_tag_on_ready 
+PASSED 12ms
+
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_tower_is_findable_via_get_entities_in_radius_by_the_tower_tag 
+STARTED
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_tower_is_findable_via_get_entities_in_radius_by_the_tower_tag 
+PASSED 12ms
+
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_tower_is_findable_via_get_entities_with_tag 
+STARTED
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_tower_is_findable_via_get_entities_with_tag 
+PASSED 12ms
+
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_a_query_for_an_unrelated_tag_does_not_find_the_tower 
+STARTED
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_a_query_for_an_unrelated_tag_does_not_find_the_tower 
+PASSED 11ms
+
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_tower_deregisters_from_the_registry_when_freed 
+STARTED
+  res://tests/unit/tower_entity_registry_query_test.gd > 
+test_tower_deregisters_from_the_registry_when_freed 
+PASSED 12ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 95ms
+
+
+Run Test Suite: res://tests/unit/tower_health_recovery_test.gd
+  res://tests/unit/tower_health_recovery_test.gd > 
+test_shield_does_not_regen_before_the_registers_delay_elapses 
+STARTED
+  res://tests/unit/tower_health_recovery_test.gd > 
+test_shield_does_not_regen_before_the_registers_delay_elapses 
+PASSED 13ms
+
+  res://tests/unit/tower_health_recovery_test.gd > 
+test_shield_regenerates_at_the_registers_rate_once_the_delay_has_elapsed 
+STARTED
+  res://tests/unit/tower_health_recovery_test.gd > 
+test_shield_regenerates_at_the_registers_rate_once_the_delay_has_elapsed 
+PASSED 11ms
+
+  res://tests/unit/tower_health_recovery_test.gd > tes
+t_shield_regen_delay_restarts_on_every_hit_including_after_the_shield_breaks 
+STARTED
+  res://tests/unit/tower_health_recovery_test.gd > tes
+t_shield_regen_delay_restarts_on_every_hit_including_after_the_shield_breaks 
+PASSED 13ms
+
+  res://tests/unit/tower_health_recovery_test.gd > 
+test_shield_clamps_at_maximum_and_never_overshoots 
+STARTED
+  res://tests/unit/tower_health_recovery_test.gd > 
+test_shield_clamps_at_maximum_and_never_overshoots 
+PASSED 13ms
+
+  res://tests/unit/tower_health_recovery_test.gd > 
+test_a_destroyed_tower_does_not_regenerate_shield 
+STARTED
+  res://tests/unit/tower_health_recovery_test.gd > 
+test_a_destroyed_tower_does_not_regenerate_shield 
+PASSED 12ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 109ms
+
+
+Run Test Suite: res://tests/unit/tower_projectile_sweep_test.gd
+  res://tests/unit/tower_projectile_sweep_test.gd > 
+test_sweep_detects_a_hurtbox_the_projectile_would_otherwise_jump_over 
+STARTED
+  res://tests/unit/tower_projectile_sweep_test.gd > 
+test_sweep_detects_a_hurtbox_the_projectile_would_otherwise_jump_over 
+PASSED 31ms
+
+  res://tests/unit/tower_projectile_sweep_test.gd > 
+test_sweep_does_not_false_positive_when_nothing_is_on_the_path 
+STARTED
+  res://tests/unit/tower_projectile_sweep_test.gd > 
+test_sweep_does_not_false_positive_when_nothing_is_on_the_path 
+PASSED 73ms
+
+  res://tests/unit/tower_projectile_sweep_test.gd > te
+st_a_hit_still_deactivates_the_projectile_so_it_cannot_hit_a_second_target 
+STARTED
+  res://tests/unit/tower_projectile_sweep_test.gd > te
+st_a_hit_still_deactivates_the_projectile_so_it_cannot_hit_a_second_target 
+PASSED 356ms
+
+  res://tests/unit/tower_projectile_sweep_test.gd > 
+test_launch_still_deals_the_damage_amount_it_was_given 
+STARTED
+  res://tests/unit/tower_projectile_sweep_test.gd > 
+test_launch_still_deals_the_damage_amount_it_was_given 
+PASSED 25ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 517ms
+
+
+Run Test Suite: res://tests/unit/tower_same_frame_death_test.gd
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_genuine_same_tick_zero_zero_credits_the_tower 
+STARTED
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_genuine_same_tick_zero_zero_credits_the_tower 
+PASSED 15ms
+
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_reversing_the_pure_input_order_does_not_change_the_recorded_cause 
+STARTED
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_reversing_the_pure_input_order_does_not_change_the_recorded_cause 
+PASSED 12ms
+
+  res://tests/unit/tower_same_frame_death_test.gd > te
+st_reversing_which_real_entity_is_damaged_first_in_code_still_credits_the_tower 
+STARTED
+  res://tests/unit/tower_same_frame_death_test.gd > te
+st_reversing_which_real_entity_is_damaged_first_in_code_still_credits_the_tower 
+PASSED 14ms
+
+  res://tests/unit/tower_same_frame_death_test.gd > te
+st_pure_one_tick_apart_deaths_credit_whichever_died_first_and_the_later_one_does_not_overwrite_it 
+STARTED
+  res://tests/unit/tower_same_frame_death_test.gd > te
+st_pure_one_tick_apart_deaths_credit_whichever_died_first_and_the_later_one_does_not_overwrite_it 
+PASSED 12ms
+
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_real_entities_one_tick_apart_do_not_get_credited_to_the_tower 
+STARTED
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_real_entities_one_tick_apart_do_not_get_credited_to_the_tower 
+PASSED 14ms
+
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_an_ordinary_enemy_death_alone_does_not_end_the_run 
+STARTED
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_an_ordinary_enemy_death_alone_does_not_end_the_run 
+PASSED 11ms
+
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_tower_scene_reports_its_own_death_to_its_run_termination_recorder 
+STARTED
+  res://tests/unit/tower_same_frame_death_test.gd > 
+test_tower_scene_reports_its_own_death_to_its_run_termination_recorder 
+PASSED 13ms
+
+Statistics: 7 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 142ms
+
+
+Run Test Suite: res://tests/unit/tower_weapon_test.gd
+  res://tests/unit/tower_weapon_test.gd > 
+test_fires_at_the_registers_cadence_and_damage_per_shot 
+STARTED
+  res://tests/unit/tower_weapon_test.gd > 
+test_fires_at_the_registers_cadence_and_damage_per_shot 
+PASSED 1s 780ms
+
+  res://tests/unit/tower_weapon_test.gd > 
+test_prefers_a_farther_tower_seeker_over_a_nearer_non_seeker 
+STARTED
+  res://tests/unit/tower_weapon_test.gd > 
+test_prefers_a_farther_tower_seeker_over_a_nearer_non_seeker 
+PASSED 20ms
+
+  res://tests/unit/tower_weapon_test.gd > 
+test_drops_a_non_seeker_target_the_tick_a_seeker_enters_range 
+STARTED
+  res://tests/unit/tower_weapon_test.gd > 
+test_drops_a_non_seeker_target_the_tick_a_seeker_enters_range 
+PASSED 52ms
+
+  res://tests/unit/tower_weapon_test.gd > test_keeps_i
+ts_current_target_until_it_dies_or_leaves_range_even_if_a_closer_enemy_appears 
+STARTED
+  res://tests/unit/tower_weapon_test.gd > test_keeps_i
+ts_current_target_until_it_dies_or_leaves_range_even_if_a_closer_enemy_appears 
+PASSED 175ms
+
+  res://tests/unit/tower_weapon_test.gd > 
+test_kills_a_target_within_the_expected_number_of_shots 
+STARTED
+  res://tests/unit/tower_weapon_test.gd > 
+test_kills_a_target_within_the_expected_number_of_shots 
+PASSED 907ms
+
+Statistics: 5 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 2s 974ms
+
+
+Run Test Suite: res://tests/unit/ui_capture_seams_test.gd
+  res://tests/unit/ui_capture_seams_test.gd > 
+test_every_node_the_capture_tool_fetches_exists 
+STARTED
+  res://tests/unit/ui_capture_seams_test.gd > 
+test_every_node_the_capture_tool_fetches_exists 
+PASSED 42ms
+
+  res://tests/unit/ui_capture_seams_test.gd > 
+test_every_member_the_capture_tool_reaches_into_exists 
+STARTED
+  res://tests/unit/ui_capture_seams_test.gd > 
+test_every_member_the_capture_tool_reaches_into_exists 
+PASSED 42ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 105ms
+
+
+Run Test Suite: res://tests/unit/ui_choice_highlight_test.gd
+  res://tests/unit/ui_choice_highlight_test.gd > 
+test_underline_sits_under_the_highlighted_option_and_moves_with_it 
+STARTED
+  res://tests/unit/ui_choice_highlight_test.gd > 
+test_underline_sits_under_the_highlighted_option_and_moves_with_it 
+PASSED 13ms
+
+  res://tests/unit/ui_choice_highlight_test.gd > test_
+underline_rendered_width_matches_option_under_non_identity_relative_scale 
+STARTED
+  res://tests/unit/ui_choice_highlight_test.gd > test_
+underline_rendered_width_matches_option_under_non_identity_relative_scale 
+PASSED 30ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 63ms
+
+
+Run Test Suite: res://tests/unit/ui_console_layout_test.gd
+  res://tests/unit/ui_console_layout_test.gd > test_pa
+nel_with_the_real_seven_entry_catalogue_does_not_collapse_or_explode 
+STARTED
+[ui_console_layout_test] panel size, 7 real entries, base resolution (view_scale 1.0): (520.0, 370.0)
+  res://tests/unit/ui_console_layout_test.gd > test_pa
+nel_with_the_real_seven_entry_catalogue_does_not_collapse_or_explode 
+PASSED 374ms
+
+  res://tests/unit/ui_console_layout_test.gd > test_pa
+nel_grows_taller_not_narrower_under_pseudolocalizations_30_percent_expansion 
+STARTED
+[ui_console_layout_test] panel size, 7 real entries, pseudo-localized (+30%%): (583.0, 458.0) (was (520.0, 370.0))
+  res://tests/unit/ui_console_layout_test.gd > test_pa
+nel_grows_taller_not_narrower_under_pseudolocalizations_30_percent_expansion 
+PASSED 396ms
+
+  res://tests/unit/ui_console_layout_test.gd > 
+test_shipped_font_lacks_the_old_console_glyph_characters 
+STARTED
+[ui_console_layout_test] Font.has_char(U+25CF) = false ; Font.has_char(U+25A0) = false 
+(res://assets/ui/fonts/Jersey10-Regular.ttf)
+  res://tests/unit/ui_console_layout_test.gd > 
+test_shipped_font_lacks_the_old_console_glyph_characters 
+PASSED 11ms
+
+  res://tests/unit/ui_console_layout_test.gd > test_pa
+nel_height_stays_within_the_authors_35_percent_screen_height_allowance 
+STARTED
+[ui_console_layout_test] panel height 370.0 px vs the author's 35% allowance 378.0 px (margin 8.0 px, UR-25)
+  res://tests/unit/ui_console_layout_test.gd > test_pa
+nel_height_stays_within_the_authors_35_percent_screen_height_allowance 
+PASSED 341ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 1s 154ms
+
+
+Run Test Suite: res://tests/unit/ui_hud_render_test.gd
+  res://tests/unit/ui_hud_render_test.gd > 
+test_every_hud_label_renders_on_a_single_line 
+STARTED
+  res://tests/unit/ui_hud_render_test.gd > 
+test_every_hud_label_renders_on_a_single_line 
+PASSED 17ms
+
+  res://tests/unit/ui_hud_render_test.gd > 
+test_every_pill_stays_under_a_sane_height 
+STARTED
+  res://tests/unit/ui_hud_render_test.gd > 
+test_every_pill_stays_under_a_sane_height PASSED 
+17ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 53ms
+
+
+Run Test Suite: res://tests/unit/upgrade_effect_check_test.gd
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_rapid_fire_stacks_additively_to_exactly_rank_3_with_no_drift 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_rapid_fire_stacks_additively_to_exactly_rank_3_with_no_drift 
+PASSED 17ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_heavy_rounds_stacks_additively_to_exactly_rank_3_with_no_drift 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_heavy_rounds_stacks_additively_to_exactly_rank_3_with_no_drift 
+PASSED 29ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_caliber_stacks_additively_to_exactly_rank_3_with_no_drift 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_caliber_stacks_additively_to_exactly_rank_3_with_no_drift 
+PASSED 23ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_optics_stacks_additively_to_exactly_rank_3_with_no_drift 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_optics_stacks_additively_to_exactly_rank_3_with_no_drift 
+PASSED 17ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > test
+_shield_matrix_stacks_additively_and_tops_up_current_shield_by_exactly_the_delta 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > test
+_shield_matrix_stacks_additively_and_tops_up_current_shield_by_exactly_the_delta 
+PASSED 23ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_patch_kit_heals_a_flat_30_per_rank_taken_not_a_stacking_percentage 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_patch_kit_heals_a_flat_30_per_rank_taken_not_a_stacking_percentage 
+PASSED 13ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_patch_kit_heal_clamps_to_max_health_and_never_overheals 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_patch_kit_heal_clamps_to_max_health_and_never_overheals 
+PASSED 13ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_ranks_apply_from_either_channel_and_cap_correctly_at_rank_3 
+STARTED
+Godot_v4.7.1-stable_win64_console.exe : WARNING: UpgradeSystem.apply_rank(): 'heavy_rounds' is already at max rank -- 
+refusing to exceed it
+At D:\Gamedev-ui-pass\tests\run_tests.ps1:123 char:15
++ ... uiteLines = & $GodotPath --headless --path $ProjectRoot -s res://addo ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (WARNING: Upgrad...ng to exceed it:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] apply_rank (res://src/upgrade/upgrade_system.gd:328)
+       [1] <anonymous lambda> (res://tests/unit/upgrade_effect_check_test.gd:270)
+       [2] test_ranks_apply_from_either_channel_and_cap_correctly_at_rank_3 
+(res://tests/unit/upgrade_effect_check_test.gd:288)
+       [3] _execute_test_case (res://addons/gdUnit4/src/core/_TestCase.gd:79)
+       [4] execute (res://addons/gdUnit4/src/core/_TestCase.gd:40)
+       [5] _execute (res://addons/gdUnit4/src/core/execution/stages/single/GdUnitTestCaseSingleTestStage.gd:10)
+       [6] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [7] _execute (res://addons/gdUnit4/src/core/execution/stages/single/GdUnitTestCaseSingleExecutionStage.gd:17)
+       [8] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [9] _execute (res://addons/gdUnit4/src/core/execution/stages/GdUnitTestCaseExecutionStage.gd:26)
+       [10] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [11] _execute (res://addons/gdUnit4/src/core/execution/stages/GdUnitTestSuiteExecutionStage.gd:36)
+       [12] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [13] _execute (res://addons/gdUnit4/src/core/execution/stages/GdUnitTestCaseExecutionStage.gd:35)
+       [14] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [15] _execute (res://addons/gdUnit4/src/core/execution/stages/single/GdUnitTestCaseSingleExecutionStage.gd:28)
+       [16] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [17] _execute (res://addons/gdUnit4/src/core/execution/stages/single/GdUnitTestCaseSingleTestStage.gd:10)
+       [18] execute (res://addons/gdUnit4/src/core/_TestCase.gd:41)
+       [19] test_completed (res://addons/gdUnit4/src/core/_TestCase.gd:86)
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_ranks_apply_from_either_channel_and_cap_correctly_at_rank_3 
+PASSED 15ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > test
+_fallback_cards_have_no_max_rank_and_stack_the_same_additive_10_percent 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > test
+_fallback_cards_have_no_max_rank_and_stack_the_same_additive_10_percent 
+PASSED 12ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > test
+_console_cost_scales_per_rank_for_ranked_upgrades_and_is_flat_for_fallback_cards 
+STARTED
+WARNING: UpgradeSystem.get_console_cost(): 'caliber' is already at max rank
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] get_console_cost (res://src/upgrade/upgrade_system.gd:294)
+       [1] test_console_cost_scales_per_rank_for_ranked_upgrades_and_is_flat_for_fallback_cards 
+(res://tests/unit/upgrade_effect_check_test.gd:328)
+       [2] _execute_test_case (res://addons/gdUnit4/src/core/_TestCase.gd:79)
+       [3] execute (res://addons/gdUnit4/src/core/_TestCase.gd:40)
+       [4] _execute (res://addons/gdUnit4/src/core/execution/stages/single/GdUnitTestCaseSingleTestStage.gd:10)
+       [5] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [6] _execute (res://addons/gdUnit4/src/core/execution/stages/single/GdUnitTestCaseSingleExecutionStage.gd:17)
+       [7] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [8] _execute (res://addons/gdUnit4/src/core/execution/stages/GdUnitTestCaseExecutionStage.gd:26)
+       [9] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [10] _execute (res://addons/gdUnit4/src/core/execution/stages/GdUnitTestSuiteExecutionStage.gd:36)
+       [11] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [12] _execute (res://addons/gdUnit4/src/core/execution/stages/GdUnitTestCaseExecutionStage.gd:35)
+       [13] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [14] _execute (res://addons/gdUnit4/src/core/execution/stages/single/GdUnitTestCaseSingleExecutionStage.gd:28)
+       [15] execute (res://addons/gdUnit4/src/core/execution/stages/IGdUnitExecutionStage.gd:19)
+       [16] _execute (res://addons/gdUnit4/src/core/execution/stages/single/GdUnitTestCaseSingleTestStage.gd:10)
+       [17] execute (res://addons/gdUnit4/src/core/_TestCase.gd:41)
+       [18] test_completed (res://addons/gdUnit4/src/core/_TestCase.gd:86)
+  res://tests/unit/upgrade_effect_check_test.gd > test
+_console_cost_scales_per_rank_for_ranked_upgrades_and_is_flat_for_fallback_cards 
+PASSED 16ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_pool_exhaustion_unlocks_exactly_the_matching_fallback_card 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > 
+test_pool_exhaustion_unlocks_exactly_the_matching_fallback_card 
+PASSED 11ms
+
+  res://tests/unit/upgrade_effect_check_test.gd > test
+_all_eight_upgrade_definitions_load_with_the_expected_pool_and_rank_shape 
+STARTED
+  res://tests/unit/upgrade_effect_check_test.gd > test
+_all_eight_upgrade_definitions_load_with_the_expected_pool_and_rank_shape 
+PASSED 13ms
+
+Statistics: 12 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 317ms
+
+
+Run Test Suite: res://tests/unit/wave_determinism_test.gd
+  res://tests/unit/wave_determinism_test.gd > 
+test_same_seed_produces_identical_spawn_positions_in_order 
+STARTED
+  res://tests/unit/wave_determinism_test.gd > 
+test_same_seed_produces_identical_spawn_positions_in_order 
+PASSED 18ms
+
+  res://tests/unit/wave_determinism_test.gd > 
+test_a_different_seed_changes_at_least_one_spawn_position 
+STARTED
+  res://tests/unit/wave_determinism_test.gd > 
+test_a_different_seed_changes_at_least_one_spawn_position 
+PASSED 17ms
+
+Statistics: 2 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 55ms
+
+
+Run Test Suite: res://tests/unit/wave_runtime_test.gd
+  res://tests/unit/wave_runtime_test.gd > test_non_fin
+al_wave_stalls_into_overtime_when_kills_are_below_the_threshold STARTED
+  res://tests/unit/wave_runtime_test.gd > test_non_fin
+al_wave_stalls_into_overtime_when_kills_are_below_the_threshold PASSED 
+16ms
+
+  res://tests/unit/wave_runtime_test.gd > test_non_fin
+al_wave_does_not_stall_and_survivors_carry_over_when_kills_meet_the_threshold 
+STARTED
+  res://tests/unit/wave_runtime_test.gd > test_non_fin
+al_wave_does_not_stall_and_survivors_carry_over_when_kills_meet_the_threshold 
+PASSED 17ms
+
+  res://tests/unit/wave_runtime_test.gd > test_final_w
+ave_never_ends_on_maximum_duration_even_under_a_real_stall_condition 
+STARTED
+  res://tests/unit/wave_runtime_test.gd > test_final_w
+ave_never_ends_on_maximum_duration_even_under_a_real_stall_condition 
+PASSED 13ms
+
+  res://tests/unit/wave_runtime_test.gd > 
+test_final_wave_stall_check_keeps_re_running_after_maximum_duration 
+STARTED
+  res://tests/unit/wave_runtime_test.gd > 
+test_final_wave_stall_check_keeps_re_running_after_maximum_duration 
+PASSED 17ms
+
+Statistics: 4 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 101ms
+
+
+Run Test Suite: res://tests/unit/wave_sequence_test.gd
+  res://tests/unit/wave_sequence_test.gd > 
+test_sequence_advances_t1_through_combat_4_in_order_with_the_correct_gaps 
+STARTED
+  res://tests/unit/wave_sequence_test.gd > 
+test_sequence_advances_t1_through_combat_4_in_order_with_the_correct_gaps 
+PASSED 38ms
+
+  res://tests/unit/wave_sequence_test.gd > 
+test_no_spawn_group_starts_during_the_inter_wave_gap 
+STARTED
+  res://tests/unit/wave_sequence_test.gd > 
+test_no_spawn_group_starts_during_the_inter_wave_gap 
+PASSED 12ms
+
+  res://tests/unit/wave_sequence_test.gd > test_final_
+wave_never_ends_on_maximum_duration_but_ends_when_live_count_reaches_zero 
+STARTED
+  res://tests/unit/wave_sequence_test.gd > test_final_
+wave_never_ends_on_maximum_duration_but_ends_when_live_count_reaches_zero 
+PASSED 16ms
+
+Statistics: 3 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 102ms
+
+
+Run Test Suite: res://tests/unit/weapon_check_test.gd
+  res://tests/unit/weapon_check_test.gd > 
+test_fires_at_the_registers_cadence_and_damage_per_shot 
+STARTED
+  res://tests/unit/weapon_check_test.gd > 
+test_fires_at_the_registers_cadence_and_damage_per_shot 
+PASSED 1s 153ms
+
+  res://tests/unit/weapon_check_test.gd > 
+test_sheet_dps_from_weapon_matches_the_register 
+STARTED
+  res://tests/unit/weapon_check_test.gd > 
+test_sheet_dps_from_weapon_matches_the_register 
+PASSED 12ms
+
+  res://tests/unit/weapon_check_test.gd > 
+test_does_not_fire_beyond_the_registers_range_and_fires_once_in_range 
+STARTED
+  res://tests/unit/weapon_check_test.gd > 
+test_does_not_fire_beyond_the_registers_range_and_fires_once_in_range 
+PASSED 997ms
+
+  res://tests/unit/weapon_check_test.gd > 
+test_repicks_the_nearest_target_every_shot 
+STARTED
+  res://tests/unit/weapon_check_test.gd > 
+test_repicks_the_nearest_target_every_shot PASSED 
+540ms
+
+  res://tests/unit/weapon_check_test.gd > 
+test_kills_a_placeholder_enemy_within_the_expected_number_of_shots 
+STARTED
+  res://tests/unit/weapon_check_test.gd > 
+test_kills_a_placeholder_enemy_within_the_expected_number_of_shots 
+PASSED 1s 107ms
+
+  res://tests/unit/weapon_check_test.gd > 
+test_reads_no_input_action_at_all STARTED
+  res://tests/unit/weapon_check_test.gd > 
+test_reads_no_input_action_at_all PASSED 14ms
+
+  res://tests/unit/weapon_check_test.gd > 
+test_set_auto_fire_suppressed_stops_firing_and_unsuppressing_resumes_it 
+STARTED
+  res://tests/unit/weapon_check_test.gd > 
+test_set_auto_fire_suppressed_stops_firing_and_unsuppressing_resumes_it 
+PASSED 1s 535ms
+
+  res://tests/unit/weapon_check_test.gd > 
+test_driven_externally_disables_self_stepping_but_physics_step_still_fires 
+STARTED
+  res://tests/unit/weapon_check_test.gd > 
+test_driven_externally_disables_self_stepping_but_physics_step_still_fires 
+PASSED 1s 490ms
+
+Statistics: 8 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 6s 906ms
+
+
+Run Test Suite: res://tests/unit/xp_cap_check_test.gd
+  res://tests/unit/xp_cap_check_test.gd > 
+test_xp_never_exceeds_the_cap_across_all_four_teaching_waves 
+STARTED
+  res://tests/unit/xp_cap_check_test.gd > 
+test_xp_never_exceeds_the_cap_across_all_four_teaching_waves 
+PASSED 17ms
+
+  res://tests/unit/xp_cap_check_test.gd > test_a_burst
+_that_crosses_the_level_1_threshold_is_fully_refunded_and_reverted 
+STARTED
+  res://tests/unit/xp_cap_check_test.gd > test_a_burst
+_that_crosses_the_level_1_threshold_is_fully_refunded_and_reverted PASSED 
+15ms
+
+  res://tests/unit/xp_cap_check_test.gd > test_forced_
+first_draft_at_t4_end_grants_level_1_and_keeps_the_held_xp_toward_level_2 
+STARTED
+  res://tests/unit/xp_cap_check_test.gd > test_forced_
+first_draft_at_t4_end_grants_level_1_and_keeps_the_held_xp_toward_level_2 
+PASSED 23ms
+
+Statistics: 3 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
+orphans | PASSED 82ms
+
+
+Overall Summary: 598 test cases | 0 errors | 2 failures | 0 flaky | 0 skipped 
+| 200 orphans |
+Executed test suites: (94/94)
+Executed test cases : (598/598)
+Total execution time: 8min 10s 836ms
+ Open XML Report at: 
+file://D:/Gamedev-ui-pass/reports/report_135/results.xml
+Open HTML Report at: file://D:/Gamedev-ui-pass/reports/report_135/index.html
+Exit code: 100
+Run dispose test resources
+ERROR: 20 RID allocations of type 'P11GodotBody2D' were leaked at exit.
+ERROR: 40 RID allocations of type 'P11GodotArea2D' were leaked at exit.
+ERROR: 3 RID allocations of type 'P12GodotShape2D' were leaked at exit.
+ERROR: 2 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.
+WARNING: 180 RIDs of type "CanvasItem" were leaked.
+   at: _free_rids (servers/rendering/renderer_canvas_cull.cpp:2735)
+WARNING: 250 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 43 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)
+
+ENGINE ERRORS: the Godot engine reported 5 error line(s) during this run. gdUnit4 does not count these, so the suite 
+summary above can read 0 errors while this is non-zero.
+  ERROR: 20 RID allocations of type 'P11GodotBody2D' were leaked at exit.
+  ERROR: 40 RID allocations of type 'P11GodotArea2D' were leaked at exit.
+  ERROR: 3 RID allocations of type 'P12GodotShape2D' were leaked at exit.
+  ERROR: 2 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.
+  ERROR: 43 resources still in use at exit (run with --verbose for details).
+FAIL (exit 100): the suite ran; at least one assertion failed under res://tests.
+EXIT=100

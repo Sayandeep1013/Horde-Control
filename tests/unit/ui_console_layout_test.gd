@@ -40,17 +40,26 @@ const PANEL_WIDTH_MIN_PX: float = 300.0
 const PANEL_WIDTH_MAX_PX: float = 900.0
 
 ## UI pass follow-up (compaction, item 4/5): the orchestrator's own target,
-## "panel about 460-520 px wide and no more than about 360 px tall", plus a
-## measurement-noise margin (this session measured 512x377 with the real
-## catalogue via both this test and the capture tool -- close to, not
-## strictly under, 360; the follow-up evidence report names precisely what
-## still holds the extra ~17-22 px up: 7 one-line rows at the Register's
-## mandatory 24 px floor, plus the explicitly-requested 2-line footer
-## reservation, already at the smallest UiPalette spacing tokens
-## (SPACE_XS/SPACE_S)). This bound catches the compaction regressing back
-## toward the pre-follow-up ~770-800 px, not a razor's-edge pin to 360.
-const PANEL_HEIGHT_COMPACT_TARGET_PX: float = 420.0
-const PANEL_WIDTH_COMPACT_MAX_PX: float = 560.0
+## "panel about 460-520 px wide and no more than about 360 px tall". The
+## follow-up evidence report names precisely what still holds the height up:
+## 7 one-line rows at the Register's mandatory 24 px floor, plus the
+## explicitly-requested 2-line footer reservation, already at the smallest
+## UiPalette spacing tokens (SPACE_XS/SPACE_S). This bound catches the
+## compaction regressing back toward the pre-follow-up ~770-800 px, not a
+## razor's-edge pin to 360.
+##
+## UI PASS ROUND 2 (UR-11, UR-05, UR-03): "keep a tight regression bound at
+## the measured size (as now)" -- re-measured after this round's own
+## changes (528x377, up from the follow-up's 512x377; the +16 px width is
+## the Glyph column's set_side(24) growing from its old 16 px minimum, plus
+## PriceTag's min-width floor growing 40 -> 48 alongside its font-size raise
+## -- height is UNCHANGED because Text, at the same 24 px floor, was already
+## the row's tallest content). Bound tightened to this measurement plus a
+## small margin, not left at the stale pre-round-2 420/560 figures (which
+## would no longer be "at the measured size"). The SEPARATE docs/19 30% cap
+## assertion below is the one that is meant to fail; this one is not.
+const PANEL_HEIGHT_COMPACT_TARGET_PX: float = 400.0
+const PANEL_WIDTH_COMPACT_MAX_PX: float = 550.0
 
 
 class FakeInteractionRadius:
@@ -140,14 +149,49 @@ func test_panel_with_the_real_seven_entry_catalogue_does_not_collapse_or_explode
 		var min_reasonable_lines: int = maxi(1, int(ceil(float(text_len) / 6.0)))
 		assert_int(line_count).append_failure_message("Entry %d wrapped into %d lines for %d characters of text ('%s') -- consistent with the one-character-per-line collapse" % [i, line_count, text_len, label.text]).is_less_equal(min_reasonable_lines)
 
+	# UI pass round 2 (UR-03): the row glyph is a drawn SHAPE, never text --
+	# Shape.TRIANGLE for a Player-pool entry (matching the Draft's own player
+	# glyph, draft_card_view.gd's GLYPH_PLAYER = "▲", a triangle, not a
+	# circle), Shape.SQUARE for a Tower-pool entry, `text` always empty.
+	for i in range(console.get_catalogue_size_for_test()):
+		var e: Dictionary = console.get_entry_for_test(i)
+		var glyph: UiShapeGlyph = console.get_entry_glyph_for_test(i)
+		assert_object(glyph).append_failure_message("Entry %d has no UiShapeGlyph glyph node" % i).is_not_null()
+		var is_tower: bool = int(e.get("pool", 0)) == ContractEnums.PoolOwnership.Tower
+		var expected_shape: int = UiShapeGlyph.Shape.SQUARE if is_tower else UiShapeGlyph.Shape.TRIANGLE
+		assert_int(int(glyph.shape)).append_failure_message("Entry %d ('%s') glyph shape is %d, expected %d (%s)" % [i, e.get("name", ""), glyph.shape, expected_shape, "SQUARE" if is_tower else "TRIANGLE"]).is_equal(expected_shape)
+		assert_str(glyph.text).append_failure_message("Entry %d glyph Label.text must stay empty -- UiShapeGlyph draws the shape, never text" % i).is_equal("")
+
+	# UI pass round 2 (UR-05). Author decision 2026-09-20 (UI pass LEDGER
+	# UR-25) confirms the 24 px floor covers the price and MAX badge, not
+	# just the row label: PriceTag and MaxBadgeLabel must render at
+	# ENTRY_FONT_SIZE_PX (24 px), the SAME floor `Text` uses, not the
+	# theme's smaller defaults (20 px body / 16 px SMALL) they used before
+	# this fix.
+	for i in range(console.get_catalogue_size_for_test()):
+		var price_tag: RichTextLabel = console.get_entry_price_tag_for_test(i)
+		assert_object(price_tag).append_failure_message("Entry %d has no PriceTag node" % i).is_not_null()
+		var price_font_size: int = price_tag.get_theme_font_size("normal_font_size")
+		assert_int(price_font_size).append_failure_message("Entry %d PriceTag font size is %d px, expected the Register's %d px floor (ENTRY_FONT_SIZE_PX)" % [i, price_font_size, Console.ENTRY_FONT_SIZE_PX]).is_equal(Console.ENTRY_FONT_SIZE_PX)
+		var max_label: Label = console.get_entry_max_badge_label_for_test(i)
+		assert_object(max_label).append_failure_message("Entry %d has no MaxBadgeLabel node" % i).is_not_null()
+		var max_font_size: int = max_label.get_theme_font_size("font_size")
+		assert_int(max_font_size).append_failure_message("Entry %d MaxBadgeLabel font size is %d px, expected the Register's %d px floor (ENTRY_FONT_SIZE_PX)" % [i, max_font_size, Console.ENTRY_FONT_SIZE_PX]).is_equal(Console.ENTRY_FONT_SIZE_PX)
+
 	# UI pass follow-up (item 2): the footer shows the HIGHLIGHTED entry's
-	# effect sentence. Index 0 (Repair) opens highlighted by default
-	# (_open_console() resets _highlighted_index to 0) and Repair's own
-	# "name" has no ':' to split on, so its footer is correctly empty;
-	# cycling to a ranked upgrade must show its non-empty effect sentence.
+	# effect sentence.
+	# UI PASS ROUND 2 (UR-10): index 0 (Repair) opens highlighted by default
+	# (_open_console() resets _highlighted_index to 0). Repair's own "name"
+	# has no ':' to split on, so it used to leave the footer EMPTY -- the
+	# defect this item fixes -- and is now a real sentence built from the
+	# SAME heal/cost values the row and PriceTag already show
+	# (REPAIR_FOOTER_FALLBACK_FMT). Cycling to a ranked upgrade must still
+	# show its own non-empty effect sentence, unchanged from round 1.
 	var footer: Label = console.get_footer_label_for_test()
 	assert_object(footer).append_failure_message("Console has no Footer label built").is_not_null()
-	assert_str(footer.text).append_failure_message("Footer must be empty while Repair (no ':' in its name) is highlighted, got '%s'" % footer.text).is_equal("")
+	assert_str(footer.text).append_failure_message("Footer must be non-empty while Repair is highlighted (UR-10 -- the empty-footer defect) -- got '%s'" % footer.text).is_not_equal("")
+	assert_str(footer.text).append_failure_message("Repair's footer must mention HP, got '%s'" % footer.text).contains("HP")
+	assert_str(footer.text).append_failure_message("Repair's footer must mention Scrap, got '%s'" % footer.text).contains("Scrap")
 	console.set_highlighted_index_for_test(1) # Rapid Fire
 	console.force_refresh_for_test()
 	assert_str(footer.text).append_failure_message("Footer did not show Rapid Fire's effect sentence once highlighted").contains("fire rate")
@@ -192,3 +236,69 @@ func test_panel_grows_taller_not_narrower_under_pseudolocalizations_30_percent_e
 	assert_float(size_after.x).append_failure_message("Panel width grew from %.1f to %.1f (%.0f%%) under pseudo-localization -- looks like the markup-mangling collapse this test caught mid-pass (PriceTag's BBCode being auto-translated/pseudo-localized; see console.gd's PriceTag `auto_translate_mode`)" % [size_before.x, size_after.x, 100.0 * (size_after.x / size_before.x - 1.0)]).is_less_equal(size_before.x * 1.4)
 	assert_float(size_after.y).append_failure_message("Panel height shrank under pseudo-localization's longer text -- content is being clipped, not grown").is_greater_equal(size_before.y - 0.5)
 	assert_float(size_after.y).append_failure_message("Pseudo-localized panel height %.1f px looks like the collapse pathology" % size_after.y).is_less_equal(PANEL_HEIGHT_SANITY_CEILING_PX * 1.5)
+
+
+## UI pass round 2 (UR-03). BRIEF_R2 item 3: "Check with Font.has_char()
+## against the shipped font (UiPalette.FONT_PATH) before you put
+## any non-ASCII character on screen, and quote the result." Checked
+## directly here (not assumed from shape_glyph.gd's or outcome_glyph.gd's
+## own header comments) against the exact two codepoints the old
+## CONSOLE_GLYPH_PLAYER ("●") / CONSOLE_GLYPH_TOWER ("■") keys
+## held -- see the report, "UR-03", for the quoted result.
+func test_shipped_font_lacks_the_old_console_glyph_characters() -> void:
+	var font: Font = load(UiPalette.FONT_PATH) as Font
+	assert_object(font).append_failure_message("Font resource failed to load -- cannot check Font.has_char()").is_not_null()
+	if font == null:
+		return
+	var has_circle: bool = font.has_char(0x25CF) # U+25CF, the old CONSOLE_GLYPH_PLAYER character "●"
+	var has_square: bool = font.has_char(0x25A0) # U+25A0, the old CONSOLE_GLYPH_TOWER character "■"
+	print("[ui_console_layout_test] Font.has_char(U+25CF) = %s ; Font.has_char(U+25A0) = %s (%s)" % [has_circle, has_square, UiPalette.FONT_PATH])
+	# Not a design requirement of the font -- a recorded fact backing why
+	# UiShapeGlyph (a drawn shape, never these text characters) is correct.
+	assert_bool(has_circle).append_failure_message("Font.has_char(U+25CF) is unexpectedly true -- the font DOES contain the old glyph character after all; recorded here because it changes UR-03's own justification, not because a shape glyph would stop being correct").is_false()
+	assert_bool(has_square).append_failure_message("Font.has_char(U+25A0) is unexpectedly true -- the font DOES contain the old glyph character after all; see the comment above").is_false()
+
+
+## UI pass round 2 (UR-11). This started as docs/19 > "UI Layout & Dynamic
+## Container Rules" > "Max Dimensions": "Provisional Default 30% of screen
+## height" (324 px at 1080p), deliberately left FAILING as a named, honest
+## gap rather than loosened or skipped.
+##
+## RESOLVED by Author decision 2026-09-20 (UI pass LEDGER UR-25): the
+## Console gets its OWN height allowance of ~35% of screen height (378 px
+## at 1080p) instead of docs/19's general 30% -- docs/19 itself is to be
+## updated by its owner through HANDOFF H-05, not by this package. This is
+## now a REAL requirement-level assertion, not a "known gap" placeholder: it
+## is expected to PASS, and a future change that pushes the panel over it is
+## a real regression to fix, not a gap to re-document.
+##
+## Deliberately SEPARATE from PANEL_HEIGHT_COMPACT_TARGET_PX above (a tight
+## regression bound at this session's real measurement) so the two claims
+## never get conflated: "did not regress" versus "meets the author's own
+## allowance". The font changed project-wide from Pixelify Sans to
+## Jersey 10 after every package returned (Pixelify's digits misread at small
+## sizes -- see the report, "digit legibility"); Jersey 10 is narrower, so
+## this const is the one place to update the number once that re-measurement
+## happens -- this test deliberately does not chase the current font's exact
+## last pixel.
+const PANEL_HEIGHT_AUTHOR_CAP_PX: float = 1080.0 * 0.35 # 378 px at 1080p -- Author decision 2026-09-20, UI pass LEDGER UR-25; docs/19 change requested in HANDOFF H-05
+
+
+func test_panel_height_stays_within_the_authors_35_percent_screen_height_allowance() -> void:
+	var console: Console = _build_console()
+
+	var opened: bool = false
+	for i in range(60):
+		await get_tree().physics_frame
+		if console.is_open():
+			opened = true
+			break
+	assert_bool(opened).is_true()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var panel_size: Vector2 = console.get_panel_control_for_test().size
+	var margin_px: float = PANEL_HEIGHT_AUTHOR_CAP_PX - panel_size.y
+	print("[ui_console_layout_test] panel height %.1f px vs the author's 35%% allowance %.1f px (margin %.1f px, UR-25)" % [panel_size.y, PANEL_HEIGHT_AUTHOR_CAP_PX, margin_px])
+	assert_float(panel_size.y).append_failure_message("Panel height %.1f px exceeds the author's 35%% screen-height allowance (%.1f px at 1080p, Author decision 2026-09-20, UR-25) -- see console.gd's own header and the report, 'UR-11', for what holds the height up" % [panel_size.y, PANEL_HEIGHT_AUTHOR_CAP_PX]).is_less_equal(PANEL_HEIGHT_AUTHOR_CAP_PX)

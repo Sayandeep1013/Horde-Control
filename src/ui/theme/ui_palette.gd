@@ -62,18 +62,26 @@ const RADIUS_PANEL: int = 8
 const RADIUS_SMALL: int = 4
 const BORDER_THIN: int = 2
 const BORDER_THICK: int = 3
+const SLIDER_PAD: int = 5                     ## half-height of a slider track
 
 # --- Type -----------------------------------------------------------------
-const FONT_PATH: String = "res://assets/ui/fonts/PixelifySans-Variable.ttf"
+## Jersey 10 (SIL OFL 1.1, licence beside it). Author decision 2026-09-20,
+## replacing Pixelify Sans, whose "5" read as "S" and "2" as "8" at HUD sizes
+## (phases/UI_PASS/LEDGER.md, UR-15). It is a single-weight face: the two
+## weights below only take effect if a variable font is put back.
+const FONT_PATH: String = "res://assets/ui/fonts/Jersey10-Regular.ttf"
 const FONT_WEIGHT_BODY: int = 500
 const FONT_WEIGHT_DISPLAY: int = 700
-const FONT_SIZE_SMALL: int = 16
-const FONT_SIZE_BODY: int = 20
-const FONT_SIZE_VALUE: int = 24
-const FONT_SIZE_HEADING: int = 32
-const FONT_SIZE_TITLE: int = 56
+## Sizes are tuned to Jersey 10, whose glyphs sit small in the em: about a
+## quarter larger than the same role needed in Pixelify Sans.
+const FONT_SIZE_SMALL: int = 20
+const FONT_SIZE_BODY: int = 26
+const FONT_SIZE_VALUE: int = 30
+const FONT_SIZE_HEADING: int = 40
+const FONT_SIZE_TITLE: int = 68
 const OUTLINE_BODY: int = 4
 const OUTLINE_DISPLAY: int = 8
+const LINE_SPACING: int = 2
 
 # --- Motion (seconds; all cosmetic, none gate input) ----------------------
 const MOTION_FAST: float = 0.08

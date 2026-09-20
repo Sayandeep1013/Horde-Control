@@ -145,3 +145,90 @@ I only inspected `01_hud_gameplay.png` in each set (the HUD surface, my package)
 - The two "outside write scope" items above (the `ui_strings.gd` fold-in and the optional `ui_palette.gd` promotions) are proposals only, not made.
 - I did not touch `scenes/ui/hud.tscn` (it is just this script attached to a bare `CanvasLayer`, per `hud.gd`'s own header, and is outside my write scope regardless).
 - Did not add shape/border differentiation between the four HUD fields themselves beyond the existing bar geometry: the "colour-only distinctions" rule's named example (docs/19, MASTER_SDLC.md) is specifically the Draft/Console PLAYER-vs-TOWER card pair, which is Package B/C's surface, not the HUD's four fields (each of which is already uniquely identified by fixed screen position, an existing label, and now a glyph header — none of which is a "state shown by colour alone" case the rule is aimed at). Flagging the interpretation rather than silently assuming it.
+
+## Round 2
+
+### Every-package items (BRIEF_R2.md)
+
+**UR-06 (separation overrides -> `UiTheme.hbox`/`vbox` variations).** In `src/ui/hud.gd`: 14 `add_theme_constant_override("separation", UiPalette.SPACE_*)` calls total. 9 became `theme_type_variation = UiTheme.hbox(<step>)`/`vbox(<step>)`: `TopRow` -> `hbox("XL")`, `TowerHealthField` -> `vbox("XS")`, `TowerHealthInner` -> `vbox("XS")`, `WaveRow` -> `hbox("XS")`, `XpField` -> `vbox("XS")`, `XpInner` -> `vbox("XS")`, `XpInfoRow` -> `hbox("L")`, `LevelGroup` -> `hbox("XS")`, `RerollsGroup` -> `hbox("XS")`. 5 were deleted outright where the value was `SPACE_S` (`PlayerHealthRow`, `TowerHealthBarRow`, `ScrapField`, `ScrapRow`, `XpBarRow`), per the brief's own instruction that `SPACE_S` is the theme's own `HBoxContainer`/`VBoxContainer` default and needs no override. None of the converted nodes already carried a different `theme_type_variation`, so no override had to be left in place with a note. `src/ui/hud_bar.gd`, `src/ui/hud_truncatable_label.gd`, `src/ui/threat_feedback.gd` had zero `separation` overrides to begin with (grepped, confirmed) — nothing to convert in those three.
+
+**UR-08 (explicit `UiStrings.ensure_registered()`).** Added `UiStrings.ensure_registered()` as the first line of `hud.gd`'s `_build_ui()` (the surface's own build function), with a one-line comment. `hud_bar.gd`, `hud_truncatable_label.gd`, `threat_feedback.gd` call `tr()` nowhere at all (grepped, confirmed) — no change needed in those three.
+
+**UR-03 (no glyph the font lacks).** Every string this package puts on screen is plain ASCII Latin, all from `src/ui/theme/ui_strings.gd` (which this package does not own): `HUD_WAVE`="Wave", `HUD_LEVEL`="Level", `HUD_REROLLS`="Rerolls", `HUD_FULL`="FULL", `HUD_HOPPER`="hopper", `HUD_GLYPH_PLAYER`="HP", `HUD_GLYPH_TOWER`="TOWER", `HUD_GLYPH_SCRAP`="SCRAP", `HUD_GLYPH_XP`="XP" — plus digits and "/" from the numeric formats. `threat_feedback.gd` places no text on screen at all (pure drawing and audio). I did not run `Font.has_char()` because there is no non-ASCII character anywhere in this package's own output to check against it; quoting the full set instead, as above, in place of a check that has nothing to check.
+
+### UR-02 / UR-16 (and the orchestrator's live note) — threat feedback vignette
+
+Round 1 shipped a rewritten `_draw()` with no photograph of it (UR-02). Once the orchestrator captured real frames mid-session, the vignette read as "a debug overlay, not directional damage feedback" (UR-16, and the coordinator note this section answers): a flat, ~300px-thick, nearly opaque salmon band inset well inside the screen, hard black outlines around each lit wedge, visible faceting between arc subdivisions, drawn over the XP pill, hiding enemies and pickups under it.
+
+Rewrote `_draw_vignette_segments()` in `threat_feedback.gd`, cosmetically only. `SEGMENT_COUNT`, `get_segment_intensities()`, `NEIGHBOR_BLEED_FRACTION`, `DAMAGE_WINDOW_SECONDS`, `FADE_SECONDS`, `LOW_HEALTH_FRACTION`, `DAMAGE_TO_FULL_INTENSITY_FRACTION_OF_MAX_HEALTH`, `HIT_ARC_DISPLAY_SECONDS` — every Register-cited or timing constant — are untouched, and every getter (`get_segment_intensities()`, `get_active_segment_index()`, `get_indicator_shape()`, `get_indicator_color()`, `is_indicator_low_health()`, `is_showing_offscreen_indicator()`, `has_recent_hit_arc()`, `get_hit_arc_bearing_from_tower()`, `get_pointing_direction()`, `is_tower_on_screen()`, `get_display_intensity()`) returns exactly what it returned before; `threat_feedback_indicator_test.gd` and `threat_feedback_vignette_test.gd`, neither of which touches drawing, both stay green (counts below).
+
+- New `_rect_edge_point(center, half_extent, angle)`: the wedge's OUTER boundary is now a ray cast from centre to this Control's own rectangle boundary — the literal screen edge — not a circle inset within it.
+- New const `INNER_REACH_FRACTION = 0.18` (`## TODO(ui-pass): promote to UiPalette`, per the orchestrator's own instruction): the wedge's INNER boundary, as a fraction of the shorter screen side. Inside the 15-20% range asked for.
+- New const `VIGNETTE_PEAK_ALPHA = 0.4` (same TODO marker): alpha at the outer/screen-edge boundary, fading to 0 at the inner one via per-vertex colours passed to `draw_polygon()` (Godot interpolates radially across the triangulated wedge), replacing the old flat single-alpha fill.
+- New `_blended_intensity_at_angle(angle, intensities)`: linearly interpolates between a segment's own intensity and its neighbours' as the sample angle crosses the circle, so the 8 wedges blend into each other instead of meeting at a hard seam — a drawing-time smoothing of the same 8 `get_segment_intensities()` values, nothing else.
+- No outline pass on the vignette at all. It stays on the off-screen indicator (`_draw_offscreen_indicator()`, untouched) where a hard edge helps.
+- `_arc_points()` (the old ellipse-arc helper) is removed, superseded by `_rect_edge_point()` and the blend function above.
+
+**What I saw**, running the capture tool (`phases/UI_PASS/screenshots/_scratch_A/`, 1920x1080, no `--pseudo`) and reading all three frames at full size after the fix:
+
+- `07_threat_vignette.png` (Tower on screen, attacker east; tool log: `intensity=0.67 segment=0`): a soft warm gradient hugs the right/bottom-right screen edge and fades to nothing well before the centre. Every pickup and enemy silhouette in that region — the green blobs, the grey pentagons, the star shapes — stays fully identifiable in colour and shape, undimmed. No hard wedge seams; the tint reads as one continuous blend, not eight facets. The Scrap (top-right) and XP (bottom-centre) pills are unaffected. It reads as a soft directional glow, not an overlay.
+- `08_threat_offscreen.png` (Tower off-screen; tool log: `indicator=true shape=pip_circle arc=true`): a small yellow-rimmed pip sits right at the screen edge inside the same soft gradient, clearly legible against it, with a short hit-arc stroke beside it, well clear of every HUD pill.
+- `09_threat_low_health.png` (Tower off-screen, low health; tool log: `shape=warning_diamond tower_health=165/500`): the indicator is now a red diamond in the same position — a different SHAPE from `08`'s circle, not only a different colour — and clearly legible against the softened background, where round 1's diamond was "nearly invisible" inside the flat block.
+
+The console-open staging problem the orchestrator flagged in the original `07` was already gone by the time I ran the tool (package E's fix to `ui_capture.gd` had landed); I still read all three frames again, against the log lines quoted above, before writing this. Screenshots are in my own scratch folder only, never `after_*`/`before_*`.
+
+### HUD polish — value next to its label (UR-27)
+
+`hud.gd`'s bottom pill's "Level"/"0" and "Rerolls"/"1", and the top pill's "Wave"/"1/8", sat about 100px apart. Two distinct, independent causes, both fixed with container-driven properties (no fixed size, no manual position):
+
+1. `WaveRow` is a child of `TowerHealthInner`, a `VBoxContainer`. On a `VBoxContainer`'s cross (horizontal) axis, a child at the default `SIZE_FILL` stretches to the parent's full width (matching `TowerHealthBarRow`'s own ~440px, set by the glyph+bar) rather than its own minimum content width. `WaveRow`'s two children (caption and value) both carry `SIZE_EXPAND_FILL` — required by docs/19's container rule so they can still grow under pseudo-localization — so with nothing else claiming that leftover width, it split between them and pushed them apart. Fix: `wave_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER`. `WaveRow` now sizes to its true minimum and centres in the space above; there is no leftover left to push its children apart.
+2. Independently: each caption's `custom_minimum_size` is deliberately wider than its plain-English text (sized for the F2 pseudo-localization worst case — see round 1's own follow-up comment on `CAPTION_LEVEL_MIN_WIDTH` etc.), and the text was left-aligned within that box, leaving dead space between the word and the value that followed it. Fix: `_new_hud_label()` gained an optional `alignment` parameter (default `HORIZONTAL_ALIGNMENT_LEFT`, unchanged behaviour for the four existing glyph-header call sites). The three caption labels (`WaveCaptionLabel`, `LevelCaptionLabel`, `RerollsCaptionLabel`) now pass `HORIZONTAL_ALIGNMENT_RIGHT`, so their text sits flush against the value that follows regardless of how much headroom the box carries. `WaveLabel`'s own `horizontal_alignment` (previously `CENTER`) was removed, leaving it at the `Label` default (`LEFT`), matching `LevelLabel`/`RerollsLabel`, so the digits sit flush against the caption to their left.
+
+Confirmed visually in the capture tool's `01_hud_gameplay.png`: "Level 0" and "Rerolls 1" now read as single adjacent units in the bottom pill, "Wave 1/8" the same way in the top-centre pill, matching the "HP [bar]", "TOWER [bar]" and "SCRAP 0/200" pairs that were already adjacent.
+
+No layout test, node name, public method, or Register-cited value changed. `hud_layout_test.gd`, `hud_layout_check_test.gd`, `hud_economy_display_test.gd`, `tower_cue_audibility_test.gd` all stay green (counts below).
+
+### New test: a RENDERED property (item 4)
+
+Added `tests/unit/ui_hud_render_test.gd` (new file). Two cases, in a real `SceneTree` at the pinned 1920x1080 viewport (the same `before_test`/`after_test` viewport-save pattern as `hud_layout_check_test.gd`):
+
+- `test_every_hud_label_renders_on_a_single_line` — every fixed and dynamic HUD label (13 node names, located via `Hud.find_child(name, true, false)` — `owned=false` because this whole tree is built at runtime with `add_child()` and none of it has a scene-file owner) asserts `get_line_count() == 1`.
+- `test_every_pill_stays_under_a_sane_height` — all four pills assert `get_global_rect().size.y <= 100.0`. 100px comes from this project's own evidence (round 1's measured 64px pill height against the coordinator's own stated 40-70px target range), not a Register number — the Register has no HUD pill height row, and "pill" is itself a UI-pass addition, not a pre-existing Register concept.
+
+**Made to fail on purpose once, before being relied on:** temporarily changed `_new_hud_label()`'s `custom_minimum_size` line in `src/ui/hud.gd` to `Vector2(0, 0)` (a one-line local edit) and ran the new suite: `test_every_hud_label_renders_on_a_single_line` failed on all 7 fixed-text labels ("HP" at 3 lines, "TOWER" at 6, "SCRAP" at 6, "XP" at 3, "Wave" at 5, "Level" at 6, "Rerolls" at 8) — 1 test case, 0 errors, 7 failures — reproducing the exact round-1 character-per-line defect this test exists to catch. Reverted the edit immediately; the suite then ran 2 test cases, 0 errors, 0 failures. The edit was never committed.
+
+### Suites run (headless, one at a time, after my last edit)
+
+| Suite | Result |
+| --- | --- |
+| `tests/unit/ui_hud_render_test.gd` (new) | 2 test cases, 0 errors, 0 failures |
+| `tests/unit/hud_layout_test.gd` | 7 test cases, 0 errors, 0 failures |
+| `tests/unit/hud_layout_check_test.gd` | 7 test cases, 0 errors, 0 failures |
+| `tests/unit/hud_economy_display_test.gd` | 5 test cases, 0 errors, 0 failures |
+| `tests/unit/threat_feedback_indicator_test.gd` | 5 test cases, 0 errors, 0 failures |
+| `tests/unit/threat_feedback_vignette_test.gd` | 7 test cases, 0 errors, 0 failures |
+| `tests/unit/tower_cue_audibility_test.gd` | 11 test cases, 0 errors, 0 failures |
+| `tests/unit/console_ui_scaling_test.gd` (grepped: HUD-adjacent scaling reference) | 1 test case, 0 errors, 0 failures |
+| `tests/unit/prototype_scene_test.gd` (grepped: instantiates Hud/ThreatFeedback via the assembled scene) | 30 test cases, 0 errors, 0 failures |
+| `tests/unit/ui_capture_seams_test.gd` (new since round 1, grepped: asserts the Tower `Hurtbox`/`TowerHealth` seams `threat_feedback.gd` itself relies on) | 2 test cases, 0 errors, 0 failures |
+
+Total: 77 test cases across the 10 suites that reference `Hud`, `HudBar`, `HudTruncatableLabel`, or `ThreatFeedback` (re-grepped fresh this round, case-sensitive and case-insensitive, across the whole `tests/` tree) — 77 of 77 counted as passing. I ran no suite outside this list, and touched no existing test file.
+
+### Files touched this round
+
+- `src/ui/hud.gd` — UR-06 (14 separation overrides converted or deleted), UR-08 (explicit `ensure_registered()`), the `WaveRow`/`_new_hud_label()` value-adjacency fix, a new "UI pass round 2" header section.
+- `src/ui/threat_feedback.gd` — the vignette rewrite (UR-02/UR-16), a corrected header (the old text claimed an outline pass on the vignette that this round removes), two new cosmetic constants (`INNER_REACH_FRACTION`, `VIGNETTE_PEAK_ALPHA`), two new private helpers (`_rect_edge_point()`, `_blended_intensity_at_angle()`); `_arc_points()` removed.
+- `tests/unit/ui_hud_render_test.gd` — new file (item 4).
+- `src/ui/hud_bar.gd`, `src/ui/hud_truncatable_label.gd` — untouched this round: grepped for every UR-06/UR-08/UR-03 pattern and found nothing to change in either, and neither needed the HUD-polish or vignette fixes.
+
+### Superseded (round 1 text describing code that no longer exists)
+
+> Superseded: round 1's "Tokens/variations I wanted and did not have" and "Outside my write scope" sections describe `src/ui/hud_strings.gd`. That file no longer exists in this worktree — its four `HUD_GLYPH_*` entries were folded into `src/ui/theme/ui_strings.gd`'s `MESSAGES` dictionary (confirmed by listing `src/ui/hud_strings.gd`, absent; `ui_strings.gd`'s `MESSAGES` already carries all four keys with the same English text this package registered). The one call site (`HudStrings.ensure_registered()` in `hud.gd`'s `_build_ui()`) is gone too, replaced this round by the explicit `UiStrings.ensure_registered()` call described under UR-08 above.
+
+> Superseded: round 1's "Follow-up" section's "Measured pill sizes" table (Player HP 302x64, Tower 419x64, Scrap 234x64, XP 810x64) reflects the left-aligned caption layout from before this round's alignment fix. Heights are unchanged (still ~64px — confirmed indirectly by this round's `test_every_pill_stays_under_a_sane_height`, which bounds height at 100px and passes); widths may differ slightly now that captions hug their values instead of floating inside their own boxes. Not re-measured by hand this round.
+
+### Anything left undone
+
+- The widget-size constants (`PLAYER_BAR_MIN_SIZE` etc.) and this round's two new vignette constants (`INNER_REACH_FRACTION`, `VIGNETTE_PEAK_ALPHA`) remain local consts with `## TODO(ui-pass): promote to UiPalette` comments, per the brief's own carve-out — not promoted.
+- Did not touch `scenes/ui/hud.tscn` (unchanged from round 1: it is just this script attached to a bare `CanvasLayer`, outside this package's write scope regardless).
+- Did not capture or inspect a 1280x720 or `--pseudo` frame of the vignette specifically this round (the orchestrator's note named 1920x1080 frames). The new geometry is resolution-relative by construction (`INNER_REACH_FRACTION` of the shorter side; `_rect_edge_point()` scales with this Control's own `size`), so it should hold at other resolutions, but this was not confirmed against a rendered frame.

@@ -190,6 +190,12 @@ class_name Console
 ##   task's scope, and adding the scrolling docs/19 prescribes for that
 ##   case is a new interactive affordance, not a restyle -- both named as
 ##   follow-ups in the evidence report, not resolved here.
+##   > Superseded (both the compaction follow-up below and UI pass round 2
+##   > below): the compaction follow-up brought this down to 512x377 (later
+##   > 528x377, round 2), and the author's 2026-09-20 decision (UR-25) gives
+##   > the Console its own 35% allowance (378 px at 1080p) rather than
+##   > docs/19's general 30%. The "roughly 2-3x" figure above describes the
+##   > FIRST restyle pass only and no longer applies.
 ## - Open animation only (never close, per the task's own "hides
 ##   immediately" rule): a bare `create_tween()` on this node fades/scales
 ##   `_panel`'s own `modulate.a`/`scale` in from 0 whenever `_process()`
@@ -244,6 +250,57 @@ class_name Console
 ## `tests/unit/ui_console_layout_test.gd` (this package's own file) gained
 ## a one-line-in-English assertion and a tightened height bound; measured
 ## panel sizes are in the follow-up section of the evidence report.
+##
+## ## UI pass round 2 (review fixes, phases/UI_PASS/BRIEF_R2.md) -- every
+## rule/number/timer/node-name/`_for_test` seam above stays UNCHANGED except
+## where named below.
+## - **UR-06** (separation overrides): the three bare `add_theme_constant_
+##   override("separation", ...)` calls (`Rows`, `HeaderRow`, `RowContent`)
+##   are now `theme_type_variation = UiTheme.vbox("XS")` / `hbox("M")` /
+##   `hbox("XS")`. None of the three nodes carried another type variation, so
+##   none needed to stay an override.
+## - **UR-08** (string registration): `UiStrings.ensure_registered()` is now
+##   also called explicitly as `_build_ui()`'s first line, not reached only
+##   as `UiTheme.get_theme()`'s own side effect a few lines later.
+## - **UR-03** (glyphs): the row `Glyph` node is now a `UiShapeGlyph`
+##   (`Shape.TRIANGLE` for a Player entry, `Shape.SQUARE` for a Tower entry,
+##   `text` left empty, `set_side(UiPalette.FONT_SIZE_VALUE)`) instead of a
+##   plain `Label` showing `tr("CONSOLE_GLYPH_PLAYER")`/`tr("CONSOLE_GLYPH_
+##   TOWER")` -- neither key's character (U+25CF/U+25A0) exists in the
+##   shipped font (tests/unit/ui_console_layout_test.gd checks `Font.
+##   has_char()` directly). Both `tr()` keys are now unused by this file.
+## - **UR-05** (price/MAX text floor): built as the conservative reading
+##   pending an author decision -- that decision arrived 2026-09-20 (UI pass
+##   LEDGER UR-25) and CONFIRMS it: the Register's 24 px floor covers the
+##   row label AND the price/MAX badge (the header title, footer, key number
+##   and pool word may stay smaller). No further code change needed.
+##   `PriceTag`'s `normal_font_size` and `MaxBadgeLabel`'s `font_size` are
+##   both raised to `ENTRY_FONT_SIZE_PX`, the SAME constant `Text` uses, so
+##   all three sit under the identical floor and the identical per-frame
+##   Node2D `scale` compensation. `PRICE_TAG_MIN_WIDTH_PX` widened 40 -> 48
+##   to match. Nothing else was shrunk to pay for this.
+## - **UR-10** (empty footer): Repair's footer was always empty (its "name"
+##   has no ':' to split), leaving `FOOTER_MIN_LINES`' worth of blank space
+##   reserved on every open, since Repair is the default highlighted entry.
+##   `_refresh_footer()` now builds a one-line sentence from the SAME heal/
+##   cost values the row and `PriceTag` already show
+##   (the `CONSOLE_REPAIR_FOOTER` string) instead of leaving it blank. The
+##   alternative BRIEF_R2 also offered -- reserving the footer's height only
+##   while a ranked entry is highlighted -- was rejected because it resizes
+##   the panel as the highlight moves onto/off Repair, which is the jump
+##   this fix exists to remove.
+## - **UR-11** (regression bound): `tests/unit/ui_console_layout_test.gd`
+##   keeps its tight, current-measurement regression bound, and gains a
+##   SEPARATE, clearly named assertion against a height requirement -- this
+##   started as docs/19's general 30% screen-height cap (324 px at 1080p),
+##   deliberately left FAILING (a known, named gap, not loosened or
+##   skipped). Author decision 2026-09-20 (UI pass LEDGER UR-25) then gave
+##   the Console its own allowance of ~35% of screen height (378 px at
+##   1080p) instead, with docs/19 itself to be updated by its owner through
+##   HANDOFF H-05 -- not this package's file to change. The assertion is now
+##   a real, passing requirement check against that 378 px figure, not a
+##   "known gap" placeholder; see that test file's own comment and the
+##   report, "UR-11."
 
 # --- Provisional Values Register > Interfaces > "Tower Console rules" ------
 const OPEN_DWELL_SECONDS: float = 0.3 # "Opens after 0.3 s inside the radius..."
@@ -326,15 +383,18 @@ const PANEL_MIN_WIDTH_PX: float = 420.0
 ## price chip (a RichTextLabel; see _refresh_price_and_badge()) -- the same
 ## zero-minimum risk as ROW_TEXT_MIN_WIDTH_PX above, at a much smaller
 ## scale (a 2-3 digit number), so it gets the same explicit floor. UI PASS
-## FOLLOW-UP: narrowed from 64 -> 40 (compaction; still fits "999").
-const PRICE_TAG_MIN_WIDTH_PX: float = 40.0
+## FOLLOW-UP: narrowed from 64 -> 40 (compaction; still fits "999"). UI PASS
+## ROUND 2 (UR-05): widened 40 -> 48 (40 * ENTRY_FONT_SIZE_PX/FONT_SIZE_BODY,
+## i.e. 40 * 24/20) alongside the price tag's own font-size floor raise, so
+## "999" still fits at the larger size without the row wrapping the price.
+const PRICE_TAG_MIN_WIDTH_PX: float = 48.0
 ## TODO(ui-pass): promote to UiPalette (as a motion token) if another
 ## surface ever wants the same pop-in. The fraction of full size _panel
 ## starts at when the Console's open animation begins (see
 ## _play_open_animation()) -- purely cosmetic, never read by a test.
 const OPEN_ANIM_START_SCALE: float = 0.92
 ## Leading highlight marker (item 4, "a leading caret glyph"). Plain ASCII
-## so it renders regardless of Pixelify Sans's exact glyph coverage (the
+## so it renders regardless of the shipped font's exact glyph coverage (the
 ## font's own header cites covering "the accented Latin range", not
 ## necessarily general Unicode arrows/carets).
 const CARET_GLYPH: String = ">"
@@ -350,7 +410,21 @@ const NUMBER_CHIP_SIZE_PX: float = 22.0
 ## Reserved height for the highlighted entry's effect-sentence footer, in
 ## whole lines -- "reserve a minimum height for two lines so the panel does
 ## not jump when the highlight moves between short and long descriptions."
-const FOOTER_MIN_LINES: int = 2
+## One line since the font change: every ranked upgrade's sentence fits one
+## line at the panel's width, and two reserved lines put the panel 18 px over
+## the author's 35% allowance (UR-25). Only the two pool-exhausted fallback
+## entries run longer, and the panel grows for those.
+const FOOTER_MIN_LINES: int = 1
+
+## UI PASS ROUND 2 (UR-10). Repair's own "name" is the plain word "Repair"
+## (tr("CONSOLE_REPAIR")), never an "<name>: <effect>" sentence the way every
+## upgrade's effect_description is, so splitting it on ':' in
+## _refresh_footer() always produced an EMPTY footer for Repair -- the entry
+## highlighted by default on open (_open_console() resets _highlighted_index
+## to 0) -- leaving FOOTER_MIN_LINES' worth of reserved blank space every
+## time the Console opens (the defect this item fixes). The sentence is
+## the `CONSOLE_REPAIR_FOOTER` string (ui_strings.gd), filled with the same
+## heal and cost values the row already shows.
 
 # --- Wiring (orchestrator completes; scenes/prototype.tscn is out of this
 # task's write scope) --------------------------------------------------------
@@ -976,6 +1050,24 @@ func get_entry_label_for_test(i: int) -> Label:
 	return _row_texts[i] if i >= 0 and i < _row_texts.size() else null
 
 
+## UI pass round 2 (UR-03): new test seam, same shape as get_entry_label_for_test() above -- no existing test read the old Glyph Label, so nothing else changes shape.
+func get_entry_glyph_for_test(i: int) -> UiShapeGlyph:
+	return _row_glyphs[i] if i >= 0 and i < _row_glyphs.size() else null
+
+
+## UI pass round 2 (UR-05): new test seam for the price/MAX floor regression.
+func get_entry_price_tag_for_test(i: int) -> RichTextLabel:
+	return _row_price_tags[i] if i >= 0 and i < _row_price_tags.size() else null
+
+
+## UI pass round 2 (UR-05): new test seam for the price/MAX floor regression.
+func get_entry_max_badge_label_for_test(i: int) -> Label:
+	if i < 0 or i >= _row_max_badges.size():
+		return null
+	var badge: PanelContainer = _row_max_badges[i]
+	return badge.get_node("MaxBadgeLabel") as Label
+
+
 func get_panel_control_for_test() -> Control:
 	return _panel
 
@@ -1085,6 +1177,7 @@ static func _angle_diff_deg(a: float, b: float) -> float:
 # size_flags_horizontal = SIZE_EXPAND_FILL) ----------------------------------
 
 func _build_ui() -> void:
+	UiStrings.ensure_registered() # UI pass round 2 (UR-08): explicit at this surface's own build entry point, not only as a side effect of UiTheme.get_theme() below
 	_panel = PanelContainer.new()
 	_panel.name = "Panel"
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1108,7 +1201,7 @@ func _build_ui() -> void:
 	var vbox := VBoxContainer.new()
 	vbox.name = "Rows"
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	vbox.theme_type_variation = UiTheme.vbox("XS") # UI pass round 2 (UR-06): was a bare "separation" override
 	_panel.add_child(vbox)
 
 	_build_header(vbox)
@@ -1156,7 +1249,7 @@ func _build_header(vbox: VBoxContainer) -> void:
 	var header_row := HBoxContainer.new()
 	header_row.name = "HeaderRow"
 	header_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	header_row.add_theme_constant_override("separation", UiPalette.SPACE_M)
+	header_row.theme_type_variation = UiTheme.hbox("M") # UI pass round 2 (UR-06): was a bare "separation" override
 	vbox.add_child(header_row)
 
 	# UI pass follow-up (compaction): FONT_SIZE_BODY -> FONT_SIZE_SMALL, one
@@ -1197,7 +1290,8 @@ func _build_row(vbox: VBoxContainer, i: int) -> void:
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# UI pass follow-up (compaction): SPACE_S -> SPACE_XS between the extra
 	# decoration columns a one-line row has no room to spare on.
-	content.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	# UI pass round 2 (UR-06): was a bare "separation" override.
+	content.theme_type_variation = UiTheme.hbox("XS")
 	row.add_child(content)
 
 	# Highlight marker (item 4: "a leading caret glyph"). Always present
@@ -1241,10 +1335,24 @@ func _build_row(vbox: VBoxContainer, i: int) -> void:
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(frame)
 
-	var glyph := Label.new()
+	# UI pass round 2 (UR-03): a vector shape, not a font character. The
+	# shipped font contains neither the old text glyphs ("CONSOLE_GLYPH_
+	# PLAYER"/"CONSOLE_GLYPH_TOWER", U+25CF/U+25A0) nor any other geometric
+	# shape codepoint (tests/unit/ui_console_layout_test.gd checks
+	# Font.has_char() directly and quotes the result). docs/19 > Tower
+	# Console UI > "Differentiation": "The same frame-shape and glyph rules
+	# as the Draft apply to its entries" -- the Draft's own player glyph
+	# (draft_card_view.gd's GLYPH_PLAYER) is a triangle, not a circle, so
+	# Shape.TRIANGLE/Shape.SQUARE below match it exactly, set per-refresh
+	# from each entry's pool. `text` stays empty (UiShapeGlyph's own
+	# contract, shape_glyph.gd's header); mouse_filter is already
+	# MOUSE_FILTER_IGNORE from UiShapeGlyph._init(), not re-set here.
+	var glyph := UiShapeGlyph.new()
 	glyph.name = "Glyph"
-	glyph.custom_minimum_size = Vector2(UiPalette.SPACE_L, 0)
-	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Sized to the number chip beside it, not to a font-size token: the row's
+	# height is what the 35% panel allowance is spent on, and a token tuned
+	# for another font's metrics once made every row 6 px taller (UR-25).
+	glyph.set_side(int(NUMBER_CHIP_SIZE_PX))
 	content.add_child(glyph)
 
 	var header := Label.new()
@@ -1292,6 +1400,19 @@ func _build_row(vbox: VBoxContainer, i: int) -> void:
 	# programmatic markup out of the translation/pseudo-localization
 	# pipeline without touching TranslationServer or any other label.
 	price_tag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	# UI pass round 2 (UR-05). Author decision 2026-09-20 (UI pass LEDGER
+	# UR-25) confirms the Register's "text stays >= 24 px tall on screen"
+	# covers the price, not just the row label -- the conservative reading
+	# this was built with is now the settled answer, not a placeholder.
+	# Raised from the theme's default 20 px (FONT_SIZE_BODY, RichTextLabel's
+	# own fallback with no "normal_font_size" override) to
+	# ENTRY_FONT_SIZE_PX -- the SAME constant `Text` uses -- so PriceTag
+	# sits under the identical 24 px floor and the identical per-frame
+	# Node2D `scale` compensation (_update_placement()) that keeps `Text`
+	# >= 24 px tall; "normal_font_size" is the correct RichTextLabel theme
+	# property (RichTextLabel has no single "font_size" property the way
+	# Label does).
+	price_tag.add_theme_font_size_override("normal_font_size", ENTRY_FONT_SIZE_PX)
 	content.add_child(price_tag)
 
 	var max_badge := PanelContainer.new()
@@ -1303,6 +1424,11 @@ func _build_row(vbox: VBoxContainer, i: int) -> void:
 	var max_label := _make_pill_label(tr("CONSOLE_MAX"))
 	max_label.name = "MaxBadgeLabel"
 	max_label.add_theme_color_override("font_color", UiPalette.ACCENT)
+	# UI pass round 2 (UR-05): same author-confirmed floor as PriceTag
+	# above (Author decision 2026-09-20, UR-25) -- raised from
+	# UiTheme.SMALL's 16 px to ENTRY_FONT_SIZE_PX, overriding the
+	# variation's own font size on this one label.
+	max_label.add_theme_font_size_override("font_size", ENTRY_FONT_SIZE_PX)
 	max_badge.add_child(max_label)
 	content.add_child(max_badge)
 
@@ -1386,6 +1512,14 @@ func _refresh_footer(entries: Array) -> void:
 		_footer_label.text = ""
 		return
 	var e: Dictionary = entries[_highlighted_index]
+	# UI pass round 2 (UR-10): Repair has no ':' to split on -- build a real one-line
+	# sentence from the SAME heal/cost values the row label and PriceTag
+	# already show, rather than reserving the footer conditionally (which
+	# would resize the panel as the highlight moves onto/off Repair; see the
+	# report, "UR-10", for why that alternative was rejected).
+	if String(e.get("kind", "")) == "repair":
+		_footer_label.text = tr("CONSOLE_REPAIR_FOOTER") % [int(e.get("heal", 0.0)), int(e.get("cost", 0))]
+		return
 	var split: Dictionary = _split_name_and_effect(String(e.get("name", "")))
 	_footer_label.text = String(split.get("effect", ""))
 
@@ -1432,7 +1566,12 @@ func _refresh_one_row(i: int, e: Dictionary) -> void:
 	# colour only, never the sole differentiator (the row's own shape above
 	# and the glyph/header word below all vary too).
 	_row_frames[i].add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.TOWER if is_tower else UiPalette.PLAYER, Color(0, 0, 0, 0), 0, 0, 0))
-	_row_glyphs[i].text = tr("CONSOLE_GLYPH_TOWER") if is_tower else tr("CONSOLE_GLYPH_PLAYER")
+	# UI pass round 2 (UR-03): shape, never text -- tr("CONSOLE_GLYPH_PLAYER")
+	# / tr("CONSOLE_GLYPH_TOWER") are no longer called anywhere in this file;
+	# both keys are now unused (see the report, "UR-03", for ui_strings.gd,
+	# which this package does not edit).
+	var row_glyph: UiShapeGlyph = _row_glyphs[i]
+	row_glyph.shape = UiShapeGlyph.Shape.SQUARE if is_tower else UiShapeGlyph.Shape.TRIANGLE
 	_row_headers[i].text = tr("CONSOLE_HEADER_TOWER") if is_tower else tr("CONSOLE_HEADER_PLAYER")
 
 	# UI PASS FOLLOW-UP (orchestrator decision, recorded as an

@@ -119,11 +119,13 @@ func _on_option_confirmed(index: int) -> void:
 
 
 func _build_ui() -> void:
+	UiStrings.ensure_registered() # UI pass round 2, UR-08: explicit here, not only reached as UiTheme.get_theme()'s side effect.
 	# 0.6 matches the Draft's own 60% dim (Register > "Level-Up Draft") --
 	# no Register row of its own for THIS menu, cited as the same reused
-	# interpretation named in paused_choice_bar.gd's header. UiPalette.SPACE_XL
-	# (24) replaces this file's own former literal separation (28).
-	_frame = MenuFrame.build(self, 0.6, UiPalette.SPACE_XL)
+	# interpretation named in paused_choice_bar.gd's header. UiTheme.vbox("XL")
+	# (UiPalette.SPACE_XL, 24) replaces this file's own former literal
+	# separation (28).
+	_frame = MenuFrame.build(self, 0.6, "XL")
 	_root = _frame.root
 
 	_title_label = MenuFrame.build_title(_frame.column, tr("PAUSE_MENU_TITLE"), UiTheme.HEADING, 320.0)

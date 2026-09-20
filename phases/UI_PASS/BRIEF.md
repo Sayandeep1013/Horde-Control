@@ -42,4 +42,6 @@ If you add a new script with a `class_name`, run `--headless --path . --import` 
 
 ## Report
 
+> Edited after the implementers ran (2026-09-20): this section first said `phases/UI_PASS/reports/`. The folder was renamed `package_reports/` because the repository's unanchored `reports/` ignore rule was hiding it from git (EXECUTION_LOG #13), and the path here and in "Where you work" was updated to match. The four round 1 reports still say `reports/`; that is what their authors were told.
+
 Write `phases/UI_PASS/package_reports/<package>.md`: what changed per file, every interpretation you made, tokens or variations you wanted and did not have, anything you needed outside your write scope (exact proposed text - do not make the edit), each suite you ran with its real pass/fail counts, and anything left undone. Never write that a test, check, or gate is passed, satisfied, or ready - give the counts and let the reviewer decide. Your final message back is a short summary of that report.

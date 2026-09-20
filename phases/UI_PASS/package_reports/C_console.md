@@ -71,7 +71,7 @@ Nothing required an edit outside `src/ui/console.gd` / `tests/unit/ui_console_la
 | `tests/unit/scrap_loss_test.gd` (explicitly named in my instructions; grep confirms it does not actually reference `Console`/`console.gd` — run anyway) | 3 test cases, 0 errors, 0 failures |
 | `tests/unit/ui_console_layout_test.gd` (new, this package's own regression test for the layout-collapse finding) | 2 test cases, 0 errors, 0 failures |
 
-Total: 27/27 test cases pass across the 7 suites run.
+Total, this run: 27 test cases, 0 errors, 0 failures across the 7 suites run. (Round 2 correction: this line originally read "27/27 test cases pass" -- bare counts only, per the review; see the Round 2 section below.)
 
 Grepped `tests/` for every other reference to `Console` (case-sensitive and case-insensitive), including the four names the instructions called out by name (`focus_loss_test.gd`, `run_flow_check_test.gd`, `pause_authority_full_test.gd`, `prototype_scene_test.gd`) plus `pressure_test.gd`, `upgrade_effect_check_test.gd`, `schema_check.gd`: none of the seven actually reference `console.gd`'s `Console` class or instantiate it — the matches are all either "Console price"/"Console cost formula" (an economy-data concept, `src/upgrade/upgrade_system.gd`'s own `get_console_cost()`) or a plain-English mention in a comment ("No Console exists yet..."). Did not run these seven; ran only the ones that actually cover this file, per the brief's own "tests that cover your file" framing.
 
@@ -120,10 +120,103 @@ Confirmed both by `tests/unit/ui_console_layout_test.gd`'s direct pixel measurem
 | `tests/unit/scrap_loss_test.gd` | 3 test cases, 0 errors, 0 failures |
 | `tests/unit/ui_console_layout_test.gd` (updated this follow-up) | 2 test cases, 0 errors, 0 failures |
 
-Total: 27/27 test cases pass, same suites as the original report, all green after the follow-up.
+Total, this run: 27 test cases, 0 errors, 0 failures, same suites as the original report. (Round 2 correction: this line originally read "27/27 test cases pass ... all green after the follow-up" -- bare counts only, per the review; see the Round 2 section below.)
 
 ### Anything left undone, this follow-up
 
 - Height is 377 px against a ~360 px target (see above) — not further reduced, since doing so would have required either shrinking `Text` below `ENTRY_FONT_SIZE_PX` (the Register's floor, not restyle-scope to touch) or the footer below its explicitly-requested 2 lines, or a spacing literal outside `SPACE_XS`/`SPACE_S` (the instruction's own named vocabulary for this tightening).
 - Did not touch `scenes/prototype.tscn`'s own `tower_path`/`player_path`/etc. wiring gap (named as the coordinator's own HANDOFF item, explicitly "not yours to fix" for this package).
 - `NUMBER_CHIP_SIZE_PX`/`FOOTER_MIN_LINES` join the existing `TODO(ui-pass)` const list, same reasoning as before (no matching `UiPalette` token yet).
+
+## Round 2
+
+Files touched: `src/ui/console.gd` (only), `tests/unit/ui_console_layout_test.gd` (only), this file. No other file. Skills re-checked: `godot-prompter:godot-ui` (no new conflict beyond the one already recorded in `console.gd`'s own header — the skill's "place UI nodes in a CanvasLayer" guidance, which docs/19 and the Register override for this world-space surface, unchanged this round).
+
+### UR-06 — separation overrides
+
+Three bare `add_theme_constant_override("separation", UiPalette.SPACE_*)` calls existed, none at `SPACE_S` (so none qualified for outright deletion): the `Rows` VBoxContainer (`SPACE_XS`), `HeaderRow` (`SPACE_M`), and each row's `RowContent` (`SPACE_XS`). All three converted to `theme_type_variation = UiTheme.vbox("XS")` / `UiTheme.hbox("M")` / `UiTheme.hbox("XS")` respectively. None of the three nodes carried another `theme_type_variation`, so there was nothing to convert-and-leave. Nothing left unconverted.
+
+### UR-08 — explicit `UiStrings.ensure_registered()`
+
+Added as the first line of `_build_ui()` (the function `_ready()` calls to build this surface), with a one-line comment. The existing call inside `ui_theme.gd`'s `get_theme()` is untouched, per the instruction.
+
+### UR-03 — glyphs
+
+The row `Glyph` node is now a `UiShapeGlyph` (`Shape.TRIANGLE` for a Player-pool entry, `Shape.SQUARE` for a Tower-pool entry — matching the Draft's own player glyph, `draft_card_view.gd`'s `GLYPH_PLAYER = "▲"`, a triangle, not a circle), `text` left empty, sized with `set_side(int(UiPalette.FONT_SIZE_VALUE))` — `UiPalette.FONT_SIZE_VALUE` is 24, numerically identical to `ENTRY_FONT_SIZE_PX` (the Register's floor `Text` uses), so the glyph sits on the row's text line without a second citation of the Register constant for a cosmetic size. `_refresh_one_row()` no longer calls `tr("CONSOLE_GLYPH_PLAYER")` / `tr("CONSOLE_GLYPH_TOWER")` at all.
+
+**Both keys are now unused** by this file. Grepped the rest of `src/` for other callers: none. `ui_strings.gd` still carries `"CONSOLE_GLYPH_PLAYER": "●"` and `"CONSOLE_GLYPH_TOWER": "■"` — left in place, since editing that file is outside this package's write scope; flagging here for the orchestrator to remove if nothing else claims them.
+
+**`Font.has_char()` check, quoted directly** (added as `tests/unit/ui_console_layout_test.gd`'s own `test_shipped_font_lacks_the_old_console_glyph_characters()`, run against `res://assets/ui/fonts/PixelifySans-Variable.ttf`): `Font.has_char(U+25CF) = false ; Font.has_char(U+25A0) = false`. U+25CF ("●") and U+25A0 ("■") are the exact characters `CONSOLE_GLYPH_PLAYER`/`CONSOLE_GLYPH_TOWER` held — neither is in the shipped font, confirming the shape-glyph approach was necessary, not just tidier.
+
+New test seam: `get_entry_glyph_for_test(i) -> UiShapeGlyph`.
+
+### UR-05 — price / MAX text floor
+
+Built to the instruction's own conservative reading: `PriceTag`'s `normal_font_size` (RichTextLabel's own theme property; it has no bare `"font_size"` the way `Label` does) and `MaxBadgeLabel`'s `font_size` are both raised from the theme's smaller defaults (20 px `FONT_SIZE_BODY` for the price, 16 px `UiTheme.SMALL` for MAX) to `ENTRY_FONT_SIZE_PX` — the exact constant `Text` uses, so both sit under the identical 24 px floor and the identical per-frame Node2D `scale` compensation `_update_placement()` applies to the whole panel. `PRICE_TAG_MIN_WIDTH_PX` widened 40 → 48 (proportional to the font-size ratio 24/20) so "999" still fits without wrapping. Nothing else was shrunk to pay for it — measured, the row height did not grow (377 px unchanged from the pre-round-2 measurement): `Text`, already at 24 px, was already the row's tallest content, so raising `PriceTag` to match it added no extra height. Width grew (512 → 528 px, alongside UR-03's own Glyph-column growth — see the combined width note under UR-11 below).
+
+**Mid-task update:** the author answered this (2026-09-20, UI pass LEDGER UR-25) while this round was in progress, confirming the conservative reading as the actual answer: the Register's 24 px floor covers the row label AND the price/MAX badge; the header title, footer, key number, and pool word may stay smaller. No code change was needed — the implementation above already matches. Comments in `console.gd` and the test file updated in place to say "confirmed," not "pending."
+
+Getters added for the regression check: `get_entry_price_tag_for_test(i) -> RichTextLabel`, `get_entry_max_badge_label_for_test(i) -> Label`.
+
+### UR-10 — empty footer
+
+Chose the first alternative the instruction offered: **give Repair a real one-line footer sentence**, not the second (reserving the footer's height only while a ranked entry is highlighted). Reason: the second option changes the panel's height as the highlight moves onto/off Repair, which is the exact "panel jumps while the player moves the highlight" outcome this item exists to prevent; the first option keeps the reserved height constant (`FOOTER_MIN_LINES` was already unconditional) and only changes what fills it, so there is no jump under either alternative's own reading of "jump," and no need to separately argue the height change "is not a jitter."
+
+The sentence is built from `heal` and `cost` — the same two values the row label (`"Repair +<heal> HP"`) and `PriceTag` (the price) already show, per the instruction's "no new wording beyond what the entry data carries." The connective words needed ("Restores", "for") are not zero, so, per the instruction's own permission ("if you need a new string, propose its exact text ... and use a clearly marked local fallback for now"): **proposed new `ui_strings.gd` key** — `"CONSOLE_REPAIR_FOOTER": "Restores %d HP for %d Scrap"` — not added there (outside this package's write scope). Local fallback in `console.gd`: `const REPAIR_FOOTER_FALLBACK_FMT: String = "Restores %d HP for %d Scrap"`, used directly (not through `tr()`, since the key does not exist yet), with a comment saying so and naming the exact replacement once the key is added.
+
+Observed in the capture tool (see "What I saw in my own frames" below): with Repair highlighted (the default on open) and the tower at full health in the capture's staged state, the footer reads `Restores 0 HP for 0 Scrap` — accurate to the live `heal`/`cost` values (both legitimately 0 at full health), not blank, and not wrong; it will read a non-zero sentence once the Tower is actually damaged. Confirmed under `--pseudo` too: the sentence is swept into pseudo-localization exactly like any other displayed text (Godot's auto-translate pipeline applies to any string a `Label` displays, tr()-registered or not, unless `auto_translate_mode` is disabled — the same mechanism `PriceTag` had to opt out of for its BBCode last round) — rendering `(Réstórés 0 [HP] for 0 [Scráp])`, one line, not garbled. This is correct, expected behaviour for a string that will eventually become a real `tr()` key, not a defect.
+
+### UR-11 — the bound that could not fail
+
+Added a tight regression bound (updated `PANEL_HEIGHT_COMPACT_TARGET_PX` 420 → 400, `PANEL_WIDTH_COMPACT_MAX_PX` 560 → 550, against this round's own re-measurement of 528×377, not left at the stale pre-round-2 figures) **and**, separately, a requirement-level check.
+
+That requirement-level check started, per the instruction, as docs/19's own general 30% screen-height cap (324 px at 1080p), written as its own clearly named, non-skipped, deliberately failing assertion (`test_panel_height_against_docs19_30_percent_cap_KNOWN_GAP_AUTHOR_DECISION_PENDING`, reporting the gap through `append_failure_message` and a printed line) — gdUnit4 gave this suite no "known failure / xfail" marker more honest than a failing assertion that says why, so it was left failing rather than loosened, skipped, or deleted, exactly as instructed. Measured before the author's answer: 377 px against the 324 px cap, a 53 px gap, 1 test case failing.
+
+**Mid-task update:** the author answered this too (2026-09-20, UI pass LEDGER UR-25), while the "known gap" version was already in place: the Console gets its own allowance of ~35% of screen height (378 px at 1080p) instead of docs/19's general 30%, with docs/19 itself to be updated by its owner through HANDOFF H-05 — not this package's file. Replaced the "known gap" test with a real, non-"known-gap" requirement assertion (`test_panel_height_stays_within_the_authors_35_percent_screen_height_allowance`, against a new named const `PANEL_HEIGHT_AUTHOR_CAP_PX = 1080.0 * 0.35`, citing "Author decision 2026-09-20, UI pass LEDGER UR-25; docs/19 change requested in HANDOFF H-05"). **Measured margin: 1.0 px** (panel 377 px vs. the 378 px allowance) — under the cap, by the thinnest possible margin. Per the coordinator's own note about the pending font swap (Pixelify Sans → Jersey 10, project-wide, after every package returns — narrower, so this exact number will move), this bound was deliberately left at the real current measurement rather than hand-tuned for extra headroom against a font that is about to change; the const is named and commented so the orchestrator's re-measurement after the swap is a one-line update, not a hunt through the file. `console.gd`'s own header ("Residual tension") and this file's earlier "Residual tension" framing (roughly 2-3x over 324 px) are marked `> Superseded` in `console.gd` itself, since that figure described the pre-compaction 773-997 px panel, not the current 377-591 px one.
+
+Combined width note (UR-03 + UR-05 together): base-resolution width grew 512 → 528 px (Glyph column's `set_side(24)` replacing its old 16 px minimum, +8 px, plus `PriceTag`'s min-width floor 40 → 48, +8 px); pseudo-localized width is now 591 px (was 607 px before this round — the base width growing closer to what pseudo-localization already needed narrows the gap between the two, not a regression). Both still comfortably inside `PANEL_WIDTH_COMPACT_MAX_PX` (550) and the loose collapse-guard ceiling (900).
+
+### Measured panel sizes (real 7-entry catalogue, base resolution, `view_scale = 1.0`), this round
+
+| State | Panel size (px) |
+| --- | --- |
+| Normal (before round 2) | 512 x 377 |
+| Normal (after round 2) | **528 x 377** |
+| Pseudo-localized (+30%) | 591 x 575 |
+| Author's 35% allowance (1080p) | 378 (height only) — margin **1.0 px** |
+
+Height is unchanged by this round (377 px both before and after) — the price/MAX font-size raise did not need more vertical room than `Text` already claimed at the same floor. Width grew 16 px, entirely from the two floor/size increases above.
+
+### What I saw in my own frames (capture tool, `res://src/ui/dev/ui_capture.tscn`)
+
+Ran at 1920x1080, 1280x720, and 1920x1080 `--pseudo`, writing only to `phases/UI_PASS/screenshots/_scratch_C/`. Read `05_console.png` from each run and checked every string against `data/upgrades/*.tres` and the live catalogue state the capture tool printed to its own log (`scrap=150`).
+
+**1920x1080, plain:** Panel reads, top to bottom: header `"Tower Console"` / `"150 Scrap"`; row 1 `"1 [square glyph] TOWER Repair +0 HP"`, price `"0"`; row 2 `"2 [triangle glyph] PLAYER Rapid Fire Rank 1 of 3"`, price `"30"`; row 3 `"3 [triangle glyph] PLAYER Heavy Rounds Rank 1 of 3"`, price `"30"`; row 4 `"4 [triangle glyph] PLAYER Patch Kit Rank 1 of 3"`, price `"30"`; row 5 `"5 [square glyph] TOWER Caliber Rank 2 of 3"`, price `"60"`; row 6 `"6 [square glyph] TOWER Optics Rank 1 of 3"`, price `"30"`; row 7 `"7 [square glyph] TOWER Shield Matrix Rank 1 of 3"`, price `"30"`; footer `"Restores 0 HP for 0 Scrap"`. Cross-checked against `data/upgrades/rapid_fire.tres` and `caliber.tres`: `console_price_per_rank = 30` for both, and `UpgradeSystem.get_console_cost()` returns `console_price_per_rank * rank_being_bought` — Caliber already at rank 1 in the capture's staged state, buying rank 2, so 30 × 2 = 60 matches exactly what is shown. Every glyph matches its row's pool (triangle for the three Player rows, square for Repair and the three Tower rows) — none is a leftover text character.
+
+**1280x720:** Same seven rows, same strings, panel still fully on screen with no clipping and no overlap with the HUD's own fields (Player HP top-left, Tower/Wave top-centre, Scrap top-right all clear of the Console).
+
+**1920x1080 `--pseudo`:** Title renders `"[[Tower Cönsöle]]"`; header `"[150 [Scráp]]"` — the digits stay `150`, un-accented (pseudo-localization does not touch `%d`-formatted integers, only the translated words around them). Rows wrap to two lines only where the pseudo-localized name is long enough (`Heavy Rounds` and `Shield Matrix`), one line otherwise — no truncation, no collapse. Prices (`0`, `30`×4, `60`) render identically to the plain capture — unaffected, confirming `PriceTag`'s `auto_translate_mode = AUTO_TRANSLATE_MODE_DISABLED` (round 1's own fix) still holds under this round's font-size change. Footer renders `"(Réstórés 0 [HP] for 0 [Scráp])"` — one line, not mangled (see UR-10 above for why this string is pseudo-localized at all). Also visible in this specific frame: the HUD's own Player HP / Tower-Wave / XP fields render collapsed one-character-per-line (a different package's file, mid-edit at the moment of this capture — matching the brief's own warning that "a frame may show their half-finished work"; not a Console defect and not investigated further, per that same instruction to judge only this package's own surface).
+
+**Digit legibility ("150 Scrap" vs. "1S0"):** Read the header and every price column closely at full 1920x1080 render size, in both the plain and pseudo-localized captures. In context (a labelled Scrap pill, a right-aligned price column), the digits read as numerals to me — `150`, `30`, `60` — not as letters; the surrounding context (a numeric column, the `/200` suffix on the HUD's own Scrap pill) removes most of the ambiguity a bare glyph might carry in isolation. That said, the coordinator's mid-task message carries the author's own, more authoritative assessment: Pixelify Sans's digit `5` glyph does read close to `S`, and its `2` close to `8`, at the type level — which is why the project's UI font is being swapped from Pixelify Sans to the narrower Jersey 10 after every package returns. That swap is a `ui_theme.gd`/`ui_palette.gd` change, outside this package's write scope and outside a look-and-feel-only Console fix (the font is shared project-wide, not Console-specific); nothing in this round attempted to work around it locally (e.g. no per-node font substitution on `PriceTag`/`ScrapValue`), since doing so would fork the Console's type family away from the rest of the UI mid-pass. Flagging this as resolved by the scheduled font swap, not by anything in `console.gd`.
+
+### Suites run, this round (headless, one at a time, from the worktree root, after the last edit)
+
+| Suite | Result |
+| --- | --- |
+| `tests/unit/console_rules_test.gd` | 16 test cases, 0 errors, 0 failures |
+| `tests/unit/console_non_pause_test.gd` | 1 test case, 0 errors, 0 failures |
+| `tests/unit/console_ui_scaling_test.gd` | 1 test case, 0 errors, 0 failures |
+| `tests/unit/console_interaction_window_test.gd` | 1 test case, 0 errors, 0 failures |
+| `tests/unit/movement_only_test.gd` | 3 test cases, 0 errors, 0 failures |
+| `tests/unit/scrap_loss_test.gd` | 3 test cases, 0 errors, 0 failures |
+| `tests/unit/ui_console_layout_test.gd` (this package's own file, extended this round) | 4 test cases, 0 errors, 0 failures |
+
+Total, this round: 29 test cases, 0 errors, 0 failures, across the 7 suites listed. (Ran `--headless --path . --import` once after this round's edits; one transient `hud.gd` parse error appeared on the run immediately after another package's concurrent in-progress edit — the same class of transient, other-package-owned import error round 1 already reported for `run_end.gd` — a clean re-import afterward showed no error, and every suite above ran cleanly.)
+
+### Anything left undone, this round
+
+- The author's answer arrived mid-round for UR-05 and UR-11; both are now addressed as described above, not left pending.
+- Digit legibility (the `5`/`S`, `2`/`8` confusion) is not fixed by anything in this file — it is a font-level issue the orchestrator is resolving with a project-wide font swap (Pixelify Sans → Jersey 10), outside this package's write scope and outside a Console-only fix.
+- `CONSOLE_GLYPH_PLAYER` / `CONSOLE_GLYPH_TOWER` are unused by this file as of this round but still defined in `ui_strings.gd`; removing them is that file's owner's call, not this package's.
+- The proposed `ui_strings.gd` key `"CONSOLE_REPAIR_FOOTER": "Restores %d HP for %d Scrap"` (UR-10) has not been added there; `console.gd` uses a local, clearly marked, non-`tr()` fallback until it is.
+- `PANEL_HEIGHT_AUTHOR_CAP_PX`'s 1.0 px margin is real, not padded — the coordinator's own instruction was not to spend time tuning to the last pixel against a font that is about to be replaced project-wide, so this was left as measured rather than manufacturing extra headroom that would itself need re-justifying after the font swap.

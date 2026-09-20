@@ -45,10 +45,12 @@ class Parts extends RefCounted:
 ## interpreted figure -- never invented here; only the dim's RGB is
 ## retinted, from `UiPalette.DIM_TINT`, since no test in this package's
 ## covering suites asserts the dim's colour (see the package report).
-## `column_separation` replaces each file's own literal (28 for Pause and
-## Settings, 16 for Run End) with the nearest `UiPalette.SPACE_*` token, per
-## rule 2.
-static func build(layer: CanvasLayer, dim_alpha: float, column_separation: int) -> Parts:
+## `column_separation_step` replaces each file's own literal (28 for Pause
+## and Settings, 16 for Run End) with the nearest `UiPalette.SPACE_*` token,
+## per rule 2 -- applied as `UiTheme.vbox(step)` (UI pass round 2, UR-06),
+## not a per-node `add_theme_constant_override`, since the step is always a
+## named token forwarded from the caller, never a computed value.
+static func build(layer: CanvasLayer, dim_alpha: float, column_separation_step: String) -> Parts:
 	var parts := Parts.new()
 
 	parts.root = Control.new()
@@ -81,7 +83,7 @@ static func build(layer: CanvasLayer, dim_alpha: float, column_separation: int) 
 	parts.column = VBoxContainer.new()
 	parts.column.name = "Column"
 	parts.column.mouse_filter = Control.MOUSE_FILTER_PASS
-	parts.column.add_theme_constant_override("separation", column_separation)
+	parts.column.theme_type_variation = UiTheme.vbox(column_separation_step)
 	parts.card.add_child(parts.column)
 
 	return parts
@@ -132,18 +134,20 @@ static func style_choice_labels(bar: PausedChoiceBar) -> void:
 ## Tight footer for the hold-to-confirm ring (coordinator follow-up,
 ## package D: "the ring floats alone under the highlight underline with a
 ## lot of empty space -- tighten the spacing"). A nested `VBoxContainer`
-## with `UiPalette.SPACE_XS` separation, added as ONE child of `column` --
-## the column's own, larger separation (`UiPalette.SPACE_XL`/`SPACE_L`)
-## still applies once, between the choice bar and this footer, matching
-## every other gap in the column; only the ring's OWN distance from the
-## highlight row directly above it tightens. No hint text is added here or
-## anywhere else in this footer -- none of the three menus had one before
-## this follow-up, and the brief said not to invent one.
+## with `UiTheme.vbox("XS")` (`UiPalette.SPACE_XS`) separation -- a
+## variation, not a per-node override (UI pass round 2, UR-06) -- added as
+## ONE child of `column` -- the column's own, larger separation
+## (`UiTheme.vbox("XL")`/`vbox("L")`) still applies once, between the
+## choice bar and this footer, matching every other gap in the column;
+## only the ring's OWN distance from the highlight row directly above it
+## tightens. No hint text is added here or anywhere else in this footer --
+## none of the three menus had one before this follow-up, and the brief
+## said not to invent one.
 static func build_hold_footer(column: Container) -> VBoxContainer:
 	var footer := VBoxContainer.new()
 	footer.name = "HoldFooter"
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER
-	footer.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	footer.theme_type_variation = UiTheme.vbox("XS")
 	column.add_child(footer)
 	return footer
 
@@ -165,13 +169,26 @@ static func build_highlight_row(parent: Container, bar: PausedChoiceBar) -> Choi
 	return row
 
 
-## `DraftFillRing`'s two colour exports, restyled from `UiPalette` instead
-## of that file's own hardcoded defaults -- its public surface only
-## (`progress`, `ring_color`, `track_color`; DraftFillRing itself is owned
+## `DraftFillRing`'s public surface, restyled from `UiPalette` instead of
+## that file's own hardcoded colour defaults (DraftFillRing itself is owned
 ## by another implementer and stays untouched).
+##
+## Round 2 (LEDGER UR-13): at rest, the paused menus' ring read as an
+## unlabelled empty dark circle -- nothing told a first-time tester it was
+## a hold-to-confirm progress ring at all. `center_shape` is DraftFillRing's
+## own round-2 addition (UR-03): an optional shape drawn at the ring's
+## centre, dim (`track_color`) until progress begins and then the accent
+## colour, no font glyph involved. `draft_controller.gd` already sets its
+## OWN ring's `center_shape` to `UiShapeGlyph.Shape.TRIANGLE` for exactly
+## this hold-UP gesture ("the same shape ... this ring times", that file's
+## own comment) -- these three rings time the identical gesture
+## (`PausedChoiceBar._poll_hold_up_input()` reads `move_up`, the same
+## action the Draft's ring times), so they reuse the SAME existing shape
+## rather than inventing a new string or a new token for the same idea.
 static func style_fill_ring(ring: DraftFillRing) -> void:
 	ring.ring_color = UiPalette.ACCENT
 	ring.track_color = UiPalette.with_alpha(UiPalette.LINE, 0.6)
+	ring.center_shape = UiShapeGlyph.Shape.TRIANGLE
 
 
 ## Cosmetic fade/scale-in of `parts.card` (rule 6: "a bare create_tween()

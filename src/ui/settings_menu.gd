@@ -173,10 +173,11 @@ func _refresh_toggle_label() -> void:
 
 
 func _build_ui() -> void:
-	# UiPalette.SPACE_XL (24) replaces this file's own former literal
-	# separation (28); this menu's dim never had its own comment on the
-	# alpha (nothing to preserve there).
-	_frame = MenuFrame.build(self, 0.6, UiPalette.SPACE_XL)
+	UiStrings.ensure_registered() # UI pass round 2, UR-08: explicit here, not only reached as UiTheme.get_theme()'s side effect.
+	# UiTheme.vbox("XL") (UiPalette.SPACE_XL, 24) replaces this file's own
+	# former literal separation (28); this menu's dim never had its own
+	# comment on the alpha (nothing to preserve there).
+	_frame = MenuFrame.build(self, 0.6, "XL")
 	_root = _frame.root
 
 	_title_label = MenuFrame.build_title(_frame.column, tr("SETTINGS_MENU_TITLE"), UiTheme.HEADING, 360.0)

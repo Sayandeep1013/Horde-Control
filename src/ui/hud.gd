@@ -82,6 +82,27 @@ class_name Hud
 ## uniform font size. `root.theme = UiTheme.get_theme()` is set once, here,
 ## on `Root` (the first Control under this CanvasLayer) -- see
 ## `_build_ui()`.
+##
+## ## UI pass round 2 (phases/UI_PASS/BRIEF_R2.md)
+## UR-06: every `add_theme_constant_override("separation", ...)` on an
+## HBoxContainer/VBoxContainer either became `theme_type_variation =
+## UiTheme.hbox(step)`/`vbox(step)`, or was deleted outright where the value
+## was `SPACE_S` (the theme's own HBoxContainer/VBoxContainer default,
+## needing no override at all) -- see each site's own `# UR-06` comment.
+## UR-08: `UiStrings.ensure_registered()` is now called explicitly as the
+## first line of `_build_ui()`, not left as a side effect reached only
+## through `UiTheme.get_theme()`. UR-03: every string this file puts on
+## screen (`HUD_WAVE`/`HUD_LEVEL`/`HUD_REROLLS`/`HUD_FULL`/`HUD_HOPPER`/the
+## four `HUD_GLYPH_*` keys, `src/ui/theme/ui_strings.gd`) is plain ASCII
+## Latin text ("Wave", "Level", "Rerolls", "FULL", "hopper", "HP", "TOWER",
+## "SCRAP", "XP") -- no character needed checking against
+## the shipped font (`UiPalette.FONT_PATH`) via `Font.has_char()`, since none of them is
+## outside the ASCII range the font trivially covers.
+## HUD polish: the Wave/Level/Rerolls caption+value pairs now read as a
+## single adjacent unit instead of sitting ~100px apart -- see WaveRow's,
+## and `_new_hud_label()`'s, own comments for the two distinct causes (an
+## HBoxContainer stretched wide by a VBoxContainer's cross-axis fill, and a
+## caption's own box being wider than its text) and their fixes.
 
 ## Chosen to sit above `src/camera/game_camera.gd`'s cosmetic vignette
 ## CanvasLayer (layer 4, itself flagged there as tentative pending this
@@ -375,6 +396,7 @@ func _refresh_glyphs() -> void:
 ## theme also registers the UI's strings (`UiStrings`), the HUD's field
 ## headers among them, before any label text is set.
 func _build_ui() -> void:
+	UiStrings.ensure_registered() # UR-08: explicit, not left as a side effect of UiTheme.get_theme() alone
 	var root := VBoxContainer.new()
 	root.name = "Root"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -409,7 +431,7 @@ func _build_top_row(root: Control) -> void:
 	var row := HBoxContainer.new()
 	row.name = "TopRow"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", UiPalette.SPACE_XL)
+	row.theme_type_variation = UiTheme.hbox("XL") # UR-06
 	margin.add_child(row)
 
 	_player_health_field = _build_player_health_field()
@@ -453,7 +475,14 @@ func _make_pill(node_name: String, mouse_filter: int) -> PanelContainer:
 ## CHARACTER PER LINE") for why `SIZE_EXPAND_FILL` alone, with no
 ## `custom_minimum_size`, is not safe for a short word inside a
 ## shrink-to-fit pill.
-func _new_hud_label(node_name: String, variation: StringName, min_width: float) -> Label:
+##
+## UI-pass round 2: `alignment` defaults to LEFT (unchanged behaviour for
+## every existing caller -- the four glyph headers). A caption label paired
+## immediately beside a value label passes RIGHT instead, so its text sits
+## flush against the value rather than floating inside its own
+## deliberately oversized (pseudo-localization-sized) box -- see the Wave/
+## Level/Rerolls caption call sites.
+func _new_hud_label(node_name: String, variation: StringName, min_width: float, alignment: int = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var label := Label.new()
 	label.name = node_name
 	label.theme_type_variation = variation
@@ -462,6 +491,7 @@ func _new_hud_label(node_name: String, variation: StringName, min_width: float) 
 	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.custom_minimum_size = Vector2(min_width, 0)
+	label.horizontal_alignment = alignment
 	return label
 
 
@@ -476,7 +506,8 @@ func _build_player_health_field() -> Control:
 	var row := HBoxContainer.new()
 	row.name = "PlayerHealthRow"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", UiPalette.SPACE_S)
+	# UR-06: SPACE_S is the HBoxContainer theme default (ui_theme.gd
+	# _build_containers()) -- no override needed.
 	pill.add_child(row)
 
 	# Fixed glyph/short header (BRIEF item 3): identifies this field without
@@ -499,7 +530,7 @@ func _build_tower_health_field() -> Control:
 	field.name = "TowerHealthField"
 	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	field.alignment = BoxContainer.ALIGNMENT_CENTER
-	field.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	field.theme_type_variation = UiTheme.vbox("XS") # UR-06
 
 	var pill := _make_pill("TowerHealthPill", Control.MOUSE_FILTER_IGNORE)
 	field.add_child(pill)
@@ -508,13 +539,13 @@ func _build_tower_health_field() -> Control:
 	inner.name = "TowerHealthInner"
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.alignment = BoxContainer.ALIGNMENT_CENTER
-	inner.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	inner.theme_type_variation = UiTheme.vbox("XS") # UR-06
 	pill.add_child(inner)
 
 	var bar_row := HBoxContainer.new()
 	bar_row.name = "TowerHealthBarRow"
 	bar_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar_row.add_theme_constant_override("separation", UiPalette.SPACE_S)
+	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 	inner.add_child(bar_row)
 
 	_tower_glyph_label = _new_hud_label("TowerHealthGlyph", UiTheme.SMALL, GLYPH_LONG_MIN_WIDTH)
@@ -533,18 +564,36 @@ func _build_tower_health_field() -> Control:
 	wave_row.name = "WaveRow"
 	wave_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wave_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	wave_row.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	wave_row.theme_type_variation = UiTheme.hbox("XS") # UR-06
+	# UI-pass round 2 (HUD polish): TowerHealthInner is a VBoxContainer, so
+	# WaveRow -- like any of its children -- fills its FULL cross-axis width
+	# by default (matching TowerHealthBarRow's own width, ~440px), not its
+	# own minimum content width. With both children below carrying
+	# SIZE_EXPAND_FILL (required by docs/19's container rule so they can
+	# still grow under pseudo-localization), that leftover width was split
+	# between the caption and the value, opening a ~100px gap between "Wave"
+	# and its digits instead of the two sitting together. SHRINK_CENTER
+	# keeps WaveRow at its own true minimum size, centred in the space above
+	# -- no leftover left for the children to be pushed apart by.
+	wave_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	inner.add_child(wave_row)
 
 	# UI pass: caption (dim) + number (value) pair -- see _refresh_tower_
 	# health() for why the word and the digits now live in two labels.
-	_wave_caption_label = _new_hud_label("WaveCaptionLabel", UiTheme.DIM, CAPTION_WAVE_MIN_WIDTH)
+	# UI-pass round 2: the caption is RIGHT-aligned within its own
+	# (deliberately generous, pseudo-localization-sized) box, so its text
+	# sits flush against the value that follows rather than floating in
+	# whatever blank space the box's extra width leaves -- see
+	# _new_hud_label()'s `alignment` parameter.
+	_wave_caption_label = _new_hud_label("WaveCaptionLabel", UiTheme.DIM, CAPTION_WAVE_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	wave_row.add_child(_wave_caption_label)
 
 	_wave_label = Label.new()
 	_wave_label.name = "WaveLabel"
 	_wave_label.theme_type_variation = UiTheme.VALUE
-	_wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# UI-pass round 2: left-aligned (the Label default), not centred -- so
+	# the digits sit flush against the caption immediately to their left,
+	# matching the Level/Rerolls value labels below.
 	# docs/19 > "UI Layout & Dynamic Container Rules": autowrap + expand-fill
 	# so this label GROWS under pseudo-localization instead of truncating.
 	_wave_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -563,7 +612,7 @@ func _build_scrap_field() -> Control:
 	# mouse hover for ScrapValueLabel's custom focus tooltip. The pill and
 	# its inner row below stay PASS too, for the same reason.
 	field.mouse_filter = Control.MOUSE_FILTER_PASS
-	field.add_theme_constant_override("separation", UiPalette.SPACE_S)
+	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 
 	var pill := _make_pill("ScrapPill", Control.MOUSE_FILTER_PASS)
 	field.add_child(pill)
@@ -571,7 +620,7 @@ func _build_scrap_field() -> Control:
 	var row := HBoxContainer.new()
 	row.name = "ScrapRow"
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
-	row.add_theme_constant_override("separation", UiPalette.SPACE_S)
+	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 	pill.add_child(row)
 
 	_scrap_glyph_label = _new_hud_label("ScrapGlyph", UiTheme.SMALL, GLYPH_LONG_MIN_WIDTH)
@@ -628,7 +677,7 @@ func _build_xp_field() -> Control:
 	var field := VBoxContainer.new()
 	field.name = "XpField"
 	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	field.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	field.theme_type_variation = UiTheme.vbox("XS") # UR-06
 
 	var pill := _make_pill("XpPill", Control.MOUSE_FILTER_IGNORE)
 	field.add_child(pill)
@@ -636,13 +685,13 @@ func _build_xp_field() -> Control:
 	var inner := VBoxContainer.new()
 	inner.name = "XpInner"
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inner.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	inner.theme_type_variation = UiTheme.vbox("XS") # UR-06
 	pill.add_child(inner)
 
 	var bar_row := HBoxContainer.new()
 	bar_row.name = "XpBarRow"
 	bar_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar_row.add_theme_constant_override("separation", UiPalette.SPACE_S)
+	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 	inner.add_child(bar_row)
 
 	_xp_glyph_label = _new_hud_label("XpGlyph", UiTheme.SMALL, GLYPH_SHORT_MIN_WIDTH)
@@ -657,7 +706,7 @@ func _build_xp_field() -> Control:
 	var info_row := HBoxContainer.new()
 	info_row.name = "XpInfoRow"
 	info_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	info_row.add_theme_constant_override("separation", UiPalette.SPACE_L)
+	info_row.theme_type_variation = UiTheme.hbox("L") # UR-06
 	info_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	inner.add_child(info_row)
 
@@ -667,10 +716,13 @@ func _build_xp_field() -> Control:
 	var level_group := HBoxContainer.new()
 	level_group.name = "LevelGroup"
 	level_group.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	level_group.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	level_group.theme_type_variation = UiTheme.hbox("XS") # UR-06
 	info_row.add_child(level_group)
 
-	_level_caption_label = _new_hud_label("LevelCaptionLabel", UiTheme.DIM, CAPTION_LEVEL_MIN_WIDTH)
+	# UI-pass round 2: RIGHT-aligned, same reason as WaveCaptionLabel above --
+	# keeps the caption flush against its value instead of floating inside
+	# its own (pseudo-localization-sized) box.
+	_level_caption_label = _new_hud_label("LevelCaptionLabel", UiTheme.DIM, CAPTION_LEVEL_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	level_group.add_child(_level_caption_label)
 
 	_level_label = Label.new()
@@ -685,10 +737,11 @@ func _build_xp_field() -> Control:
 	var rerolls_group := HBoxContainer.new()
 	rerolls_group.name = "RerollsGroup"
 	rerolls_group.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rerolls_group.add_theme_constant_override("separation", UiPalette.SPACE_XS)
+	rerolls_group.theme_type_variation = UiTheme.hbox("XS") # UR-06
 	info_row.add_child(rerolls_group)
 
-	_rerolls_caption_label = _new_hud_label("RerollsCaptionLabel", UiTheme.DIM, CAPTION_REROLLS_MIN_WIDTH)
+	# UI-pass round 2: RIGHT-aligned, same reason as the other two captions.
+	_rerolls_caption_label = _new_hud_label("RerollsCaptionLabel", UiTheme.DIM, CAPTION_REROLLS_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	rerolls_group.add_child(_rerolls_caption_label)
 
 	_rerolls_label = Label.new()

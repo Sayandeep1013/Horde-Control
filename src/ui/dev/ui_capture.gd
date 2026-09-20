@@ -11,7 +11,11 @@ extends Node
 ## injected into `project.godot` and no listener is opened.
 ##
 ##   Godot_v4.7.1-stable_win64_console.exe --path . --resolution 1920x1080 \
-##       res://src/ui/dev/ui_capture.tscn -- --out=<absolute dir> [--pseudo]
+##       res://src/ui/dev/ui_capture.tscn -- --out=<absolute dir> [--pseudo] ##       [--size=1920x1080]
+##
+## `--size` makes the window borderless at exactly that client size. Without
+## it the desktop clamps a decorated 1920x1080 window to its work area
+## (FAILURE_POINTS UP-05: 1875x1055 on the capture machine).
 ##
 ## It reaches into a few private members (`_run_inventory`, `_end_run`)
 ## to stage states that otherwise take minutes of play. That is acceptable
@@ -25,9 +29,18 @@ var _proto: Node = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# A capture run is looked at, never listened to; several may run at once.
+	AudioServer.set_bus_mute(AudioServer.get_bus_index(&"Master"), true)
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--out="):
 			_out_dir = arg.trim_prefix("--out=")
+		elif arg.begins_with("--size="):
+			var parts: PackedStringArray = arg.trim_prefix("--size=").split("x")
+			if parts.size() == 2:
+				var window: Window = get_window()
+				window.borderless = true
+				window.size = Vector2i(int(parts[0]), int(parts[1]))
+				window.position = DisplayServer.screen_get_position(window.current_screen)
 		elif arg == "--pseudo":
 			TranslationServer.set_pseudolocalization_enabled(true)
 			TranslationServer.reload_pseudolocalization()
@@ -49,7 +62,12 @@ func _run() -> void:
 
 	var draft: DraftController = _proto.get_node("DraftInstance") as DraftController
 	draft.force_open_for_test(false)
-	await _frames(45)
+	# The Draft ignores hover until its real-time input lockout has elapsed,
+	# and a fixed frame count is a different wall time at every frame rate:
+	# two resolutions once highlighted two different cards. Wait on the clock.
+	var opened_msec: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - opened_msec < 700:
+		await get_tree().process_frame
 	draft.simulate_hover_for_test(1)
 	await _frames(20)
 	await _shot("02_draft")
@@ -78,6 +96,8 @@ func _run() -> void:
 
 	await _stage_console()
 	await _shot("05_console")
+
+	await _stage_threat_feedback()
 
 	flow._end_run(flow.EndCause.TOWER_DESTROYED)
 	await _frames(40)
@@ -117,11 +137,65 @@ func _stage_console() -> void:
 	await _frames(15)
 	print("ui_capture: console open=%s paused=%s requires_reentry=%s scrap=%d pause_reasons=%s" % [
 		console.is_open(), console.get_paused_for_test(), console.get_requires_reentry_for_test(),
-		console.get_scrap_current_for_test(), str(PauseAuthority.get("_reasons"))])
+		console.get_scrap_current_for_test(), str(PauseAuthority.get_active_reasons())])
 	print("ui_capture: console inside=%s velocity=%s affordable=%s driven_externally=%s dead=%s dist=%.0f" % [
 		console._interaction_radius.is_player_inside() if console._interaction_radius != null else "no-radius",
 		player.velocity, console._has_any_affordable_entry(), console.driven_externally,
 		console._player_is_dead, player.global_position.distance_to(tower.global_position)])
+
+
+## Threat feedback is drawn only while the Tower is taking damage, so it is
+## staged by emitting the Tower Hurtbox's own `damage_received` - the signal
+## both ThreatFeedback and TowerHealth listen to - with a stand-in attacker
+## east of the Tower. Three frames: the vignette with the Tower on screen,
+## the off-screen indicator (circle + hit arc), and the same indicator once
+## Tower health is under ThreatFeedback.LOW_HEALTH_FRACTION (diamond).
+func _stage_threat_feedback() -> void:
+	var overlay: ThreatFeedback = _proto.get_node("ThreatFeedbackLayer/Overlay") as ThreatFeedback
+	var tower: Tower = _proto.get_node("Main/Tower") as Tower
+	var player: Player = _proto.get_node("Main/Player") as Player
+	var hurtbox: Node = tower.find_child("Hurtbox", true, false)
+	var health: TowerHealth = tower.find_child("TowerHealth", true, false) as TowerHealth
+	if overlay == null or hurtbox == null or health == null:
+		print("ui_capture: WARNING threat feedback could not be staged (overlay=%s hurtbox=%s health=%s); no frame taken" % [overlay, hurtbox, health])
+		return
+	var attacker := Node2D.new()
+	_proto.add_child(attacker)
+	attacker.global_position = tower.global_position + Vector2(400, 0)
+	var max_health: float = health.get_current_health()
+
+	# Out of the Interaction Radius so the Console closes, Tower still on screen.
+	for i in 90:
+		player.global_position = tower.global_position + Vector2(-420, 260)
+		player.velocity = Vector2.ZERO
+		await get_tree().physics_frame
+	hurtbox.emit_signal(&"damage_received", max_health * 0.1, attacker, attacker)
+	await _frames(6)
+	print("ui_capture: threat on-screen=%s intensity=%.2f segment=%d" % [overlay.is_tower_on_screen(), overlay.get_display_intensity(), overlay.get_active_segment_index()])
+	await _shot("07_threat_vignette")
+
+	var camera: GameCamera = _proto.get_node("Main/Player/GameCamera") as GameCamera
+	for i in 40:
+		player.global_position = tower.global_position + Vector2(-1500, -700)
+		player.velocity = Vector2.ZERO
+		camera.snap_to(player.global_position) # skip the follow smoothing
+		await get_tree().physics_frame
+	hurtbox.emit_signal(&"damage_received", max_health * 0.1, attacker, attacker)
+	await _frames(6)
+	print("ui_capture: threat on-screen=%s indicator=%s shape=%s arc=%s" % [overlay.is_tower_on_screen(), overlay.is_showing_offscreen_indicator(), overlay.get_indicator_shape(), overlay.has_recent_hit_arc()])
+	await _shot("08_threat_offscreen")
+
+	# The shield absorbs part of every hit, so step down until health is
+	# under the low-health line rather than computing one exact amount.
+	for i in 20:
+		if health.get_current_health() < max_health * ThreatFeedback.LOW_HEALTH_FRACTION * 0.9:
+			break
+		hurtbox.emit_signal(&"damage_received", max_health * 0.1, attacker, attacker)
+		await _frames(2)
+	await _frames(6)
+	print("ui_capture: threat low-health=%s shape=%s tower_health=%.0f/%.0f" % [overlay.is_indicator_low_health(), overlay.get_indicator_shape(), health.get_current_health(), max_health])
+	await _shot("09_threat_low_health")
+	attacker.queue_free()
 
 
 func _press_action(action: StringName) -> void:

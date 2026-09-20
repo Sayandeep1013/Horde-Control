@@ -88,7 +88,19 @@ var _frame: MenuFrame.Parts
 var _outcome_glyph: OutcomeGlyph
 var _wave_cell: PanelContainer ## the Wave stat cell; kept in sync with _wave_label's own visibility (UI pass) -- see show_summary(). A cell with no visible child sizes to ~0 in the grid rather than leaving an empty panel.
 
-const STAT_CELL_MIN_WIDTH: float = 220.0 ## TODO(ui-pass): promote to UiPalette as a shared stat-grid cell width token
+## Round 2 (LEDGER UR-14): 220 was measured too tight for the widest cell.
+## "Time survived: 0:03" (the shortest, most common time reading) alone
+## measured 221 px against the real UiTheme.VALUE font (`Font.get_string_size`,
+## checked directly for this pass) -- already past the ~212 px a 220 px cell
+## left after its own UiTheme.ROW content margins, which is exactly why it
+## wrapped to two lines while "Scrap held: 150" (177 px) fit on one, so the
+## two cells' baselines did not line up. 320 clears every plausible value
+## checked the same way ("Time survived: 99:59" 236 px, "Wave reached: 8/8"
+## 218 px, "Scrap held: 200" 181 px) with headroom left for the outline
+## stroke and for pseudo-localization inflating the tr()'d prefix word
+## (F2, docs/19: strings render roughly 30% longer, bracket-wrapped) --
+## verified against the capture tool's --pseudo set, see the package report.
+const STAT_CELL_MIN_WIDTH: float = 320.0 ## TODO(ui-pass): promote to UiPalette as a shared stat-grid cell width token
 
 
 func _ready() -> void:
@@ -186,18 +198,20 @@ static func _format_time(total_seconds: float) -> String:
 
 
 func _build_ui() -> void:
+	UiStrings.ensure_registered() # UI pass round 2, UR-08: explicit here, not only reached as UiTheme.get_theme()'s side effect.
 	# 0.75 is deeper than the Draft's 60%: the run is over, not merely
 	# paused mid-play -- named as an interpretation, not a Register-restated
-	# figure. UiPalette.SPACE_L (16) is an exact match for this file's own
-	# former literal separation (16); no value change here.
-	_frame = MenuFrame.build(self, 0.75, UiPalette.SPACE_L)
+	# figure. UiTheme.vbox("L") (UiPalette.SPACE_L, 16) is an exact match
+	# for this file's own former literal separation (16); no value change
+	# here.
+	_frame = MenuFrame.build(self, 0.75, "L")
 	_root = _frame.root
 
 	var title_row := HBoxContainer.new()
 	title_row.name = "TitleRow"
 	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	title_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_row.add_theme_constant_override("separation", UiPalette.SPACE_M)
+	title_row.theme_type_variation = UiTheme.hbox("M")
 	_frame.column.add_child(title_row)
 
 	_outcome_glyph = OutcomeGlyph.new()
@@ -215,7 +229,7 @@ func _build_ui() -> void:
 	var grid := HBoxContainer.new()
 	grid.name = "StatGrid"
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("separation", UiPalette.SPACE_L)
+	grid.theme_type_variation = UiTheme.hbox("L")
 	_frame.column.add_child(grid)
 
 	# Follow-up (coordinator review): the sibling captions an earlier

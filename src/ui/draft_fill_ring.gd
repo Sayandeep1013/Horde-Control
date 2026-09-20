@@ -32,6 +32,19 @@ class_name DraftFillRing
 ## way of faking one. `antialiased = true` was already passed to
 ## `draw_arc()` before this pass; kept, and matched on the new
 ## `draw_circle()` calls.
+##
+## ## Round 2 (review), UR-03
+## `center_glyph` (a plain string) stays working exactly as it did for any
+## caller that already sets it, but nothing in this project sets it any
+## more: the one caller, DraftController, drew "▲" through it, and that
+## character is not in the shipped font either (`Font.has_char()` false for
+## U+25B2 against the shipped font (UiPalette.FONT_PATH; false for Pixelify Sans and for Jersey 10), checked
+## directly for this pass). `center_shape` is the additive replacement --
+## an int (`UiShapeGlyph.Shape` value, or -1 for "draw nothing"), drawn with
+## the same `UiShapeGlyph.draw_shape()` geometry the Draft cards' own
+## Player/Tower glyphs use. Defaults to -1, so `src/run/paused_choice_bar.gd`
+## and the pause/settings/run-end menus (via `menu_frame.gd`), none of which
+## set either property, keep rendering exactly as before.
 
 var progress: float = 0.0:
 	set(value):
@@ -49,15 +62,25 @@ var progress: float = 0.0:
 ## Empty (the default) draws nothing -- every existing caller that never set
 ## this keeps its previous, glyph-less look.
 @export var center_glyph: String = ""
+## Optional shape drawn at the ring's centre instead of `center_glyph` text
+## (Round 2, UR-03 -- see class header). A `UiShapeGlyph.Shape` value; -1
+## (the default) draws nothing. Takes priority over `center_glyph` when
+## both are set, but no caller sets both.
+@export var center_shape: int = -1
 
-## No UiPalette token covers a ring's stroke width or its under-stroke's
-## extra margin -- both are specific to this one custom-drawn widget, not a
-## reusable spacing/colour concept. TODO(ui-pass): promote to UiPalette if
-## another custom-drawn ring ever needs the same numbers.
+## No UiPalette token covers a ring's stroke width, its under-stroke's extra
+## margin, or its centre shape's own size fraction -- all specific to this
+## one custom-drawn widget, not a reusable spacing/colour concept.
+## TODO(ui-pass): promote to UiPalette if another custom-drawn ring ever
+## needs the same numbers.
 const DEFAULT_RING_WIDTH: float = 6.0
 const UNDER_STROKE_MARGIN: float = 2.0
 const UNDER_STROKE_COLOR: Color = UiPalette.INK
 const ARC_POINTS: int = 48
+## Fraction of the inner radius (`r`) the centre shape's bounding square
+## spans -- small enough that the square's corners (its widest points, at
+## `side * sqrt(2) / 2`) stay clear of the ring stroke drawn at radius `r`.
+const CENTER_SHAPE_SIDE_FRACTION: float = 0.9
 
 
 func _ready() -> void:
@@ -85,7 +108,9 @@ func _draw() -> void:
 		_draw_round_cap(center, r, start_angle)
 		_draw_round_cap(center, r, end_angle)
 
-	if center_glyph != "":
+	if center_shape >= 0:
+		_draw_center_shape(center, r)
+	elif center_glyph != "":
 		_draw_center_glyph(center, r)
 
 
@@ -105,6 +130,16 @@ func _draw_center_glyph(center: Vector2, r: float) -> void:
 	var baseline: Vector2 = center + Vector2(-glyph_size.x * 0.5, glyph_size.y * 0.35)
 	var color: Color = ring_color if progress > 0.0 else track_color
 	draw_string(font, baseline, center_glyph, HORIZONTAL_ALIGNMENT_CENTER, -1.0, font_size, color)
+
+
+## Round 2, UR-03. Same geometry `UiShapeGlyph.draw_shape()` gives the Draft
+## cards' own Player/Tower glyphs, sized off this ring's own inner radius
+## rather than a font's string metrics (there is no font involved).
+func _draw_center_shape(center: Vector2, r: float) -> void:
+	var side: float = r * CENTER_SHAPE_SIDE_FRACTION
+	var rect := Rect2(center - Vector2(side, side) * 0.5, Vector2(side, side))
+	var color: Color = ring_color if progress > 0.0 else track_color
+	UiShapeGlyph.draw_shape(self, center_shape as UiShapeGlyph.Shape, rect, color)
 
 
 func reset() -> void:

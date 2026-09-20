@@ -79,8 +79,15 @@ func get_underline_rect() -> Rect2:
 	var option: Control = _bar.get_child(_highlighted) as Control
 	if option == null or option.is_queued_for_deletion():
 		return Rect2()
-	# Mapped through the transforms rather than subtracting global positions,
-	# so the underline stays aligned while the card's cosmetic open tween is
-	# still scaling both controls.
-	var left: float = (get_global_transform().affine_inverse() * option.get_global_transform().origin).x
-	return Rect2(left, 0.0, option.size.x, UNDERLINE_HEIGHT)
+	# Both ends of the option's rect are mapped through the SAME
+	# option-to-row transform (round 2, UR-12), rather than pairing a
+	# transformed left edge with the option's raw, untransformed
+	# `size.x`. The two land on the same answer only while row and the
+	# option share exactly one common scaled ancestor and nothing else in
+	# either chain is scaled -- true of the menu card's own open tween
+	# today, but not guaranteed in general, and not what the code visibly
+	# said. This stays correct under any relative scale between the two.
+	var to_row: Transform2D = get_global_transform().affine_inverse() * option.get_global_transform()
+	var left_point: Vector2 = to_row * Vector2.ZERO
+	var right_point: Vector2 = to_row * Vector2(option.size.x, 0.0)
+	return Rect2(left_point.x, 0.0, right_point.x - left_point.x, UNDERLINE_HEIGHT)
