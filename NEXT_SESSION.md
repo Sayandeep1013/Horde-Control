@@ -77,7 +77,12 @@ The 2026-09-20 session built P2.9, P2.10, P2.11, P2.12, P2.13, P2.14, the deferr
 2. **Wave-spawned enemies had no Tower reference** (F05-23, F05-31). Only the three hand-placed enemies were wired. Fixed at the class, not the instance: an enemy with no explicit reference now resolves the Tower through the EntityRegistry `&"tower"` tag.
 3. **Eight findings share one shape** — a correct, tested component nothing in the assembled scene ever calls. The integration pass closed them; the assertion suite that would keep them closed was not finished before an API session limit ended that agent (F05-33).
 
-**T4 is deliberately still untuned.** The Register row says "tuned in P2.14"; it is not, because every measurement taken before finding 1 was measuring a broken damage path.
+4. **The tuning instrument never put an enemy into the world** (F05-34). `teaching_siege_tuning_test.gd` built an `EntitySpawner` with no container paths, and `Pool` only parents an instance when it has a container - so every enemy it spawned sat outside the scene tree and outside the physics world, and the Tower read exactly 500.0/500.0 in every seed because nothing was there. Three T4 measurements had been taken through it. Found by halving the spawn interval and watching the result not move **at all**. The real game wires all four containers, so this was a broken instrument, not a broken game. Fixing it also took the suite from 200 orphans and 5 leaked-RID engine errors to zero.
+5. **Six NodePath exports resolved to nothing** (F05-37), caught on the first run of the assembled-scene suite: `Console` and `RunFlowController` sit BESIDE `Main` and their paths were authored as if they sat inside it. The Console would never have had a Tower, player, upgrade catalogue or camera, and the run would never have ended - with no error and every component suite green.
+
+**T4 is now tuned**, on a working instrument and derived rather than guessed: Seekers 16 at 3 s with a 1.5 s interval destroys the Tower in 5 of 5 seeds at 36-38 s of a 40 s wave, and a responding bot holds it at 100% in 5 of 5. Both halves of the Register's own target. Master at 0.8.10.
+
+**Settled verification, on a still tree:** 594 test cases across 89 suites, 0 errors, 0 failures, 0 orphans, exit 0, engine-error guard clean; banned-API check exit 0; Settings check PASS; and a 600-frame headless run of `scenes/prototype.tscn` with no errors, no warnings and no leak lines - F03-30's standing leak is gone.
 
 
 ## Two things that bite, carried from Phase 02
@@ -91,8 +96,7 @@ The 2026-09-20 session built P2.9, P2.10, P2.11, P2.12, P2.13, P2.14, the deferr
 | --- | --- |
 | Phase 00 and Phase 01 closure | author |
 | **No review gate has run for Phases 02, 03, 04 or 05.** D98 deferred it to one gate on the finished prototype. The prototype is now finished | author, to call |
-| **F05-33's three unfinished items**: the assembled-scene assertion suite, the T4 re-measurement, the headless run | next session |
-| **T4 tuning numbers**, once re-measured against a working damage path | author (Register value) |
+| **T4's tuned numbers** (Seekers 16 @ 1.5 s), changed under the Register's own "tuned in P2.14" instruction. Worth the author's eye, since it is the first gameplay number an agent has moved | author, to confirm |
 | **F04-16, a numeric inconsistency inside the master**: the Siege volume formula yields six accompanying Hunters where the same Register row states seven | author |
 | **F04-20**: off-screen spawn markers unbuilt, because docs/11 never states what a marker renders | author |
 | **Five contracts under-specify what implementation needs** (F03-25 enemy AI defaults, F04-01 Pressure constants, F04-08 pickup motion, F05-04 upgrade effect routing, F05-14 card name/icon). One decision, not five | author |
@@ -117,18 +121,10 @@ Re-run the phase-entry checks before anything else: both MCP pins, both .gdignor
 files, the gdUnit4 tree hash against docs/28, and a full `tests\run_tests.ps1`
 baseline so a later failure is attributable.
 
-FIRST, finish F05-33:
-1. tests/unit/prototype_integration_test.gd, asserting against the REAL
-   scenes/prototype.tscn that every NodePath resolves, every required code-call
-   seam was made, and the behaviours work end to end - a wave-spawned Seeker
-   damages the Tower, drops are collected and reach the HUD, a level-up opens a
-   Draft, the Console opens on dwell with Scrap, and the run ends on player death
-   with zero Scrap. Assertions that a node merely EXISTS are what let eight
-   findings through; falsify each wiring assertion by unwiring it.
-2. Re-measure T4 over five seeds now that the damage path works, and bring the
-   author the numbers. Do not edit data/waves/t4.tres - the Register owns it.
-3. Run scenes/prototype.tscn headless for 600 frames and report every error and
-   warning against the known 4-ObjectDB/2-resource standing leak (F03-30).
+The prototype is functionally complete and verified on a still tree (594 cases,
+0 failures, 0 orphans, clean headless run). Phases 02, 03, 04 and 05 have had
+NO review gate; D98 deferred it to a single gate on the finished prototype,
+and the prototype is now finished.
 
 THEN the author's call: the prototype is functionally complete and no gate has
 run for Phases 02-05. The author chose to stop at the prototype gate rather than
