@@ -33,7 +33,9 @@ class_name DeathState
 ##       becomes World + ArenaBounds only (CollisionLayers.DYING_BODY_MASK).
 ##    f. `EntityRegistry.set_entity_alive(entity, false)` -- see "The
 ##       set_entity_alive seam" below.
-##    g. `EventBus.emit_enemy_died(entity, position)`.
+##    g. `EventBus.emit_player_died(entity, position)` if this death belongs
+##       to the player, else `EventBus.emit_enemy_died(entity, position)` --
+##       see "Which EventBus signal (LEDGER F03-06)" below.
 ##    h. This node's own `logical_death` signal, for any local listener
 ##       (the placeholder enemy's animation, once one exists).
 ## 4. Visual Death: `_physics_process` polls `SimClock.now` against a
@@ -90,6 +92,33 @@ class_name DeathState
 ## against actual live entities") needs exactly this: an enemy mid-Visual-
 ## Death must stop counting toward a wave's live-enemy total immediately,
 ## not wait for its Visual Death animation to finish and get pooled.
+##
+## ## Which EventBus signal (LEDGER F03-06)
+## This component is shared, unmodified, by every entity with a health pool
+## in this codebase -- the player (`scenes/player.tscn`), every enemy
+## (`scenes/entities/*.tscn`), and, via `tower_health.gd`'s own
+## `_death_state.apply_damage()` forwarding call (see that file's header,
+## "the double-damage problem"), the Tower. Before this fix,
+## `_enter_logical_death()` called `EventBus.emit_enemy_died()`
+## unconditionally, so the PLAYER's own death was broadcast as an enemy
+## kill -- a real defect the instant anything listens for a kill count, a
+## wave-completion condition, or the Run Recorder. Fixed by
+## `_is_player_entity()` below, which asks EntityRegistry -- a read-only
+## query (docs/20 > "Communication, queries"), never a new field on this
+## file or a change to any scene -- whether `_registry_entity` carries the
+## `&"player"` tag `src/player/player.gd` already registers itself under.
+## Only a positive "yes, this is the player" match switches the emission to
+## `EventBus.emit_player_died()`; every other case (a real enemy, an entity
+## never registered at all -- every fixture in this file's own test suite
+## before this fix -- or any future entity kind this query cannot identify
+## as the player) keeps emitting `emit_enemy_died()` exactly as before. This
+## is a narrow, additive carve-out for the player specifically, not a
+## general entity-kind switch: the Tower's own death (reached through
+## `tower_health.gd`'s forwarding call) is not tagged `&"player"` either, so
+## it still emits `enemy_died` -- an existing mislabelling this fix does not
+## widen, and not something this task's brief (F03-06 names the player
+## specifically) asked it to close. Named here, not silently left
+## undiscovered, for whoever next revisits EventBus's death signals.
 
 signal logical_death(entity: Node2D, position: Vector2)
 signal visual_death_finished(entity: Node2D)
@@ -205,7 +234,10 @@ func _enter_logical_death() -> void:
 	if _registry_entity != null and _registry != null and _registry.is_registered(_registry_entity):
 		_registry.set_entity_alive(_registry_entity, false) # header step 3f / "The set_entity_alive seam"
 	if _event_bus != null:
-		_event_bus.emit_enemy_died(_registry_entity, death_position) # header step 3g
+		if _is_player_entity(): # header step 3g / "Which EventBus signal (LEDGER F03-06)"
+			_event_bus.emit_player_died(_registry_entity, death_position)
+		else:
+			_event_bus.emit_enemy_died(_registry_entity, death_position)
 
 	logical_death.emit(_registry_entity, death_position) # header step 3h
 
@@ -220,6 +252,25 @@ func _physics_process(_delta: float) -> void:
 	if SimClock.now >= _visual_death_deadline:
 		set_physics_process(false)
 		visual_death_finished.emit(_registry_entity)
+
+
+## LEDGER F03-06: see this file's header, "Which EventBus signal." A
+## read-only EntityRegistry query (docs/20 > "Communication, queries"),
+## never a mutation and never a new exported field this component's own
+## scene(s) would have to set -- `src/player/player.gd` already registers
+## itself under `&"player"` in its own `_ready()`, so this needs no change
+## to player.gd, its scene, or any enemy scene to work. Returns false (the
+## original, unconditional emit_enemy_died() path) for anything this query
+## cannot positively identify as the player: an unregistered entity
+## (including every fixture `tests/unit/death_state_test.gd` already
+## builds), a real enemy, or the Tower.
+func _is_player_entity() -> bool:
+	if _registry_entity == null or _registry == null:
+		return false
+	if not _registry.is_registered(_registry_entity):
+		return false
+	var tags: Array[StringName] = _registry.get_tags(_registry_entity)
+	return tags.has(&"player")
 
 
 ## Test-only / future-caller convenience: forces death without a hurtbox hit

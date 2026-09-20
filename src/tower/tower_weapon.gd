@@ -81,6 +81,22 @@ var _fire_interval_seconds: float = 0.0
 var _projectile_speed: float = 0.0
 var _projectile_lifetime_seconds: float = 0.0
 
+## P2.11 modifier layer (src/upgrade/upgrade_system.gd). Same contract as
+## auto_weapon.gd's own `_damage_multiplier` field comment: `_range_px` and
+## `_damage_per_shot` above stay exactly what configure() derived from
+## `weapon`/`range_px` (data/tower/base_weapon.tres, data/tower/base.tres'
+## targeting_rule_parameters -- both owned by P2.4, never mutated here);
+## only these two multipliers change, combined with the base at the point
+## of use via get_effective_damage_per_shot() / get_effective_range_px().
+## MASTER_SDLC.md > Progression Edge Cases > "Percentage bonuses to the same
+## stat stack" (C-STACK): each multiplier is the ONE already-summed
+## `(1 + sum of bonuses)` value src/upgrade/upgrade_system.gd computes from
+## Caliber's/Optics's current shared rank -- this file never sums bonuses
+## itself and never compounds repeated calls (each REPLACES, not multiplies
+## again).
+var _damage_multiplier: float = 1.0
+var _range_multiplier: float = 1.0
+
 var _origin: Node2D = null
 var _current_target: Node2D = null
 var _next_fire_allowed_at: float = 0.0
@@ -182,6 +198,54 @@ func get_current_target() -> Node2D:
 	return _current_target
 
 
+## Typed command (P2.11 modifier layer; see this file's `_damage_multiplier`
+## field comment). `multiplier` is the ONE already-summed `(1 + sum of
+## bonuses)` value (C-STACK) -- REPLACES the previous multiplier, never
+## compounds against it.
+func set_damage_multiplier(multiplier: float) -> void:
+	_damage_multiplier = multiplier
+
+
+## Typed command (P2.11 modifier layer). Same replace-not-compound contract,
+## applied to targeting range instead of damage (Optics).
+func set_range_multiplier(multiplier: float) -> void:
+	_range_multiplier = multiplier
+
+
+## Typed query: the base per-shot damage (from `weapon`) times the
+## currently-applied upgrade multiplier.
+func get_effective_damage_per_shot() -> float:
+	return _damage_per_shot * _damage_multiplier
+
+
+## Typed query: the base targeting range (from `range_px`) times the
+## currently-applied upgrade multiplier. Used by _retarget_if_needed()'s two
+## EntityRegistry range queries so Optics affects both acquisition and
+## retention of a target identically.
+func get_effective_range_px() -> float:
+	return _range_px * _range_multiplier
+
+
+func get_damage_multiplier_for_test() -> float:
+	return _damage_multiplier
+
+
+func get_range_multiplier_for_test() -> float:
+	return _range_multiplier
+
+
+## Integration task -- mirrors src/combat/auto_weapon.gd's own
+## `get_effective_sheet_dps()` exactly (see that file's comment for the
+## full reasoning: CombatStats never learns about a Caliber rank once
+## reported at configure() time, since `set_damage_multiplier()` does not
+## re-report). No fire-rate multiplier exists on this weapon (Optics
+## affects range, Caliber affects damage; "no Tower upgrade changes fire
+## rate," per `_fire_interval_seconds`'s own comment a few lines above), so
+## this reads the unmodified base interval directly.
+func get_effective_sheet_dps() -> float:
+	return get_effective_damage_per_shot() / _fire_interval_seconds if _fire_interval_seconds > 0.0 else 0.0
+
+
 func _physics_process(_delta: float) -> void:
 	if not _configured or _origin == null:
 		return
@@ -191,7 +255,7 @@ func _physics_process(_delta: float) -> void:
 	if _now() < _next_fire_allowed_at:
 		return
 	_fire_at(_current_target)
-	_next_fire_allowed_at = _now() + _fire_interval_seconds
+	_next_fire_allowed_at = _now() + _fire_interval_seconds # Register/prototype pool: no Tower upgrade changes fire rate; only damage (Caliber) and range (Optics) do
 
 
 ## C-TOWERTARGET, transcribed in full in this file's header. Order-
@@ -199,8 +263,9 @@ func _physics_process(_delta: float) -> void:
 ## membership in `seekers_in_range` / `enemies_in_range` drives the result.
 func _retarget_if_needed() -> void:
 	var origin_pos: Vector2 = _origin.global_position
-	var seekers_in_range: Array[Node2D] = _registry.get_entities_in_radius(origin_pos, _range_px, SEEKER_TAG)
-	var enemies_in_range: Array[Node2D] = _registry.get_entities_in_radius(origin_pos, _range_px, ENEMY_TAG)
+	var effective_range: float = get_effective_range_px()
+	var seekers_in_range: Array[Node2D] = _registry.get_entities_in_radius(origin_pos, effective_range, SEEKER_TAG)
+	var enemies_in_range: Array[Node2D] = _registry.get_entities_in_radius(origin_pos, effective_range, ENEMY_TAG)
 
 	# "a non-Seeker target is dropped on the tick a Seeker enters range"
 	if _current_target != null and not seekers_in_range.is_empty() and not seekers_in_range.has(_current_target):
@@ -245,7 +310,7 @@ func _fire_at(target: Node2D) -> void:
 		return # pool at cap under THROTTLE-equivalent conditions -- RECYCLE_OLDEST means this should not happen, but never crash if it does
 	# Projectile Orphans (docs/20): source resolved BY VALUE, never a live
 	# Node reference to this Tower -- see tower_projectile.gd's header.
-	projectile.launch(origin_pos, direction * _projectile_speed, _damage_per_shot, &"tower", _projectile_lifetime_seconds)
+	projectile.launch(origin_pos, direction * _projectile_speed, get_effective_damage_per_shot(), &"tower", _projectile_lifetime_seconds)
 	if _audio_pool != null and fire_sfx != null and _audio_pool.has_method("play"):
 		_audio_pool.play(fire_sfx, origin_pos, 0, false, "SFX")
 	fired.emit(_now())

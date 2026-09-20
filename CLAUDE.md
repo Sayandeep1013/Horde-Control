@@ -4,10 +4,10 @@
 Read `phases/README.md` first: the 20-phase execution table, the supervised review loop rules, and every phase's status. The phase in progress has its own folder (`phases/PHASE_NN_<Name>/`) with PLAN, EXECUTION_LOG, FAILURE_POINTS, REVIEW, and LEDGER. `NEXT_SESSION.md` holds the original prompts and the session-to-session state.
 
 ## What this project is
-A Godot 4.7.1 top-down 2D dual-entity survival roguelite: protect yourself and a central Tower at the same time. The Godot project skeleton exists (project.godot with the pinned settings, the 16 collision layers, the input map, a BootCheck autoload, and a Windows release export); no gameplay code exists yet.
+A Godot 4.7.1 top-down 2D dual-entity survival roguelite: protect yourself and a central Tower at the same time. The engine spine (Phase 02) and the playable prototype slice (Phase 03) exist and run: `scenes/prototype.tscn` is the scene a human launches - arena, Tower, player with an auto-targeting handgun, three enemy intents, the HUD, threat feedback, and the Wave Director running the eight-wave prototype sequence. The remaining prototype functionality - pickups and the run economy, the Pressure Metric, upgrades, the Level-Up Draft, the Tower Console and run flow - is Phases 04 and 05, in progress. Art is stand-in CC0 and gets its own session (decision D102).
 
 ## Source of truth
-- `MASTER_SDLC.md` (v0.8.7) — intent, rules, gates, Acceptance Test Matrix, Development Phase Map for Phases 0–2 (including E0.1 and E0.2), Provisional Values Register, Review Decision Log.
+- `MASTER_SDLC.md` (v0.8.9) — intent, rules, gates, Acceptance Test Matrix, Development Phase Map for Phases 0–2 (including E0.1 and E0.2), Provisional Values Register, Review Decision Log.
 - `docs/` — draft system documents: 09 Enemy AI, 11 Wave Director, 19 UI/UX, 20 Technical Architecture, 29 Milestones and Roadmap (Phases 3–4, Deferred Review Findings).
 - The master wins on intent; the Provisional Values Register wins on any numeric conflict.
 

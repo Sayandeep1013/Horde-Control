@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="PickupDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/merge_rule.gd" id="1_merge"]
+[ext_resource type="Script" path="res://src/data/visual_audio_cue.gd" id="2_visual"]
+[ext_resource type="Script" path="res://src/data/pickup_definition.gd" id="3_def"]
+
+; MASTER_SDLC.md > Provisional Values Register > Economy & Pickups >
+; "Pickup merge (C-MERGE)"; docs/20_Technical_Architecture.md Contract Field
+; Semantics > Pickup Definition Contract fields > "Merge rule" names these
+; three sub-fields as fixed text (trigger, resulting_behaviour) and a fixed
+; bool (same_type_only) -- not a per-pickup authored choice, so both
+; xp_shard.tres and scrap.tres carry the identical values here.
+[sub_resource type="Resource" id="Resource_merge"]
+script = ExtResource("1_merge")
+trigger = "at pickup cap"
+same_type_only = true
+resulting_behaviour = "sum into nearest same-type neighbour within radius, else expire oldest of that type"
+
+; sprite_reference: real asset, assets/third_party/kenney/pickups/pickup_xp.png
+; (confirmed on disk with a valid .import). audio_cue_id: NO REGISTER ROW --
+; escalated. No pickup-collect audio cue has been authored yet; this follows
+; the same PLACEHOLDER_cue_ convention data/enemies/*.tres already uses for
+; the same situation (an asset reference with nothing behind it yet, not a
+; gameplay number).
+[sub_resource type="Resource" id="Resource_visual"]
+script = ExtResource("2_visual")
+sprite_reference = "res://assets/third_party/kenney/pickups/pickup_xp.png"
+audio_cue_id = "PLACEHOLDER_cue_pickup_xp_collect"
+
+; value: MASTER_SDLC.md > "Experience (XP)" / > Provisional Values Register
+; > "XP & levels": "1 XP shard per standard enemy". magnet_behaviour = 0
+; (ContractEnums.MagnetBehaviour.Attracted) per Register > Economy &
+; Pickups > "Pickup Physics & Magnet Rules": every pickup in prototype
+; scope attracts; Static is a schema member with no prototype use.
+; lifetime_seconds: Register > Economy & Pickups > "Pickup lifetime": "60 s
+; simulation time with a 5 s blink".
+[resource]
+script = ExtResource("3_def")
+unique_id = "pickup_xp_shard"
+pickup_type = 0
+value = 1
+magnet_behaviour = 0
+merge_rule = SubResource("Resource_merge")
+lifetime_seconds = 60.0
+visual_audio_cue = SubResource("Resource_visual")

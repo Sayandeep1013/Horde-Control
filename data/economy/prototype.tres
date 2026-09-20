@@ -1,0 +1,93 @@
+[gd_resource type="Resource" script_class="EconomyConfiguration" format=3]
+
+[ext_resource type="Script" path="res://src/data/console_price_formula.gd" id="1_console"]
+[ext_resource type="Script" path="res://src/data/dominance_audit_parameters.gd" id="2_dominance"]
+[ext_resource type="Script" path="res://src/data/hopper_conversion_rule.gd" id="3_hopper"]
+[ext_resource type="Script" path="res://src/data/run_end_settlement_rates.gd" id="4_settlement"]
+[ext_resource type="Script" path="res://src/data/economy_configuration.gd" id="5_economy"]
+[ext_resource type="Script" path="res://src/data/xp_level_cost.gd" id="6_xp"]
+
+; The real prototype Economy Configuration (P2.10). The only pre-existing
+; sample, src/data/samples/economy_configuration_sample.tres, is deliberate
+; PLACEHOLDER junk per that file's own header/task brief -- every number
+; below is transcribed from MASTER_SDLC.md, cited per field, not copied
+; from that sample.
+
+; Register > Progression & Upgrades > "Console price": "30 Scrap x rank
+; being bought (30/60/90)".
+[sub_resource type="Resource" id="Resource_console"]
+script = ExtResource("1_console")
+scrap_per_rank = 30
+
+; Register > Economy & Pickups > "Economy dominance measure": "Across 10 or
+; more recorded runs, if either pool ... accounts for more than 65% of
+; ranks acquired, it dominates".
+[sub_resource type="Resource" id="Resource_dominance"]
+script = ExtResource("2_dominance")
+threshold_fraction = 0.65
+minimum_runs = 10
+
+; Register > Economy & Pickups > "Cores": "overflow hopper at the Tower ...
+; hopper converts to Cores at 10:1 when the player enters the Interaction
+; Radius" (also Currency Definitions & Flow, decision D5). Authored per the
+; Economy Configuration Contract's required field list even though the
+; prototype has no hopper to trigger it (Cores and the hopper are out of
+; P2.10's prototype scope, task brief) -- see the P2.10 evidence report,
+; "Escalations", for why this is authored rather than left null.
+[sub_resource type="Resource" id="Resource_hopper"]
+script = ExtResource("3_hopper")
+rate_scrap_per_core = 10
+trigger = "enters Tower Interaction Radius"
+
+; Register > Economy & Pickups > "Run-End Settlement": "5 Cores per biome
+; cleared, 3 per boss killed (Mini-Boss included), 1 per full minute of
+; simulation time". Out of prototype scope for P2.10 (Cores excluded) but a
+; required Economy Configuration Contract field, authored for completeness.
+[sub_resource type="Resource" id="Resource_settlement"]
+script = ExtResource("4_settlement")
+per_biome_cleared_cores = 5
+per_boss_killed_cores = 3
+per_full_minute_cores = 1
+
+; MASTER_SDLC.md > "Experience (XP)": "advancing from level L to level L+1
+; costs 10 + 5(L+1) XP -- 15, 20, 25 XP for the first three levels"
+; (base_cost=10, per_level_increment=5, per decision D89's authored-data
+; resolution in src/data/xp_level_cost.gd). shard_value: Register > "XP &
+; levels": "1 XP shard per standard enemy".
+[sub_resource type="Resource" id="Resource_xp"]
+script = ExtResource("6_xp")
+shard_value = 1
+base_cost = 10
+per_level_increment = 5
+
+; merge_radius_px: Register > Economy & Pickups > "Merge radius (Economy
+; Configuration field)": "Default 64 px; 128 px at Fallback Ladder step 1"
+; -- base default authored; the Fallback Ladder's 128 px escalation is a
+; runtime step (docs/20 > Performance Fallback Ladder step 1), not a second
+; authored value this single-field schema carries.
+; xp_cap_during_teaching_waves: Register > "Experience (XP)": "During
+; teaching waves shards are still collected, but XP above 14 is discarded".
+; scrap_cap: Register > Economy & Pickups > "Scrap": "Cap 200 (HUD 'n/200')".
+; overflow_hopper_capacity: Register > Economy & Pickups > "Scrap": "the
+; prototype has no hopper (overflow discarded with a FULL indicator)" --
+; authored 0 for this prototype configuration (not escalated: the Register
+; explicitly states no hopper exists in the prototype, so 0 reflects that
+; stated design rather than inventing a number the text never gives; the
+; vertical slice's own config would author the real 100 px hopper cap).
+; core_persistence_write_cadence_seconds: Register > Economy & Pickups >
+; "Cores": "atomic write at most every 2 s while dirty, plus wave end, run
+; end, focus loss" -- the 2 s cadence is this field; the event-triggered
+; writes are a separate rule this single scalar field does not carry.
+[resource]
+script = ExtResource("5_economy")
+unique_id = "economy_prototype"
+merge_radius_px = 64
+xp_level_cost = SubResource("Resource_xp")
+xp_cap_during_teaching_waves = 14
+scrap_cap = 200
+overflow_hopper_capacity = 0
+hopper_conversion_rule = SubResource("Resource_hopper")
+core_persistence_write_cadence_seconds = 2.0
+run_end_settlement_rates = SubResource("Resource_settlement")
+console_price_formula = SubResource("Resource_console")
+dominance_audit_parameters = SubResource("Resource_dominance")

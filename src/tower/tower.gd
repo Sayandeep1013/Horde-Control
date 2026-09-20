@@ -31,6 +31,28 @@ class_name Tower
 ## left to whichever task next owns that file (outside this task's write
 ## scope; scenes/main.tscn does not yet contain a Tower, an arena, or a
 ## player as of this task -- P2.1/P2.2/P2.3 land in parallel with this one).
+##
+## ## EntityRegistry registration (LEDGER F03-26 -- fixed)
+## Every other entity is found through EntityRegistry queries; the Tower
+## previously was not -- P2.5's own header (`src/enemy/enemy_controller.gd`,
+## "Cross-task seam: the Tower is not in EntityRegistry") confirmed no file
+## under `src/tower/` ever called `register_entity()` for it, so Tower
+## Seekers and Opportunists could only find "the Tower" through
+## `set_tower_reference()`/`tower_path`. Fixed here by registering `self`
+## under the `&"tower"` tag (a new tag; nothing in this codebase queried it
+## before this fix, confirmed by search), using only EntityRegistry's
+## existing public commands (`register_entity()`/`deregister_entity()`) --
+## `src/core/entity_registry.gd` itself is outside this task's write scope
+## and needed no change. This ADDS a query route; it does not remove
+## `set_tower_reference()` or `tower_path`, which `enemy_controller.gd` and
+## `wave_director.gd` still depend on and which this task left untouched.
+## The Tower never moves once placed, so unlike `player.gd` (which calls
+## `update_position()` every movement tick) this registers once, in
+## `_ready()`, and never updates position again. `_registry`/
+## `set_registry_for_test()` mirror `player.gd`'s own test-injection
+## convention exactly, including the same pre-ready guard (a test that
+## wants its own throwaway registry must be able to call
+## `set_registry_for_test()` BEFORE `add_child()` ever runs `_ready()`).
 
 @export var definition: TowerDefinition
 @export var weapon_definition: WeaponDefinition
@@ -59,6 +81,12 @@ var visuals: TowerVisuals
 ## same-tick scenario against one recorder, matching this project's
 ## set_*_for_test() convention.
 var _run_termination: RunTerminationRecorder = RunTerminationRecorder.new()
+
+## Test-only injection point (naming/pattern convention matches
+## player.gd's/death_state.gd's own `set_registry_for_test`): overrides the
+## EntityRegistry this Tower registers against, so a test suite never
+## touches the real Autoload singleton. Never used by gameplay code.
+var _registry: Node = null
 
 
 func _ready() -> void:
@@ -93,6 +121,25 @@ func _ready() -> void:
 		# first rank is taken. Integration task; see tower_visuals.gd's
 		# header, "Stage-to-texture mapping."
 		visuals.on_stage_changed(evolution_stage.get_current_stage(), evolution_stage.ranks_held)
+
+	# LEDGER F03-26: register with EntityRegistry under &"tower" -- see this
+	# file's header, "EntityRegistry registration." Guarded (not an
+	# unconditional overwrite), matching player.gd's own _ready() ordering
+	# exactly, so a test calling set_registry_for_test() BEFORE add_child()
+	# still has that injection stick here.
+	if _registry == null:
+		_registry = EntityRegistry
+	if _registry != null:
+		_registry.register_entity(self, global_position, [&"tower"])
+
+
+func _exit_tree() -> void:
+	if _registry != null and _registry.is_registered(self):
+		_registry.deregister_entity(self)
+
+
+func set_registry_for_test(registry: Node) -> void:
+	_registry = registry
 
 
 ## Typed command: applies both Register-sourced resources to every child

@@ -57,17 +57,40 @@ class_name PlayerProjectile
 ## freed/destroyed Player can never leave a dangling reference on an
 ## in-flight projectile, structurally, not by caller discipline alone.
 ##
-## ## Immediate resolution, not SimLoop's (unconsumed) hit queue
-## Same inherited framework gap tower_projectile.gd's own header names in
-## full: docs/20 states an Area2D overlap callback "must only enqueue a hit
-## record ... for step 7 to process, never resolve damage directly," but
-## `src/core/sim_loop.gd`'s `_step_07_hit_queue_resolution()` sorts and then
-## clears `_hit_queue` without resolving anything from it, and
-## `src/combat/hitbox.gd` already resolves damage directly rather than
-## through that queue. This file follows the same established precedent
-## (`hurtbox.receive_hit()` called directly, from both the sweep and the
-## signal fallback) rather than being the one attacker in this codebase
-## routing through a queue nothing drains yet.
+## ## F03-22 fix: hits now route through SimLoop's hit queue when possible
+## docs/20 states an Area2D overlap callback "must only enqueue a hit
+## record ... for step 7 to process, never resolve damage directly." Both
+## `_sweep_and_resolve()` and `_on_area_entered()` now call
+## `SimLoop.enqueue_hit()` (via `_deliver_hit()`, below) whenever a real
+## SimLoop instance is reachable -- the assembled game, always, once one
+## fires a shot. When no SimLoop is reachable (every isolated unit test in
+## player_projectile_test.gd, none of which build one), both fall back to
+## the ORIGINAL immediate `hurtbox.receive_hit()` call so that suite's own
+## coverage of the sweep, the Projectile Orphans rule, lifetime expiry, and
+## no-piercing keeps exercising this file's mechanics unchanged. See
+## src/combat/hitbox.gd's own header for the identical fallback reasoning
+## and `_sim_loop`'s field comment below for how the reference is resolved.
+## `src/tower/tower_projectile.gd` still resolves damage directly and
+## unconditionally -- src/tower/ is outside this task's write scope, named
+## as a required seam in the evidence report.
+##
+## ## SimLoop / driven_externally (this task's own seam, NOT wired to a
+## real registration anywhere in-scope)
+## `driven_externally` (default false) and the public `physics_step(delta)`
+## method below mirror player.gd's/enemy_controller.gd's/auto_weapon.gd's
+## own convention exactly, so a future task can flip this projectile's
+## MOVEMENT over to SimLoop's step 5 with a one-line change at its one
+## construction site. That construction site is
+## `src/combat/auto_weapon.gd`'s `_projectile_factory()` (`PlayerProjectile.
+## new()`), outside this task's write scope -- nothing in-scope ever
+## constructs a projectile with `driven_externally` already true, so this
+## projectile's movement stays self-driven via `_physics_process()` in
+## every configuration this task can reach. Default stays false rather
+## than true precisely so every existing player_projectile_test.gd test
+## (none of which registers a projectile with a SimLoop) keeps
+## self-driving exactly as before. Named as a required seam in the
+## evidence report. This gap does NOT affect the F03-22 damage-resolution
+## fix above, which is wired independently of `driven_externally`.
 ##
 ## Pool-compatible: joins the `pool_body` group (src/core/pool.gd's
 ## discovery convention) so a Pool reusing this instance restores its
@@ -103,6 +126,11 @@ const SWEEP_THRESHOLD_PX: float = 12.0
 ## either way).
 @export var projectile_texture: Texture2D = preload("res://assets/third_party/kenney/projectiles/projectile_player.png")
 
+## See this file's header, "SimLoop / driven_externally". Defaults false
+## (self-driven) -- no in-scope construction site ever flips this true
+## today; kept for a future task to wire (see header).
+@export var driven_externally: bool = false
+
 signal hit_landed(hurtbox: Hurtbox, damage: float, source: Variant)
 signal expired(projectile: PlayerProjectile)
 
@@ -114,6 +142,13 @@ var _active: bool = false
 
 ## Test-injectable SimClock reference, matching this project's convention.
 var _clock: Node = null
+
+## F03-22: reference to the running SimLoop instance, resolved the same
+## deferred, group-lookup way as src/combat/hitbox.gd's own `_sim_loop`
+## field -- see that file's header for why the lookup must be deferred
+## rather than run inline in _ready(). Test-injectable via
+## set_sim_loop_for_test().
+var _sim_loop: Node = null
 
 
 func _ready() -> void:
@@ -142,6 +177,16 @@ func _ready() -> void:
 	add_child(sprite)
 
 	visible = false
+	call_deferred(&"_resolve_sim_loop_for_ready")
+
+
+func _resolve_sim_loop_for_ready() -> void:
+	if _sim_loop == null and is_inside_tree():
+		_sim_loop = get_tree().get_first_node_in_group(&"sim_loop")
+
+
+func set_sim_loop_for_test(loop: Node) -> void:
+	_sim_loop = loop
 
 
 func set_sim_clock_for_test(clock: Node) -> void:
@@ -171,6 +216,17 @@ func launch(origin: Vector2, velocity: Vector2, damage: float, source: Variant, 
 
 
 func _physics_process(delta: float) -> void:
+	if driven_externally:
+		return
+	physics_step(delta)
+
+
+## The per-tick logic this file's own movement/sweep loop runs. Public, and
+## gated by `driven_externally` above, so a future SimLoop integration can
+## call it directly once that field is set true at construction (see this
+## file's header, "SimLoop / driven_externally") -- exactly the same seam
+## shape as player.gd/enemy_controller.gd/auto_weapon.gd already use.
+func physics_step(delta: float) -> void:
 	if not _active:
 		return
 	var previous_position: Vector2 = global_position
@@ -213,15 +269,28 @@ func _sweep_and_resolve(from: Vector2, to: Vector2) -> bool:
 	global_position = hit_position as Vector2
 
 	if collider is Hurtbox:
-		var hurtbox: Hurtbox = collider as Hurtbox
-		var accepted: bool = hurtbox.receive_hit(self, _damage, _source)
-		if accepted:
-			hit_landed.emit(hurtbox, _damage, _source)
+		_deliver_hit(collider as Hurtbox)
 	# Either a Hurtbox hit (no piercing -- one target per shot) or terrain
 	# (World/ArenaBounds -- both static PhysicsBody2D layers in this mask,
 	# same reasoning as _on_body_entered() below): either way the shot ends.
 	_expire()
 	return true
+
+
+## F03-22: routes through SimLoop.enqueue_hit() when a real SimLoop is
+## reachable, falling back to the original immediate hurtbox.receive_hit()
+## call otherwise -- see this file's header for the full reasoning. Shared
+## by both call sites (the sweep and the discrete area_entered fallback) so
+## the routing decision is made in exactly one place.
+func _deliver_hit(hurtbox: Hurtbox) -> void:
+	if _sim_loop != null and _sim_loop.has_method(&"enqueue_hit"):
+		var attacker_serial: int = _sim_loop.get_combat_serial(_source)
+		var target_serial: int = _sim_loop.get_combat_serial(hurtbox.get_parent())
+		_sim_loop.enqueue_hit(attacker_serial, target_serial, _damage, _source, hurtbox, self, func() -> void: hit_landed.emit(hurtbox, _damage, _source))
+		return
+	var accepted: bool = hurtbox.receive_hit(self, _damage, _source)
+	if accepted:
+		hit_landed.emit(hurtbox, _damage, _source)
 
 
 ## Fallback for the general-purpose (never reached at this weapon's 1000
@@ -233,9 +302,8 @@ func _on_area_entered(area: Area2D) -> void:
 	if not (area is Hurtbox):
 		return
 	var hurtbox: Hurtbox = area as Hurtbox
-	var accepted: bool = hurtbox.receive_hit(self, _damage, _source)
-	if accepted:
-		hit_landed.emit(hurtbox, _damage, _source)
+	_deliver_hit(hurtbox)
+	_expire() # no piercing: one target per shot
 	_expire() # no piercing: one target per shot
 
 

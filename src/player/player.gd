@@ -334,6 +334,31 @@ func apply_damage(amount: float, source: Variant = null) -> bool:
 	return death_state.apply_damage(amount, source) if death_state != null else false
 
 
+## Minimal heal seam for P2.11's Patch Kit (src/upgrade/upgrade_system.gd):
+## "restores 30 player health per rank taken" (MASTER_SDLC.md > Tower
+## Overview > "Health Recovery Rules"). death_state.gd (src/combat/,
+## outside P2.11's write scope) has no heal()/apply_damage(-amount)
+## counterpart of its own -- apply_damage() rejects amount <= 0.0 by design
+## (death_state.gd: "Returns false ... if amount is not positive"), so a
+## negative-amount call is not a usable heal seam, and this task's hard
+## constraints forbid editing src/combat/death_state.gd itself. Added here,
+## on Player, as the minimal seam Patch Kit needs -- this project's own
+## precedent for writing directly to death_state's public fields already
+## exists a few lines above (`death_state.max_hp = ...` in
+## _apply_definition()), so this is consistent local convention, not a new
+## exception. Clamped to max_hp here (Register > Health Recovery Rules:
+## "Overheal on either pool is discarded unless an upgrade explicitly
+## converts it to shield") since death_state.apply_damage() has no
+## symmetrical clamp for a heal to reuse. Named in the P2.11 evidence
+## report as a seam a future task should fold into death_state.gd as a
+## proper heal(amount) command mirroring apply_damage(amount), rather than
+## living on Player permanently.
+func heal(amount: float) -> void:
+	if death_state == null or death_state.is_dead or amount <= 0.0:
+		return
+	death_state.current_hp = minf(death_state.max_hp, death_state.current_hp + amount)
+
+
 func is_dead() -> bool:
 	return death_state != null and death_state.is_dead
 

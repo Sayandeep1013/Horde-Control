@@ -13,10 +13,15 @@ class_name PrototypeIntegration
 ## `TowerWeapon`, `EnemyController`, and `Player`.
 ##
 ## This script performs ONLY wiring (typed-command calls on already-built
-## public seams) -- it contains no gameplay logic of its own and does not
-## touch any file on this task's do-not-touch list
-## (src/core/sim_loop.gd, src/core/event_bus.gd, src/combat/death_state.gd,
-## src/combat/hitbox.gd, src/tower/tower_projectile.gd).
+## public seams) -- it contains no gameplay logic of its own and did not, at
+## the time this header was written (P2.7), touch any file on THAT task's
+## do-not-touch list (src/core/sim_loop.gd, src/core/event_bus.gd,
+## src/combat/death_state.gd, src/combat/hitbox.gd,
+## src/tower/tower_projectile.gd). A later task (F03-09/F03-22, see
+## `_wire_sim_loop()` below) had src/core/sim_loop.gd, src/combat/hitbox.gd,
+## and src/combat/player_projectile.gd in ITS OWN write scope and edited
+## them; src/core/event_bus.gd, src/combat/death_state.gd, and
+## src/tower/tower_projectile.gd remain untouched by every task to date.
 ##
 ## ## The AudioDucking placement (see NEXT_SESSION.md's open contradiction
 ## row, and this task's own evidence report for the full reasoning): this
@@ -42,6 +47,46 @@ class_name PrototypeIntegration
 @export var shared_ducking_path: NodePath = NodePath("SharedAudioDucking")
 @export var enemy_paths: Array[NodePath] = []
 
+## F03-09. `sim_loop_path` resolves the real running SimLoop instance
+## directly by NodePath (unlike hitbox.gd/player_projectile.gd/
+## enemy_controller.gd's own group-lookup seam): this script is the
+## composition root's own `Prototype` node, so its `_ready()` already runs
+## LAST, after every descendant's (including Main/SimLoop's) -- no sibling-
+## order race to defer around. `auto_weapon_path`/`wave_director_path` are
+## the two OTHER driven_externally nodes this task can register only from
+## here, because their own scripts (src/combat/auto_weapon.gd,
+## src/director/wave_director.gd) are outside this task's write scope and
+## cannot self-register the way enemy_controller.gd now does.
+@export var sim_loop_path: NodePath = NodePath("Main/SimLoop")
+@export var auto_weapon_path: NodePath = NodePath("Main/Player/AutoWeapon")
+@export var wave_director_path: NodePath = NodePath("Main/WaveDirector")
+
+## Integration task (this pass). PickupSystem/UpgradeSystem/Console's
+## NodePath exports are authored directly on their own nodes in
+## scenes/prototype.tscn (they are plain static paths within the scene,
+## same convention as WaveDirector's own entity_spawner_path/tower_path/
+## camera_path/debug_overlay_path); this script only wires what a NodePath
+## cannot express -- object references (RunInventory is a RefCounted, not
+## a node), Callables (the capacity providers), per-spawn signal
+## connections, and the one true run_seed.
+@export var pickup_system_path: NodePath = NodePath("Main/PickupSystem")
+@export var upgrade_system_path: NodePath = NodePath("Main/UpgradeSystem")
+@export var draft_controller_path: NodePath = NodePath("DraftInstance")
+@export var console_path: NodePath = NodePath("Console") # see scenes/prototype.tscn's own comment on the Console node: a sibling of Main, not nested inside it -- PROCESS_MODE_ALWAYS under Main is banned
+@export var run_flow_controller_path: NodePath = NodePath("RunFlowController")
+@export var debug_overlay_path: NodePath = NodePath("DebugOverlay")
+
+## F05-13: the ONE run seed every keyed-RNG system in the assembled scene
+## derives from. `WaveDirector.run_seed` and `DraftController.run_seed` are
+## both set FROM this value in `_ready()` below, never authored
+## independently in the .tscn -- see `_wire_run_seed()`. The Run Recorder
+## is not instantiated anywhere in this scene as of this pass (confirmed:
+## no scenes/**/*.tscn and no src/**/*.gd outside its own file and
+## draft_controller.gd's comments references it), so it is not part of
+## this propagation; named as a limitation in the evidence report rather
+## than silently assumed solved.
+@export var run_seed: int = 20260920
+
 var _main: Node = null
 var _player: Player = null
 var _tower: Tower = null
@@ -52,6 +97,15 @@ var _ui_sfx: UiSfx = null
 var _shared_ducking: AudioDucking = null
 var _audio_pool: Node = null
 var _enemies: Array[EnemyController] = []
+var _sim_loop: Node = null
+var _auto_weapon: Node = null
+var _wave_director: Node = null
+var _pickup_system: Node = null
+var _upgrade_system: Node = null
+var _draft_controller: Node = null
+var _console: Node = null
+var _run_flow_controller: Node = null
+var _debug_overlay: Node = null
 
 
 func _ready() -> void:
@@ -64,6 +118,15 @@ func _ready() -> void:
 	_ui_sfx = get_node_or_null(ui_sfx_path) as UiSfx
 	_shared_ducking = get_node_or_null(shared_ducking_path) as AudioDucking
 	_audio_pool = _main.get_node_or_null("Audio") if _main != null else null
+	_sim_loop = get_node_or_null(sim_loop_path)
+	_auto_weapon = get_node_or_null(auto_weapon_path)
+	_wave_director = get_node_or_null(wave_director_path)
+	_pickup_system = get_node_or_null(pickup_system_path)
+	_upgrade_system = get_node_or_null(upgrade_system_path)
+	_draft_controller = get_node_or_null(draft_controller_path)
+	_console = get_node_or_null(console_path)
+	_run_flow_controller = get_node_or_null(run_flow_controller_path)
+	_debug_overlay = get_node_or_null(debug_overlay_path)
 
 	for path in enemy_paths:
 		var enemy: EnemyController = get_node_or_null(path) as EnemyController
@@ -75,6 +138,192 @@ func _ready() -> void:
 	_wire_audio_ducking()
 	_wire_audio_pool()
 	_wire_enemies()
+	_wire_sim_loop()
+	_wire_run_seed()
+	_wire_pickup_system()
+	_wire_console()
+	_wire_run_flow_controller()
+	_wire_wave_director_capacity_and_overlay()
+
+
+## F05-13. Single source of truth: `run_seed` above. Both consumers are
+## flipped here, at runtime, never authored independently on their own
+## nodes -- the same "composition root owns cross-cutting state" reasoning
+## F03-47 already established for `driven_externally`.
+func _wire_run_seed() -> void:
+	if _wave_director != null:
+		_wave_director.run_seed = run_seed
+	if _draft_controller != null:
+		_draft_controller.run_seed = run_seed
+
+
+func get_run_seed() -> int:
+	return run_seed
+
+
+## F04-11/F04-12 (fixed): the PickupSystem's own scene-authored NodePaths
+## (entity_spawner_path/player_path/player_collector_path) are set directly
+## in scenes/prototype.tscn; what remains is connecting each spawned
+## enemy's `removed_while_stuck` signal (the hand-placed three here, and
+## every Wave-Director-spawned one via `_on_wave_enemy_spawned()` below).
+func _wire_pickup_system() -> void:
+	if _pickup_system == null:
+		return
+	for enemy in _enemies:
+		_connect_removed_while_stuck(enemy)
+
+
+func _connect_removed_while_stuck(enemy: EnemyController) -> void:
+	if enemy == null or _pickup_system == null:
+		return
+	if not enemy.removed_while_stuck.is_connected(_pickup_system.handle_enemy_removed_while_stuck):
+		enemy.removed_while_stuck.connect(_pickup_system.handle_enemy_removed_while_stuck)
+
+
+## F05-20: `set_run_inventory()` is a required CODE CALL (RunInventory is a
+## RefCounted, no NodePath can find it) -- without it every Console entry
+## reads 0 Scrap and the Console dwell-detects, builds, and never opens,
+## with no error anywhere. `tower_path`/`player_path`/`upgrade_system_path`/
+## `camera_path` are authored directly on the Console node in the .tscn.
+## SimLoop registration (docs/20 SimLoop order, step 12
+## CONSOLE_CHANNEL_COMPLETION) is flipped here at runtime, matching every
+## other `driven_externally` node this file registers -- never baked into
+## scenes/ui/console.tscn itself (F03-47).
+func _wire_console() -> void:
+	if _console == null:
+		return
+	if _pickup_system != null:
+		_console.set_run_inventory(_pickup_system.run_inventory)
+	if _sim_loop != null:
+		_console.driven_externally = true
+		_sim_loop.register(SimLoop.Step.CONSOLE_CHANNEL_COMPLETION, _console)
+
+
+## F05-27: `RunFlowController` is instantiated in scenes/prototype.tscn
+## with `tower_path`/`wave_director_path` already authored (its own
+## defaults are empty NodePaths with no fallback, unlike this script's
+## Main/Tower-style defaults, so the .tscn instance sets them explicitly).
+## `set_run_inventory()`/`set_console_ref()` are both required code calls
+## for the same RefCounted/cross-reference reasons `_wire_console()`'s own
+## comment names.
+func _wire_run_flow_controller() -> void:
+	if _run_flow_controller == null:
+		return
+	if _pickup_system != null:
+		_run_flow_controller.set_run_inventory(_pickup_system.run_inventory)
+	if _console != null:
+		_run_flow_controller.set_console_ref(_console)
+
+
+## F04-04 (debug overlay) + the P2.9 evidence report's capacity seam ("the
+## orchestrator must wire set_player_capacity_provider()/
+## set_tower_capacity_provider() ... to the upgrade-aware DPS"). Verified,
+## not assumed: CombatStats.get_sheet_dps() never learns about a live
+## Rapid Fire/Heavy Rounds/Caliber rank (UpgradeSystem's
+## set_damage_multiplier()/set_fire_rate_multiplier() do not re-report to
+## CombatStats -- see auto_weapon.gd's/tower_weapon.gd's own
+## get_effective_sheet_dps() comments), so the documented CombatStats
+## fallback layer would silently under-report Capacity once any upgrade is
+## taken; these two Callables bypass that stale layer entirely.
+## `debug_overlay_path` is authored directly on the WaveDirector node in
+## the .tscn (it already has its own NodePath-based
+## `_resolve_debug_overlay()` fallback -- no code call is needed for that
+## half of this function's name, kept together because both seams come
+## from the same evidence report row).
+func _wire_wave_director_capacity_and_overlay() -> void:
+	if _wave_director == null:
+		return
+	if _auto_weapon != null and _auto_weapon.has_method("get_effective_sheet_dps"):
+		_wave_director.set_player_capacity_provider(Callable(_auto_weapon, "get_effective_sheet_dps"))
+	if _tower != null and _tower.weapon != null:
+		_wave_director.set_tower_capacity_provider(Callable(_tower.weapon, "get_effective_sheet_dps"))
+
+
+## F04-12 / F05-15: `RunInventory.apply_to_hud_state()` exists and nothing
+## called it; the HUD's `rerolls_remaining`/`wave_current`/`wave_total`
+## fields are populated the same way, every frame, from the real
+## DraftController/WaveDirector queries this pass added
+## (`get_rerolls_remaining()`, `get_current_wave_display_index()`,
+## `get_wave_total_count()`).
+func _process(_delta: float) -> void:
+	if _hud == null or _hud.economy_state == null:
+		return
+	if _pickup_system != null and _pickup_system.run_inventory != null:
+		_pickup_system.run_inventory.apply_to_hud_state(_hud.economy_state)
+	if _draft_controller != null and _draft_controller.has_method("get_rerolls_remaining"):
+		_hud.economy_state.rerolls_remaining = _draft_controller.get_rerolls_remaining()
+	if _wave_director != null:
+		_hud.economy_state.wave_current = _wave_director.get_current_wave_display_index()
+		_hud.economy_state.wave_total = _wave_director.get_wave_total_count()
+
+
+## F05-23 / F03-45: connected in `_wire_sim_loop()` below to
+## `WaveDirector.enemy_spawned`. Every enemy the Wave Director spawns --
+## which is nearly all of them in real play -- needs the SAME two things
+## this script already gives the three hand-placed enemies: registration
+## with SimLoop's step 3 (so it stops self-driving outside the
+## deterministic per-tick order) and a `removed_while_stuck` connection to
+## PickupSystem. The Tower reference itself needs NO wiring here any more
+## -- `EnemyController._resolve_tower_reference()` now falls back to
+## EntityRegistry (see that file's own header, F05-23), which is why this
+## handler is short: the one Blocker-severity gap closed at the component
+## level, not the spawn-call-site level.
+func _on_wave_enemy_spawned(instance: Node2D, _enemy_id: String, _position: Vector2) -> void:
+	if instance is EnemyController:
+		var enemy: EnemyController = instance as EnemyController
+		enemy.driven_externally = true # picked up by its own deferred SimLoop registration -- see enemy_controller.gd's header
+		_connect_removed_while_stuck(enemy)
+
+
+## F03-09: registers this scene's driven_externally-capable nodes (Player,
+## AutoWeapon, the Wave Director, and the three hand-placed enemies) with
+## SimLoop's per-step call order.
+##
+## `driven_externally` is flipped to `true` HERE, at runtime, rather than
+## being baked into scenes/player.tscn / scenes/entities/*.tscn themselves
+## -- an earlier version of this task set it directly in those shared
+## scene files and broke a real set of existing tests (leash_test.gd's
+## `test_landing_a_real_hit_on_the_player_resets_the_leash_timer`,
+## player_movement_test.gd, player_input_buffer_test.gd) that instantiate
+## those scenes DIRECTLY and rely on the scene's own default (false,
+## self-driven) to exercise the real `_physics_process()` via `await
+## get_tree().physics_frame`, with no SimLoop anywhere in their tree to
+## drive them instead. Flipping the flag only on the specific instances
+## THIS integration script wires keeps every other instantiation of the
+## same scenes (every existing unit test) self-driven exactly as before.
+##
+## The three hand-placed enemies are flipped and left to register
+## THEMSELVES: `enemy_controller.gd`'s own `_ready()` schedules a deferred
+## `_resolve_sim_loop_and_register()` call (see that file's header) that
+## reads `driven_externally` and registers with SimLoop if it is true.
+## Because this whole scene's `_ready()` chain runs bottom-up and
+## synchronously before any deferred call fires, setting the flag here --
+## in THIS node's own `_ready()`, which runs LAST in that chain, being the
+## scene root -- still lands before the enemy's deferred check reads it.
+## A Wave-Director-spawned enemy created later (after this integration
+## script's own `_ready()` has already returned) is NOT reached by this
+## method at all and keeps `driven_externally = false` (self-driven, the
+## pre-existing behaviour) -- named as a required seam in the evidence
+## report for whichever task next owns entity_spawner.gd/wave_director.gd's
+## own spawn call sites. The Tower's own weapon (TowerWeapon) has no
+## driven_externally/physics_step seam and src/tower/ is outside this
+## task's write scope, so it is not registered either -- also named there.
+func _wire_sim_loop() -> void:
+	if _sim_loop == null:
+		return
+	if _player != null:
+		_player.driven_externally = true
+		_sim_loop.register(SimLoop.Step.PLAYER_MOVEMENT, _player)
+	if _auto_weapon != null:
+		_auto_weapon.driven_externally = true
+		_sim_loop.register(SimLoop.Step.WEAPON_TARGETING_AND_FIRING, _auto_weapon)
+	if _wave_director != null:
+		_wave_director.driven_externally = true
+		_sim_loop.register(SimLoop.Step.WAVE_DIRECTOR, _wave_director)
+		if _wave_director.has_signal(&"enemy_spawned") and not _wave_director.enemy_spawned.is_connected(_on_wave_enemy_spawned):
+			_wave_director.enemy_spawned.connect(_on_wave_enemy_spawned)
+	for enemy in _enemies:
+		enemy.driven_externally = true # picked up by its own deferred registration -- see comment above
 
 
 func _wire_hud() -> void:
@@ -129,10 +378,19 @@ func _wire_audio_pool() -> void:
 		enemy.set_audio_pool_ref(_audio_pool)
 
 
-## LEDGER F03-15/F03-26: every enemy tags itself with EntityRegistry on its
-## own `_ready()` (already built by P2.5); the one seam an integration task
-## must still close is handing each enemy the real Tower it cannot find
-## through EntityRegistry (F03-26 -- the Tower is not registered there).
+## LEDGER F03-15/F03-26/F03-39/F05-23. F03-26 is closed (F03-39: the Tower
+## now registers itself with EntityRegistry under `&"tower"`), so
+## `set_tower_reference()` below is no longer the ONLY route a hand-placed
+## enemy has to the Tower -- `EnemyController._resolve_tower_reference()`
+## would now find it through the registry fallback even if this call were
+## removed. It is kept anyway, for the three hand-placed enemies this
+## script already holds a direct reference to, because `set_tower_reference
+## ()`/`tower_path` are the project's real, typed-command wiring surface
+## and this integration task's own brief asks explicitly to "keep
+## set_tower_reference()/tower_path working." Wave-Director-spawned
+## enemies (F05-23, the Blocker) rely on the EntityRegistry fallback alone
+## -- see `_on_wave_enemy_spawned()`, which deliberately does NOT call
+## `set_tower_reference()`.
 func _wire_enemies() -> void:
 	if _tower == null:
 		return
@@ -174,3 +432,7 @@ func get_audio_pool() -> Node:
 
 func get_enemies() -> Array[EnemyController]:
 	return _enemies
+
+
+func get_sim_loop() -> Node:
+	return _sim_loop

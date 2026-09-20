@@ -12,11 +12,26 @@ extends GdUnitTestSuite
 ## exists specifically to prove THAT sequence, with its authored durations
 ## and gaps, actually advances correctly end to end. A lightweight dummy
 ## PackedScene (a bare Node2D, no EnemyController) stands in for every
-## enemy scene, so nothing ever fights or dies on its own: every non-final
-## wave in this suite ends on its MAXIMUM DURATION (the NOT-STALLED branch
-## wave_director.gd always takes -- Overtime is out of scope; see that
-## file's header), which is exactly what lets this suite verify the GAP
-## arithmetic deterministically without needing combat resolution.
+## enemy scene, so nothing fights or dies on its own.
+##
+## AMENDED 2026-09-20, when P2.8b built the stall check this suite predates.
+## As first written, this suite let every non-final wave run to its MAXIMUM
+## DURATION with nothing ever dying, relying on the NOT-STALLED branch that
+## wave_director.gd took unconditionally while Overtime was deferred. Once
+## the real rule existed, a wave with zero kills at its maximum duration was
+## correctly read as STALLED, the sequence entered Overtime at T1, and this
+## suite failed.
+##
+## The failure was true and the suite was wrong: a wave in which nothing
+## ever dies IS stalled, and that is the rule the Register states. The fix
+## is therefore at the fixture, not at the rule - weakening the stall check
+## so this suite could pass again would have produced the defect this
+## project has recorded five times, a rule that cannot fire. The fixture now
+## kills each spawned dummy KILL_DELAY_SECONDS after it spawns, the way a
+## real wave's enemies die: waves complete naturally (every group emitted
+## and every own-spawned enemy dead), the trailing kill window is non-empty,
+## and the GAP arithmetic this suite exists to verify is measured from each
+## wave's real end. See Phase 04 ledger finding F04-15.
 
 const EntityRegistryScript: GDScript = preload("res://src/core/entity_registry.gd")
 const SimClockScript: GDScript = preload("res://src/core/sim_clock.gd")
@@ -35,6 +50,13 @@ const EXPECTED_WAVE_ORDER: Array[String] = ["wave_t1", "wave_t2", "wave_t3", "wa
 ## combat_4 opening; there is no gap after combat_4 in this task's scope.
 const EXPECTED_GAPS_SECONDS: Array[float] = [5.0, 5.0, 8.0, 10.0, 8.0, 10.0, 8.0]
 
+## How long a spawned dummy survives before this fixture kills it. Not a
+## gameplay number and not a Register value: a test-fixture stand-in for
+## combat resolution, long enough that a wave's later spawn groups still
+## emit while its earlier enemies die, and short enough that the trailing
+## 30 s kill window never empties mid-wave.
+const KILL_DELAY_SECONDS: float = 2.0
+
 const STEP: float = 0.25
 const MAX_ITERATIONS: int = 2400 # >> (439s total sequenced time) / STEP, with margin
 
@@ -42,6 +64,9 @@ var _registry: Node
 var _clock: Node
 var _spawner: Node
 var _director: WaveDirector
+
+## [{instance, spawned_at}] for dummies this fixture has yet to kill.
+var _pending_kills: Array = []
 
 
 func before_test() -> void:
@@ -70,6 +95,13 @@ func before_test() -> void:
 	# seam for exactly this ordering (set exports, then rebuild).
 	_director.rebuild_lookups_for_test()
 
+	# Every spawned dummy is queued for a delayed kill (KILL_DELAY_SECONDS).
+	# Connected here rather than per test so any scenario that steps the real
+	# sequence gets enemies that actually die; tests building their own
+	# throwaway waves simply never call _kill_due().
+	_director.enemy_spawned.connect(func(instance: Node2D, _id: String, _p: Vector2) -> void:
+		_pending_kills.append({"instance": instance, "spawned_at": _clock.now}))
+
 
 ## Pool-acquired dummy enemy instances are never parented (no pool
 ## container is wired here) and are not tracked by `auto_free()`, so they
@@ -91,6 +123,28 @@ func _build_dummy_scene() -> PackedScene:
 	return packed
 
 
+## Kills every dummy that has outlived KILL_DELAY_SECONDS: despawns it
+## through the real EntitySpawner (which deregisters it, so the director's
+## own `_all_own_spawned_dead_or_removed()` registry query sees it gone) and
+## emits the real `EventBus.enemy_died`, which is what the stall check
+## counts. Both halves matter: deregistering alone would end waves while the
+## kill window stayed empty, and emitting alone would leave enemies alive.
+func _kill_due() -> void:
+	var now: float = _clock.now
+	var still_pending: Array = []
+	for entry in _pending_kills:
+		var instance: Node2D = entry["instance"]
+		if not is_instance_valid(instance):
+			continue
+		if now - float(entry["spawned_at"]) < KILL_DELAY_SECONDS:
+			still_pending.append(entry)
+			continue
+		var position: Vector2 = instance.global_position
+		_spawner.despawn_enemy(instance)
+		EventBus.emit_enemy_died(instance, position)
+	_pending_kills = still_pending
+
+
 func test_sequence_advances_t1_through_combat_4_in_order_with_the_correct_gaps() -> void:
 	var opened: Array = []
 	var ended: Array = []
@@ -101,6 +155,7 @@ func test_sequence_advances_t1_through_combat_4_in_order_with_the_correct_gaps()
 	while _director.get_current_wave_index_for_test() < EXPECTED_WAVE_ORDER.size() - 1 and iterations < MAX_ITERATIONS:
 		_clock.now += STEP
 		_director.physics_step(STEP)
+		_kill_due()
 		iterations += 1
 
 	assert_int(iterations).append_failure_message("hit the safety iteration cap (%d) before combat_4 ever opened -- the sequence stalled somewhere before the end" % MAX_ITERATIONS).is_less(MAX_ITERATIONS)

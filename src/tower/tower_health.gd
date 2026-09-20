@@ -67,6 +67,23 @@ var current_shield: float = 0.0
 var regen_rate_percent_per_second: float = 0.0
 var regen_delay_seconds: float = 0.0
 
+## P2.11 modifier layer (src/upgrade/upgrade_system.gd): the definition-
+## derived base max_shield (max_health x base_shield_fraction, from
+## data/tower/base.tres via configure() below), kept separately from the
+## live `max_shield` field above so Shield Matrix's bonus can be recomputed
+## fresh from this untouched base every time -- never compounded onto
+## whatever `max_shield` happened to hold from a previous call.
+var _base_max_shield: float = 0.0
+
+## Shield Matrix's current TOTAL fraction of max_health granted as extra
+## shield capacity -- MASTER_SDLC.md > Progression Edge Cases > "Percentage
+## bonuses to the same stat stack" (C-STACK): this is the upgrade's own
+## already-summed `(1 + sum of bonuses)`-style total (here, sum of
+## effect_per_rank across every rank held), pushed by src/upgrade/
+## upgrade_system.gd on every apply_rank() call; set_bonus_max_shield_
+## fraction() below REPLACES this value, it never adds to it.
+var _bonus_max_shield_fraction: float = 0.0
+
 var _hurtbox: Hurtbox = null
 var _death_state: DeathState = null
 var _last_damage_sim_time: float = -INF
@@ -121,7 +138,8 @@ func configure(definition: TowerDefinition) -> void:
 	assert(definition.max_health_and_shield_fraction != null, "TowerDefinition.max_health_and_shield_fraction is required")
 	assert(definition.shield_regeneration != null, "TowerDefinition.shield_regeneration is required")
 	max_health = float(definition.max_health_and_shield_fraction.maximum_health)
-	max_shield = max_health * definition.max_health_and_shield_fraction.base_shield_fraction
+	_base_max_shield = max_health * definition.max_health_and_shield_fraction.base_shield_fraction
+	max_shield = _base_max_shield
 	current_shield = max_shield
 	regen_rate_percent_per_second = definition.shield_regeneration.rate_percent_per_second
 	regen_delay_seconds = definition.shield_regeneration.delay_seconds
@@ -136,6 +154,35 @@ func configure(definition: TowerDefinition) -> void:
 
 func get_current_health() -> float:
 	return _death_state.current_hp if _death_state != null else 0.0
+
+
+## Typed command (P2.11 modifier layer; see this file's `_bonus_max_shield_
+## fraction` field comment). `fraction` is Shield Matrix's own already-
+## summed TOTAL fraction of max_health across every rank held (C-STACK) --
+## REPLACES the previous fraction, never adds to it, so a repeat call from
+## the other channel at an unchanged cumulative rank is a true no-op
+## (delta 0.0) rather than double-granting the same capacity.
+##
+## Register: "Shield Matrix +10% of Tower maximum health as extra shield
+## per rank." The newly granted capacity is handed over ALREADY FILLED --
+## current_shield rises by exactly the capacity's own increase, never
+## beyond it (clamped to the new max_shield). This is an interpretation,
+## not a Register-stated rule (the Register states the capacity increase,
+## not whether it arrives charged or empty) -- see the P2.11 evidence
+## report, "Interpretations."
+func set_bonus_max_shield_fraction(fraction: float) -> void:
+	if not _configured:
+		return
+	var new_max_shield: float = _base_max_shield + max_health * fraction
+	var shield_delta: float = new_max_shield - max_shield
+	_bonus_max_shield_fraction = fraction
+	max_shield = new_max_shield
+	current_shield = clampf(current_shield + shield_delta, 0.0, max_shield)
+	shield_changed.emit(current_shield, max_shield)
+
+
+func get_bonus_max_shield_fraction_for_test() -> float:
+	return _bonus_max_shield_fraction
 
 
 func is_destroyed() -> bool:

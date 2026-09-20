@@ -1,17 +1,18 @@
 # Next Session — Start Here
 
-**State on 2026-09-19.** Phases 00 and 01 built and reviewed; both closures are still the designer's. **Phase 02 is six of seven tasks complete** - the whole engine spine - with P1.7 deferred by D97 and no review gate convened, by D98. **Phase 03 is in progress**, running ahead of its place in the plan under decisions D97-D100: the author redirected the project to reach a visible, playable prototype with real assets before returning to accumulated irregularities. Read `phases/README.md`, then this file, then the Phase 02 and Phase 03 EXECUTION_LOGs.
+**State on 2026-09-20.** Phases 00 and 01 built and reviewed; both closures are still the author's. Phase 02 is six of seven tasks complete (P1.7 deferred by D97, no gate by D98). **Phases 03, 04 and 05 are all built**: the prototype now has every system the Minimum Playable Prototype calls for. **No review gate has been convened for any of the three.** Read `phases/README.md`, then this file, then the Phase 03, 04 and 05 EXECUTION_LOGs and LEDGERs.
 
----
 
 ## What exists now
 
-- A Godot 4.7.1 project at `D:\Gamedev` that opens, runs, and exports a Windows release build. `project.godot` carries the pinned settings, the 16 collision layer names, 24 input actions, and a `BootCheck` autoload that asserts the engine is 4.7.1 — and fires inside the exported build, not just the editor.
-- `tests/settings_check.gd` — the Settings check, asserting effective values and exact sets. Falsified ten ways; it fails on a rogue autoload, a rogue action, a rebound key, a mutated deadzone, a missing main scene, and a wrong features array.
-- 31 design documents (`docs/00..30`). Five are drafts with real content (09, 11, 19, 20, 29); `docs/28` is at 1.0.0; the rest are stubs carrying their remit and Owns list.
-- A pinned, locally built agent-to-Godot toolchain, and `phases/` holding the plan, log, ledger, failure points and review record for all 20 phases.
-- **From Phase 01**: documents 00, 01 and 02 at 1.0.0; 54 typed `Resource` schemas under `src/data/` covering the eleven prototype contracts and their shared structs, with 11 sample resources; `tests/schema_check.gd`, whose required-field manifests are transcribed from the master and document 20 rather than derived from the scripts, and which has been falsified more than a dozen ways; gdUnit4 6.2.1 vendored at `addons/gdUnit4` and pinned in document 28 by version, file count and a SHA-256 over its contents, protected from line-ending drift by `.gitattributes`; and `tests/run_tests.ps1`, which distinguishes all four gdUnit4 exit codes and refuses to report a pass unless at least one test actually executed.
-- **No gameplay code yet.** The engine spine is what Phase 02 is building now; it becomes visible in Phase 03.
+A Godot 4.7.1 project that opens, runs, exports, and **plays a full prototype run**. `scenes/prototype.tscn` is the scene a human launches.
+
+- **The engine spine (Phase 02).** SimClock, PauseAuthority, the fifteen-step SimLoop — which now actually drives gameplay and resolves every hit through its sorted queue — keyed RNG, EventBus, EntityRegistry with a spatial hash, CombatStats, object pools with all six caps, the debug overlay, the Run Recorder, the seven-bus audio layout, and the hitbox/hurtbox/Logical-Visual-death framework.
+- **The entities (Phase 03).** Player with input buffering and code-driven animation; arena and camera with lead, shake and clamping; the handgun with auto-targeting; the Tower with shield-then-health, its own weapon, interaction radius and evolution stages; three enemies, one per target intent, with attack slots, leash, the Opportunist event rule and the stuck ladder; the HUD and threat feedback. Art is stand-in CC0 (D101) and gets its own session (D102).
+- **Pacing (Phase 04).** The Wave Director with both spawn rings, validation and directional weighting, the eight-wave prototype sequence, the stall check, Overtime with finishers, encounter priority and deferred recovery gaps, the encounter alive cap, the Siege volume formula computed from live Tower DPS, the Pressure Metric with escalation and bounded de-escalation, and pickups with magnet, raycast blocking, merge-at-cap, the Drop Table and the run economy.
+- **Interfaces and run flow (Phase 05).** Six upgrades and two fallback cards with ranks shared across both channels; the Level-Up Draft; the Tower Console, which never pauses; the pause menu, settings menu and run-end screens; focus-loss pause with the `--no-focus-pause` harness flag.
+- **The record.** 31 design documents, `phases/` holding plan, log, ledger, failure points and review for all 20 phases, and 88 test suites under `tests/unit`.
+
 
 ## Phase 00's standing
 
@@ -68,13 +69,16 @@ Both `tools/.gdignore` and `sandbox/.gdignore` must exist — they are not in th
 
 ## Where the build actually is
 
-**Phase 02, the engine spine — six of seven, all committed.** SimClock and PauseAuthority (determinism: pause requests apply at end of tick, never mid-resolution); SimLoop's fifteen-step order; keyed RNG on a hand-rolled FNV-1a; EventBus, EntityRegistry with a spatial hash, CombatStats; object pools with all six caps and the gameplay root scene; the debug overlay and Run Recorder; the seven-bus audio layout with a 32-voice pool; and the hitbox/hurtbox/Logical-Visual-death framework. 172 tests, zero engine errors.
+**Every prototype system is built. None of it has been through a review gate, and the author has not played the assembled build since waves landed.**
 
-**P1.7 (swarm stress test) is deferred, not dropped** (D97) — it will measure real Phase 03 entities rather than placeholder capsules. **No Phase 02 review gate has run** (D98).
+The 2026-09-20 session built P2.9, P2.10, P2.11, P2.12, P2.13, P2.14, the deferred remainder of P2.8, and an integration pass, plus the core simulation debt D103 names. Roughly 230 new test cases. What it found matters more than what it built:
 
-**Phase 03, the prototype slice — in progress.** P2.1 player, P2.2 arena and camera, P2.4 Tower delegated in parallel. Then P2.3 (handgun with auto-targeting), P2.5 (one enemy per target intent), P2.6 (HUD). Then **P2.7, the feel check, which is the author's** — they play it and record go or adjust. That is the point of the whole phase and cannot be delegated.
+1. **Melee enemies could not damage the Tower at all** (F05-30). The attack cycle gates on the Register's `reach_or_range_px` — 20 px for a Tower Seeker — so an enemy stops and attacks out to 140 px from the Tower's centre, while its hitbox was hard-coded to `body_radius + 6 px` and could only overlap a 106 px Tower hurtbox within 126 px. A 14 px band where the AI ran its wind-up on schedule and the two `Area2D` shapes never touched. Found by parking one real Seeker at a distance its own code called in-range and counting landed hits: zero, over 240 physics ticks. **The dual-entity tension the whole prototype exists to prove could not occur**, and every test asserting the attack cycle stayed green throughout.
+2. **Wave-spawned enemies had no Tower reference** (F05-23, F05-31). Only the three hand-placed enemies were wired. Fixed at the class, not the instance: an enemy with no explicit reference now resolves the Tower through the EntityRegistry `&"tower"` tag.
+3. **Eight findings share one shape** — a correct, tested component nothing in the assembled scene ever calls. The integration pass closed them; the assertion suite that would keep them closed was not finished before an API session limit ended that agent (F05-33).
 
-**Art**: eight sprites under `assets/sprites/`, produced by `tools/art/generate_sprites.py` (D99, amended — the AI image route the author picked requires a paid plan the account lacks; nothing was generated or charged). Stylized geometric, not finished character art, and it says so in the decision. `--silhouette` regenerates flat-black variants; all five entities stay distinguishable with colour removed, which is the property the master actually requires.
+**T4 is deliberately still untuned.** The Register row says "tuned in P2.14"; it is not, because every measurement taken before finding 1 was measuring a broken damage path.
+
 
 ## Two things that bite, carried from Phase 02
 
@@ -86,39 +90,59 @@ Both `tools/.gdignore` and `sandbox/.gdignore` must exist — they are not in th
 | Item | Whose |
 | --- | --- |
 | Phase 00 and Phase 01 closure | author |
-| F02-09 clustered query bound; F02-16 Ghost hit test blind spot | author, parked by the prototype-first direction |
-| F02-03 five audio under-specifications; F03-01 enemy fixture constants with no Register rows | author |
-| `AudioDucking` needs `PROCESS_MODE_ALWAYS` but docs/20 forbids it under the gameplay root, and `main.tscn` is currently both | author - a real structural contradiction, left unwired |
-| P2.7 feel check | **author, and it is the deliverable** |
+| **No review gate has run for Phases 02, 03, 04 or 05.** D98 deferred it to one gate on the finished prototype. The prototype is now finished | author, to call |
+| **F05-33's three unfinished items**: the assembled-scene assertion suite, the T4 re-measurement, the headless run | next session |
+| **T4 tuning numbers**, once re-measured against a working damage path | author (Register value) |
+| **F04-16, a numeric inconsistency inside the master**: the Siege volume formula yields six accompanying Hunters where the same Register row states seven | author |
+| **F04-20**: off-screen spawn markers unbuilt, because docs/11 never states what a marker renders | author |
+| **Five contracts under-specify what implementation needs** (F03-25 enemy AI defaults, F04-01 Pressure constants, F04-08 pickup motion, F05-04 upgrade effect routing, F05-14 card name/icon). One decision, not five | author |
+| Roughly twenty numbers escalated with `NO REGISTER ROW` across six tasks, each marked in place rather than invented | author |
+| Interpretations awaiting a ruling: fallback Console price flat 90 vs 30×rank (F05-01); Shield Matrix capacity arriving filled (F05-02); finisher HP rounding (F04-17); sector width 360/7 vs 51.4 and the docs/19-vs-Register auto-fire conflict (F05-21); Pressure with zero capacity (F04-06) | author |
+| F02-09 clustered query bound; F02-16 Ghost hit test blind spot; F03-41 the Tower's own death still emitting `enemy_died` | author |
+| The art and asset session (D102) | author, before P2.16 |
+| P2.16's five external testers, P2.17's grappling spike, P2.18's gate rows | author |
 
-## Prompt — resuming the prototype build
+
+## Prompt — next session
 
 ```text
-Act as the supervising orchestrator continuing this project in Phase 02.
+Act as the supervising orchestrator continuing this project.
 
 Read first: D:\Gamedev\CLAUDE.md; phases/README.md; phases/LESSONS.md; this file;
-then phases/PHASE_02_Technical_Foundations/PLAN.md, EXECUTION_LOG.md and LEDGER.md
-to see which of P1.1-P1.7 are done, and Phase 01's REVIEW.md for what its gate found.
+then the Phase 03, 04 and 05 EXECUTION_LOG.md and LEDGER.md files. The ledgers are
+the work list: F05-33 names the three items the interrupted integration agent did
+not reach.
 
-Re-run the phase-entry checks before continuing: both MCP pins, both .gdignore files,
-the gdUnit4 tree hash against docs/28, and the Phase 01 regression (settings_check,
-schema_check, and the gdUnit4 pass suite).
+Re-run the phase-entry checks before anything else: both MCP pins, both .gdignore
+files, the gdUnit4 tree hash against docs/28, and a full `tests\run_tests.ps1`
+baseline so a later failure is attributable.
 
-Continue Phase 03 from wherever its EXECUTION_LOG.md says it stopped; Phase 02's remaining task P1.7 is deferred by D97 and is not the next thing. Sonnet
-subagents implement; every delegation prompt carries the no-delete, no-export,
-sandbox-only constraints explicitly, because the ask gate does not intercept subagents.
-Every acceptance test is falsified before its result is recorded - Phase 01 shipped
-three checks that could not fail.
+FIRST, finish F05-33:
+1. tests/unit/prototype_integration_test.gd, asserting against the REAL
+   scenes/prototype.tscn that every NodePath resolves, every required code-call
+   seam was made, and the behaviours work end to end - a wave-spawned Seeker
+   damages the Tower, drops are collected and reach the HUD, a level-up opens a
+   Draft, the Console opens on dwell with Scrap, and the run ends on player death
+   with zero Scrap. Assertions that a node merely EXISTS are what let eight
+   findings through; falsify each wiring assertion by unwiring it.
+2. Re-measure T4 over five seeds now that the damage path works, and bring the
+   author the numbers. Do not edit data/waves/t4.tres - the Register owns it.
+3. Run scenes/prototype.tscn headless for 600 frames and report every error and
+   warning against the known 4-ObjectDB/2-resource standing leak (F03-30).
 
-Review per D98: a spot-check during the prototype push, then one full gate on the
-finished prototype, on a TAGGED, FROZEN tree, with reviewers told to falsify against git archive
-copies rather than the shared working directory. Do not edit anything while the gate
-is open.
+THEN the author's call: the prototype is functionally complete and no gate has
+run for Phases 02-05. The author chose to stop at the prototype gate rather than
+carry on into slice systems. P2.15 (the scripted bot acceptance pass) and the
+deferred P1.7 swarm test are next, then the art session (D102), then P2.16.
 
-Send genuine design contradictions to the author as short multiple-choice questions.
-Never write that a gate is passed, satisfied, or ready. Commit documentation and
-implementation together.
+Sonnet subagents implement; every delegation prompt carries the no-delete,
+no-export, sandbox-only constraints explicitly, because the ask gate does not
+intercept subagents. Every acceptance test is falsified before its result is
+recorded. Send genuine design contradictions to the author as short
+multiple-choice questions. Never write that a gate is passed, satisfied or ready.
+Commit documentation and implementation together.
 ```
+
 
 ## Prompt — Phase 01 (executed; kept for reference)
 

@@ -1,0 +1,112 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/attack_profile.gd" id="1_attack"]
+[ext_resource type="Script" path="res://src/data/banded_value.gd" id="2_band"]
+[ext_resource type="Script" path="res://src/data/drop_table.gd" id="3_drop"]
+[ext_resource type="Script" path="res://src/data/movement_profile.gd" id="4_move"]
+[ext_resource type="Script" path="res://src/data/readability_profile.gd" id="5_read"]
+[ext_resource type="Script" path="res://src/data/enemy_definition.gd" id="6_def"]
+[ext_resource type="Script" path="res://src/data/telegraph_data.gd" id="7_tele"]
+
+; Overtime finisher EnemyDefinition (P2.8b, this task). MASTER_SDLC.md >
+; Provisional Values Register > "Spawning & Waves" > "Overtime finishers":
+; "Player Hunters at 25% Hunter health, 160% Hunter speed, ... exempt from
+; de-escalation, no leash timer, the finisher flag survives any conversion
+; ... drop 1 XP and no Scrap." A SEPARATE EnemyDefinition/unique_id from
+; data/enemies/player_hunter.tres, not a mutation of it at spawn time
+; (EnemyDefinition is a shared Resource multiple live instances read from
+; concurrently -- see src/director/wave_director.gd's own header on
+; avoiding the "mutable shared Resource" anti-pattern). Every field below
+; that is NOT called out as scaled is copied VERBATIM from
+; data/enemies/player_hunter.tres so a finisher otherwise behaves exactly
+; like a normal Player Hunter (same attack, same contact behaviour, same
+; telegraph, same readability) -- only health and speed differ, per the
+; Register row cited above.
+;
+; health_band.value: Player Hunter's own health_band.value is 30 (int,
+; BandedValue's schema field type). 25% of 30 is 7.5, which cannot be
+; represented in an int-typed field; rounded to the nearest integer (8),
+; since the Register states the two percentages but not a rounding rule for
+; a non-integer result -- named here as an interpretation, not invented,
+; since 25% and 30 are both Register numbers and only the ROUNDING
+; DIRECTION of their product is undetermined by the text.
+;
+; movement_profile.speed_multiplier: Player Hunter's own multiplier is 0.85
+; (of the player's 320 px/s reference). 160% of 0.85 is exactly 1.36 -- no
+; rounding needed, unlike health.
+;
+; The finisher's `is_finisher` FLAG itself is not a field on this Resource
+; at all -- it lives on the EnemyController NODE INSTANCE (src/enemy/
+; enemy_controller.gd's own `@export var is_finisher: bool`, already built
+; and already read by src/enemy/enemy_controller.gd's leash/attack-cycle
+; logic and by src/pickup/pickup_system.gd's drop suppression -- see this
+; task's report). src/director/wave_director.gd sets that instance flag at
+; spawn time; this Resource only carries the reduced stats.
+
+[sub_resource type="Resource" id="Resource_attack"]
+script = ExtResource("1_attack")
+attack_type = 2
+damage_per_hit_or_tick = 8
+cycle_or_tick_interval_seconds = 0.5
+reach_or_range_px = 18
+
+[sub_resource type="Resource" id="Resource_health"]
+script = ExtResource("2_band")
+value = 8
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("2_band")
+value = 8
+
+; Register > "Overtime finishers": "drop 1 XP and no Scrap" -- matches
+; data/waves/*.tres's own `finisher_drop_override` sub-resource exactly
+; (this field is NOT the enforcement point; src/pickup/pickup_system.gd
+; reads the finisher flag directly per this task's own report -- kept in
+; sync here only so this Resource is not internally misleading to a future
+; reader).
+[sub_resource type="Resource" id="Resource_drop"]
+script = ExtResource("3_drop")
+xp_shards = 1
+scrap = 0
+cores = 0
+
+; 160% of the Hunter's own 0.85 multiplier (Register: "160% Hunter speed").
+[sub_resource type="Resource" id="Resource_move"]
+script = ExtResource("4_move")
+speed_multiplier = 1.36
+body_radius_px = 12
+
+; NO REGISTER ROW -- escalated. Identical to player_hunter.tres's own
+; readability_profile (no distinct finisher silhouette/colour is specified
+; anywhere this task read).
+[sub_resource type="Resource" id="Resource_readability"]
+script = ExtResource("5_read")
+silhouette_class = 0
+reserved_colour = Color(0.95, 0.75, 0.15, 1)
+minimum_on_screen_size_px = 24
+
+[sub_resource type="Resource" id="Resource_telegraph"]
+script = ExtResource("7_tele")
+windup_duration_seconds = 0.0
+telegraph_shape = 2
+telegraph_colour = Color(0.95, 0.75, 0.15, 1)
+audio_cue_id = "PLACEHOLDER_cue_player_hunter_contact"
+lead_time_seconds = 0.0
+
+[resource]
+script = ExtResource("6_def")
+unique_id = "player_hunter_finisher"
+target_intent = 1
+movement_profile = SubResource("Resource_move")
+attack_profile = SubResource("Resource_attack")
+telegraph_data = SubResource("Resource_telegraph")
+health_band = SubResource("Resource_health")
+damage_band = SubResource("Resource_damage")
+contact_behaviour = 1
+pathing_fallback_behavior = 0
+entity_cap_weight = 1
+elite_eligibility = false
+allowed_affixes = Array[String]([])
+biome_tags = Array[String]([])
+readability_profile = SubResource("Resource_readability")
+drop_table = SubResource("Resource_drop")

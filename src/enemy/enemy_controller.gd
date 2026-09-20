@@ -40,19 +40,42 @@ class_name EnemyController
 ## tick -- the same seam P2.1/P2.3/P2.4 already established for their own
 ## SimLoop steps.
 ##
-## ## Immediate hit resolution, not SimLoop's (unconsumed) hit queue
-## Matching src/tower/tower_projectile.gd's own header precedent exactly:
-## docs/20 states an Area2D overlap callback "must only enqueue a hit
-## record... for step 7 to process, never resolve damage directly," but the
-## P1.5 framework this task builds on (hitbox.gd's own `_on_area_entered()`)
-## already resolves synchronously via `hurtbox.receive_hit()`, and
-## SimLoop's step 7 clears `_hit_queue` without ever consuming it. This
-## file follows that same established precedent (melee wind-ups and contact
-## ticks both resolve through `Hitbox.activate_window()`/
-## `deactivate_window()`, never through `SimLoop.enqueue_hit()`) rather than
-## being the first attacker in this codebase to route through a queue
-## nothing drains. Named again here, not silently repeated, because this
-## task's own brief calls the enqueue_hit rule out explicitly.
+## ## Hit resolution now routes through SimLoop's hit queue (F03-09/F03-22)
+## This controller never resolved damage itself -- it only toggles
+## `Hitbox.activate_window()`/`deactivate_window()` (below); `hitbox.gd` is
+## what decides how a landed overlap resolves, and that file now enqueues
+## through `SimLoop.enqueue_hit()` when a real SimLoop is reachable (see
+## hitbox.gd's own header), falling back to its original immediate
+## resolution only in isolated unit tests that build no SimLoop at all.
+## Nothing in THIS file changed for that fix; recorded here since this
+## controller's own header used to describe the (now superseded) immediate-
+## resolution precedent hitbox.gd followed.
+##
+## ## SimLoop registration (F03-09)
+## `driven_externally` (below) is now paired with a real registration:
+## `_resolve_sim_loop_and_register()` (deferred from `_ready()`) registers
+## this controller with `SimLoop`'s step 3 (enemy AI and movement) whenever
+## `driven_externally` is true AND a real SimLoop is reachable via the
+## `&"sim_loop"` group. `driven_externally` is NOT baked into
+## `scenes/entities/tower_seeker.tscn`/`player_hunter.tscn`/`opportunist.
+## tscn` themselves (an earlier version of this task did that and broke
+## leash_test.gd, which instantiates player_hunter.tscn directly and needs
+## it self-driven with no SimLoop present) -- instead,
+## `src/integration/prototype_integration.gd` flips it to `true` at
+## runtime, only on the three hand-placed instances it already holds a
+## reference to, before this controller's deferred registration check
+## reads it (see that file's own `_wire_sim_loop()` for the exact ordering
+## argument). A Wave-Director-spawned enemy created after that integration
+## script's `_ready()` already ran never has the flag flipped and stays
+## self-driven via its own `_physics_process()`, exactly as before this
+## task -- a named seam, not a silent gap, in the evidence report. Every
+## OTHER instantiation of these three scenes (every existing unit test)
+## keeps the script's own `false` default and is unaffected by any of
+## this. Wind-up/contact-tick logic (`_process_attack_cycle()`, below)
+## stays folded into this SAME `physics_step()` call rather than being
+## split into a second, separately-registered step-6 method -- see
+## src/core/sim_loop.gd's own step-6 comment for why, and the evidence
+## report for the interpretation this records.
 ##
 ## ## The EntityRegistry "tower_seeker" tag (LEDGER F03-15)
 ## `src/tower/tower_weapon.gd`'s `SEEKER_TAG`/`ENEMY_TAG` constants are read
@@ -191,6 +214,17 @@ var _stuck_despawned: bool = false
 var _registry: Node = null
 var _clock: Node = null
 
+## F03-09: reference to the running SimLoop instance (not the type),
+## resolved via a deferred group lookup -- see src/core/sim_loop.gd's own
+## class doc, "Reaching this instance from elsewhere", for why this must be
+## deferred rather than resolved inline in _ready(): under Main, Entities
+## (and therefore every enemy under it) finishes its whole _ready() pass
+## BEFORE SimLoop ever runs its own, so a same-frame lookup here would
+## always find nothing. Test-injectable via set_sim_loop_for_test(), which
+## (like this project's other pre-ready test seams) must be called before
+## add_child() to win over the deferred lookup.
+var _sim_loop: Node = null
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -237,6 +271,28 @@ func _ready() -> void:
 
 	_register_with_entity_registry()
 	_configured = definition != null and tuning != null
+	call_deferred(&"_resolve_sim_loop_and_register")
+
+
+## F03-09: registers this controller with SimLoop's step 3 (enemy AI and
+## movement) IF `driven_externally` is true -- set in scenes/entities/*.tscn
+## by this task, so every instantiation of those three scenes (the hand-
+## placed prototype ones AND any the Wave Director spawns later) carries
+## it -- AND a real SimLoop is reachable. Deferred past _ready() for the
+## sibling-order reason this field's own comment names; harmless to run
+## when no SimLoop exists (every isolated EnemyController unit test in this
+## project's suite), since `_sim_loop` simply stays null and this becomes a
+## no-op, leaving that node self-driven via its own `_physics_process()`
+## exactly as before.
+func _resolve_sim_loop_and_register() -> void:
+	if _sim_loop == null and is_inside_tree():
+		_sim_loop = get_tree().get_first_node_in_group(&"sim_loop")
+	if driven_externally and _sim_loop != null:
+		_sim_loop.register(SimLoop.Step.ENEMY_AI_AND_MOVEMENT, self)
+
+
+func set_sim_loop_for_test(loop: Node) -> void:
+	_sim_loop = loop
 
 
 func _register_with_entity_registry() -> void:
@@ -254,6 +310,12 @@ func _exit_tree() -> void:
 	AttackSlotManager.release_claim(_tower, self)
 	AttackSlotManager.release_claim(_player, self)
 	AttackSlotManager.release_claim(_opportunist_target, self)
+	# F03-09: unregister as this instance is removed (queue_free() from
+	# _despawn_due_to_stuck(), or scene/test teardown). Idempotent with the
+	# unregister already made at Logical Death below -- unregister() simply
+	# returns false the second time.
+	if _sim_loop != null:
+		_sim_loop.unregister(SimLoop.Step.ENEMY_AI_AND_MOVEMENT, self)
 
 
 ## Applies every tuning value from `definition` to this instance's live
@@ -268,7 +330,35 @@ func _apply_definition(preserved_hp: float = -1.0) -> void:
 	var body_radius: float = float(definition.movement_profile.body_radius_px) if definition.movement_profile != null else 0.0
 	_set_circle_radius(body_shape, body_radius)
 	_set_circle_radius(hurtbox_shape, body_radius) # "hurtbox equals the body" -- placeholder_enemy.gd's own extension of the Player-only Contract wording, reused here for consistency.
-	_set_circle_radius(hitbox_shape, body_radius + CONTACT_HITBOX_MARGIN_PX)
+
+	# Integration task (diagnosis of the T4 zero-Tower-damage finding;
+	# evidence/integration_report.md). This USED to be a flat
+	# `body_radius + CONTACT_HITBOX_MARGIN_PX` regardless of the attack's
+	# own reach -- but `_is_in_attack_range()`/`_reach_distance_to()`
+	# (below) gate the WHOLE attack cycle (windup, hit) on
+	# `definition.attack_profile.reach_or_range_px`, a Register-cited
+	# number that is 20 px for the Tower Seeker and Opportunist and 18 px
+	# for the Player Hunter (docs/20 > "Entity sizes": "a telegraphed
+	# melee attack's reach... extends BEYOND" the 6 px contact base) --
+	# both bigger than the flat 6 px margin this line used to hard-code.
+	# MEASURED, not reasoned: a real Tower Seeker parked motionless at the
+	# exact distance its own `_is_in_attack_range()` reports as "in range"
+	# (unmoving, in_attack_range continuously true, windup firing on
+	# schedule every 1.5 s) landed ZERO hits over 240 real physics ticks,
+	# because a body_radius+6 hitbox (radius 20 at body_radius 14) and a
+	# 106 px Tower Hurtbox can only physically overlap within 126 px, while
+	# the reach-based gate lets the Seeker stop anywhere out to 140 px --
+	# a 14 px "ghost zone" where the AI believes it is attacking and the
+	# physical Area2D shapes never touch. `tests/unit/tower_damage_path_
+	# test.gd::test_a_...` is the falsifying case: reverting this hunk
+	# reproduces the exact zero-hit result. Sizing the hitbox to
+	# `body_radius + reach` instead makes the physical shape's own reach
+	# match the logical gate's reach exactly, for every attack type this
+	# prototype has (both current reach values already exceed the 6 px
+	# floor, so `maxf` only ever protects a hypothetical future attack
+	# profile with a smaller reach than the base contact margin).
+	var reach_px: float = float(definition.attack_profile.reach_or_range_px) if definition.attack_profile != null else 0.0
+	_set_circle_radius(hitbox_shape, body_radius + maxf(reach_px, CONTACT_HITBOX_MARGIN_PX))
 
 	if hitbox != null:
 		# Tower Seeker and Opportunist can both end up attacking the Tower
@@ -479,6 +569,17 @@ func _resolve_player_reference() -> void:
 		_player = players[0]
 
 
+## Integration task (F05-23 Blocker): a Wave-Director-spawned enemy has no
+## explicit reference and `tower_path` unset -- `prototype_integration.gd`
+## only ever wired the three hand-placed P2.7 enemies (its own header names
+## the gap: "A Wave-Director-spawned enemy ... is NOT reached by this
+## method at all"). The clean fix, per F03-39 (the Tower now registers
+## itself with EntityRegistry under tag `&"tower"`), is for THIS resolver
+## to fall back to the same registry query interface every other entity
+## uses, rather than for the spawn path to hand-wire each instance.
+## `set_tower_reference()`/`tower_path` are left fully intact and still take
+## priority when either is actually set -- this only fills the gap when
+## neither is, so nothing that relies on the explicit route today changes.
 func _resolve_tower_reference() -> void:
 	if _tower != null and is_instance_valid(_tower):
 		return
@@ -486,6 +587,11 @@ func _resolve_tower_reference() -> void:
 		var n: Node = get_node_or_null(tower_path)
 		if n is Node2D:
 			_tower = n as Node2D
+			return
+	if _registry != null:
+		var towers: Array[Node2D] = _registry.get_entities_with_tag(&"tower")
+		if not towers.is_empty():
+			_tower = towers[0]
 
 
 ## The enemy's current target -- fixed by intent for the Tower Seeker
@@ -976,6 +1082,17 @@ func _on_opportunist_target_died(_entity: Node2D, _position: Vector2) -> void:
 func _on_own_logical_death(_entity: Node2D, position: Vector2) -> void:
 	if _audio_pool != null and death_sfx != null and _audio_pool.has_method("play"):
 		_audio_pool.play(death_sfx, position, 0, false, "SFX")
+	# F03-09: unregister as this enemy dies -- physics_step() already
+	# no-ops once death_state.is_dead is true (see its own first lines), so
+	# this is cleanup rather than a correctness requirement, but it matches
+	# this task's own "unregister as they die/despawn" instruction and
+	# keeps a dead-but-not-yet-pooled corpse out of step 3's call list.
+	# NOTE (evidence report): if this SAME instance is ever reused via Pool
+	# for a second logical spawn without re-entering _ready() (no
+	# reset_for_reuse()-style hook exists on this controller at all -- see
+	# the evidence report), it will not be re-registered after this point.
+	if _sim_loop != null:
+		_sim_loop.unregister(SimLoop.Step.ENEMY_AI_AND_MOVEMENT, self)
 
 
 ## Opportunist event rule, event 2: the out-of-range timer. "the out-of-

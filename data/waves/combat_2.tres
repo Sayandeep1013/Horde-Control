@@ -22,7 +22,7 @@ cores = 0
 [sub_resource type="Resource" id="Resource_overtime"]
 script = ExtResource("2_overtime")
 stall_threshold = 5
-finisher_enemy_id = "player_hunter"
+finisher_enemy_id = "player_hunter_finisher"
 finisher_spawn_rate = SubResource("Resource_finisher_rate")
 finisher_drop_override = SubResource("Resource_finisher_drop")
 

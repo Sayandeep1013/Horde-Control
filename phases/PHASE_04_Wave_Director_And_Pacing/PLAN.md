@@ -17,7 +17,17 @@ Four encounter types built from data, both Spawn Rings, the Pressure Metric, and
 
 ## Carried lessons
 
-phases/LESSONS.md and every earlier phase's (00, 01, 02, 03) EXECUTION_LOG.md, FAILURE_POINTS.md, and REVIEW.md are read at phase entry, per loop rule (a), and the patterns that apply to this phase - recurring failure types, estimates that ran over, tests that turned out unpassable, tools that misbehaved - are written into this section before implementation starts. At the time this PLAN.md was drafted, phases/LESSONS.md contains no rows and phases 00 through 03 have not run, so this section is a placeholder. It must be filled in with whatever those phases actually recorded before any P2.8-P2.10 work in this phase begins, with particular attention to whatever Phase 03 recorded about the enemy AI (P2.5) and Tower (P2.4) foundations this phase's spawns and targeting depend on directly.
+Filled at phase entry on 2026-09-20 from `phases/LESSONS.md` and the execution records of phases 00 through 03, per loop rule (a). Phase 03's record is the load-bearing one here, because P2.8 - this phase's largest task - was built inside it.
+
+1. **Run tests through `tests/run_tests.ps1`, never the raw gdUnit4 command.** gdUnit4's error count excludes Godot's own engine errors; five `push_error` calls measured `0 errors` at exit 0, and that blind spot hid a real dangling-reference bug for a whole phase. The script reads the engine channel too, and both results have to be clean. `pwsh` is not installed on this machine; the runner is Windows PowerShell 5.1, invoked directly.
+2. **Every named acceptance test is falsified by real mutation of the source or the `.tres`, restored, and proved byte-identical.** Phase 03 did this eleven times and three of those mutations exposed the *test* rather than the code. P2.9's Pressure test is the exact shape that fails this way: a lockout or a threshold test can be satisfied by a constant. Phase 03's wave-determinism suite stayed green against a hardcoded seed root, and only the paired negative case caught it - so every positive assertion in this phase carries its negative twin.
+3. **A mutation with no effect is a finding about the implementation.** Phase 03 deleted a stuck-rule clause with zero test movement and found dead code behind an earlier early return, not a weak test. Decide which it is before moving on.
+4. **Numbers come from the Provisional Values Register, and a missing row is escalated, never invented.** Four Phase 03 tasks in a row escalated rather than inventing (F03-01, F03-18, F03-24, F03-36). P2.10 authors the first real Economy Configuration; the only existing sample carries deliberate placeholder junk and must not be copied.
+5. **A green suite is not evidence a human sees anything.** Three enemies shipped invisible with 353 tests green, because the art was referenced only by a test comparing PNG files on disk. Pickups carry the same risk: assert on the assembled scene, and assert the visual node exists.
+6. **Parallel tasks break where they meet.** F02-13, F03-05 and F03-15 were all two implementers making defensible choices about a shared seam. Shared core files (`sim_loop.gd`, `event_bus.gd`, the EntityRegistry) have exactly one writer per session, and cross-task seams are reserved to the orchestrator rather than reached for by whoever needs them first.
+7. **Never call `remove_child()` in a gdUnit4 `after_test()`** - it orphans every descendant at the instant gdUnit4 counts them and the suite exits 101 (F03-35). Free the root instead.
+8. **Spot-check delegated output against the Register rather than trusting the report.** Reading three of twenty-six generated files in Phase 00 found a defect the agent called complete; the Phase 03 spot-check found a Major the whole 353-test suite had not.
+9. **Under-claim.** Seven under-claims survived Phase 01's review intact; the single overclaim had to be corrected. Nothing in this phase's record says a test, task or phase is passed, satisfied or ready.
 
 ## Tasks
 
@@ -43,14 +53,34 @@ Written at phase entry under loop rule (a), which requires reading every earlier
 Inputs: threat and capacity formulas, escalation, bounded de-escalation, health-quadrant logging (quadrant-aware selection excluded); P2.8 deliverable (Wave Director).
 Deliverable file paths: Pressure fields on `src/director/wave_director.gd`, overlay fields.
 Follows: docs/11_Wave_Director.md > "Pacing & Escalation Algorithm" in full - Pressure Calculation, Escalation Trigger, De-escalation (bounded), Health quadrant, Overtime - which is this task's complete owning section. Numeric formula constants are cited via MASTER_SDLC.md > Provisional Values Register > Pressure & Overtime, not restated here.
-Written at phase entry under loop rule (a), which requires reading every earlier phase's EXECUTION_LOG, FAILURE_POINTS, REVIEW and LESSONS first.
+
+Steps, written at phase entry on 2026-09-20 and given to the implementer:
+
+1. Threat per living, non-dying enemy - current HP x intent weight x (sheet DPS / 10), summed - with sheet DPS read from the enemy's authored Attack profile rather than from measured damage, and the intent weights cited to their Register row.
+2. Capacity as the sheet DPS of the player and the Tower with their current upgrades, not measured damage, with the player's term NOT zeroed while the Console is open. The upgrade system is being built in parallel, so capacity is read through a narrow seam with a documented fallback to base values, and the seam is recorded for the orchestrator to wire.
+3. Pressure = Threat / (Capacity x 20 s), zero with no enemies, evaluated on the Register's cadence and only while a combat wave (not a teaching wave) is open and outside the grace period.
+4. Escalation and bounded de-escalation with both lockouts implemented as independent timers - this phase's own predetermined risk is the two flapping at a boundary - and de-escalation asserted never to apply in a Siege or in Overtime.
+5. Health quadrant recorded at every escalation decision, with no effect on selection: logged, not acted on.
+6. Pressure, the escalation/de-escalation state and the quadrant surfaced through `src/debug/overlay.gd`'s existing `set_pressure()` and `set_health_quadrant()` seams, and readable by a test with no running game - following the precedent that keeps the Wave Director's spawn geometry a pure `RefCounted`.
+7. All timing on SimClock, never wall time or `get_tree()` timers; per-tick work in `physics_step(delta)` behind a `driven_externally` export, with no self-registration against SimLoop.
 
 ### P2.10 - Pickups, drop table, cap
 
 Inputs: pickup pool, magnet with raycast blocking, acceleration, merge, lifetime, the Drop Table, run inventory cap with FULL indicator, Scrap loss on death (Cores excluded); P1.3 deliverable (pools); P2.1 deliverable (player collector); P2.5 deliverable (enemies to drop).
 Deliverable file paths: `src/pickup/*.gd`, `data/pickups/*.tres`.
 Follows: MASTER_SDLC.md > Provisional Values Register > "Economy & Pickups" for Scrap cap/overflow, the Drop Table, magnet radius and motion, the pickup raycast, merge radius, and pickup lifetime (cited here, not restated); docs/20_Technical_Architecture.md > Godot 4.x Implementation Standards > "Collision Layers" table for the Pickup (12) and PlayerCollector (16) layers this task's `Area2D` nodes use. Document 16 (Economy - Pickups) is this task's nominal owner, consulting document 14 (Economy - Currencies); neither exists as a file yet - see "Open questions for the author".
-Written at phase entry under loop rule (a), which requires reading every earlier phase's EXECUTION_LOG, FAILURE_POINTS, REVIEW and LESSONS first.
+
+Steps, written at phase entry on 2026-09-20 and given to the implementer:
+
+1. Pickups acquired from the EXISTING pickup pool (`EntitySpawner.spawn_pickup`), never instantiated ad hoc, with type, value, magnet and lifetime authored in `.tres` against the existing `PickupDefinition` schema. Prototype types are the XP shard and Scrap; Cores are out of prototype scope.
+2. Magnet and motion exactly per the Register - radius, initial speed, acceleration, maximum speed - each cited to its row.
+3. The per-tick raycast toward the player masking EnemyBody, TowerBody and World; blocked means HOLD POSITION keeping stored speed, not slide; collection on overlap with the PlayerCollector; a never-attracted pickup does not simulate.
+4. Lifetime with its blink window, and merge at the pickup cap following C-MERGE exactly, including the fallback chain when no merge pair exists.
+5. The Drop Table applied on enemy death through the existing `EventBus.enemy_died` signal rather than by reaching into enemies: standard enemy 1 XP + 1 Scrap, Overtime finisher 1 XP and no Scrap, a stuck-despawned enemy still drops.
+6. A run inventory: Scrap with its cap and FULL state, overflow discarded because the prototype has no hopper, XP accrual, and the level curve read from a real `data/economy/prototype.tres` authored against the `EconomyConfiguration` schema. The only existing sample of that schema carries deliberate placeholder values and is read for shape only.
+7. Carried Scrap zeroed on player death, connected to the `EventBus.player_died` signal being added in the same session by the debt task, with the dependency recorded rather than assumed.
+8. Live state exposed in the same field shape `src/ui/hud_economy_state.gd` already defines, so the HUD is wired to it without being rewritten - the seam P2.6 built for exactly this.
+9. Per-tick work in `physics_step(delta)` behind a `driven_externally` export, with no self-registration against SimLoop; the orchestrator wires steps 9, 10 and 11.
 
 ## Exit criteria and acceptance tests
 

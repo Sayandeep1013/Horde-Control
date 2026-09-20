@@ -33,9 +33,19 @@ const TIME_SCALE_MIN: float = 0.25
 const TIME_SCALE_MAX: float = 1.0
 const TIME_SCALE_REDUCTION_MAX_MS: float = 120.0
 
-## Authoritative simulation time, in seconds, since this clock started (or
-## was last reset by reset_for_test()). Compare gameplay deadlines against
-## this value directly; never subtract a countdown from it.
+## Authoritative simulation time, in seconds, since this Node instance
+## started (LEDGER F03-12: this file previously documented a
+## `reset_for_test()` method here that exists nowhere in the codebase --
+## corrected; no such method exists, and none is added by this correction).
+## SimClock never resets its own `now` at runtime -- a test suite that needs
+## a fresh clock value builds its own throwaway instance instead
+## (`preload("res://src/core/sim_clock.gd").new()`) and injects it into
+## whatever it is testing via that consumer's own `set_sim_clock_for_test()`
+## seam, exactly as `tests/unit/leash_test.gd`, `tower_health_recovery_test.
+## gd`, `spawn_ring_test.gd`, and others already do -- never by resetting
+## the real Autoload singleton's `now` out from under every other system
+## sharing it. Compare gameplay deadlines against this value directly; never
+## subtract a countdown from it.
 var now: float = 0.0
 
 ## Clamped to [TIME_SCALE_MIN, TIME_SCALE_MAX] by the setter below. Any

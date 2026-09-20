@@ -102,6 +102,27 @@ var _fire_interval_seconds: float = 0.0
 var _projectile_speed: float = 0.0
 var _projectile_lifetime_seconds: float = 0.0
 
+## P2.11 modifier layer (src/upgrade/upgrade_system.gd). Multiplies the BASE
+## per-shot damage / fire rate computed from `definition` in configure()
+## above -- `_damage_per_shot` and `_fire_interval_seconds` are never
+## rewritten by an upgrade; only these two multipliers change, and only
+## get_effective_damage_per_shot() / get_effective_fire_interval_seconds()
+## combine them with the base at the point of use. This keeps
+## data/weapons/handgun.tres (owned by P2.3) and this weapon's own
+## definition-derived base values byte-identical no matter how many Rapid
+## Fire / Heavy Rounds ranks are applied.
+##
+## MASTER_SDLC.md > Progression Edge Cases > "Percentage bonuses to the same
+## stat stack" (C-STACK): "stat = base x (1 + sum of bonuses)". Each
+## multiplier here IS that one already-summed `(1 + sum of bonuses)` value
+## -- src/upgrade/upgrade_system.gd computes the sum from the upgrade's
+## current shared rank and pushes the single combined result through
+## set_damage_multiplier()/set_fire_rate_multiplier() on every apply_rank()
+## call; this file never sums bonuses itself and never compounds multiple
+## calls (each call REPLACES the multiplier, it does not multiply it again).
+var _damage_multiplier: float = 1.0
+var _fire_rate_multiplier: float = 1.0
+
 var _origin: Node2D = null
 var _current_target: Node2D = null # write-only-at-fire-time; see header
 var _next_fire_allowed_at: float = 0.0
@@ -208,6 +229,62 @@ func set_auto_fire_suppressed(suppressed: bool) -> void:
 	_auto_fire_suppressed = suppressed
 
 
+## Typed command (P2.11 modifier layer; see the field comment above this
+## file's `_damage_multiplier` declaration). `multiplier` is the ONE
+## already-summed `(1 + sum of bonuses)` value (C-STACK) -- REPLACES the
+## previous multiplier, never compounds against it.
+func set_damage_multiplier(multiplier: float) -> void:
+	_damage_multiplier = multiplier
+
+
+## Typed command (P2.11 modifier layer). Same replace-not-compound contract
+## as set_damage_multiplier() above, applied to fire rate instead of damage.
+func set_fire_rate_multiplier(multiplier: float) -> void:
+	_fire_rate_multiplier = multiplier
+
+
+## Typed query: the base per-shot damage (from `definition`) times the
+## currently-applied upgrade multiplier, computed fresh on every call so it
+## can never drift from `_damage_multiplier`'s current value.
+func get_effective_damage_per_shot() -> float:
+	return _damage_per_shot * _damage_multiplier
+
+
+## Typed query: the base fire interval (from `definition`) divided by the
+## currently-applied upgrade fire-rate multiplier -- a HIGHER multiplier
+## means a SHORTER interval (faster fire rate), matching "+20% fire
+## rate/rank" naming exactly (Rapid Fire increases the multiplier, which
+## must decrease this interval, not increase it).
+func get_effective_fire_interval_seconds() -> float:
+	return (_fire_interval_seconds / _fire_rate_multiplier) if _fire_rate_multiplier > 0.0 else INF
+
+
+func get_damage_multiplier_for_test() -> float:
+	return _damage_multiplier
+
+
+func get_fire_rate_multiplier_for_test() -> float:
+	return _fire_rate_multiplier
+
+
+## Integration task (P2.9's own capacity seam; evidence/p29_report.md,
+## "The capacity seam the orchestrator must wire to the upgrade system").
+## Live, upgrade-aware sheet DPS -- CombatStats.sheet_dps_from_weapon()'s
+## own formula (damage / interval), computed from the CURRENT effective
+## values rather than the ones reported to CombatStats at configure() time.
+## `set_damage_multiplier()`/`set_fire_rate_multiplier()` (P2.11's own
+## modifier layer) do not themselves re-report to CombatStats, so
+## CombatStats.get_sheet_dps(&"player") silently stays at the pre-upgrade
+## base figure forever -- verified, not assumed, in
+## evidence/integration_report.md. This is the Callable
+## `WaveDirector.set_player_capacity_provider()` is wired to, so the
+## Pressure Metric's Capacity term (and Siege sizing) reflects a ranked-up
+## weapon instead of always reading the base handgun.
+func get_effective_sheet_dps() -> float:
+	var interval: float = get_effective_fire_interval_seconds()
+	return get_effective_damage_per_shot() / interval if interval > 0.0 else 0.0
+
+
 func _physics_process(delta: float) -> void:
 	if driven_externally:
 		return
@@ -231,7 +308,7 @@ func physics_step(_delta: float) -> void:
 		return # no target in range -- hold fire, consume nothing
 	_current_target = target
 	_fire_at(target)
-	_next_fire_allowed_at = _now() + _fire_interval_seconds
+	_next_fire_allowed_at = _now() + get_effective_fire_interval_seconds()
 
 
 ## Register: "nearest re-picked every shot" (Provisional Values Register >
@@ -272,7 +349,7 @@ func _fire_at(target: Node2D) -> void:
 	# Projectile Orphans (docs/20): source resolved BY VALUE, never a live
 	# Node reference to this weapon's owner -- see player_projectile.gd's
 	# header.
-	projectile.launch(origin_pos, direction * _projectile_speed, _damage_per_shot, &"player", _projectile_lifetime_seconds)
+	projectile.launch(origin_pos, direction * _projectile_speed, get_effective_damage_per_shot(), &"player", _projectile_lifetime_seconds)
 	if _audio_pool != null and fire_sfx != null and _audio_pool.has_method("play"):
 		_audio_pool.play(fire_sfx, origin_pos, 0, false, "SFX")
 	fired.emit(_now())

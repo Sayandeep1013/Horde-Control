@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/upgrade_definition.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+unique_id = "patch_kit"
+pool_ownership = 0
+rarity = 0
+max_rank = 3
+has_max_rank = true
+prerequisites = Array[String]([])
+exclusions = Array[String]([])
+effect_description = "Patch Kit: restores 30 player health per rank taken"
+effect_target = 0
+effect_per_rank = 30.0
+console_price_per_rank = 30
+recursive_interaction_guard = ""
+has_recursive_interaction_guard = false
+visual_readability_impact = 0
+performance_cost_category = 0

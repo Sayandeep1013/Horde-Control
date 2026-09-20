@@ -1,0 +1,128 @@
+# P2.12 - Level-Up Draft: evidence report
+
+Reviewers and the author decide whether this task passes its gate. This report describes what was built and what was observed; it does not claim the task, its tests, or the phase are complete, satisfied, passed, or ready.
+
+## Files created / modified
+
+**New:**
+- `src/ui/draft_controller.gd` - the Level-Up Draft's whole logic: SimLoop step-11 trigger, teaching-wave XP-cap enforcement, sequential draft queue, keyed-RNG card rolling with the one-of-each guarantee and fallback substitution, Reroll, input (lockout, neutral-return arming, cycle repeat/wrap, hold-to-confirm), UI construction, and the pause/grace-period seam.
+- `src/ui/draft_card_view.gd` - one card's visual: icon/glyph, header word, name, one-sentence effect, rank-change line, frame-shape differentiation.
+- `src/ui/draft_fill_ring.gd` - the hold-to-confirm fill-ring visual (a pure display; DraftController drives its `progress`).
+- `scenes/ui/draft.tscn` - a bare `CanvasLayer` carrying `draft_controller.gd`, matching `scenes/ui/hud.tscn`'s own established pattern (the whole tree is built in code, not authored in the scene file).
+- `tests/unit/draft_fake_wave_director.gd` - a duck-typed test double for the subset of WaveDirector's public surface DraftController reads (`teaching_wave_unique_ids`, `get_current_wave_id()`, `wave_ended`, `notify_draft_closed()`). Not a suite itself.
+- `tests/unit/draft_test_helpers.gd` - shared factory helpers (`build_upgrade_system`, `build_run_inventory`, `build_draft_controller`, fresh `PauseAuthority`/`SimClock` instances) used by all six suites. Not a suite itself.
+- `tests/unit/draft_queue_test.gd`, `tests/unit/draft_input_lockout_test.gd`, `tests/unit/guaranteed_first_draft_test.gd`, `tests/unit/encounter_deferral_test.gd`, `tests/unit/draft_determinism_test.gd`, `tests/unit/xp_cap_check_test.gd` - the six named acceptance tests.
+
+**Modified:**
+- `src/ui/ui_sfx.gd` - added `reroll_stream` export, a fourth `PROCESS_MODE_ALWAYS` `AudioStreamPlayer` ("RerollPlayer"), `play_reroll()`, and `get_reroll_player_for_test()`, mirroring the three existing cues exactly (`git diff --stat`: 21 insertions, 0 deletions - purely additive).
+
+No file outside `src/ui/draft*.gd`, `src/ui/ui_sfx.gd`, `scenes/ui/draft.tscn`, and new files under `tests/unit/` was touched.
+
+## The Draft, rule by rule
+
+1. **Trigger and queueing (SimLoop step 11).** `DraftController.physics_step(delta)` self-registers at `SimLoop.Step.XP_AND_LEVEL_UP_REQUESTS` via the deferred group-lookup convention (`call_deferred("_find_and_register_with_sim_loop")`, matching `pickup_system.gd`'s own pattern) rather than polling `_process`. `RunInventory.consume_level_up_requested()` is a **boolean**, not a counter (P2.10, outside my write scope), so a single `credit_xp()` call crossing two thresholds at once collapses to one `true`. `physics_step()` recovers the true count by comparing `RunInventory.level` before/after and queues one request per level actually gained - the mechanism the Draft queue test exercises directly.
+2. **Full pause, through PauseAuthority only.** Opening pushes `PauseAuthority.REASON_DRAFT` (queued, applied at the SAME tick's step 14, per docs/20's Level-Up Draft Rule). Closing the whole session calls `PauseAuthority.pop_reason_immediate()` - **not** the queued `pop_reason()` - because SimLoop is `PROCESS_MODE_PAUSABLE` and simply never gets a `_physics_process` call while already paused, so nothing would ever reach step 14 to flush a queued unpause. This mirrors the exact escape hatch `pause_authority.gd` documents for the Focus Loss Rule. No other file writes `get_tree().paused`.
+3. **Three cards, one-of-each guarantee, differentiation.** `_roll_three_once()` rolls a guaranteed Player card, a guaranteed Tower card, then a wildcard from whatever remains (falling back to `UpgradeSystem.get_fallback_card()` when a pool is exhausted). Background dims via a `ColorRect` at `Color(0,0,0,0.6)` over a `PRESET_FULL_RECT` root, battlefield left undrawn-over. `DraftCardView` differentiates by frame corner radius (rounded=Player, squared=Tower), a fixed glyph (▲/■), and a header word (PLAYER/TOWER) - never colour alone (verified by `test_card_differentiation_is_never_colour_alone`).
+4. **Input.** 0.4 s lockout (`_time_since_open`, see "Two clocks" below); hold-to-confirm (`move_up`) arms only after one full neutral read post-lockout; `draft_cycle_left/right` and `move_left/right` both cycle with 0.3 s repeat and `wrapi()` wrap; number keys `draft_select_1..3` select-and-confirm in one press; `confirm` (space/enter/click/gamepad A) confirms the highlighted card; `reroll` triggers Reroll. No new input actions were added.
+5. **Reroll.** One per run (`_reroll_used`), replaces all three cards through the same guaranteed-roll path, and retries (bounded, `MAX_DISTINCT_REROLL_ATTEMPTS = 6`) if the result exactly repeats the just-shown set and the pool is large enough to avoid it.
+6. **Fallback cards.** `_pick_guaranteed()`/`_pick_wildcard()` call `UpgradeSystem.get_fallback_card()` the moment a pool has nothing offerable left.
+7. **No Cancel.** No cancel input path exists anywhere in `draft_controller.gd`; a draft resolves only through confirm/select/hold.
+8. **Guaranteed first draft.** `_on_wave_ended()` fires a forced request whenever the ended wave equals the **last** entry of `WaveDirector.teaching_wave_unique_ids` (never a hardcoded `"wave_t4"` literal). `_grant_forced_level()` sets `level = 1` (if not already >= 1) and recomputes `xp_required_for_next_level`, leaving `xp_current` untouched.
+9. **Teaching-wave XP cap (C-XPCAP).** `RunInventory.credit_xp()` (P2.10) has no notion of teaching waves and always applies the level curve unconditionally - so a shard that pushes `xp_current` from 14 to 15 **does** fire a real level-up inside RunInventory, before this task's own step-11 code ever runs, every time. `_enforce_xp_cap_and_revert_erroneous_level_up()` catches this the same tick: it refunds every level's cost that `credit_xp()`'s own loop subtracted (recomputed from `EconomyConfiguration.xp_level_cost`, read-only), reverts `level`, then clamps `xp_current` to `economy_configuration.xp_cap_during_teaching_waves` (14, authored on `data/economy/prototype.tres`). A naive "just decrement level" implementation without the refund step under-clamps (see `xp_cap_check_test.gd`'s own header comment and its `test_a_burst_that_crosses_the_level_1_threshold_is_fully_refunded_and_reverted`) - I found and fixed this exact bug while writing that test, before any falsification pass.
+10. **Grace period.** `_close_session()` calls `wave_director.notify_draft_closed(SimClock.now)` exactly once, only after the whole queued session has drained (never once per sub-draft) - read-only call into the seam `wave_director.gd` already exposes; nothing in that file was edited.
+11. **Determinism.** Every random pick calls `KeyedRng.rng_for([run_seed, "draft", _draft_card_serial])`, where `_draft_card_serial` is a run-lifetime monotonic counter incremented once per roll (guaranteed-player pick, guaranteed-tower pick, wildcard pick, every reroll retry) - matching the `spawn_serial` pattern already used for drops/spawns, never reset per draft.
+
+## Register citations
+
+Every gameplay number DraftController reads is cited to the Provisional Values Register in the source: `LOCKOUT_SECONDS` (0.4), `CYCLE_REPEAT_SECONDS` (0.3), `HOLD_CONFIRM_SECONDS` (1.0) all cite "Draft input"; the one-of-each/dim/reroll rules cite "Level-Up Draft"; the rank-change line cites "Draft card display"; `_teaching_xp_cap()` cites "Teaching wave XP (C-XPCAP)" and reads the number from `data/economy/prototype.tres` rather than restating `14` as a second literal (the `14.0` fallback in `_teaching_xp_cap()` only guards a misconfigured test with no `economy_configuration` at all - never a second source of truth). `DraftCardView`'s corner-radius pixel constants (`CORNER_ROUNDED_PX = 18`, `CORNER_SQUARED_PX = 0`) are marked `NO REGISTER ROW` in the source - a visual constant, not a gameplay number, since "rounded vs squared" is qualitative in the Register/docs/19 and no pixel value is stated anywhere. I did not invent a Register row for it; I named it in the source comment instead.
+
+## Escalations (NO REGISTER ROW)
+
+- `DraftCardView`'s corner-radius pixel constants (18/0), named above.
+- `UpgradeDefinition` has no `name`/`icon` field (only `unique_id` and a combined `effect_description` sentence). The card view splits `effect_description` on the first `:` to recover a name and effect sentence - an interpretation of existing authored data, not an invented schema field; documented in `draft_card_view.gd`'s own header. The Player/Tower glyph doubles as "the icon" Readability asks for, since no per-upgrade icon asset exists in `docs/25_Asset_Pipeline.md` or `assets/`.
+- The rank-change line for a no-max-rank fallback card (Overdrive/Reinforce) has no Register-stated format (the Register's own example, "Rank 1 -> 2 of 3", only fits a ranked upgrade). I show "Taken x\<n\> already" once taken at least once, nothing before that - an interpretation, named in `draft_card_view.gd`.
+- No fourth distinct Kenney UI audio asset exists for Reroll (`assets/third_party/kenney/audio/ui/` has only `cancel.ogg`, `confirm.ogg`, `cycle.ogg`). `play_reroll()`/`reroll_stream` add the routing mechanism only (matching this file's own already-established scope boundary); `reroll_stream` is left unassigned by default. Assigning a real, distinct asset to it in `scenes/prototype.tscn` is a required seam for whoever manages the asset pipeline - docs/19's "distinct... audio cue" for Reroll is not fully satisfied until that asset exists.
+- The Reroll rule's "avoids the 3 just shown when the pool allows it" is implemented as a bounded retry (6 attempts) with a coarse "is a distinct set even possible" heuristic, not an exhaustive combinatorial check - named as an interpretation in the source.
+
+## Open contradiction (flagged for the author, not resolved unilaterally)
+
+`SimClock` is `PROCESS_MODE_PAUSABLE` and the Pause authority acceptance criterion is specifically that `SimClock.now` **stops** under pause. The Draft's own job is to keep timing (0.4 s lockout, 0.3 s cycle repeat, 1.0 s hold) **while** the pause it just caused is active, so a literal "route every UI timer through SimClock" is unsatisfiable here: SimClock cannot be both the clock that freezes for the Draft and the clock the Draft uses to time its own unfreezing. I resolved this by giving `DraftController` its own `PROCESS_MODE_ALWAYS` `_process(delta)` loop with a private elapsed-time accumulator (`_time_since_open`, `_hold_up_progress`, the two cycle-repeat timers) driven by real per-frame `delta` - never `get_tree().create_timer()`/`create_tween()` (the specifically banned calls), and never `SimClock.now`. This is named in `draft_controller.gd`'s own header as an open question, parallel to the existing AudioDucking/PROCESS_MODE_ALWAYS contradiction Phase 05's carried lesson 6 names: should a future phase give SimClock a second, pause-surviving "menu time" instead of every paused menu (this Draft; the pause menu and Console purchase channel in P2.13/P2.14) inventing its own accumulator? I did not resolve this silently - it is a real design question, not settled here.
+
+## Skill conflicts
+
+- `godot-ui`'s checklist prescribes "Signals connected in `_ready()`... no polling of UI state in `_process`." The Draft's hold-to-confirm/cycle-repeat timers have no substitute for per-frame polling (a signal cannot express "held for 0.3 s, repeating"), and this project's own `hud.gd` already established the polling convention for the same missing-signal reason (Phase 03 recorded two such conflicts in the HUD task). Not resolved differently here; recorded as a repeat of the same, already-accepted deviation.
+- `input-handling`'s "catch discrete actions in `_unhandled_input()`" guidance does not apply to the hold/repeat timers (the skill itself carves out polling for held/analog input), so this is not actually a conflict for those; I did use direct polling (`_is_pressed`/`_is_just_pressed`, called from `_process`) uniformly rather than splitting one-shot actions into `_unhandled_input()`, for a single, testable input surface. Named as a deliberate simplification, not a Register/docs-19 conflict.
+- `godot-ui`'s checklist also recommends Godot's native `focus_mode`/`grab_focus()` focus-neighbor system for interactive widgets. The Draft's highlight index is custom state (needed for the 0.3 s repeat and mouse-hover interplay docs/19 specifies), not Godot's native `Control` focus ring; `focus_mode = FOCUS_ALL` is set on the Reroll hint label only, for the "Reroll is also a focusable element" input-floor rule, without wiring a full focus-neighbor chain. Not a docs/19 conflict, just an interpretation left short of the skill's full pattern.
+- `responsive-ui`'s DPI/touch/safe-area checklist items do not apply - this prototype is fixed at 1920x1080 (Register > Viewport), Windows-primary; not exercised.
+
+## Falsification table
+
+For each mutation: the file was `draft_controller.gd` only. Restored state verified against a pristine copy taken before any mutation (the file is untracked/new this session, so `git diff` shows nothing for it either way; a byte-for-byte `diff` against the saved pristine copy is the actual proof, shown below as "restored byte-identical").
+
+| # | Mutation | Target test(s) | Command | Exit code | Restored byte-identical |
+| --- | --- | --- | --- | --- | --- |
+| F1 | Removed the 0.4 s lockout (`if _time_since_open >= LOCKOUT_SECONDS` -> `if true`) | `draft_input_lockout_test.gd` | `-a res://tests/unit/draft_input_lockout_test.gd` | 100 (1 test ran before gdUnit4 stopped the file; `test_confirm_is_ignored_during_the_0_4_second_lockout` failed: "confirm fired during the input lockout window") | yes |
+| F2 | Removed the neutral-return arming check (`_update_hold_up_arming_state()` unconditionally set `_hold_up_armed = true`) | `draft_input_lockout_test.gd` | same | 100 (3 failures: "hold-up armed immediately even though move_up was never released"; "held move_up auto-confirmed a card despite never being released once") | yes |
+| F3 | Dropped the second queued draft (`_check_for_new_level_up_requests()` enqueued exactly one request regardless of `gained`) | `draft_queue_test.gd` | `-a res://tests/unit/draft_queue_test.gd` | 100 (1 test ran; expected pending count 1, got 0) | yes |
+| F4 | Removed the one-of-each guarantee (`_roll_three_once()` always returned `upgrade_definitions[0..2]`, all three Player) | `draft_queue_test.gd` | same | 100 (2 failures: "draft 0 had no Tower card", "draft 1 had no Tower card") | yes |
+| F5 | Discarded the held XP at the forced first draft (`_grant_forced_level()` also set `xp_current = 0.0`) | `guaranteed_first_draft_test.gd`, `xp_cap_check_test.gd` | `-a ...guaranteed_first_draft_test.gd -a ...xp_cap_check_test.gd` | 100 (5 failures total: 4 "held XP was not kept toward level 2" across the 5-run loop, gdUnit4 stopping after the first assertion failure inside the loop each time it re-entered; 1 "held XP at the cap was discarded instead of carried toward level 2") | yes |
+| F6 | Hardcoded the draft RNG seed root (`KeyedRng.rng_for([run_seed, ...])` -> `KeyedRng.rng_for([42, ...])`) | `draft_determinism_test.gd` | `-a res://tests/unit/draft_determinism_test.gd` | 100 - and specifically: the SAME-seed test (`test_same_run_seed_reproduces_identical_offers_10_of_10`) still PASSED under this mutation (a positive-only determinism test cannot catch a hardcoded seed root, exactly as named in the task brief); only the DIFFERENT-seed test caught it ("a different run_seed produced byte-identical offers... a hardcoded seed root would produce exactly this symptom") | yes |
+
+No mutation left a test green when it should have turned red, and none of the six mutations produced a no-op (every one flipped at least one assertion). F6 is the one case where a positive-only check would have been blind, matching the task's own named concern about the Wave Director suite that stayed green against a hardcoded seed root; the negative test here is what actually falsifies it.
+
+While writing `xp_cap_check_test.gd` I found a real bug in my own first draft of `_enforce_xp_cap_and_revert_erroneous_level_up()`: reverting only `level` without refunding the XP `credit_xp()`'s own loop had already subtracted left `xp_current` under-clamped (5 instead of 14 in the worked example in the source header). This was caught and fixed before any falsification pass, not discovered by a mutation - named here because F03-23's own rule ("a mutation with no effect is a finding about the implementation, not a weak test") cuts the other way too: a test that would have passed against a genuinely wrong implementation is a finding, and I want it visible that this one very nearly did.
+
+## Test results
+
+Six named suites, run together via repeated `-a` (the harness script's own `-TestPath` only accepts one string and does not split on commas - confirmed by trying it first and getting "Given directory or file does not exists" against the joined path; repeating `-a` per file does work with the underlying `GdUnitCmdTool.gd`):
+
+```
+res://tests/unit/draft_queue_test.gd            - 4 test cases, 0 errors, 0 failures, 0 orphans
+res://tests/unit/draft_input_lockout_test.gd    - 11 test cases, 0 errors, 0 failures, 0 orphans
+res://tests/unit/guaranteed_first_draft_test.gd - 2 test cases, 0 errors, 0 failures, 0 orphans
+res://tests/unit/encounter_deferral_test.gd     - 3 test cases, 0 errors, 0 failures, 0 orphans
+res://tests/unit/draft_determinism_test.gd      - 2 test cases, 0 errors, 0 failures, 0 orphans
+res://tests/unit/xp_cap_check_test.gd           - 3 test cases, 0 errors, 0 failures, 0 orphans
+Overall: 25 test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 orphans
+Exit code: 0
+```
+
+(`draft_input_lockout_test.gd` carries 11 cases, not 8: I added three supplementary tests - `test_dim_background_covers_the_full_1920x1080_viewport`, `test_card_views_render_on_screen_within_the_1920x1080_viewport`, `test_card_differentiation_is_never_colour_alone` - asserting real screen **position** on a 1920x1080 viewport, per Phase 05's own carried lesson 1 (F03-20: a raw-anchor Control can pass every content assertion and still render off-screen). These are additional coverage, not a substitute for any of the six named tests.)
+
+I also ran the whole `tests/unit` directory (76 suites, 532 test cases) through `tests/run_tests.ps1 -TestPath res://tests/unit` to check for cross-suite interference and the engine-error channel:
+
+- **My six suites, inside that full run, still reported 0 failures / 0 errors / 0 orphans each** (checked per-suite "Statistics:" line individually).
+- The full run's overall result was **1 errors | 13 failures | 17 orphans**, entirely in two suites I do not own and did not touch: `encounter_recovery_test.gd` (1 test case, 10 failures - "the low-priority encounter did not open once its deferred recovery gap elapsed") and `wave_sequence_test.gd` (1 test case, 3 failures, plus a `SCRIPT ERROR: Out of bounds get index '4'` - the sequence stalled before `combat_4` ever opened). Both are `src/director/**` (Wave Director) territory, which another implementer is editing concurrently per this task's own instructions; I did not investigate or fix either. The `ERROR: 1 resources still in use at exit` engine-shutdown line only appeared in this 76-suite run, never in my isolated 6-suite runs, and is not attributable to any file I touched.
+- I did not fix, silence, or work around either of those two suites, per instruction.
+
+Import pass ran clean (`--headless --path D:\Gamedev --import`, exit 0) before every test invocation above.
+
+## Falsification method
+
+`draft_controller.gd` is a new (untracked) file this session, so `git diff` shows nothing for it before or after a mutation. Verification instead used a pristine copy saved to the scratchpad directory before any mutation began; after each revert, `diff <live file> <pristine copy>` reported no differences (shown as "yes" in the table above) before moving to the next mutation. No two mutations were ever applied simultaneously.
+
+## What I could not do / did not build
+
+- Real hardware input (gamepad button/axis identity, mouse device prompt icon switching) is untested - `draft_input_lockout_test.gd` drives the controller through its own `set_action_pressed_for_test`/`press_action_once_for_test`/`tick_for_test()` seam (mirroring this project's own `player_input_buffer_test.gd` convention), never real `InputEvent` injection, since gdUnit4's own tooling notes headless mode does not transport `InputEvent`s at all ("Please note that tests that use UI interaction do not work correctly in headless mode"). The input MAP wiring itself (which physical keys/buttons feed `draft_cycle_left`, `confirm`, etc.) is project.godot's existing configuration, read and relied on, never edited.
+- Device-prompt switching (showing a keyboard vs. gamepad glyph) is docs/19's "Owns" list for the whole document, not a named P2.12 acceptance test; not built.
+- No icon/name asset exists for any upgrade card (see Escalations); the glyph substitutes for it.
+- I did not wire `scenes/ui/draft.tscn` into `scenes/prototype.tscn`, assign `pickup_system_path`/`upgrade_system_path`/`wave_director_path`/`ui_sfx_path`, or set `run_seed` on the real scene instance - `scenes/prototype.tscn` is outside this task's write scope. See "Seams for the orchestrator" below.
+
+## Seams the orchestrator must wire
+
+Named exactly, because this project has already found four cases of a correct component that was never wired into the assembled scene:
+
+1. **`scenes/ui/draft.tscn` is never instantiated under `scenes/prototype.tscn`.** Nothing adds a `DraftController` node to the running game yet. Without this, no level-up will ever visibly open a Draft, even though every rule above is implemented and tested in isolation.
+2. **Four `NodePath` exports need real targets once wired:** `pickup_system_path` (-> the scene's `PickupSystem` node, whose `.run_inventory` is the actual `RunInventory` the HUD/economy already use), `upgrade_system_path` (-> the scene's `UpgradeSystem` node, shared with the Console per P2.13), `wave_director_path` (-> the scene's `WaveDirector` node), `ui_sfx_path` (-> the scene's `UiSfx` node, for `play_confirm`/`play_cycle`/`play_reroll`).
+3. **`run_seed` must be set to the SAME integer as `WaveDirector.run_seed`** (and whatever `RunRecorder` uses) on the assembled scene instance - three independent `@export var run_seed: int = 0` fields across three files (`wave_director.gd`, `draft_controller.gd`, and wherever RunRecorder's own seed is set) all need to agree for the Determinism test's premise (one run seed governs every keyed roll in a run) to hold true outside an isolated unit test. Nothing enforces this agreement automatically; a scene that leaves any one of them at its `0` default while the others are randomized would silently break replay determinism without any test in this task's scope being able to see it (each of my suites injects its own controller and sets `run_seed` directly).
+4. **`ui_sfx.gd`'s new `reroll_stream` export has no asset assigned anywhere** - `scenes/prototype.tscn` (or wherever the real `UiSfx` node lives) needs a `reroll_stream` assignment once a fourth distinct Kenney (or other) UI cue exists; see Escalations.
+5. **The HUD's `rerolls_remaining` field** (`src/ui/hud_economy_state.gd`, per `hud.gd`'s own docstring: "P2.12's fields, not this task's") is never populated by this task - `DraftController` tracks `_reroll_used` internally but nothing pushes `1 - int(_reroll_used)` (or `0`/`1`) into `HudEconomyState.rerolls_remaining`. The HUD will keep showing whatever placeholder value it currently has. This is a real, missing seam, named rather than silently left for someone to discover as a UI bug later.
+6. **The pause menu (P2.14) and this Draft both use `PauseAuthority`'s reason set** - no conflict was found in this task's own testing (the reason string `&"draft"` is namespaced separately from `&"pause_menu"`), but P2.14 has not been built yet, so the two systems' actual coexistence under a real pause-menu-during-a-draft or draft-during-a-pause-menu sequence is untested by this task.
+7. **The Console (P2.13, being built concurrently by another implementer)** must close itself the instant a Draft opens, per docs/19's Tower Console UI lifecycle ("closes on... a Level-Up Draft opening"). This task did not touch `src/ui/console*.gd` and cannot verify that mutual-exclusion rule holds; P2.13's own task owns it, per the Register's "Tower Console rules" row and the master's own note that "a Draft opening while the Console is open closes the Console immediately."
+
+## Register/docs rules I could not implement fully
+
+- Reroll audio distinctness (no fourth Kenney asset) - see Escalations.
+- The exact combinatorial "avoids the 3 just shown when the pool allows it" guarantee is a bounded-retry heuristic, not an exhaustive proof, for the (currently unreachable in the 8-card prototype pool) case of a very small remaining pool.
+
+Nothing else named in docs/19 > "Upgrade Draft UI & Navigation," the Register's "Level-Up Draft" / "Draft card display" / "Draft input" rows, or this task's eleven numbered points was left unbuilt, to the best of what six named suites plus the falsification pass above can show. Whether that evidence clears this task's bar is for the reviewers and the author.

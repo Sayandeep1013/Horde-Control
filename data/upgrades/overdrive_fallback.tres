@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/upgrade_definition.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+unique_id = "overdrive_fallback"
+pool_ownership = 0
+rarity = 0
+max_rank = 0
+has_max_rank = false
+prerequisites = Array[String]([])
+exclusions = Array[String]([])
+effect_description = "Overdrive: +10% player weapon damage (no maximum rank; also available at the Console for a flat price once the player upgrade pool is exhausted)"
+effect_target = 2
+effect_per_rank = 0.1
+console_price_per_rank = 90
+recursive_interaction_guard = ""
+has_recursive_interaction_guard = false
+visual_readability_impact = 0
+performance_cost_category = 0

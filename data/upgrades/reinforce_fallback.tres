@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TowerUpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/tower_upgrade_definition.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+evolution_stage_contribution = 0
+draft_weight = 1
+unique_id = "reinforce_fallback"
+pool_ownership = 1
+rarity = 0
+max_rank = 0
+has_max_rank = false
+prerequisites = Array[String]([])
+exclusions = Array[String]([])
+effect_description = "Reinforce: +10% Tower weapon damage (no maximum rank; also available at the Console for a flat price once the Tower upgrade pool is exhausted)"
+effect_target = 3
+effect_per_rank = 0.1
+console_price_per_rank = 90
+recursive_interaction_guard = ""
+has_recursive_interaction_guard = false
+visual_readability_impact = 0
+performance_cost_category = 0

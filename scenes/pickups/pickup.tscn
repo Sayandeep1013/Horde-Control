@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/pickup/pickup.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/third_party/kenney/pickups/pickup_xp.png" id="2_sprite"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_pickup"]
+radius = 6.0
+
+; One shared scene serves every prototype pickup type (XP, Scrap): the same
+; EntitySpawner.spawn_pickup() pool free-list can hand back either kind
+; across reuse (src/core/pool.gd's own factory_override precedent -- "lets
+; ONE Pool serve more than one concrete scene/archetype"), so the correct
+; icon is set dynamically by Pickup.configure() from whichever
+; PickupDefinition.visual_audio_cue.sprite_reference is passed in, not
+; fixed per-scene. The XP icon is baked in here only as the DEFAULT so a
+; raw, never-configured instantiation still renders something (the F03-27
+; "no sprite at all" failure mode this project has already shipped once --
+; see tests/unit/entity_visual_test.gd's own header) rather than nothing.
+[node name="Pickup" type="Area2D"]
+script = ExtResource("1_script")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_pickup")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = ExtResource("2_sprite")

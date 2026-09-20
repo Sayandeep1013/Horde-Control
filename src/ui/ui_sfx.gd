@@ -28,6 +28,16 @@ class_name UiSfx
 ## therefore placed OUTSIDE `scenes/main.tscn`'s gameplay root in the
 ## prototype scene (docs/20 > Global Simulation Authority: "Nothing under
 ## the gameplay root may set PROCESS_MODE_ALWAYS").
+##
+## ## Reroll cue (P2.12 extension)
+## docs/19_UI_UX.md > "Upgrade Draft UI & Navigation" > "Audio Cues": "Every
+## UI navigation (highlight change, confirm, reroll) must have a distinct,
+## non-intrusive audio cue." `play_confirm()`/`play_cycle()` already cover
+## highlight-change and confirm; `play_reroll()` below adds the third,
+## distinct cue for the Draft's Reroll action, on its own
+## PROCESS_MODE_ALWAYS player exactly like the other three, so it is
+## unaffected by the very pause the Draft is causing. No caller besides
+## `src/ui/draft_controller.gd` exists.
 
 const BUS_UI: String = "UI"
 
@@ -36,10 +46,12 @@ const BUS_UI: String = "UI"
 @export var confirm_stream: AudioStream
 @export var cancel_stream: AudioStream
 @export var cycle_stream: AudioStream
+@export var reroll_stream: AudioStream
 
 var _confirm_player: AudioStreamPlayer = null
 var _cancel_player: AudioStreamPlayer = null
 var _cycle_player: AudioStreamPlayer = null
+var _reroll_player: AudioStreamPlayer = null
 
 
 func _ready() -> void:
@@ -47,6 +59,7 @@ func _ready() -> void:
 	_confirm_player = _make_player("ConfirmPlayer")
 	_cancel_player = _make_player("CancelPlayer")
 	_cycle_player = _make_player("CyclePlayer")
+	_reroll_player = _make_player("RerollPlayer")
 
 
 func _make_player(node_name: String) -> AudioStreamPlayer:
@@ -69,6 +82,10 @@ func play_cycle() -> void:
 	_play(_cycle_player, cycle_stream)
 
 
+func play_reroll() -> void:
+	_play(_reroll_player, reroll_stream)
+
+
 func _play(player: AudioStreamPlayer, stream: AudioStream) -> void:
 	if player == null or stream == null:
 		return
@@ -86,3 +103,7 @@ func get_cancel_player_for_test() -> AudioStreamPlayer:
 
 func get_cycle_player_for_test() -> AudioStreamPlayer:
 	return _cycle_player
+
+
+func get_reroll_player_for_test() -> AudioStreamPlayer:
+	return _reroll_player

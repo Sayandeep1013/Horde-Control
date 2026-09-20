@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="PickupDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/merge_rule.gd" id="1_merge"]
+[ext_resource type="Script" path="res://src/data/visual_audio_cue.gd" id="2_visual"]
+[ext_resource type="Script" path="res://src/data/pickup_definition.gd" id="3_def"]
+
+; See xp_shard.tres for why these three merge_rule fields are identical
+; fixed text across every prototype pickup type (docs/20 Contract Field
+; Semantics > Pickup Definition Contract fields > "Merge rule").
+[sub_resource type="Resource" id="Resource_merge"]
+script = ExtResource("1_merge")
+trigger = "at pickup cap"
+same_type_only = true
+resulting_behaviour = "sum into nearest same-type neighbour within radius, else expire oldest of that type"
+
+; sprite_reference: real asset, assets/third_party/kenney/pickups/pickup_scrap.png
+; (confirmed on disk with a valid .import). audio_cue_id: NO REGISTER ROW --
+; escalated, same PLACEHOLDER_cue_ convention as xp_shard.tres and
+; data/enemies/*.tres.
+[sub_resource type="Resource" id="Resource_visual"]
+script = ExtResource("2_visual")
+sprite_reference = "res://assets/third_party/kenney/pickups/pickup_scrap.png"
+audio_cue_id = "PLACEHOLDER_cue_pickup_scrap_collect"
+
+; value: MASTER_SDLC.md > Provisional Values Register > "Economy & Pickups"
+; > "Drop Table": "Standard enemy 1 XP + 1 Scrap". magnet_behaviour = 0
+; (ContractEnums.MagnetBehaviour.Attracted), see xp_shard.tres.
+; lifetime_seconds: Register > Economy & Pickups > "Pickup lifetime": "60 s
+; simulation time with a 5 s blink".
+[resource]
+script = ExtResource("3_def")
+unique_id = "pickup_scrap"
+pickup_type = 1
+value = 1
+magnet_behaviour = 0
+merge_rule = SubResource("Resource_merge")
+lifetime_seconds = 60.0
+visual_audio_cue = SubResource("Resource_visual")

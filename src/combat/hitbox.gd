@@ -69,8 +69,20 @@ var _window_active: bool = false
 ## Emitted only when a hit is actually accepted by the target hurtbox
 ## (i.e. the target was not already dead) -- mirrors hurtbox.gd's
 ## damage_received but from the attacker's side, for tests and future
-## VFX/audio listeners.
+## VFX/audio listeners. Fired from step 7's resolution when a SimLoop is
+## present (see "F03-22" below), or synchronously from _on_area_entered()
+## when it is not -- either way this signal always means "the hit was
+## actually accepted this tick," never "the overlap merely happened."
 signal hit_landed(hurtbox: Hurtbox, damage: float, source: Variant)
+
+## F03-22: reference to the running SimLoop instance (not the type -- see
+## src/core/sim_loop.gd's own class doc, "Reaching this instance from
+## elsewhere"), resolved via group lookup, deferred past this node's own
+## _ready() so sibling-order ambiguity under Main cannot race it (see
+## sim_loop.gd's header for exactly why a same-frame lookup is unsafe
+## here). Test-injectable via set_sim_loop_for_test(), matching this
+## project's existing test-seam convention.
+var _sim_loop: Node = null
 
 
 func _ready() -> void:
@@ -80,6 +92,20 @@ func _ready() -> void:
 	monitoring = false # inactive until activate_window() opens an attack
 	monitorable = false # a hitbox is never itself a valid target
 	area_entered.connect(_on_area_entered)
+	call_deferred(&"_resolve_sim_loop_for_ready")
+
+
+func _resolve_sim_loop_for_ready() -> void:
+	if _sim_loop == null and is_inside_tree():
+		_sim_loop = get_tree().get_first_node_in_group(&"sim_loop")
+
+
+## Test-injectable override (see field comment). Call BEFORE add_child() to
+## guarantee it wins over the deferred group lookup above, matching this
+## project's existing pre-ready-injection convention (e.g. player.gd's own
+## set_registry_for_test()).
+func set_sim_loop_for_test(loop: Node) -> void:
+	_sim_loop = loop
 
 
 ## Typed command: opens the attack window (docs/20 > SimLoop order, step 6
@@ -124,12 +150,33 @@ func _set_shapes_disabled(disabled: bool) -> void:
 			child.set_deferred("disabled", disabled)
 
 
+## F03-22: docs/20 requires this callback to only ENQUEUE a hit record for
+## step 7 to sort and resolve, never resolve damage directly. When a real
+## SimLoop is reachable (the assembled game, always), this now does exactly
+## that: `SimLoop.enqueue_hit()` with a target/attacker serial pair (docs/20
+## > SimLoop order, step 7: "player serial 0, Tower serial 1") and enough of
+## a resolvable record (the target Hurtbox, this Hitbox as the attacker
+## reference receive_hit() itself expects, and a callback that emits THIS
+## signal only once the hit is actually accepted) for step 7 to apply the
+## damage and re-emit hit_landed exactly as this method used to do inline.
+## When no SimLoop is reachable (every isolated unit test in
+## hitbox_hurtbox_test.gd and ghost_hit_test.gd, none of which build one),
+## this falls back to the ORIGINAL immediate-resolution behaviour so those
+## suites keep exercising Hitbox/Hurtbox's own mechanics unchanged -- see
+## the evidence report's falsification table for why this fallback is not
+## a loophole: a new scene-level test (with a real SimLoop) is what proves
+## the non-fallback branch is actually taken in real gameplay.
 func _on_area_entered(area: Area2D) -> void:
 	if not _window_active:
 		return # window already cancelled this tick -- see header, protection 1
 	if not (area is Hurtbox):
 		return
 	var hurtbox: Hurtbox = area as Hurtbox
+	if _sim_loop != null and _sim_loop.has_method(&"enqueue_hit"):
+		var attacker_serial: int = _sim_loop.get_combat_serial(owner_entity)
+		var target_serial: int = _sim_loop.get_combat_serial(hurtbox.get_parent())
+		_sim_loop.enqueue_hit(attacker_serial, target_serial, damage, owner_entity, hurtbox, self, func() -> void: hit_landed.emit(hurtbox, damage, owner_entity))
+		return
 	var accepted: bool = hurtbox.receive_hit(self, damage, owner_entity)
 	if accepted:
 		hit_landed.emit(hurtbox, damage, owner_entity)

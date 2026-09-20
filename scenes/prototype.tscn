@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://src/integration/prototype_integration.gd" id="1_integration"]
 [ext_resource type="PackedScene" path="res://scenes/main.tscn" id="2_main"]
@@ -18,6 +18,11 @@
 [ext_resource type="Script" path="res://src/audio/audio_ducking.gd" id="16_ducking"]
 [ext_resource type="PackedScene" path="res://src/debug/overlay.tscn" id="17_overlay"]
 [ext_resource type="Script" path="res://src/director/wave_director.gd" id="18_director"]
+[ext_resource type="Script" path="res://src/pickup/pickup_system.gd" id="19_pickupsystem"]
+[ext_resource type="Script" path="res://src/upgrade/upgrade_system.gd" id="20_upgradesystem"]
+[ext_resource type="PackedScene" path="res://scenes/ui/draft.tscn" id="21_draft"]
+[ext_resource type="PackedScene" path="res://scenes/ui/console.tscn" id="22_console"]
+[ext_resource type="Script" path="res://src/run/run_flow_controller.gd" id="23_runflow"]
 
 [node name="Prototype" type="Node2D"]
 script = ExtResource("1_integration")
@@ -58,6 +63,60 @@ cycle_stream = ExtResource("15_cycle")
 [node name="SharedAudioDucking" type="Node" parent="."]
 script = ExtResource("16_ducking")
 
+; Integration task (F05-15). The Level-Up Draft: "nothing opens a Draft in
+; the running game today" per P2.12's own evidence report. A CanvasLayer,
+; sibling of Main, matching Hud's/ThreatFeedbackLayer's own placement
+; convention -- pickup_system_path/upgrade_system_path/wave_director_path/
+; ui_sfx_path all resolve through Main/... since this node sits one level
+; above it. run_seed is deliberately NOT authored here -- see
+; PrototypeIntegration.run_seed and _wire_run_seed() (F05-13): the
+; composition root sets it at runtime from the one true source so this
+; export and WaveDirector.run_seed cannot silently drift apart.
+[node name="DraftInstance" parent="." instance=ExtResource("21_draft")]
+pickup_system_path = NodePath("../Main/PickupSystem")
+upgrade_system_path = NodePath("../Main/UpgradeSystem")
+wave_director_path = NodePath("../Main/WaveDirector")
+ui_sfx_path = NodePath("../UiSfx")
+
+; Integration task (F05-20). The Tower Console: a world-space Node2D
+; (docs/19 > Placement; Register C-CONSOLE-NODE), so its z_index (38)
+; draws in the same band as enemies/telegraphs and its scale tracks
+; GameCamera.get_view_scale() correctly -- NOT a CanvasLayer (console.gd's
+; own header). A SIBLING of Main, not nested inside it: console.gd's own
+; _ready() sets `process_mode = PROCESS_MODE_ALWAYS` (the documented,
+; deliberate non-pausing exception -- see that file's class doc, "never
+; itself frozen"), and docs/20's Scene Tree rule bans PROCESS_MODE_ALWAYS
+; on anything under Main, the gameplay root, which the real
+; prototype_scene_test.gd suite enforces -- discovered by that exact
+; assertion turning red when this node was first placed under Main, and
+; fixed by moving it here rather than weakening the test. Prototype (this
+; scene's own root) and Main are both plain, untransformed Node2D
+; ancestors, so a Console sitting here shares the identical coordinate
+; space and z_index accumulation Main's own descendants use -- the draw
+; order and view-scale tracking this component depends on are unaffected
+; by which of the two it sits under. upgrade_system_path points at the
+; SAME UpgradeSystem instance PickupSystem/the Draft also share.
+; set_run_inventory() and SimLoop registration are required code calls --
+; see PrototypeIntegration._wire_console().
+[node name="Console" parent="." instance=ExtResource("22_console")]
+tower_path = NodePath("Main/Tower")
+player_path = NodePath("Main/Player")
+upgrade_system_path = NodePath("Main/UpgradeSystem")
+camera_path = NodePath("Main/Player/GameCamera")
+
+; Integration task (F05-27). RunFlowController: owns the run's
+; RUNNING/PAUSED/ENDED state and which of the pause/settings/run-end
+; screens is on top; builds its own three CanvasLayers in _ready() (no
+; wrapper scene needed -- see src/run/run_flow_controller.gd's own
+; _build_ui()). Its own tower_path/wave_director_path exports have NO
+; default (unlike PrototypeIntegration's Main/... defaults), so both are
+; set explicitly here; set_run_inventory()/set_console_ref() are required
+; code calls -- see PrototypeIntegration._wire_run_flow_controller().
+[node name="RunFlowController" type="Node" parent="."]
+script = ExtResource("23_runflow")
+tower_path = NodePath("Main/Tower")
+wave_director_path = NodePath("Main/WaveDirector")
+
 ; The debug overlay (P1.4), toggled by F1 (docs/19 > Input Map; Author
 ; decision D78). Present here because the feel check at P2.7 is the point
 ; of this scene, and the overlay carries exactly what a feel verdict needs
@@ -85,6 +144,39 @@ script = ExtResource("18_director")
 entity_spawner_path = NodePath("../EntitySpawner")
 tower_path = NodePath("../Tower")
 camera_path = NodePath("../Player/GameCamera")
+; Integration task (F04-04): the real DebugOverlay instance below, so
+; Pressure, its escalation state and the health quadrant actually reach
+; the overlay instead of only being reachable through the
+; get_..._for_test() getters. Resolved lazily by WaveDirector's own
+; _resolve_debug_overlay() -- no code call needed on top of this path.
+debug_overlay_path = NodePath("../../DebugOverlay")
 tower_seeker_scene = ExtResource("7_seeker")
 player_hunter_scene = ExtResource("8_hunter")
 opportunist_scene = ExtResource("9_opportunist")
+
+; Integration task (F04-11/F04-12, F05-07). PickupSystem: the pool of
+; XP/Scrap drops, magnet attraction, collection and the run's Scrap/XP/
+; level state (run_inventory). entity_spawner_path/player_path/
+; player_collector_path are the three seams P2.10's own evidence report
+; named as unwired; PrototypeIntegration._wire_pickup_system() (code, not
+; a NodePath) connects each enemy's removed_while_stuck signal, since a
+; signal connection cannot be expressed as an @export NodePath.
+[node name="PickupSystem" type="Node2D" parent="Main"]
+script = ExtResource("19_pickupsystem")
+entity_spawner_path = NodePath("../EntitySpawner")
+player_path = NodePath("../Player")
+player_collector_path = NodePath("../Player/Collector")
+
+; Integration task (F05-06/F05-07). UpgradeSystem: owns every upgrade
+; rank and pushes recomputed multipliers into the four live components
+; below, plus the Tower's evolution-stage counter (tower_evolution_stage_
+; path, this pass's own addition -- F05-06, "nothing sums evolution_stage_
+; contribution and pushes it to TowerEvolutionStage").
+[node name="UpgradeSystem" type="Node" parent="Main"]
+script = ExtResource("20_upgradesystem")
+player_weapon_path = NodePath("../Player/AutoWeapon")
+player_path = NodePath("../Player")
+tower_weapon_path = NodePath("../Tower/TowerWeapon")
+tower_health_path = NodePath("../Tower/TowerHealth")
+tower_evolution_stage_path = NodePath("../Tower/TowerEvolutionStage")
+

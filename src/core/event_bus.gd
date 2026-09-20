@@ -30,12 +30,15 @@ extends Node
 ## ("State changes are announced ... for example `enemy_died`,
 ## `tower_damaged`, `draft_opened`"), not an exhaustive list -- confirmed by
 ## reading the full bullet and the rest of docs/20; no fourth signal name
-## appears anywhere in that document. Those three are implemented below.
-## Later phases ADD signals here as the systems that own that state are
-## built (P1.5 death/hit systems, P2.x Wave Director/draft/Console systems
-## each add their own state-change signal when built), rather than this
-## task inventing signal shapes for systems that do not exist yet. See the
-## P1.2 evidence report, "Contradictions and ambiguities," item 1.
+## appears anywhere in that document. Those three were the ones P1.2 (this
+## file's own first task) implemented. Later phases ADD signals here as the
+## systems that own that state are built (P1.5 death/hit systems, P2.x
+## Wave Director/draft/Console systems each add their own state-change
+## signal when built), rather than this task inventing signal shapes for
+## systems that do not exist yet. See the P1.2 evidence report,
+## "Contradictions and ambiguities," item 1. `player_died` (LEDGER F03-06)
+## is the first such addition, by the P1.5 death system this comment
+## already anticipated.
 
 ## Emitted once, at Logical Death (docs/20 > Logical Death: "the instant an
 ## entity's HP reaches 0, a `dead` flag is set on it"), by whichever system
@@ -43,6 +46,20 @@ extends Node
 ## at the moment of death, useful to a listener (drops, VFX, the Run
 ## Recorder) without it having to still hold a live reference to the entity.
 signal enemy_died(entity: Node2D, position: Vector2, timestamp: float)
+
+## Emitted once, at Logical Death, for the PLAYER entity specifically --
+## never for an enemy, and never alongside `enemy_died` for the same death
+## (LEDGER F03-06: `src/combat/death_state.gd` previously emitted
+## `enemy_died` unconditionally for every entity it killed, including the
+## player, so the player's own death was counted as an enemy kill by any
+## future listener). `src/combat/death_state.gd` is the one emitter, and it
+## decides which of `player_died`/`enemy_died` applies per death -- see that
+## file's own header for how it tells the two apart. Same shape as
+## `enemy_died` deliberately (`entity`, `position`, `timestamp`), so a
+## listener that already knows how to read one knows how to read the other.
+## Named consumers this session: the run-end screen and Scrap-loss-on-death,
+## both built after this signal exists.
+signal player_died(entity: Node2D, position: Vector2, timestamp: float)
 
 ## Emitted once per instance of Tower damage (health or shield), by whichever
 ## system resolves the hit (docs/20 > SimLoop order, step 8 "death
@@ -64,6 +81,24 @@ signal tower_damaged(amount: float, new_health: float, new_shield: float, timest
 ## anyone's behalf; announcing and causing are different things.
 signal draft_opened(timestamp: float)
 
+## Integration task. Register > Technical Caps & Performance > "Run
+## Recorder" (C-TELEMETRY): `events.csv` names "Console open/close,
+## purchase with channel" among its event types, and P2.13's own evidence
+## report named this as a real gap ("`src/ui/console.gd` never touches
+## `EventBus` -- `src/core/` was reserved to a single writer this
+## session"). `console.gd` is the one emitter for all three, at the exact
+## points its own `_open_console()`/`_close_console()`/`_apply_purchase()`
+## already change state -- this bus only re-broadcasts, per this file's own
+## header rule.
+signal console_opened(timestamp: float)
+signal console_closed(timestamp: float)
+
+## `entry_id` is the catalogue/sector entry's own id (an UpgradeDefinition's
+## `unique_id`, or `"repair"`); `channel_seconds` is the channel duration
+## that just completed (0.5 s catalogue, 1.0 s sector, per docs/19); `cost`
+## is the Scrap actually charged.
+signal console_purchase(entry_id: String, channel_seconds: float, cost: int, timestamp: float)
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -75,6 +110,13 @@ func emit_enemy_died(entity: Node2D, position: Vector2) -> void:
 	enemy_died.emit(entity, position, SimClock.now)
 
 
+## Typed emit wrapper. LEDGER F03-06: the one and only caller is
+## `src/combat/death_state.gd`'s `_enter_logical_death()`, in place of
+## `emit_enemy_died()`, when it determines the dying entity is the player.
+func emit_player_died(entity: Node2D, position: Vector2) -> void:
+	player_died.emit(entity, position, SimClock.now)
+
+
 ## Typed emit wrapper. `amount` is the damage just applied (positive);
 ## `new_health`/`new_shield` are the Tower's resulting pools.
 func emit_tower_damaged(amount: float, new_health: float, new_shield: float) -> void:
@@ -84,3 +126,18 @@ func emit_tower_damaged(amount: float, new_health: float, new_shield: float) -> 
 ## Typed emit wrapper.
 func emit_draft_opened() -> void:
 	draft_opened.emit(SimClock.now)
+
+
+## Typed emit wrapper. Integration task (C-TELEMETRY).
+func emit_console_opened() -> void:
+	console_opened.emit(SimClock.now)
+
+
+## Typed emit wrapper. Integration task (C-TELEMETRY).
+func emit_console_closed() -> void:
+	console_closed.emit(SimClock.now)
+
+
+## Typed emit wrapper. Integration task (C-TELEMETRY).
+func emit_console_purchase(entry_id: String, channel_seconds: float, cost: int) -> void:
+	console_purchase.emit(entry_id, channel_seconds, cost, SimClock.now)

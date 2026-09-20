@@ -16,7 +16,18 @@ Both upgrade channels and a run that can be played end to end. This is phases/RE
 
 ## Carried lessons
 
-phases/LESSONS.md and every earlier phase's (00, 01, 02, 03, 04) EXECUTION_LOG.md, FAILURE_POINTS.md, and REVIEW.md are read at phase entry, per loop rule (a), and the patterns that apply to this phase - recurring failure types, estimates that ran over, tests that turned out unpassable, tools that misbehaved - are written into this section before implementation starts. At the time this PLAN.md was drafted, phases/LESSONS.md contains no rows and phases 00 through 04 have not run, so this section is a placeholder. It must be filled in with whatever those phases actually recorded before any P2.11-P2.14 work in this phase begins, with particular attention to whatever Phase 04 recorded about the Wave Director's grace-period and priority-deferral behaviour, since P2.12 depends on it directly.
+Filled at phase entry on 2026-09-20 from `phases/LESSONS.md` and the execution records of phases 00 through 04, per loop rule (a). This phase is four interface and flow tasks, so Phase 03's UI record (P2.6) carries the most weight, alongside the falsification rules every phase has now re-learned.
+
+1. **A UI defect can be invisible to every assertion about the UI's contents.** P2.6's XP bar was pinned off-screen at y=1080 because a raw-anchor `MarginContainer` under a plain `Control` never grows to fit content added after the anchor preset is set. Only a test asserting screen position could see it (F03-20). Every Control this phase adds is asserted at a position on a 1920x1080 viewport, not merely asserted to exist.
+2. **Run tests through `tests/run_tests.ps1`, never the raw gdUnit4 command** - gdUnit4's error count excludes Godot's own engine errors, and both channels have to be clean. `pwsh` is not installed; the runner is Windows PowerShell 5.1.
+3. **Every named acceptance test is falsified by real mutation, restored, and proved byte-identical.** This phase carries eighteen named tests, more than any other in the prototype, and several of them - the draft input lockout, the console rules, the pause authority test - are the shape that passes vacuously if the assertion is about existence rather than about the rule.
+4. **A mutation with no effect is a finding about the implementation**, not a weak test (F03-23).
+5. **Numbers come from the Provisional Values Register, and a missing row is escalated, never invented.** Four Phase 03 tasks escalated rather than inventing; P2.6 in particular escalated three interface numbers the Register does not carry (F03-18), and this phase inherits that habit.
+6. **PauseAuthority is the only pause writer.** The Draft pauses fully, the Console must not pause at all, and both coexist with the pause menu and focus loss - the same authority mediates all four. There is an open, unresolved structural contradiction about `AudioDucking` needing `PROCESS_MODE_ALWAYS` under a gameplay root that forbids it (author's decision, still open); this phase must not quietly resolve it by moving nodes around.
+7. **A skill's prescription loses to this project's documents, and the conflict gets recorded** - Phase 03 recorded four such conflicts, two of them in the HUD task where the `hud-system` skill prescribed signal-binding over the polling docs/20 sanctions.
+8. **Parallel tasks break where they meet**; shared files have one writer per session and cross-task seams are the orchestrator's.
+9. **Never call `remove_child()` in a gdUnit4 `after_test()`** (F03-35).
+10. **Under-claim, and never write that a test, task or phase is passed, satisfied or ready.**
 
 ## Tasks
 
@@ -36,7 +47,16 @@ The step-by-step section below states each task's inputs and deliverable file pa
 Inputs: three player and three Tower upgrades as `.tres` with max rank, shared ranks, pool ownership; the two fallback cards (weapon upgrades excluded); P0.6 deliverable (schemas); P2.3 deliverable (weapon); P2.4 deliverable (Tower).
 Deliverable file paths: `data/upgrades/*.tres`, `src/upgrade/upgrade_system.gd`.
 Follows: MASTER_SDLC.md > Provisional Values Register > "Progression & Upgrades" for the six upgrades' per-rank effects, the Console price formula, and the fallback-card rule (C-FALLBACK-CONSOLE), cited here, not restated; MASTER_SDLC.md > Player Overview > "Upgrade Channels" for the shared-rank, either-channel rule this task's own acceptance test checks. Document 17 (Progression & Upgrades) is this task's nominal owner and does not yet exist as a file - see "Open questions for the author".
-Written at phase entry under loop rule (a), which requires reading every earlier phase's EXECUTION_LOG, FAILURE_POINTS, REVIEW and LESSONS first.
+
+Steps, written at phase entry on 2026-09-20 and given to the implementer:
+
+1. The six prototype upgrades authored as `.tres` against the existing Upgrade Definition schema, with per-rank effect, max rank and pool ownership cited to the Register row: player Rapid Fire, Heavy Rounds, Patch Kit; Tower Caliber, Optics, Shield Matrix.
+2. The two fallback cards authored per C-FALLBACK-CONSOLE, including their no-max-rank and zero-evolution-rank properties and the exhausted-pool condition that unlocks them, so Scrap always has a sink.
+3. `src/upgrade/upgrade_system.gd` owning each upgrade's rank for the run and enforcing the rules - max rank 3, and ranks SHARED between the two channels, so a rank bought at the Console and a rank taken in the Draft advance the same counter. Nothing about either interface belongs in this task; P2.12 and P2.13 call its API.
+4. Effects that change live behaviour rather than a number in a dictionary, applied through a modifier layer above the authored base values. The base `.tres` files owned by P2.1, P2.3 and P2.4 are neither edited nor mutated at runtime.
+5. The additive-versus-multiplicative stacking question answered explicitly against the Register's wording, and escalated rather than settled silently if the wording does not decide it.
+6. A small typed public API for P2.12 and P2.13: what is offerable, current rank, is-maxed, apply a rank, and whether a pool is exhausted so fallbacks unlock.
+7. The Upgrade effect check asserting exact expected values after three ranks against a computed expectation, since "no drift after 3 ranks" names floating-point accumulation as the defect the test exists to catch.
 
 ### P2.12 - Level-Up Draft
 

@@ -38,6 +38,29 @@ class_name TowerProjectile
 ## discovery convention) so a Pool reusing this instance restores its
 ## baseline collision_layer/collision_mask on every acquire(), exactly like
 ## every other pooled combat node in this project.
+##
+## ## The intersect_ray sweep (LEDGER F03-17 -- fixed)
+## docs/20 > "Physics & Collisions": "Fast projectiles must not tunnel:
+## PhysicsDirectSpaceState2D.intersect_ray (with collide_with_areas = true)
+## sweeps from the projectile's previous position to its current position
+## whenever its travel in a single physics tick exceeds 12 pixels. At 60
+## physics ticks per second this is every projectile defined in the
+## prototype -- even the Tower's slowest, at 900 px/s, covers 15 px per
+## tick." This file previously advanced by a bare `global_position +=
+## _velocity * delta` and relied solely on Godot's own discrete
+## `area_entered`/`body_entered` (a per-tick check against the END-of-step
+## transform only), which is exactly the tunnelling gap docs/20 describes --
+## at 900 px/s (15 px/tick) this projectile's own travel exceeds the 12 px
+## threshold on literally every tick it is active, the same as
+## `src/combat/player_projectile.gd`'s 1000 px/s shot. `_sweep_and_resolve()`
+## below is read from, and mirrors, `player_projectile.gd`'s own
+## `_sweep_and_resolve()` (that file's header names this exact gap as a
+## "cross-task/ledger candidate" left for whoever next owns this file --
+## this task is that owner). `_on_area_entered()`/`_on_body_entered()` are
+## kept unchanged as the fallback for the (not reached at this weapon's
+## speed, but general-purpose) case where a single tick's travel is <= 12
+## px. Damage, lifetime and pooling behaviour are unchanged: the sweep only
+## changes HOW a hit is detected, never what happens once one is.
 
 ## Collision radius. A framework/rendering constant, like death_state.gd's
 ## own placeholder max_hp/hitbox.gd's placeholder damage (see those files'
@@ -47,6 +70,12 @@ class_name TowerProjectile
 ## all of which ARE read from the Register via base_weapon.tres. Named
 ## explicitly rather than silently treated as a balance number.
 const COLLISION_RADIUS_PX: float = 6.0
+
+## docs/20 > Physics & Collisions: the sweep threshold, verbatim ("exceeds
+## 12 pixels"). A framework/architecture constant, not a Register number --
+## same constant, same citation, as player_projectile.gd's own
+## SWEEP_THRESHOLD_PX.
+const SWEEP_THRESHOLD_PX: float = 12.0
 
 signal hit_landed(hurtbox: Hurtbox, damage: float, source: Variant)
 signal expired(projectile: TowerProjectile)
@@ -59,6 +88,16 @@ var _active: bool = false
 
 ## Test-injectable SimClock reference, matching this project's convention.
 var _clock: Node = null
+
+## Integration task (F03-46 -- fixed): reference to the running SimLoop
+## instance, resolved the same deferred, group-lookup way as
+## src/combat/player_projectile.gd's own `_sim_loop` field (that file's
+## header explains why the lookup must be deferred rather than run inline
+## in `_ready()`, and why hitbox.gd's/player_projectile.gd's own fallback
+## to immediate resolution is kept when no SimLoop is reachable -- every
+## isolated unit test in this file's own suite). Test-injectable via
+## `set_sim_loop_for_test()`.
+var _sim_loop: Node = null
 
 
 func _ready() -> void:
@@ -78,6 +117,16 @@ func _ready() -> void:
 	shape.name = "CollisionShape2D"
 	add_child(shape)
 	visible = false
+	call_deferred(&"_resolve_sim_loop_for_ready")
+
+
+func _resolve_sim_loop_for_ready() -> void:
+	if _sim_loop == null and is_inside_tree():
+		_sim_loop = get_tree().get_first_node_in_group(&"sim_loop")
+
+
+func set_sim_loop_for_test(loop: Node) -> void:
+	_sim_loop = loop
 
 
 func set_sim_clock_for_test(clock: Node) -> void:
@@ -108,9 +157,72 @@ func launch(origin: Vector2, velocity: Vector2, damage: float, source: Variant, 
 func _physics_process(delta: float) -> void:
 	if not _active:
 		return
-	global_position += _velocity * delta
+	var previous_position: Vector2 = global_position
+	var travel: Vector2 = _velocity * delta
+	var next_position: Vector2 = previous_position + travel
+
+	if travel.length() > SWEEP_THRESHOLD_PX:
+		if _sweep_and_resolve(previous_position, next_position):
+			return # a hit or terrain strike already expired this projectile
+
+	global_position = next_position
 	if _now() >= _deadline:
 		_expire()
+
+
+## docs/20 > "Physics & Collisions" (transcribed in full in this file's
+## header, "The intersect_ray sweep"). Godot's own `area_entered` signal is
+## a discrete per-tick check against the END-of-step transform, not a
+## continuous sweep -- without this, a projectile whose single-tick travel
+## exceeds a target hurtbox's own radius could cross it entirely between two
+## physics steps and never trigger an overlap at all. Mirrors
+## player_projectile.gd's `_sweep_and_resolve()` exactly. Returns true if
+## this call already resolved the projectile (a hit landed, or it struck
+## terrain) and the caller must not also apply `next_position` uncontested
+## -- false if the sweep found nothing along the segment and normal movement
+## should proceed.
+func _sweep_and_resolve(from: Vector2, to: Vector2) -> bool:
+	var space_state: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(from, to)
+	query.collide_with_areas = true
+	query.collide_with_bodies = true
+	query.collision_mask = collision_mask
+	var excluded: Array[RID] = [get_rid()]
+	query.exclude = excluded
+
+	var result: Dictionary = space_state.intersect_ray(query)
+	if result.is_empty():
+		return false
+
+	var collider: Object = result.get("collider")
+	var hit_position: Variant = result.get("position", to)
+	global_position = hit_position as Vector2
+
+	if collider is Hurtbox:
+		_deliver_hit(collider as Hurtbox)
+	# Either a Hurtbox hit (no piercing -- one target per shot) or terrain
+	# (World/ArenaBounds -- both static PhysicsBody2D layers in this mask,
+	# same reasoning as _on_body_entered() below): either way the shot ends.
+	_expire()
+	return true
+
+
+## F03-46 (fixed): routes through SimLoop.enqueue_hit() when a real SimLoop
+## is reachable -- the assembled game, always, once the Tower fires a shot
+## -- falling back to the original immediate hurtbox.receive_hit() call
+## otherwise (every isolated unit test in this file's own suite, none of
+## which build a SimLoop). Mirrors src/combat/player_projectile.gd's own
+## `_deliver_hit()` exactly; shared by both call sites below so the routing
+## decision lives in exactly one place.
+func _deliver_hit(hurtbox: Hurtbox) -> void:
+	if _sim_loop != null and _sim_loop.has_method(&"enqueue_hit"):
+		var attacker_serial: int = _sim_loop.get_combat_serial(_source)
+		var target_serial: int = _sim_loop.get_combat_serial(hurtbox.get_parent())
+		_sim_loop.enqueue_hit(attacker_serial, target_serial, _damage, _source, hurtbox, self, func() -> void: hit_landed.emit(hurtbox, _damage, _source))
+		return
+	var accepted: bool = hurtbox.receive_hit(self, _damage, _source)
+	if accepted:
+		hit_landed.emit(hurtbox, _damage, _source)
 
 
 func _on_area_entered(area: Area2D) -> void:
@@ -119,9 +231,7 @@ func _on_area_entered(area: Area2D) -> void:
 	if not (area is Hurtbox):
 		return
 	var hurtbox: Hurtbox = area as Hurtbox
-	var accepted: bool = hurtbox.receive_hit(self, _damage, _source)
-	if accepted:
-		hit_landed.emit(hurtbox, _damage, _source)
+	_deliver_hit(hurtbox)
 	_expire() # no piercing: one target per shot
 
 
