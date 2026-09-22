@@ -26,7 +26,7 @@ The `godot-prompter` plugin (v1.13.3) adds 55 Godot skills and 8 specialist agen
 - Before implementing any Godot system - controller, state machine, AI, UI, shader, test, export - check for a matching `godot-prompter:*` skill and invoke it first. This applies to subagents writing Godot code, which is most implementation work here.
 - The skills advise on Godot idiom. They never override this project. Where a skill conflicts with `docs/20_Technical_Architecture.md`, the Provisional Values Register, or an Author decision, this project wins and the conflict is recorded in the phase LEDGER.
 - This project targets **Godot 4.7.1**. If any tool or skill reports 4.4, it has misread a stray `project.godot`; the pinned version is in the Provisional Values Register (Engine & Platform).
-- The pack's generic `godot-project-setup` suggests autoloads (GameManager, AudioManager, SaveManager) this project does not use. The autoloads are defined by docs/20: SimClock, PauseAuthority, EventBus, EntityRegistry.
+- The pack's generic `godot-project-setup` suggests autoloads (GameManager, AudioManager, SaveManager) this project does not use. The autoloads are defined by docs/20: SimClock, PauseAuthority, EventBus, EntityRegistry, plus MetaProgress for the between-runs profile (decision D112).
 
 ## Tools
 - Godot 4.7.1 at `D:\godot`.
