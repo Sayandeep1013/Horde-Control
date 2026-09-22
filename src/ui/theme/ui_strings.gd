@@ -48,6 +48,14 @@ const MESSAGES: Dictionary = {
 	"CONSOLE_OF": "of",
 	"CONSOLE_MAX": "MAX",
 	"CONSOLE_TAKEN": "Taken",
+	# CHANGE 1 (D107, 2026-09-23): the pre-open prompt shown while inside the
+	# Tower Interaction Radius with the Console closed (src/ui/console.gd's
+	# own `_refresh_prompt()`). Both bindings shown together, matching this
+	# file's/title_screen.gd's own established convention of always listing
+	# every binding rather than swapping by detected device (e.g.
+	# TITLE_CONTROLS_CONSOLE_CANCEL's own "Q, B / Circle").
+	"CONSOLE_PROMPT": "[E / Y] Tower Console",
+	"CONSOLE_PROMPT_UNAVAILABLE": "(nothing affordable)",
 
 	"PAUSE_MENU_TITLE": "Paused",
 	"PAUSE_MENU_RESUME": "Resume",
@@ -84,6 +92,14 @@ const MESSAGES: Dictionary = {
 	"TITLE_CONTROLS_DRAFT_SELECT": "Draft: select card",
 	"TITLE_CONTROLS_CONFIRM": "Confirm",
 	"TITLE_CONTROLS_REROLL": "Reroll",
+	# CHANGE 1 (D107, 2026-09-23): new key for the title screen's Controls
+	# panel, added per this task's own scope ("just the strings"). No
+	# corresponding row exists yet in src/ui/title_screen.gd's own
+	# CONTROLS_ROWS-shape array (that file is outside this task's write
+	# scope) -- named as a required seam for that file's owner, exactly
+	# like src/ui/dev/ui_capture.gd's own HANDOFF H-01 precedent for a
+	# string with nothing yet wired to display it.
+	"TITLE_CONTROLS_CONSOLE_OPEN": "Console: open",
 	"TITLE_CONTROLS_CONSOLE_CYCLE": "Console: cycle entry",
 	"TITLE_CONTROLS_CONSOLE_SELECT": "Console: select entry",
 	"TITLE_CONTROLS_CONSOLE_CANCEL": "Console: cancel",

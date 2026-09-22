@@ -71,17 +71,14 @@ func test_console_entries_survive_pseudolocalizations_30_percent_expansion_witho
 	var built: Dictionary = _build_console()
 	var console: Console = built["console"]
 
-	# Drive real engine ticks until the Console genuinely opens (0.3 s dwell,
-	# real SimClock/PauseAuthority autoloads -- this test's own claim is
-	# about layout survival, not lifecycle timing, so the real autoloads are
-	# fine here).
-	var opened: bool = false
-	for i in range(60):
-		await get_tree().physics_frame
-		if console.is_open():
-			opened = true
-			break
-	assert_bool(opened).append_failure_message("Console never opened under the scripted stand-still conditions -- cannot exercise its UI").is_true()
+	# CHANGE 1 (D107, 2026-09-23): the default control scheme opens via
+	# console_open (request_open()), not the old dwell -- see
+	# src/ui/console.gd's own class doc, "CHANGE 1." This test's own claim
+	# is about layout survival, not lifecycle timing, so opening it directly
+	# is fine here; real SimClock/PauseAuthority autoloads are still used so
+	# the subsequent `_process()` refresh runs through the engine's normal
+	# per-frame path.
+	assert_bool(console.request_open()).append_failure_message("Console did not open via request_open() under the scripted stand-still conditions -- cannot exercise its UI").is_true()
 
 	await get_tree().process_frame
 	await get_tree().process_frame

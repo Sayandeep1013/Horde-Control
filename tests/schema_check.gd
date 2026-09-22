@@ -276,7 +276,6 @@ const REQUIRED_FIELD_MANIFEST := {
 		{"master": "Unique ID.", "exports": ["unique_id"]},
 		{"master": "Merge radius.", "exports": ["merge_radius_px"]},
 		{"master": "XP shard value and level cost formula.", "exports": ["xp_level_cost"]},
-		{"master": "XP cap during teaching waves.", "exports": ["xp_cap_during_teaching_waves"]},
 		{"master": "Scrap cap.", "exports": ["scrap_cap"]},
 		{"master": "Overflow hopper capacity.", "exports": ["overflow_hopper_capacity"]},
 		{"master": "Hopper-to-Core conversion rate and trigger.", "exports": ["hopper_conversion_rule"]},

@@ -301,8 +301,74 @@ class_name Console
 ##   a real, passing requirement check against that 378 px figure, not a
 ##   "known gap" placeholder; see that test file's own comment and the
 ##   report, "UR-11."
+##
+## ## CHANGE 1 (author decision D107, 2026-09-23): the Console opens on a
+## key, not automatically
+## Old rule: the Console auto-opened after the player had been nearly
+## stopped (speed < 10% base) for `OPEN_DWELL_SECONDS` inside the
+## Interaction Radius with >= 1 affordable entry -- players experienced that
+## as a random pop-up (task brief). New rule for the DEFAULT control
+## scheme: while the player is inside the radius and the Console is closed,
+## a small prompt shows (`CONSOLE_PROMPT` when >= 1 entry is affordable,
+## greyed `CONSOLE_PROMPT_UNAVAILABLE` otherwise -- ui_strings.gd; see
+## `_build_prompt()`/`_refresh_prompt()`); pressing the new `console_open`
+## action (keyboard E, gamepad Y / button index 3 -- both free in the
+## existing Input Map, added to project.godot and recorded in docs/19)
+## opens it immediately, AT ANY SPEED (`request_open()` below carries no
+## speed gate at all, unlike the old dwell). Every other close condition is
+## UNCHANGED (leaving the radius, Cancel, death, a Draft opening); after a
+## Cancel, pressing `console_open` reopens the Console immediately --
+## `request_open()` deliberately never consults `_requires_reentry`, so the
+## player never again has to leave and re-enter the radius the way the OLD
+## dwell-based lifecycle required for that one case.
+##
+## INTERPRETATION, named rather than silently resolved (docs/19's Input Map:
+## "every menu has a movement-only path ... the Console's movement-only
+## sector path ... require[s] none of the keys or buttons listed above"): a
+## button press is, definitionally, a key or button, so it cannot become the
+## ONLY way to open the Console without breaking that stated guarantee for
+## Movement-only mode. The OLD 0.3 s dwell (`OPEN_DWELL_SECONDS`, the speed
+## gate, `_requires_reentry`'s post-Cancel lock -- all UNCHANGED in
+## substance) is therefore KEPT exactly as it always worked, but now scoped
+## EXCLUSIVELY to `movement_only_controls_enabled == true` (`physics_step()`
+## below short-circuits its own dwell branch on that flag first, added
+## first in the condition so nothing else about the branch's logic moved).
+## This is the smallest change that keeps
+## `tests/unit/movement_only_test.gd`'s own named acceptance test
+## ("completes a Console purchase from position and standing still alone,"
+## no discrete input of any kind) true without inventing a second,
+## undocumented opening mechanism -- a button-capable player may still call
+## `request_open()` even with Movement-only enabled (it is never gated on
+## the setting), so nobody loses capability; only the DEFAULT scheme loses
+## the automatic pop-up. Recorded here, in the LEDGER, and in the Review
+## Decision Log's D107 row rather than resolved unilaterally without a
+## trace. This also reads D3's own "sector selection in the live Tower
+## Console behind a default-off accessibility setting" as still satisfied:
+## the setting still exists, still defaults off, and still needs no button.
+##
+## `_requires_reentry` therefore now has exactly ONE remaining consumer: the
+## Movement-only dwell branch, so standing still right after a Cancel does
+## not silently re-dwell-and-reopen a moment later. It is otherwise inert
+## under the default scheme; `request_cancel()` itself is UNCHANGED (still
+## sets it) since the Movement-only path still needs it set regardless of
+## which scheme most recently closed the Console.
+##
+## C-AUTOFIRE re-examined, per the task brief's own instruction ("check
+## whether auto-fire disabling inside the radius still makes sense"): YES,
+## unchanged. `physics_step()`'s auto-fire suppression is driven purely by
+## `inside` (body overlap), never by `_is_open` or the opening mechanism --
+## it already fires "at ANY speed while overlapping the Interaction Radius"
+## regardless of whether the Console ever opens at all (Register >
+## Interfaces > "Tower Console dwell / auto-fire", C-AUTOFIRE). Nothing
+## about WHEN or HOW the Console opens touches that rule's own premise (the
+## Vulnerability Window is about entering the radius, not about shopping),
+## so it is kept exactly as the Register states it, per the task brief.
 
 # --- Provisional Values Register > Interfaces > "Tower Console rules" ------
+## CHANGE 1 (D107): scope narrowed. This is now Movement-only mode's OWN
+## no-button open path only (see class doc, "CHANGE 1"); the default scheme
+## opens via `request_open()` (console_open: E / gamepad Y) instead, with no
+## dwell and no speed gate at all.
 const OPEN_DWELL_SECONDS: float = 0.3 # "Opens after 0.3 s inside the radius..."
 const SPEED_GATE_FRACTION: float = 0.10 # "...while player speed < 10% base..."
 const CHANNEL_DURATION_SECONDS: float = 0.5 # "...every purchase is a 0.5 s channel..."
@@ -516,6 +582,14 @@ var _fill_bar: DraftFillRing = null
 ## hit-flash-tween-kill precedent, tests/unit/player_animation_test.gd).
 var _open_tween: Tween = null
 
+## CHANGE 1 (D107): the pre-open prompt ("[console_open] Tower Console" /
+## greyed "nothing affordable"), a SIBLING of `_panel`, not a child of it --
+## the two are mutually exclusive (`_refresh_prompt()`/`_process()`) so
+## exactly one of "the purchase list" or "the prompt" is visible at once,
+## never both, never neither while inside the radius and alive/unpaused.
+var _prompt_panel: PanelContainer = null
+var _prompt_label: Label = null
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS # see class doc, "never itself frozen"
@@ -615,6 +689,7 @@ func set_panel_size_override_for_test(size: Vector2) -> void:
 func force_refresh_for_test() -> void:
 	_refresh_entries_ui()
 	_update_placement()
+	_refresh_prompt() # CHANGE 1 (D107): drives the pre-open prompt without waiting for a real _process() frame
 
 
 func _now() -> float:
@@ -662,8 +737,13 @@ func physics_step(_delta: float) -> void:
 	var base_speed: float = _player.definition.base_speed_px_per_second if _player.definition != null else 0.0
 	var slow_enough: bool = base_speed <= 0.0 or speed < base_speed * SPEED_GATE_FRACTION
 
+	# CHANGE 1 (D107): the automatic dwell-open below is Movement-only mode's
+	# OWN no-button path now, not the default control scheme's -- see class
+	# doc, "CHANGE 1." Outside Movement-only mode the Console opens only
+	# through request_open() (console_open: E / gamepad Y), called from
+	# _unhandled_input() below.
 	if not _is_open:
-		if _requires_reentry or not slow_enough or not _has_any_affordable_entry():
+		if not movement_only_controls_enabled or _requires_reentry or not slow_enough or not _has_any_affordable_entry():
 			_dwell_started_at = -1.0
 		else:
 			if _dwell_started_at < 0.0:
@@ -719,7 +799,14 @@ func _on_player_died(_a: Variant = null, _b: Variant = null, _c: Variant = null)
 # player") -------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _paused or not _is_open or _player_is_dead:
+	if _paused or _player_is_dead:
+		return
+	# CHANGE 1 (D107): while closed, the ONLY action this file handles is
+	# console_open -- every other branch below assumes _is_open already.
+	if not _is_open:
+		if event.is_action_pressed(&"console_open"):
+			if request_open():
+				get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"console_cancel"):
 		request_cancel()
@@ -739,6 +826,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed(SELECT_ACTIONS[i]):
 			select_and_start_channel(i)
 			return
+
+
+## Typed command (console_open: E / gamepad Y button index 3, docs/19 >
+## Input Map). CHANGE 1 (D107, author decision 2026-09-23): replaces the
+## old automatic 0.3 s dwell-open for the DEFAULT control scheme -- opens
+## the Console immediately, at any speed (no speed gate at all), and
+## ignores `_requires_reentry` entirely (per the new Lifecycle rule:
+## pressing console_open after a Cancel reopens the Console with no need to
+## leave the radius). Still requires: not paused, the player alive, not
+## already open, inside the Interaction Radius, and >= 1 affordable entry
+## (C-REPAIR's own "does not count toward opening the Console" rule still
+## applies -- an unaffordable Console does not open just because a button
+## was pressed). Works under Movement-only mode too, unconditionally -- see
+## class doc, "CHANGE 1."
+func request_open() -> bool:
+	if _paused or _player_is_dead or _is_open:
+		return false
+	if _tower == null or _player == null or _interaction_radius == null:
+		return false
+	if not _interaction_radius.is_player_inside():
+		return false
+	if not _has_any_affordable_entry():
+		return false
+	_open_console()
+	return true
 
 
 ## Typed command (Cancel: Q / B-Circle, docs/19 > Input Map).
@@ -1081,18 +1193,26 @@ func get_footer_label_for_test() -> Label:
 
 # --- Placement (docs/19 > Tower Console UI > "Placement") -------------------
 
+## CHANGE 1 (D107): this Console-level Node2D is now visible whenever
+## unpaused, REGARDLESS of `_is_open` -- the pre-open prompt (`_prompt_panel`)
+## must be able to render while the purchase list (`_panel`) is closed. The
+## two are mutually exclusive siblings, each toggled independently below;
+## Console's OWN visibility only ever needs to hide EVERYTHING at once,
+## which is exactly the pause case (task brief, item 6: "hides itself
+## IMMEDIATELY, no animation" -- this branch never touches a tween).
 func _process(_delta: float) -> void:
-	if _paused or not _is_open:
-		# A rule hiding the Console hides it IMMEDIATELY, no animation (task
-		# brief, item 6) -- this branch never touches a tween.
+	if _paused:
 		visible = false
 		return
-	var was_visible: bool = visible
 	visible = true
-	if not was_visible:
-		_play_open_animation()
 	_update_placement()
-	_refresh_entries_ui()
+	var was_open: bool = _panel.visible # read BEFORE mutating, so this frame's own open transition is detected correctly
+	_panel.visible = _is_open
+	if _is_open:
+		if not was_open:
+			_play_open_animation()
+		_refresh_entries_ui()
+	_refresh_prompt()
 
 
 ## Cosmetic open-only fade+scale (task brief, item 6: "If you cannot
@@ -1220,6 +1340,76 @@ func _build_ui() -> void:
 	vbox.add_child(_fill_bar)
 
 	_build_footer(vbox)
+
+	_build_prompt() # CHANGE 1 (D107): a SIBLING of _panel, not inside it -- see class doc, "CHANGE 1," and the `_prompt_panel` field comment
+
+
+## CHANGE 1 (D107): the pre-open prompt shown while inside the Interaction
+## Radius with the Console closed. A separate small chip, not a row inside
+## `_panel` (which stays hidden the whole time this is visible) -- built the
+## same way `_build_row()`'s own chips are (PanelContainer + UiTheme.make_box
+## + a themed Label), reusing `_make_label()` so it gets the same
+## autowrap/overrun-safety this file already requires of every text
+## container (docs/19 > "UI Layout & Dynamic Container Rules").
+func _build_prompt() -> void:
+	_prompt_panel = PanelContainer.new()
+	_prompt_panel.name = "Prompt"
+	_prompt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_prompt_panel.theme = UiTheme.get_theme()
+	_prompt_panel.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.with_alpha(UiPalette.INK, UiPalette.PANEL_ALPHA), UiPalette.LINE, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, UiPalette.SPACE_S))
+	_prompt_panel.visible = false
+	add_child(_prompt_panel)
+
+	_prompt_label = _make_label("", UiPalette.FONT_SIZE_SMALL)
+	_prompt_label.name = "PromptLabel"
+	_prompt_label.theme_type_variation = UiTheme.SMALL
+	# Same zero-minimum-width risk _build_row()'s own Text label has (any
+	# autowrap + SIZE_EXPAND_FILL Label), at a much smaller scale (one short
+	# phrase, not a data-sourced sentence) -- a modest defensive floor, not a
+	# Register number.
+	_prompt_label.custom_minimum_size = Vector2(UiPalette.SPACE_XXL * 3.0, 0)
+	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt_panel.add_child(_prompt_label)
+
+
+## Mutually exclusive with `_panel` (see `_prompt_panel`'s own field
+## comment): visible only while inside the Interaction Radius, the Console
+## is closed, the player is alive, and the Console is not paused/hidden
+## (the `_paused` case is handled by `_process()`'s own early return before
+## this is ever called). Text and colour follow C-REPAIR's own "greyed,
+## never hidden" precedent -- shown greyed with CONSOLE_PROMPT_UNAVAILABLE
+## when nothing is affordable, never simply absent, so the player always
+## knows the Console exists here even when there is nothing to buy yet.
+func _refresh_prompt() -> void:
+	if _prompt_panel == null:
+		return
+	if _is_open or _player_is_dead or _tower == null or _player == null or _interaction_radius == null:
+		_prompt_panel.visible = false
+		return
+	if not _interaction_radius.is_player_inside():
+		_prompt_panel.visible = false
+		return
+	_prompt_panel.visible = true
+	var affordable: bool = _has_any_affordable_entry()
+	_prompt_label.text = tr("CONSOLE_PROMPT") if affordable else tr("CONSOLE_PROMPT_UNAVAILABLE")
+	_prompt_label.add_theme_color_override("font_color", UiPalette.TEXT if affordable else UiPalette.TEXT_DISABLED)
+	# Presentation simplification, named rather than silently done: the
+	# prompt is centred on the SAME anchor point _update_placement() already
+	# computes for the purchase-list panel (Console's own global_position),
+	# rather than a second, independently-specified geometry rule -- docs/19
+	# states the 200 px/30 degree placement rule for the purchase-list panel
+	# only, never for this prompt, so no Register citation is owed here.
+	var sz: Vector2 = _prompt_panel.get_combined_minimum_size()
+	_prompt_panel.size = sz
+	_prompt_panel.position = -sz / 2.0
+
+
+func get_prompt_visible_for_test() -> bool:
+	return _prompt_panel != null and _prompt_panel.visible
+
+
+func get_prompt_text_for_test() -> String:
+	return _prompt_label.text if _prompt_label != null else ""
 
 
 ## UI pass follow-up (compaction, item 2): the effect sentence of the

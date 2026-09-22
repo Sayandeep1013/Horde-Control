@@ -24,7 +24,7 @@ const NODE_PATHS: Array[String] = [
 
 const CONSOLE_PROPERTIES: Array[String] = ["_tower", "_run_inventory", "_interaction_radius", "_player_is_dead", "driven_externally"]
 const CONSOLE_METHODS: Array[String] = [
-	"_has_any_affordable_entry", "is_open", "set_tower_for_test", "set_player_for_test",
+	"_has_any_affordable_entry", "is_open", "request_open", "set_tower_for_test", "set_player_for_test",
 	"set_player_weapon_for_test", "set_upgrade_system_for_test", "set_camera_for_test",
 	"get_paused_for_test", "get_requires_reentry_for_test", "get_scrap_current_for_test",
 ]

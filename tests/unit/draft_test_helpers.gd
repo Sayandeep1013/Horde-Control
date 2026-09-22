@@ -23,10 +23,11 @@ static func build_upgrade_system() -> UpgradeSystem:
 
 
 ## A real RunInventory, configured against the real prototype economy
-## (Register-authored XP curve, C-XPCAP's 14-XP teaching cap). event_bus is
-## explicitly null -- RunInventory.configure()'s own guarded
-## _connect_player_died() no-ops on a null bus, so this never touches the
-## real EventBus autoload from an isolated suite.
+## (Register-authored XP curve, 5 + 3(L+1) -- Author decision D108,
+## 2026-09-23; the teaching-wave XP cap this comment used to cite, C-XPCAP,
+## is removed). event_bus is explicitly null -- RunInventory.configure()'s
+## own guarded _connect_player_died() no-ops on a null bus, so this never
+## touches the real EventBus autoload from an isolated suite.
 static func build_run_inventory() -> RunInventory:
 	var inv := RunInventory.new()
 	inv.configure(EconomyConfig, null)

@@ -51,7 +51,6 @@ func _make_economy_configuration() -> Resource:
 	var economy: Resource = EconomyConfigurationScript.new()
 	economy.scrap_cap = 200
 	economy.xp_level_cost = cost
-	economy.xp_cap_during_teaching_waves = 14
 	return economy
 
 

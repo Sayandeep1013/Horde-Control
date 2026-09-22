@@ -63,7 +63,7 @@ func _run_scripted_sequence(seed_value: int) -> Array[String]:
 	var first_ids: Array[String] = controller.get_current_card_ids_for_test()
 	controller.confirm_choice_for_test(0)
 
-	run_inventory.credit_xp(15.0) # Register > "XP & levels": level 0->1 costs exactly 15
+	run_inventory.credit_xp(8.0) # Register > "XP & levels": level 0->1 costs exactly 8 (Author decision D108, 2026-09-23)
 	controller.physics_step(0.016)
 	var second_ids: Array[String] = controller.get_current_card_ids_for_test()
 	controller.confirm_choice_for_test(0)

@@ -93,7 +93,7 @@ func test_notify_draft_closed_receives_the_close_instant_exactly_once() -> void:
 func test_notify_draft_closed_is_not_called_until_the_whole_two_draft_queue_drains() -> void:
 	await get_tree().physics_frame
 	# Two simultaneous level-ups -> two queued drafts (see draft_queue_test.gd).
-	_run_inventory.credit_xp(35.0) # 15 (level 1) + 20 (level 2), Register > "XP & levels"
+	_run_inventory.credit_xp(19.0) # 8 (level 1) + 11 (level 2), Register > "XP & levels" (Author decision D108, 2026-09-23; was 15 + 20 = 35)
 	_controller.physics_step(0.016)
 	_pause.flush()
 	assert_int(_controller.get_pending_draft_count_for_test()).is_equal(1)

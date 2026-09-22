@@ -25,8 +25,11 @@ extends GdUnitTestSuite
 ##    the truest "movement only" path docs/19 defines (a sector purchase
 ##    needs no button at all) -- and that with the setting off, standing in
 ##    the Interaction Radius for a full 60 (simulated) seconds spends
-##    nothing, because no discrete "start a purchase" input was ever sent
-##    either.
+##    nothing. CHANGE 1 (D107, 2026-09-23) makes this an even stronger
+##    guarantee than before: the Console itself no longer even OPENS with
+##    the setting off and no discrete input (it now needs the console_open
+##    action to open at all -- see src/ui/console.gd's own class doc,
+##    "CHANGE 1"), not merely "opens but nothing is purchased."
 ##
 ## ## What this script cannot cover (named plainly, per the task brief)
 ## "An internal tester" names a HUMAN play session across a run whose
@@ -217,7 +220,15 @@ func test_movement_only_off_standing_beside_the_tower_for_sixty_seconds_buys_not
 
 	_advance_console(console, clock, int(60.0 / STEP)) # a full 60 simulated seconds, standing still, no discrete input ever sent
 
-	assert_bool(console.is_open()).append_failure_message("test setup: the Console should still have opened (opening itself needs no Movement-only setting)").is_true()
+	# CHANGE 1 (D107, 2026-09-23): with the Movement-only setting OFF, the
+	# Console no longer opens automatically at all -- it now needs the
+	# console_open action (a discrete input this test deliberately never
+	# sends), which is a STRONGER form of "buys nothing" than the old rule
+	# (which opened automatically but never bought anything without a
+	# discrete purchase input). See src/ui/console.gd's own class doc,
+	# "CHANGE 1," for why the automatic open is Movement-only mode's own
+	# path now.
+	assert_bool(console.is_open()).append_failure_message("the Console opened with the Movement-only setting off and no discrete input ever sent -- CHANGE 1 (D107) removed the automatic open for the default scheme").is_false()
 	assert_bool(console.is_channel_active()).append_failure_message("a purchase channel started with the Movement-only setting off and no discrete input ever sent").is_false()
 	assert_int(inventory.scrap_current).append_failure_message("Scrap was spent with the Movement-only setting off and no discrete input ever sent").is_equal(500)
 	for id in Console.SECTOR_IDS:

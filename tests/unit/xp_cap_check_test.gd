@@ -1,49 +1,37 @@
 extends GdUnitTestSuite
 
 ## XP cap check (MASTER_SDLC.md > Acceptance Test Matrix > Technical Tests,
-## P2.12): "During T1-T4, XP never exceeds 14 and no level-up fires; the
-## forced Draft at T4's end grants level 1 and keeps the held XP toward
-## level 2." Register > "Spawning & Waves" > "Teaching wave XP (C-XPCAP)":
-## same rule, cap authored on data/economy/prototype.tres
-## (xp_cap_during_teaching_waves = 14) by P2.10, which explicitly left
-## enforcement to this task (P2.12 task brief).
+## P2.12). NEW RULE (Author decision D108, 2026-09-23): "During T1-T4, XP is
+## never artificially capped and level-ups fire normally, exactly as during
+## a combat wave; a shard burst that crosses a level threshold mid-teaching-
+## wave applies the level-up immediately, with no suppression and no
+## revert." This REPLACES the rule this suite used to test (XP capped at 14
+## during T1-T4, no level-up fires, a forced first Draft grants level 1 at
+## T4's end) -- the teaching-wave XP cap (C-XPCAP, formerly
+## `EconomyConfiguration.xp_cap_during_teaching_waves`) and the forced first
+## Draft are both REMOVED from src/ui/draft_controller.gd; see that file's
+## own "CHANGE 2" class-doc section and MASTER_SDLC.md's Review Decision
+## Log, D108.
 ##
-## src/economy/run_inventory.gd (P2.10, outside this task's write scope)
-## has no notion of teaching waves at all -- credit_xp() always applies the
-## level curve unconditionally, so a burst of shards that crosses the
-## level-1 threshold (15 XP) WILL fire a real level-up inside RunInventory
-## itself before DraftController.physics_step() ever runs this same tick.
-## This suite proves the enforcement this task adds catches and reverses
-## that every time, including the "erroneous level-up already happened"
-## case a naive "just clamp xp_current" implementation would under-refund
-## (see draft_controller.gd's own `_enforce_xp_cap_and_revert_erroneous_
-## level_up()` header comment for why a refund step is required, not just a
-## clamp).
+## `_wave_director` here is still `DraftFakeWaveDirector`
+## (tests/unit/draft_fake_wave_director.gd), set to a teaching wave id via
+## `set_current_wave_id_for_test()` exactly as before -- what changed is
+## what DraftController now DOES with that: nothing. Setting the current
+## wave to "wave_t1".."wave_t4" no longer alters its behaviour at all, which
+## is exactly the claim every test below proves.
 
-const CAP: float = 14.0 # data/economy/prototype.tres: xp_cap_during_teaching_waves
-const LEVEL_1_COST: float = 15.0 # Register > "XP & levels": 10 + 5*(0+1)
-const LEVEL_2_COST: float = 20.0 # 10 + 5*(1+1)
+const LEVEL_1_COST: float = 8.0 # Register > "XP & levels": 5 + 3*(0+1) (Author decision D108, 2026-09-23)
+const LEVEL_2_COST: float = 11.0 # 5 + 3*(1+1)
 
-var _run_inventory: RunInventory
-var _upgrade_system: UpgradeSystem
-var _wave_director: DraftFakeWaveDirector
-var _controller: DraftController
+var _pause: Node
+var _clock: Node
 
 
 func before_test() -> void:
-	_run_inventory = DraftTestHelpers.build_run_inventory()
-	_upgrade_system = auto_free(DraftTestHelpers.build_upgrade_system())
-	add_child(_upgrade_system)
-	_wave_director = auto_free(DraftFakeWaveDirector.new())
-	add_child(_wave_director)
-	_wave_director.set_current_wave_id_for_test("wave_t1")
-
-	_controller = auto_free(DraftTestHelpers.build_draft_controller())
-	add_child(_controller)
-	_controller.set_run_inventory_for_test(_run_inventory)
-	_controller.set_upgrade_system_for_test(_upgrade_system)
-	_controller.set_wave_director_for_test(_wave_director)
-	_controller.skip_lockout_for_test()
+	_pause = auto_free(DraftTestHelpers.build_fresh_pause_authority())
+	add_child(_pause)
+	_clock = auto_free(DraftTestHelpers.build_fresh_sim_clock())
+	add_child(_clock)
 
 
 func after_test() -> void:
@@ -52,50 +40,82 @@ func after_test() -> void:
 	get_tree().paused = false
 
 
-func test_xp_never_exceeds_the_cap_across_all_four_teaching_waves() -> void:
+func _build(wave_id: String) -> Dictionary:
+	var run_inventory: RunInventory = DraftTestHelpers.build_run_inventory()
+	var upgrade_system: UpgradeSystem = auto_free(DraftTestHelpers.build_upgrade_system())
+	add_child(upgrade_system)
+	var wave_director: DraftFakeWaveDirector = auto_free(DraftFakeWaveDirector.new())
+	add_child(wave_director)
+	wave_director.set_current_wave_id_for_test(wave_id)
+
+	var controller: DraftController = auto_free(DraftTestHelpers.build_draft_controller())
+	add_child(controller)
+	controller.set_run_inventory_for_test(run_inventory)
+	controller.set_upgrade_system_for_test(upgrade_system)
+	controller.set_wave_director_for_test(wave_director)
+	controller.set_pause_authority_for_test(_pause)
+	controller.set_sim_clock_for_test(_clock)
+	controller.skip_lockout_for_test()
+
+	return {"run_inventory": run_inventory, "controller": controller}
+
+
+## A level-up fires in EVERY teaching wave now, not suppressed by any of
+## them -- proves the removal is complete, not just "T1 happens to work."
+## Each iteration builds a fresh RunInventory/DraftController so no state
+## leaks between waves (matching tests/unit/guaranteed_first_draft_test.gd's
+## own established per-scenario pattern).
+func test_level_ups_fire_normally_during_all_four_teaching_waves() -> void:
 	for wave_id in ["wave_t1", "wave_t2", "wave_t3", "wave_t4"]:
-		_wave_director.set_current_wave_id_for_test(wave_id)
-		# Far more single-XP shards than the cap allows through, so the
-		# threshold-crossing/revert path (not just the simple clamp path)
-		# is exercised repeatedly within each wave.
-		for shard in 20:
-			_run_inventory.credit_xp(1.0)
-			_controller.physics_step(0.016)
-			assert_float(_run_inventory.xp_current).append_failure_message(
-				"XP exceeded the %.0f cap during %s (shard %d): got %s" % [CAP, wave_id, shard, _run_inventory.xp_current]
-			).is_less_equal(CAP)
-			assert_int(_run_inventory.level).append_failure_message(
-				"a level-up fired during teaching wave %s (shard %d)" % [wave_id, shard]
-			).is_equal(0)
+		var h: Dictionary = _build(wave_id)
+		var run_inventory: RunInventory = h["run_inventory"]
+		var controller: DraftController = h["controller"]
+
+		run_inventory.credit_xp(LEVEL_1_COST)
+		controller.physics_step(0.016)
+
+		assert_int(run_inventory.level).append_failure_message(
+			"a level-up did not fire during teaching wave %s -- the old suppression may still be active" % wave_id
+		).is_equal(1)
+		assert_bool(controller.is_draft_showing_for_test()).append_failure_message(
+			"the Level-Up Draft did not open during teaching wave %s" % wave_id
+		).is_true()
+
+		controller.confirm_choice_for_test(0) # release the pause reason before the next iteration reuses _pause
 
 
-func test_a_burst_that_crosses_the_level_1_threshold_is_fully_refunded_and_reverted() -> void:
-	_wave_director.set_current_wave_id_for_test("wave_t3")
-	_run_inventory.credit_xp(LEVEL_1_COST + 5.0) # 20 XP in one call: crosses the 15-XP threshold, 5 left over
-	assert_int(_run_inventory.level).append_failure_message("test premise broken: RunInventory itself did not cross the level-1 threshold").is_equal(1)
-	assert_float(_run_inventory.xp_current).is_equal(5.0)
+func test_a_burst_that_crosses_the_level_1_threshold_applies_normally_during_a_teaching_wave() -> void:
+	var h: Dictionary = _build("wave_t3")
+	var run_inventory: RunInventory = h["run_inventory"]
+	var controller: DraftController = h["controller"]
 
-	_controller.physics_step(0.016)
+	run_inventory.credit_xp(LEVEL_1_COST + 5.0) # 13 XP: crosses the 8-XP threshold, 5 left over
+	assert_int(run_inventory.level).append_failure_message("test premise broken: RunInventory itself did not cross the level-1 threshold").is_equal(1)
+	assert_float(run_inventory.xp_current).is_equal_approx(5.0, 0.001)
 
-	assert_int(_run_inventory.level).append_failure_message("erroneous teaching-wave level-up was not reverted").is_equal(0)
-	# The 15 XP credit_xp() spent on the bogus level-up must be refunded
-	# BEFORE the cap clamps it -- 5 (leftover) + 15 (refunded) = 20, clamped
-	# to 14. A naive implementation that reverts `level` without refunding
-	# would leave this at 5, silently discarding 9 XP the player earned.
-	assert_float(_run_inventory.xp_current).append_failure_message("XP was not correctly refunded-then-clamped after reverting the erroneous level-up").is_equal(CAP)
+	controller.physics_step(0.016)
+
+	assert_int(run_inventory.level).append_failure_message(
+		"the level-up was reverted during a teaching wave -- the old C-XPCAP revert path may still be active"
+	).is_equal(1)
+	assert_float(run_inventory.xp_current).append_failure_message(
+		"XP was altered during a teaching wave's level-up even though no cap or revert applies any more"
+	).is_equal_approx(5.0, 0.001)
+	assert_bool(controller.is_draft_showing_for_test()).append_failure_message("the Level-Up Draft did not open for a burst crossing the level-1 threshold mid-teaching-wave").is_true()
 
 
-func test_forced_first_draft_at_t4_end_grants_level_1_and_keeps_the_held_xp_toward_level_2() -> void:
-	_wave_director.set_current_wave_id_for_test("wave_t4")
-	for shard in 20:
-		_run_inventory.credit_xp(1.0)
-		_controller.physics_step(0.016)
-	assert_float(_run_inventory.xp_current).is_equal(CAP)
-	assert_int(_run_inventory.level).is_equal(0)
+## Proves the cap is REMOVED, not merely raised: a burst whose TOTAL XP
+## (22) comfortably exceeds the former 14-XP teaching-wave ceiling crosses
+## BOTH of its levels in one tick, with the true 3 XP remainder intact.
+func test_a_large_burst_exceeding_the_former_14_xp_ceiling_crosses_multiple_levels_during_a_teaching_wave() -> void:
+	var h: Dictionary = _build("wave_t4")
+	var run_inventory: RunInventory = h["run_inventory"]
+	var controller: DraftController = h["controller"]
 
-	_wave_director.end_wave_for_test("wave_t4", 3, "wave_combat_1")
+	run_inventory.credit_xp(LEVEL_1_COST + LEVEL_2_COST + 3.0) # 8 + 11 + 3 = 22 XP
+	controller.physics_step(0.016)
 
-	assert_bool(_controller.is_draft_showing_for_test()).append_failure_message("the forced first Draft did not open at T4's end").is_true()
-	assert_int(_run_inventory.level).append_failure_message("forced first Draft did not grant level 1").is_equal(1)
-	assert_float(_run_inventory.xp_current).append_failure_message("held XP at the cap was discarded instead of carried toward level 2").is_equal(CAP)
-	assert_float(_run_inventory.xp_required_for_next_level).is_equal(LEVEL_2_COST)
+	assert_int(run_inventory.level).append_failure_message(
+		"a burst exceeding the former 14-XP teaching-wave ceiling (C-XPCAP) did not cross both levels -- the old cap/suppression may still be active"
+	).is_equal(2)
+	assert_float(run_inventory.xp_current).append_failure_message("the true remainder was not preserved -- something is still clamping XP during a teaching wave").is_equal_approx(3.0, 0.001)
