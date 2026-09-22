@@ -1,22 +1,30 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://src/tower/tower.gd" id="1_tower"]
 [ext_resource type="Resource" path="res://data/tower/base.tres" id="2_basedef"]
 [ext_resource type="Resource" path="res://data/tower/base_weapon.tres" id="3_baseweapon"]
 [ext_resource type="Script" path="res://src/tower/tower_visuals.gd" id="4_visuals"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_stage1_base.png" id="5_towertex"]
 [ext_resource type="Script" path="res://src/combat/hurtbox.gd" id="6_hurtbox"]
 [ext_resource type="Script" path="res://src/combat/death_state.gd" id="7_deathstate"]
 [ext_resource type="Script" path="res://src/tower/tower_health.gd" id="8_health"]
 [ext_resource type="Script" path="res://src/tower/tower_weapon.gd" id="9_weapon"]
 [ext_resource type="Script" path="res://src/tower/tower_interaction_radius.gd" id="10_interaction"]
 [ext_resource type="Script" path="res://src/tower/tower_evolution_stage.gd" id="11_stage"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_platform.png" id="12_platform"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_stage2_reinforced.png" id="13_stage2"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_stage3_armed.png" id="14_stage3"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/tower/tower_stage4_fortress.png" id="15_stage4"]
 [ext_resource type="Texture2D" path="res://assets/third_party/kenney/projectiles/projectile_tower.png" id="16_projtower"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/tower_fire.ogg" id="17_towerfire"]
+
+; Art pass (D102): Tiny Swords Knights buildings replace the Kenney 64px
+; tower tiles. See src/tower/tower_visuals.gd's header for the canvas/
+; anchor scheme and assets/third_party/tiny_swords/PROVENANCE.md's
+; Derived/ rows for how the composited stage art was built.
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/tower_stage0_base.png" id="20_stage0"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/tower_stage1_archer.png" id="21_stage1"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Knights/Buildings/Castle/Castle_Blue.png" id="22_stage2"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/tower_stage3_archers.png" id="23_stage3"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/tower_destroyed_padded.png" id="24_destroyedtower"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Knights/Buildings/Castle/Castle_Destroyed.png" id="25_destroyedcastle"]
+[ext_resource type="Texture2D" path="res://assets/sprites/tower/tower_ground_shadow.png" id="26_shadow"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Effects/Fire/Fire.png" id="27_fire"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 106.0
@@ -34,29 +42,47 @@ script = ExtResource("1_tower")
 definition = ExtResource("2_basedef")
 weapon_definition = ExtResource("3_baseweapon")
 
-; scale 4.0: the Kenney tower tiles are 64x64, while the generated art they
-; replaced was 256x256 for this Tower's 106 px footprint radius (212 px
-; across). At native scale the Tower rendered at a quarter of its own
-; collider, so enemies attacked ground that looked empty. 4.0 restores the
-; 256 px the rest of this scene was built against.
+; Art pass (D102): the Tiny Swords building art is already the size it
+; should render at (a 320x256 canvas for a 212 px-diameter footprint,
+; landing in the task's own 260-320 px on-screen-width target), so
+; Visuals carries no scale of its own any more -- see tower_visuals.gd's
+; header for why the old 4x-Kenney-scale note this replaces no longer
+; applies. texture_filter is set here, once, and inherited by every child
+; left at the CanvasItem default (TEXTURE_FILTER_PARENT_NODE).
 [node name="Visuals" type="Node2D" parent="."]
-scale = Vector2(4, 4)
+texture_filter = 1
 script = ExtResource("4_visuals")
 sprite_path = NodePath("Sprite")
 shield_shimmer_path = NodePath("ShieldShimmer")
-platform_path = NodePath("Platform")
-platform_texture = ExtResource("12_platform")
-stage_textures = Array[Texture2D]([ExtResource("5_towertex"), ExtResource("13_stage2"), ExtResource("14_stage3"), ExtResource("15_stage4")])
+ground_shadow_path = NodePath("GroundShadow")
+fire_low_path = NodePath("FireLow")
+fire_critical_path = NodePath("FireCritical")
+stage_textures = Array[Texture2D]([ExtResource("20_stage0"), ExtResource("21_stage1"), ExtResource("22_stage2"), ExtResource("23_stage3")])
+ground_shadow_texture = ExtResource("26_shadow")
+destroyed_tower_texture = ExtResource("24_destroyedtower")
+destroyed_castle_texture = ExtResource("25_destroyedcastle")
+fire_texture = ExtResource("27_fire")
 
-[node name="Platform" type="Sprite2D" parent="Visuals"]
-texture = ExtResource("12_platform")
+[node name="GroundShadow" type="Sprite2D" parent="Visuals"]
+position = Vector2(0, 8)
+texture = ExtResource("26_shadow")
 
 [node name="Sprite" type="Sprite2D" parent="Visuals"]
-texture = ExtResource("5_towertex")
+position = Vector2(0, -128)
+texture = ExtResource("20_stage0")
+
+[node name="FireLow" type="AnimatedSprite2D" parent="Visuals"]
+position = Vector2(-78, -70)
+visible = false
+
+[node name="FireCritical" type="AnimatedSprite2D" parent="Visuals"]
+position = Vector2(82, -150)
+visible = false
 
 [node name="ShieldShimmer" type="Sprite2D" parent="Visuals"]
+position = Vector2(0, -128)
 modulate = Color(0.6, 0.95, 1, 0)
-texture = ExtResource("5_towertex")
+texture = ExtResource("20_stage0")
 
 [node name="Body" type="StaticBody2D" parent="."]
 collision_layer = 4

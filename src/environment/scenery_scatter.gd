@@ -140,6 +140,9 @@ func _build() -> void:
 		s.modulate = tint
 		s.z_index = 0
 		s.z_as_relative = true # relative to this node, which is already absolute
+		# Art pass (D102): pixel-art scenery must stay crisp regardless of
+		# the project's own default canvas-item filter.
+		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		add_child(s)
 		_placed.append(s)
 		placed += 1

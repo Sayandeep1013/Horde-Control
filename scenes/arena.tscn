@@ -1,17 +1,44 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=29 format=3]
 
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/environment/floor_tile.png" id="1_floor"]
+; Art pass (D102): a green grassland island (Tiny Swords) replaces the flat
+; beige Kenney floor/walls. See src/environment/ground_detail.gd,
+; src/environment/foam_ring.gd, src/environment/tree_grove.gd and
+; src/environment/sheep_flock.gd for the generated pieces, and
+; assets/third_party/tiny_swords/PROVENANCE.md's `Derived/` rows for the
+; two cropped ground tiles. ArenaBounds' collision is untouched.
+
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/grass_fill_tile.png" id="1_floor"]
 [ext_resource type="Script" path="res://src/environment/arena_bounds.gd" id="2_bounds"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/environment/wall_tile.png" id="3_wall"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Water.png" id="3_water"]
 [ext_resource type="Script" path="res://src/environment/scenery_scatter.gd" id="4_scatter"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/rock_a.png" id="5_rock_a"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/rock_b.png" id="5_rock_b"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/rock_c.png" id="5_rock_c"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/bush_a.png" id="5_bush_a"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/bush_b.png" id="5_bush_b"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/plant_a.png" id="5_plant_a"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/plant_b.png" id="5_plant_b"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/scenery/crater.png" id="5_crater"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/01.png" id="5_deco01"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/02.png" id="5_deco02"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/03.png" id="5_deco03"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/04.png" id="5_deco04"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/05.png" id="5_deco05"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/06.png" id="5_deco06"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/07.png" id="5_deco07"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/08.png" id="5_deco08"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/09.png" id="5_deco09"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/10.png" id="5_deco10"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/11.png" id="5_deco11"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/12.png" id="5_deco12"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/13.png" id="5_deco13"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/14.png" id="5_deco14"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/15.png" id="5_deco15"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/16.png" id="5_deco16"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/17.png" id="5_deco17"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/18.png" id="5_deco18"]
+[ext_resource type="Script" path="res://src/environment/ground_detail.gd" id="6_grounddetail"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Ground/Tilemap_Flat.png" id="7_flattilemap"]
+[ext_resource type="Script" path="res://src/environment/foam_ring.gd" id="8_foamring"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Foam/Foam.png" id="9_foamtex"]
+[ext_resource type="Script" path="res://src/environment/tree_grove.gd" id="10_treegrove"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Trees/Tree.png" id="11_treetex"]
+[ext_resource type="Script" path="res://src/environment/sheep_flock.gd" id="12_sheepflock"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Sheep/HappySheep_All.png" id="13_sheeptex"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Rocks/Rocks_01.png" id="14_waterrock1"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Rocks/Rocks_03.png" id="14_waterrock3"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_north"]
 size = Vector2(4928, 64)
@@ -28,6 +55,7 @@ size = Vector2(64, 3200)
 [node name="Arena" type="Node2D"]
 
 [node name="Floor" type="Sprite2D" parent="."]
+texture_filter = 1
 z_index = 0
 texture = ExtResource("1_floor")
 centered = true
@@ -35,41 +63,56 @@ region_enabled = true
 region_rect = Rect2(0, 0, 4800, 3200)
 texture_repeat = 2
 
-[node name="WallNorthSprite" type="Sprite2D" parent="."]
-position = Vector2(0, -1632)
-z_index = 0
-texture = ExtResource("3_wall")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 4928, 64)
-texture_repeat = 2
+; Organic sand: Tower clearing, a few free patches, connecting paths, and a
+; coastal ring around the whole island. See src/environment/ground_detail.gd.
+[node name="GroundDetail" type="TileMapLayer" parent="."]
+texture_filter = 1
+script = ExtResource("6_grounddetail")
+flat_tilemap_texture = ExtResource("7_flattilemap")
 
-[node name="WallSouthSprite" type="Sprite2D" parent="."]
-position = Vector2(0, 1632)
+; Ground clutter: mushrooms, rocks, bushes and plants (Deco 01-15) at high
+; weight, pumpkins/bones (12-15) as rare finds -- weighting is done by
+; simply repeating the common entries in this array; SceneryScatter's own
+; algorithm (unchanged) already picks uniformly at random from it.
+[node name="SceneryScatter" type="Node2D" parent="."]
 z_index = 0
-texture = ExtResource("3_wall")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 4928, 64)
-texture_repeat = 2
+script = ExtResource("4_scatter")
+prop_count = 240
+textures = Array[Texture2D]([ExtResource("5_deco01"), ExtResource("5_deco01"), ExtResource("5_deco02"), ExtResource("5_deco02"), ExtResource("5_deco03"), ExtResource("5_deco03"), ExtResource("5_deco04"), ExtResource("5_deco04"), ExtResource("5_deco05"), ExtResource("5_deco05"), ExtResource("5_deco06"), ExtResource("5_deco06"), ExtResource("5_deco07"), ExtResource("5_deco07"), ExtResource("5_deco08"), ExtResource("5_deco08"), ExtResource("5_deco09"), ExtResource("5_deco09"), ExtResource("5_deco10"), ExtResource("5_deco10"), ExtResource("5_deco11"), ExtResource("5_deco11"), ExtResource("5_deco12"), ExtResource("5_deco13"), ExtResource("5_deco14"), ExtResource("5_deco15")])
 
-[node name="WallWestSprite" type="Sprite2D" parent="."]
-position = Vector2(-2432, 0)
+; Animated tree groves clustered toward the edges. See
+; src/environment/tree_grove.gd for the Y-sort/z-band trade-off note.
+[node name="TreeGrove" type="Node2D" parent="."]
 z_index = 0
-texture = ExtResource("3_wall")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 64, 3200)
-texture_repeat = 2
+script = ExtResource("10_treegrove")
+tree_texture = ExtResource("11_treetex")
 
-[node name="WallEastSprite" type="Sprite2D" parent="."]
-position = Vector2(2432, 0)
+; A few idle sheep wandering cosmetically near the edges.
+[node name="SheepFlock" type="Node2D" parent="."]
 z_index = 0
-texture = ExtResource("3_wall")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 64, 3200)
-texture_repeat = 2
+script = ExtResource("12_sheepflock")
+sheep_texture = ExtResource("13_sheeptex")
+
+; Hand-placed rare landmark deco (Deco 16-18: a wooden signpost, a
+; skeleton waymarker, a scarecrow) -- not part of SceneryScatter's random
+; pool since exactly one or two of each reads as a landmark, not clutter.
+[node name="LandmarkScarecrow" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-1550, 1000)
+z_index = 0
+texture = ExtResource("5_deco18")
+
+[node name="LandmarkSignpostWood" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(1650, -1150)
+z_index = 0
+texture = ExtResource("5_deco17")
+
+[node name="LandmarkSignpostSkull" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-1700, -900)
+z_index = 0
+texture = ExtResource("5_deco16")
 
 [node name="ArenaBounds" type="StaticBody2D" parent="."]
 script = ExtResource("2_bounds")
@@ -90,10 +133,87 @@ shape = SubResource("RectangleShape2D_west")
 position = Vector2(2432, 0)
 shape = SubResource("RectangleShape2D_east")
 
-; Decorative floor scatter. NOT obstacles: bare Sprite2D nodes with no
-; collision and no registry entry, so the master's "no interior obstacles"
-; rule for the prototype arena is untouched. See src/environment/scenery_scatter.gd.
-[node name="SceneryScatter" type="Node2D" parent="."]
+; The island's edge: water beyond the true arena boundary (ArenaBounds'
+; own collision, untouched), replacing the old flat Kenney wall sprites.
+; North/South are wider than the arena so they cover the four corners;
+; West/East fill the remaining strip along the sides only -- the same
+; corner-coverage convention the walls they replace used.
+[node name="WaterNorthSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -1950)
 z_index = 0
-script = ExtResource("4_scatter")
-textures = Array[Texture2D]([ExtResource("5_rock_a"), ExtResource("5_rock_b"), ExtResource("5_rock_c"), ExtResource("5_bush_a"), ExtResource("5_bush_b"), ExtResource("5_plant_a"), ExtResource("5_plant_b"), ExtResource("5_crater")])
+texture = ExtResource("3_water")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 6200, 700)
+texture_repeat = 2
+
+[node name="WaterSouthSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, 1950)
+z_index = 0
+texture = ExtResource("3_water")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 6200, 700)
+texture_repeat = 2
+
+[node name="WaterWestSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-2750, 0)
+z_index = 0
+texture = ExtResource("3_water")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 700, 3200)
+texture_repeat = 2
+
+[node name="WaterEastSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(2750, 0)
+z_index = 0
+texture = ExtResource("3_water")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 700, 3200)
+texture_repeat = 2
+
+; A few static water-rock accents (first bob frame only -- these sheets are
+; animated 8-frame loops, kept static here to bound scope; see task report).
+[node name="WaterRockA" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-2650, -1300)
+z_index = 0
+texture = ExtResource("14_waterrock1")
+region_enabled = true
+region_rect = Rect2(0, 0, 128, 128)
+
+[node name="WaterRockB" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(2600, 1250)
+z_index = 0
+texture = ExtResource("14_waterrock3")
+region_enabled = true
+region_rect = Rect2(0, 0, 128, 128)
+
+[node name="WaterRockC" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -2050)
+z_index = 0
+texture = ExtResource("14_waterrock1")
+region_enabled = true
+region_rect = Rect2(128, 0, 128, 128)
+
+[node name="WaterRockD" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, 2100)
+z_index = 0
+texture = ExtResource("14_waterrock3")
+region_enabled = true
+region_rect = Rect2(256, 0, 128, 128)
+
+; Animated foam right at the seam between the coastal sand and the water.
+[node name="FoamRing" type="Node2D" parent="."]
+z_index = 0
+script = ExtResource("8_foamring")
+foam_texture = ExtResource("9_foamtex")
