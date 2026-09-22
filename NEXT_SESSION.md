@@ -1,5 +1,15 @@
 # Next Session — Start Here
 
+**State on 2026-09-23 (art session, D102).** The game has a title screen, real art and music. What landed:
+- **Art:** Pixel Frog's Tiny Swords, CC0 edition (D105). Goblins in each intent's reserved colour with idle, run, strike, hit-flash and death (skull FX); blue Archer player with directional shoot frames; arrow projectiles for player and Tower; gold and crystal pickups; the Tower evolves Tower -> Tower+archer -> Castle -> Castle+archers, burns when low and shows ruins when destroyed; a grassland island with sand paths, water, foam, tree groves, sheep and deco. cynicmusic's CC0 "Battle Theme A" loops on the Music bus.
+- **Title screen** (`scenes/title.tscn`, now `run/main_scene`) with Controls and Credits; pause menu and run-end screen offer Main Menu.
+- **UI pass merged** (D106); the debug overlay starts hidden (F1 shows it).
+- **Dev tool:** `src/dev/scene_capture.tscn` screenshots the real rendered scene. Keep captures short: holding a move key for thousands of frames ends the run and the held key then cycles the run-end menu forever.
+- **Known cosmetic gaps:** a Player Hunter converted to a Tower Seeker by the leash rule keeps its TNT-goblin art; elevation cliffs unused; water rocks static; the gold pickup shows its sheet's baked shadow.
+- **Tests:** run with `-TestPath "res://tests"`; the script's default path runs only the harness self-test. The one expected failure in a full run is `tests/harness/fail/test_trivial_fail.gd`, the deliberate canary.
+
+---
+
 **State on 2026-09-20.** Phases 00 and 01 built and reviewed; both closures are still the author's. Phase 02 is six of seven tasks complete (P1.7 deferred by D97, no gate by D98). **Phases 03, 04 and 05 are all built**: the prototype now has every system the Minimum Playable Prototype calls for. **No review gate has been convened for any of the three.** Read `phases/README.md`, then this file, then the Phase 03, 04 and 05 EXECUTION_LOGs and LEDGERs.
 
 

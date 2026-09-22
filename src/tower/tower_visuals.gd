@@ -122,6 +122,14 @@ const FIRE_FPS: float = 10.0
 ## header, "Destroyed art."
 const CASTLE_FAMILY_MIN_STAGE: int = 2
 
+## Orchestrator follow-up (art session): the Tower-silhouette stages are
+## only ~114 px wide on the shared canvas, about half the 212 px footprint
+## enemies attack, so this node is scaled up while one of them shows. The
+## sprite offsets in scenes/tower.tscn put the building's base 64 px below
+## the Tower's position, so the footprint circle sits under the building
+## instead of under empty ground in front of it.
+const TOWER_FAMILY_SCALE: float = 1.5
+
 @export var sprite_path: NodePath
 @export var shield_shimmer_path: NodePath
 @export var ground_shadow_path: NodePath
@@ -230,6 +238,7 @@ func on_stage_changed(new_stage: int, _ranks_held: int) -> void:
 		_sprite.texture = tex
 	if _shield_shimmer != null:
 		_shield_shimmer.texture = tex
+	scale = Vector2.ONE * (TOWER_FAMILY_SCALE if clamped_stage < CASTLE_FAMILY_MIN_STAGE else 1.0)
 
 
 ## Typed listener for TowerHealth.tower_destroyed(timestamp), wired by

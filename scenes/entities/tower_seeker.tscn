@@ -11,7 +11,7 @@
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_death.ogg" id="9_death_sfx"]
 [ext_resource type="Script" path="res://src/enemy/enemy_animator.gd" id="11_animator"]
 [ext_resource type="SpriteFrames" path="res://assets/sprite_frames/tower_seeker.tres" id="12_frames"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Ground/Shadows.png" id="13_shadow"]
+[ext_resource type="Texture2D" path="res://assets/sprites/soft_shadow.png" id="13_shadow"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 14.0
@@ -77,8 +77,9 @@ script = ExtResource("11_animator")
 directional_strike = true
 
 [node name="Shadow" type="Sprite2D" parent="Visuals"]
-modulate = Color(0, 0, 0, 0.55)
-scale = Vector2(0.85, 0.85)
+position = Vector2(0, 2)
+modulate = Color(1, 1, 1, 0.6)
+scale = Vector2(0.75, 0.75)
 texture = ExtResource("13_shadow")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Visuals"]

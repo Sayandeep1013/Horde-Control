@@ -10,7 +10,7 @@
 [ext_resource type="Script" path="res://src/tower/tower_weapon.gd" id="9_weapon"]
 [ext_resource type="Script" path="res://src/tower/tower_interaction_radius.gd" id="10_interaction"]
 [ext_resource type="Script" path="res://src/tower/tower_evolution_stage.gd" id="11_stage"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/projectiles/projectile_tower.png" id="16_projtower"]
+[ext_resource type="Texture2D" path="res://assets/sprite_frames/arrow_projectile.tres" id="16_projtower"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/tower_fire.ogg" id="17_towerfire"]
 
 ; Art pass (D102): Tiny Swords Knights buildings replace the Kenney 64px
@@ -64,23 +64,23 @@ destroyed_castle_texture = ExtResource("25_destroyedcastle")
 fire_texture = ExtResource("27_fire")
 
 [node name="GroundShadow" type="Sprite2D" parent="Visuals"]
-position = Vector2(0, 8)
+position = Vector2(0, 30)
 texture = ExtResource("26_shadow")
 
 [node name="Sprite" type="Sprite2D" parent="Visuals"]
-position = Vector2(0, -128)
+position = Vector2(0, -64)
 texture = ExtResource("20_stage0")
 
 [node name="FireLow" type="AnimatedSprite2D" parent="Visuals"]
-position = Vector2(-78, -70)
+position = Vector2(-60, -6)
 visible = false
 
 [node name="FireCritical" type="AnimatedSprite2D" parent="Visuals"]
-position = Vector2(82, -150)
+position = Vector2(60, -86)
 visible = false
 
 [node name="ShieldShimmer" type="Sprite2D" parent="Visuals"]
-position = Vector2(0, -128)
+position = Vector2(0, -64)
 modulate = Color(0.6, 0.95, 1, 0)
 texture = ExtResource("20_stage0")
 

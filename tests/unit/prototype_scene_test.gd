@@ -306,7 +306,7 @@ func test_tower_visuals_stage_and_ground_shadow_textures_are_all_non_null() -> v
 
 func test_tower_weapon_projectile_texture_and_fire_sfx_are_non_null() -> void:
 	assert_object(_tower.weapon.projectile_texture).append_failure_message("TowerWeapon.projectile_texture is null").is_not_null()
-	assert_str(_tower.weapon.projectile_texture.resource_path).contains("third_party/kenney/projectiles/projectile_tower.png")
+	assert_str(_tower.weapon.projectile_texture.resource_path).contains("sprite_frames/arrow_projectile.tres")
 	assert_object(_tower.weapon.fire_sfx).append_failure_message("TowerWeapon.fire_sfx is null").is_not_null()
 	assert_str(_tower.weapon.fire_sfx.resource_path).contains("third_party/kenney/audio/sfx/tower_fire.ogg")
 
