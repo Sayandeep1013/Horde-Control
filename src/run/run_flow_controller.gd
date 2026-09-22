@@ -196,12 +196,14 @@ func _build_ui() -> void:
 	if pause_menu != null:
 		pause_menu.resume_requested.connect(_on_resume_requested)
 		pause_menu.settings_requested.connect(_on_open_settings_from_pause)
+		pause_menu.main_menu_requested.connect(_on_main_menu_requested)
 	if settings_menu != null:
 		settings_menu.closed.connect(_on_settings_closed)
 		if _console != null:
 			settings_menu.set_console_ref(_console)
 	if run_end_screen != null:
 		run_end_screen.settings_requested.connect(_on_open_settings_from_run_end)
+		run_end_screen.main_menu_requested.connect(_on_main_menu_requested)
 	_refresh_ui_visibility()
 
 
@@ -420,6 +422,43 @@ func _on_open_settings_from_run_end() -> void:
 func _on_settings_closed() -> void:
 	_ui_mode = _settings_return_mode
 	_refresh_ui_visibility()
+
+
+## "Main Menu" (title screen + credits session): returns to
+## res://scenes/title.tscn from either the pause menu or the run-end
+## screen (src/ui/pause_menu.gd / src/ui/run_end.gd's own
+## `main_menu_requested`, connected to this same handler above -- neither
+## file owns a scene change or a PauseAuthority write of its own, matching
+## every other option on both screens).
+##
+## Every active PauseAuthority reason is popped, immediately, BEFORE the
+## scene change -- a scene change while `get_tree().paused` is still true
+## would hand the fresh title scene a tree that is already paused, and
+## PauseAuthority (the only writer of that flag; src/core/
+## pause_authority.gd's own header) would have no reason left active to
+## ever pop it back once the run that pushed those reasons is gone.
+## `get_active_reasons()` is read fresh rather than popping only the small
+## set this file itself pushes (REASON_PAUSE_MENU, REASON_RUN_ENDED) so
+## REASON_FOCUS_LOSS / REASON_CONTROLLER_DISCONNECT / REASON_DRAFT are also
+## cleared if any happened to still be active, with no separate list here
+## to go stale later.
+##
+## No per-run autoload state needs a matching reset here, named rather than
+## silently assumed: RunInventory and this controller itself are scene-local
+## nodes (not autoloads) and are freed with the rest of scenes/prototype.tscn
+## by `change_scene_to_file()`; EntityRegistry (an autoload) already
+## self-heals slots for entities freed without deregistering (LEDGER
+## F02-15, src/core/entity_registry.gd); and SimClock deliberately never
+## resets its own `now` at runtime (that file's own header: "SimClock never
+## resets its own `now`... a test suite that needs a fresh clock value
+## builds its own throwaway instance instead"). There was no pre-existing
+## "restart" path anywhere in this codebase to mirror (grepped; none
+## exists) -- this is the first flow that ever returns to a scene capable
+## of starting a second run in the same process.
+func _on_main_menu_requested() -> void:
+	for reason in _pause_authority.get_active_reasons():
+		_pause_authority.pop_reason_immediate(reason)
+	get_tree().change_scene_to_file("res://scenes/title.tscn")
 
 
 func _refresh_ui_visibility() -> void:

@@ -123,10 +123,13 @@ const AUTOLOAD_PATHS := {
 	"CombatStats": "res://src/core/combat_stats.gd",
 }
 
-# The project's recorded entry scene (Phase 00 P0.2 execution log, which
-# records what was created to satisfy docs/20's project-skeleton pin); the
-# only .tscn under scenes/ that is the game's entry point.
-const MAIN_SCENE_PATH := "res://scenes/prototype.tscn"
+# The project's recorded entry scene. Phase 00 P0.2 pinned this to
+# scenes/prototype.tscn, the playable prototype itself; a later session
+# (title screen + credits) put scenes/title.tscn in front of it instead --
+# Play, on that screen, hands off to res://scenes/prototype.tscn, which is
+# otherwise unchanged. The only .tscn under scenes/ that is the game's
+# entry point.
+const MAIN_SCENE_PATH := "res://scenes/title.tscn"
 
 # config/features (docs/20 > Version: "project.godot itself records only
 # 4.7", not 4.4 -- Phase 00 finding F-03 -- carried alongside the project's

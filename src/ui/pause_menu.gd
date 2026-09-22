@@ -57,6 +57,16 @@ class_name PauseMenu
 ## the column at its normal, larger separation -- the coordinator's review
 ## found the ring "floating alone ... with a lot of empty space" below the
 ## underline. No hint text was added to the ring; it had none before.
+##
+## ## Main Menu option (title screen + credits session)
+## A third choice, "Main Menu," alongside Resume/Settings -- this project
+## had no restart or quit option anywhere to retarget (grepped; none
+## existed), so this is a genuinely new choice, not a retargeted one.
+## `RunFlowController._on_main_menu_requested()` is the one caller that
+## reacts to `main_menu_requested` -- exactly like `resume_requested` and
+## `settings_requested` above, this file only reports which option the
+## player picked and owns no scene-change or PauseAuthority logic of its
+## own.
 
 ## Above src/ui/hud.gd (layer 10) and src/ui/threat_feedback.gd (layer 11);
 ## below the Level-Up Draft (src/ui/draft_controller.gd, layer 20) only
@@ -70,9 +80,11 @@ const PAUSE_MENU_CANVAS_LAYER: int = 18
 
 const OPTION_RESUME: int = 0
 const OPTION_SETTINGS: int = 1
+const OPTION_MAIN_MENU: int = 2
 
 signal resume_requested()
 signal settings_requested()
+signal main_menu_requested()
 
 var _root: Control
 var _bar: PausedChoiceBar
@@ -116,6 +128,8 @@ func _on_option_confirmed(index: int) -> void:
 		resume_requested.emit()
 	elif index == OPTION_SETTINGS:
 		settings_requested.emit()
+	elif index == OPTION_MAIN_MENU:
+		main_menu_requested.emit()
 
 
 func _build_ui() -> void:
@@ -133,7 +147,7 @@ func _build_ui() -> void:
 
 	_bar = PausedChoiceBar.new()
 	_bar.name = "ChoiceBar"
-	_bar.set_options([tr("PAUSE_MENU_RESUME"), tr("PAUSE_MENU_SETTINGS")])
+	_bar.set_options([tr("PAUSE_MENU_RESUME"), tr("PAUSE_MENU_SETTINGS"), tr("PAUSE_MENU_MAIN_MENU")])
 	_bar.option_confirmed.connect(_on_option_confirmed)
 	_frame.column.add_child(_bar)
 	MenuFrame.style_choice_labels(_bar)
