@@ -103,6 +103,22 @@ class_name Hud
 ## and `_new_hud_label()`'s, own comments for the two distinct causes (an
 ## HBoxContainer stretched wide by a VBoxContainer's cross-axis fill, and a
 ## caption's own box being wider than its text) and their fixes.
+##
+## ## Second UI pass: Tiny Swords medieval restyle
+## Every field's pill/ribbon now renders through `UiTheme`'s carved-wood/
+## parchment `StyleBoxTexture`s (see ui_theme.gd) instead of a flat colour --
+## no change needed in this file for that half of the restyle. What DID
+## change here: every field gained a real icon (a vector `UiShapeGlyph`
+## heart/tower/recycle shape, or the real gold-coin texture for Scrap -- see
+## each `_build_*_field()`'s own comment), the two health bars and the XP
+## bar grew ("bigger and bolder", task instruction), the Wave line sits in a
+## small ribbon banner, the XP field is now a full-width bottom ribbon with
+## the level number in a round emblem (`HudLevelEmblem`), and the Scrap
+## count punches on change. Every field the tests already hold a reference
+## to (`get_*_field()`, `get_*_label()`, `get_*_bar()`) is the SAME node,
+## same name, same text/format -- this pass only adds new sibling/child
+## nodes and re-styles existing ones, never renames or removes one the tests
+## or `_refresh_*()` already depend on.
 
 ## Chosen to sit above `src/camera/game_camera.gd`'s cosmetic vignette
 ## CanvasLayer (layer 4, itself flagged there as tentative pending this
@@ -126,9 +142,27 @@ const HUD_CANVAS_LAYER: int = 10
 ## direction (phases/UI_PASS/PLAN.md) reads better slim, and a slimmer bar
 ## keeps every pill's total height down even once the label-width bug
 ## below is fixed.
-const PLAYER_BAR_MIN_SIZE: Vector2 = Vector2(240, 18)
-const TOWER_BAR_MIN_SIZE: Vector2 = Vector2(320, 20)
-const XP_BAR_MIN_SIZE: Vector2 = Vector2(760, 12)
+## Second UI pass (Tiny Swords restyle): bars grown noticeably ("bigger and
+## bolder", task instruction) now that the carved-wood pill frame itself
+## reads as a proper wood-and-parchment widget rather than a slim flat pill
+## -- still comfortably inside ui_hud_render_test.gd's <=100px pill-height
+## bound (measured against a real capture during this pass).
+const PLAYER_BAR_MIN_SIZE: Vector2 = Vector2(300, 28)
+const TOWER_BAR_MIN_SIZE: Vector2 = Vector2(380, 32)
+## Width is a floor, not the rendered size: the XP bar is now `SIZE_EXPAND_
+## FILL` horizontally inside a full-width ribbon banner (task instruction:
+## "full-width bottom ribbon") -- see _build_xp_field()/_build_bottom_row().
+const XP_BAR_MIN_SIZE: Vector2 = Vector2(400, 22)
+## Icon sizes for the new field glyphs (a vector heart/tower/recycle shape,
+## UiShapeGlyph -- see that file's header for why a drawn shape, not a font
+## character or a new binary asset) and the Scrap field's real gold-icon
+## texture. Two tiers: LARGE for the two health fields (player heart, Tower
+## turret), SMALL for the two lighter fields (Scrap coin, XP recycle).
+const ICON_SIZE_LARGE: int = 34
+const ICON_SIZE_SMALL: int = 26
+## The XP bar's round level emblem (task instruction: "the level shown in a
+## round emblem") -- see hud_level_emblem.gd.
+const LEVEL_EMBLEM_SIZE: float = 40.0
 const WAVE_VALUE_MIN_WIDTH: float = 90.0
 const LEVEL_VALUE_MIN_WIDTH: float = 60.0
 const REROLLS_VALUE_MIN_WIDTH: float = 60.0
@@ -200,6 +234,16 @@ var _tower_glyph_label: Label
 var _scrap_glyph_label: Label
 var _xp_glyph_label: Label
 
+## Second UI pass: vector-drawn field icons (UiShapeGlyph) and the Scrap
+## field's real gold-icon texture, plus the XP bar's round level emblem.
+## None of these are read by any test -- purely additive visuals alongside
+## the unchanged glyph/value labels above.
+var _player_icon: UiShapeGlyph
+var _tower_icon: UiShapeGlyph
+var _scrap_icon: TextureRect
+var _rerolls_icon: UiShapeGlyph
+var _level_emblem: HudLevelEmblem
+
 var _player_health_field: Control
 var _tower_health_field: Control
 var _scrap_field: Control
@@ -207,6 +251,14 @@ var _xp_field: Control
 
 var _player: Player = null
 var _tower: Tower = null
+
+## Second UI pass: change-detection for the two "reacts to a value changing"
+## cosmetic effects (Scrap punch, level-up burst). -1 is a sentinel meaning
+## "no refresh has run yet" so the very first _refresh_*() call never fires
+## either effect off the neutral-to-real-value jump.
+var _last_scrap_current: int = -1
+var _last_level: int = -1
+var _scrap_punch_tween: Tween = null
 
 
 func _ready() -> void:
@@ -344,6 +396,30 @@ func _refresh_scrap() -> void:
 	_hopper_label.visible = economy_state.hopper_amount > 0
 	if _hopper_label.visible:
 		_hopper_label.text = "+%d %s" % [economy_state.hopper_amount, tr("HUD_HOPPER")]
+	# Second UI pass: "a count that punches on change" (task instruction).
+	if _last_scrap_current >= 0 and economy_state.scrap_current != _last_scrap_current:
+		_play_scrap_punch()
+	_last_scrap_current = economy_state.scrap_current
+
+
+## Cosmetic-only: a short scale punch on the Scrap value label, purely
+## visual (`offset_transform_scale`, never `size`/`position` -- matches
+## hud_bar.gd's own damage-shake convention and draft_card_view.gd's
+## established use of the same property). Never gates or delays the real
+## text `_refresh_scrap()` already set above.
+func _play_scrap_punch() -> void:
+	if not _scrap_label.is_inside_tree():
+		return
+	if _scrap_punch_tween != null and _scrap_punch_tween.is_running():
+		_scrap_punch_tween.kill()
+	_scrap_label.offset_transform_scale = Vector2.ONE
+	var tween: Tween = _scrap_label.create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS) # the HUD is PROCESS_MODE_ALWAYS; this tween must keep up with it, matching draft_card_view.gd's own reasoning
+	tween.set_trans(Tween.TRANS_BACK)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(_scrap_label, "offset_transform_scale", Vector2(UiPalette.VALUE_PUNCH_SCALE, UiPalette.VALUE_PUNCH_SCALE), UiPalette.VALUE_PUNCH * 0.4)
+	tween.tween_property(_scrap_label, "offset_transform_scale", Vector2.ONE, UiPalette.VALUE_PUNCH * 0.6)
+	_scrap_punch_tween = tween
 
 
 func _refresh_xp() -> void:
@@ -356,6 +432,13 @@ func _refresh_xp() -> void:
 	_level_label.text = "%d" % economy_state.level
 	_rerolls_caption_label.text = tr("HUD_REROLLS")
 	_rerolls_label.text = "%d" % economy_state.rerolls_remaining
+	# Second UI pass: "a burst when a level-up is ready" -- read here as "a
+	# level-up just landed" (see hud_level_emblem.gd's own header for why:
+	# the one moment this HUD can observe with the data it already has,
+	# without a new EventBus signal outside this task's write scope).
+	if _last_level >= 0 and economy_state.level > _last_level:
+		_level_emblem.trigger_burst()
+	_last_level = economy_state.level
 
 
 ## UI pass: refreshes the four fixed glyph/short headers every frame so
@@ -512,6 +595,17 @@ func _build_player_health_field() -> Control:
 
 	# Fixed glyph/short header (BRIEF item 3): identifies this field without
 	# colour, even before the bar itself is read.
+	# Second UI pass: a vector heart icon identifies the player field even
+	# before any text is read (task instruction: "a heart ... for the
+	# player"). UiShapeGlyph, not a new binary asset -- see that file's
+	# header.
+	_player_icon = UiShapeGlyph.new()
+	_player_icon.name = "PlayerIcon"
+	_player_icon.shape = UiShapeGlyph.Shape.HEART
+	_player_icon.glyph_color = UiPalette.PLAYER
+	_player_icon.set_side(ICON_SIZE_LARGE)
+	row.add_child(_player_icon)
+
 	_player_glyph_label = _new_hud_label("PlayerHealthGlyph", UiTheme.SMALL, GLYPH_SHORT_MIN_WIDTH)
 	row.add_child(_player_glyph_label)
 
@@ -548,6 +642,15 @@ func _build_tower_health_field() -> Control:
 	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 	inner.add_child(bar_row)
 
+	# Second UI pass: a vector tower icon (task instruction: "the tower for
+	# the Tower").
+	_tower_icon = UiShapeGlyph.new()
+	_tower_icon.name = "TowerIcon"
+	_tower_icon.shape = UiShapeGlyph.Shape.TOWER
+	_tower_icon.glyph_color = UiPalette.TOWER
+	_tower_icon.set_side(ICON_SIZE_LARGE)
+	bar_row.add_child(_tower_icon)
+
 	_tower_glyph_label = _new_hud_label("TowerHealthGlyph", UiTheme.SMALL, GLYPH_LONG_MIN_WIDTH)
 	bar_row.add_child(_tower_glyph_label)
 
@@ -576,7 +679,15 @@ func _build_tower_health_field() -> Control:
 	# keeps WaveRow at its own true minimum size, centred in the space above
 	# -- no leftover left for the children to be pushed apart by.
 	wave_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	inner.add_child(wave_row)
+	# Second UI pass: "wave shown on a banner" (task instruction) -- a small
+	# ribbon panel behind WaveRow. WaveRow itself, and everything inside it,
+	# is unchanged: this only adds one new ancestor Control.
+	var wave_ribbon := PanelContainer.new()
+	wave_ribbon.name = "WaveRibbon"
+	wave_ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wave_ribbon.theme_type_variation = UiTheme.RIBBON
+	inner.add_child(wave_ribbon)
+	wave_ribbon.add_child(wave_row)
 
 	# UI pass: caption (dim) + number (value) pair -- see _refresh_tower_
 	# health() for why the word and the digits now live in two labels.
@@ -623,6 +734,30 @@ func _build_scrap_field() -> Control:
 	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 	pill.add_child(row)
 
+	# Second UI pass: the real gold-icon texture (task instruction: "Scrap
+	# shown with the gold icon"), not a vector shape -- G_Idle_NoShadow.png
+	# is exactly a coin-pouch icon already.
+	_scrap_icon = TextureRect.new()
+	_scrap_icon.name = "ScrapIcon"
+	_scrap_icon.texture = load(UiPalette.TEX_SCRAP_ICON)
+	_scrap_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# TextureRect's default expand_mode (EXPAND_KEEP_SIZE) reports the
+	# TEXTURE's own native pixel size (128x128, G_Idle_NoShadow.png) as its
+	# minimum size, ignoring custom_minimum_size below entirely -- caught by
+	# a real render measurement, not by inspection: it silently inflated
+	# ScrapField's row to 128px tall, which in turn stretched the WHOLE
+	# TopRow (and every sibling in it, including PlayerHealthPill, since an
+	# HBoxContainer's default SIZE_FILL vertical stretches every child to
+	# the row's own tallest minimum) to 144px, failing
+	# ui_hud_render_test.gd's pill-height bound for a field that never
+	# touched a texture at all. EXPAND_IGNORE_SIZE makes custom_minimum_size
+	# the only thing that matters, as intended.
+	_scrap_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_scrap_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_scrap_icon.custom_minimum_size = Vector2(ICON_SIZE_SMALL, ICON_SIZE_SMALL)
+	_scrap_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_scrap_icon)
+
 	_scrap_glyph_label = _new_hud_label("ScrapGlyph", UiTheme.SMALL, GLYPH_LONG_MIN_WIDTH)
 	row.add_child(_scrap_glyph_label)
 
@@ -631,6 +766,12 @@ func _build_scrap_field() -> Control:
 	_scrap_label.theme_type_variation = UiTheme.VALUE
 	_scrap_label.custom_minimum_size = Vector2(SCRAP_VALUE_MIN_WIDTH, 0)
 	_scrap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Second UI pass: offset_transform_* is visual-only (see hud_bar.gd's own
+	# note on the same property) -- enables the punch-on-change tween in
+	# _play_scrap_punch() without perturbing this label's real position/size
+	# inside ScrapRow.
+	_scrap_label.offset_transform_enabled = true
+	_scrap_label.offset_transform_pivot_ratio = Vector2(0.5, 0.5)
 	row.add_child(_scrap_label)
 
 	_full_badge = Label.new()
@@ -661,16 +802,17 @@ func _build_bottom_row(root: Control) -> void:
 	margin.name = "BottomMargin"
 	# No anchor preset -- see _build_top_row()'s identical note.
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Second UI pass: side margins added (there were none before) now that the
+	# XP field is a full-width ribbon (task instruction: "full-width bottom
+	# ribbon") rather than a CenterContainer-shrunk pill -- without them the
+	# ribbon's own carved flag-end corners would touch the literal screen edge.
+	margin.add_theme_constant_override("margin_left", UiPalette.SCREEN_MARGIN)
+	margin.add_theme_constant_override("margin_right", UiPalette.SCREEN_MARGIN)
 	margin.add_theme_constant_override("margin_bottom", UiPalette.SCREEN_MARGIN)
 	root.add_child(margin)
 
-	var center := CenterContainer.new()
-	center.name = "BottomCenter"
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_child(center)
-
 	_xp_field = _build_xp_field()
-	center.add_child(_xp_field)
+	margin.add_child(_xp_field)
 
 
 func _build_xp_field() -> Control:
@@ -678,8 +820,22 @@ func _build_xp_field() -> Control:
 	field.name = "XpField"
 	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	field.theme_type_variation = UiTheme.vbox("XS") # UR-06
+	# Second UI pass: SIZE_EXPAND_FILL so this field claims the full width
+	# BottomMargin now leaves available (task instruction: "full-width bottom
+	# ribbon") instead of shrink-wrapping to its own content.
+	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	var pill := _make_pill("XpPill", Control.MOUSE_FILTER_IGNORE)
+	# UiTheme.RIBBON (a folded-cloth banner), not UiTheme.PILL, and built
+	# directly rather than through _make_pill() (which always applies
+	# UiTheme.PILL) -- same node name "XpPill" as before, so every existing
+	# `_find("XpPill")` test seam is unaffected; only its theme variation and
+	# its own SIZE_EXPAND_FILL (for the same full-width reason as `field`
+	# above) changed.
+	var pill := PanelContainer.new()
+	pill.name = "XpPill"
+	pill.theme_type_variation = UiTheme.RIBBON
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	field.add_child(pill)
 
 	var inner := VBoxContainer.new()
@@ -695,12 +851,27 @@ func _build_xp_field() -> Control:
 	inner.add_child(bar_row)
 
 	_xp_glyph_label = _new_hud_label("XpGlyph", UiTheme.SMALL, GLYPH_SHORT_MIN_WIDTH)
+	# Second UI pass: _new_hud_label() always sets SIZE_EXPAND_FILL (every
+	# OTHER glyph label relies on that -- see that method's own header), but
+	# with _xp_bar ALSO now EXPAND_FILL (below) in a row that finally has
+	# real leftover width to hand out (the full-width ribbon), an
+	# HBoxContainer splits that leftover EVENLY between every EXPAND child --
+	# this glyph label was silently claiming half of it as invisible padding
+	# around its own left-aligned text, leaving the bar only the other half
+	# (caught by actually looking at a capture, not by inspection). FILL
+	# alone (no EXPAND) makes it take exactly its own minimum width, so
+	# _xp_bar is the row's only EXPAND child and gets 100% of the leftover.
+	_xp_glyph_label.size_flags_horizontal = Control.SIZE_FILL
 	bar_row.add_child(_xp_glyph_label)
 
 	_xp_bar = HudBar.new()
 	_xp_bar.name = "XpBar"
 	_xp_bar.fill_color = UiPalette.XP
 	_xp_bar.custom_minimum_size = XP_BAR_MIN_SIZE
+	# SIZE_EXPAND_FILL: the bar itself stretches across the ribbon's full
+	# width (task instruction: "full-width bottom ribbon") instead of staying
+	# pinned at its minimum size.
+	_xp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar_row.add_child(_xp_bar)
 
 	var info_row := HBoxContainer.new()
@@ -725,14 +896,30 @@ func _build_xp_field() -> Control:
 	_level_caption_label = _new_hud_label("LevelCaptionLabel", UiTheme.DIM, CAPTION_LEVEL_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	level_group.add_child(_level_caption_label)
 
+	# Second UI pass: "the level shown in a round emblem" (task instruction)
+	# -- LevelLabel keeps its exact name/object identity/get_level_label()
+	# seam, just reparented inside the round backdrop instead of sitting
+	# directly in LevelGroup. See hud_level_emblem.gd.
+	_level_emblem = HudLevelEmblem.new()
+	_level_emblem.name = "LevelEmblem"
+	_level_emblem.custom_minimum_size = Vector2(LEVEL_EMBLEM_SIZE, LEVEL_EMBLEM_SIZE)
+	_level_emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	level_group.add_child(_level_emblem)
+
 	_level_label = Label.new()
 	_level_label.name = "LevelLabel"
 	_level_label.theme_type_variation = UiTheme.VALUE
+	# A smaller font than the theme's own VALUE size so two digits fit
+	# comfortably inside the round emblem -- a genuine one-off override
+	# (UiTheme's own header: "per-node add_theme_*_override is for genuine
+	# one-offs only").
+	_level_label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_BODY)
 	_level_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_level_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_level_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_level_label.custom_minimum_size = Vector2(LEVEL_VALUE_MIN_WIDTH, 0)
-	level_group.add_child(_level_label)
+	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_level_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_level_emblem.add_child(_level_label)
 
 	var rerolls_group := HBoxContainer.new()
 	rerolls_group.name = "RerollsGroup"
@@ -741,6 +928,15 @@ func _build_xp_field() -> Control:
 	info_row.add_child(rerolls_group)
 
 	# UI-pass round 2: RIGHT-aligned, same reason as the other two captions.
+	# Second UI pass: a vector "recycle" icon (task instruction: "Rerolls
+	# with an icon").
+	_rerolls_icon = UiShapeGlyph.new()
+	_rerolls_icon.name = "RerollsIcon"
+	_rerolls_icon.shape = UiShapeGlyph.Shape.RECYCLE
+	_rerolls_icon.glyph_color = UiPalette.ACCENT
+	_rerolls_icon.set_side(ICON_SIZE_SMALL)
+	rerolls_group.add_child(_rerolls_icon)
+
 	_rerolls_caption_label = _new_hud_label("RerollsCaptionLabel", UiTheme.DIM, CAPTION_REROLLS_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	rerolls_group.add_child(_rerolls_caption_label)
 

@@ -171,9 +171,25 @@ const INNER_REACH_FRACTION: float = 0.18
 ## TODO(ui-pass): promote to UiPalette if a later pass wants a shared
 ## "vignette reach" scale.
 const VIGNETTE_PEAK_ALPHA: float = 0.4
-const INDICATOR_RADIUS: float = 8.0 ## unchanged from the pre-pass circle radius
-const DIAMOND_HALF_EXTENT: float = 10.0 ## unchanged from the pre-pass diamond half-extent
-const HIT_ARC_RADIUS: float = 14.0
+## Second UI pass (Tiny Swords restyle, task instruction: "make the off-
+## screen Tower indicator clearly visible (larger arrow at the screen edge
+## with the tower icon and its HP)"): the plain small circle is replaced by
+## a directional arrow -- see _arrow_points()/_draw_offscreen_indicator() --
+## and every size below grew accordingly. is_showing_offscreen_indicator(),
+## get_indicator_shape()/get_indicator_color(), and every other getter a
+## test reads are UNCHANGED in behaviour; only what _draw() renders from
+## them changed.
+const ARROW_LENGTH: float = 30.0
+const ARROW_WIDTH: float = 22.0
+const DIAMOND_HALF_EXTENT: float = 16.0 ## up from 10.0 -- "larger" applies to the low-health shape too
+## The Tower icon's small badge, drawn inboard of the arrow/diamond (toward
+## the screen centre) so it never crowds the literal screen edge.
+const ICON_BADGE_RADIUS: float = 17.0
+const ICON_SIZE: float = 20.0
+const ICON_INSET: float = 34.0
+## How far inboard of the indicator the HP readout label sits.
+const HP_LABEL_INSET: float = 62.0
+const HIT_ARC_RADIUS: float = 20.0 ## up from 14.0, matching the bigger indicator it now sits beside
 const HIT_ARC_HALF_WIDTH: float = 0.4
 const HIT_ARC_SEGMENTS: int = 12 ## up from 8, for a smoother stroke; the arc's angular SPAN (HIT_ARC_HALF_WIDTH) is unchanged
 const HIT_ARC_LINE_WIDTH: float = 3.0
@@ -200,6 +216,13 @@ var _cue_player: TowerCuePlayer = null
 var _ducking_node: AudioDucking = null
 var _cue_stream: AudioStream = null
 
+## Second UI pass: the off-screen indicator's HP readout (task instruction:
+## "the tower icon and its HP"). A real child Label, not drawn text --
+## `Label` already gives correct outline/legibility through `UiTheme`
+## without reimplementing draw_string() layout. Positioned every frame in
+## _update_tower_hp_label(), alongside the indicator it labels.
+var _tower_hp_label: Label = null
+
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -216,9 +239,22 @@ func _ready() -> void:
 	add_child(_ducking_node)
 	_cue_player.ducking_node = _ducking_node
 
+	# Second UI pass: theme assigned directly (not inherited) since this
+	# CanvasLayer overlay sits outside the HUD's own themed Control tree --
+	# matches HudTruncatableLabel's own established reason for the same
+	# explicit assignment (its _make_custom_tooltip()'s header).
+	_tower_hp_label = Label.new()
+	_tower_hp_label.name = "TowerHpLabel"
+	_tower_hp_label.theme = UiTheme.get_theme()
+	_tower_hp_label.theme_type_variation = UiTheme.SMALL
+	_tower_hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tower_hp_label.visible = false
+	add_child(_tower_hp_label)
+
 
 func _process(_delta: float) -> void:
 	recompute(_now())
+	_update_tower_hp_label()
 	queue_redraw()
 
 
@@ -415,7 +451,7 @@ func is_indicator_low_health() -> bool:
 ## this getter, colour via `get_indicator_color()` below, never colour
 ## alone (MASTER_SDLC.md > Visual Edge Cases > "Colour-only distinctions").
 func get_indicator_shape() -> StringName:
-	return &"warning_diamond" if is_indicator_low_health() else &"pip_circle"
+	return &"warning_diamond" if is_indicator_low_health() else &"arrow"
 
 
 func get_indicator_color() -> Color:
@@ -539,16 +575,79 @@ func _draw_offscreen_indicator() -> void:
 	if is_indicator_low_health():
 		# A slightly larger dark diamond drawn first, then the bright one on
 		# top, gives the bright shape a dark rim -- legible over any
-		# background, matching the circle case below.
+		# background, matching the arrow case below.
 		draw_colored_polygon(_diamond_points(pos, DIAMOND_HALF_EXTENT + OUTLINE_EXTRA_WIDTH), outline_color)
 		draw_colored_polygon(_diamond_points(pos, DIAMOND_HALF_EXTENT), color)
 	else:
-		draw_circle(pos, INDICATOR_RADIUS + OUTLINE_EXTRA_WIDTH, outline_color)
-		draw_circle(pos, INDICATOR_RADIUS, color)
+		# Second UI pass: a directional arrow, not a plain circle -- task
+		# instruction: "larger arrow at the screen edge". Points along `dir`,
+		# the exact same vector the vignette and the old circle already used.
+		draw_colored_polygon(_arrow_points(pos, dir, ARROW_LENGTH + OUTLINE_EXTRA_WIDTH * 2.0, ARROW_WIDTH + OUTLINE_EXTRA_WIDTH * 2.0), outline_color)
+		draw_colored_polygon(_arrow_points(pos, dir, ARROW_LENGTH, ARROW_WIDTH), color)
+	# Second UI pass: the Tower icon, in a small dark badge so it reads
+	# clearly over any background (task instruction: "with the tower icon").
+	# Sits INBOARD of the arrow/diamond (toward the screen centre), never
+	# past the screen edge.
+	var icon_pos: Vector2 = pos - dir * ICON_INSET
+	draw_circle(icon_pos, ICON_BADGE_RADIUS + 1.0, outline_color)
+	draw_circle(icon_pos, ICON_BADGE_RADIUS, UiPalette.with_alpha(UiPalette.INK, 0.85))
+	UiShapeGlyph.draw_shape(self, UiShapeGlyph.Shape.TOWER, Rect2(icon_pos - Vector2(ICON_SIZE, ICON_SIZE) * 0.5, Vector2(ICON_SIZE, ICON_SIZE)), color)
 	if has_recent_hit_arc():
 		var bearing: float = get_hit_arc_bearing_from_tower()
 		draw_arc(pos, HIT_ARC_RADIUS, bearing - HIT_ARC_HALF_WIDTH, bearing + HIT_ARC_HALF_WIDTH, HIT_ARC_SEGMENTS, outline_color, HIT_ARC_LINE_WIDTH + OUTLINE_EXTRA_WIDTH)
 		draw_arc(pos, HIT_ARC_RADIUS, bearing - HIT_ARC_HALF_WIDTH, bearing + HIT_ARC_HALF_WIDTH, HIT_ARC_SEGMENTS, UiPalette.with_alpha(UiPalette.TEXT, 0.9), HIT_ARC_LINE_WIDTH)
+
+
+## Second UI pass: the arrow's three points, `length` long and `width` wide
+## at its back edge, rotated to point along `dir` (a unit vector) from
+## `pos`. `pos` is the SHAPE's own centre (matching _diamond_points()'s own
+## convention), not its tip, so the arrow occupies the same footprint the
+## old circle/diamond did.
+func _arrow_points(pos: Vector2, dir: Vector2, length: float, width: float) -> PackedVector2Array:
+	var forward: Vector2 = dir.normalized()
+	var side: Vector2 = Vector2(-forward.y, forward.x)
+	var tip: Vector2 = pos + forward * length * 0.5
+	var back_center: Vector2 = pos - forward * length * 0.5
+	var back_left: Vector2 = back_center + side * width * 0.5
+	var back_right: Vector2 = back_center - side * width * 0.5
+	return PackedVector2Array([tip, back_left, back_right])
+
+
+## Second UI pass: positions and fills the Tower HP readout beside the
+## off-screen indicator (task instruction: "its HP"). Recomputes the same
+## `pos` _draw_offscreen_indicator() derives from get_pointing_direction()
+## -- a small duplication, matching this project's own tolerance for it
+## elsewhere (e.g. is_tower_on_screen()'s repeated half-extent check) rather
+## than reworking the existing, already-tested draw method's own layout.
+func _update_tower_hp_label() -> void:
+	if _tower_hp_label == null:
+		return
+	if not is_showing_offscreen_indicator() or _tower == null or _tower.health == null or _tower.health.max_health <= 0.0:
+		_tower_hp_label.visible = false
+		return
+	var box_size: Vector2 = size
+	if box_size.x <= 0.0 or box_size.y <= 0.0:
+		_tower_hp_label.visible = false
+		return
+	var dir: Vector2 = get_pointing_direction()
+	if dir == Vector2.ZERO:
+		_tower_hp_label.visible = false
+		return
+	_tower_hp_label.visible = true
+	var current: float = _tower.health.get_current_health()
+	var max_v: float = _tower.health.max_health
+	_tower_hp_label.text = "%d/%d" % [int(round(current)), int(round(max_v))]
+	_tower_hp_label.add_theme_color_override("font_color", get_indicator_color())
+	var center: Vector2 = box_size / 2.0
+	var radius: Vector2 = box_size / 2.0 * 0.85
+	var pos: Vector2 = center + Vector2(dir.x * radius.x, dir.y * radius.y)
+	var label_pos: Vector2 = pos - dir * HP_LABEL_INSET
+	# This Label is a free child of a plain Control (no Container manages
+	# it), so its own `size` never auto-updates from a text change --
+	# get_combined_minimum_size() reads the font metrics directly and is
+	# always current, unlike `size` itself.
+	_tower_hp_label.size = _tower_hp_label.get_combined_minimum_size()
+	_tower_hp_label.position = label_pos - _tower_hp_label.size * 0.5
 
 
 ## The low-health warning diamond's four points at the given half-extent

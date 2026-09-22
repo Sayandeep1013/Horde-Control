@@ -17,21 +17,81 @@ class_name UiPalette
 ## Direction (phases/UI_PASS/PLAN.md): minimal chrome, a clear screen centre,
 ## a muted dark ground so saturated threats win on value before hue, one
 ## outlined display font everywhere, small pill-shaped edge widgets.
+##
+## ## Tiny Swords medieval restyle (author decision, second UI pass)
+## The surface/line tokens below were retinted from a blue-grey "sci-fi HUD"
+## scheme to a warm wood/leather one, to sit under the Tiny Swords carved-
+## wood and parchment 9-slice textures (`TEX_*` below,
+## assets/third_party/tiny_swords/UI/, PROVENANCE.md) without a visible
+## seam where a texture panel meets a flat one (e.g. Console's own
+## per-instance StyleBoxFlat, built through `UiTheme.make_box()` with these
+## same tokens -- see console.gd's header, "restyle it only through the
+## theme"). No test asserts an exact colour value here (grepped) -- only
+## relative brightness/contrast, which this retint preserves: every token
+## keeps its old position in the dark-to-light ordering, only the hue moves
+## from blue-grey toward brown/bronze.
 
 # --- Surfaces -------------------------------------------------------------
-const INK: Color = Color("0b1014")            ## deepest panel fill
-const SURFACE: Color = Color("141c23")        ## raised panel / card fill
-const SURFACE_HOVER: Color = Color("1d2933")  ## hovered / highlighted row fill
-const LINE: Color = Color("3a4a55")           ## resting border
-const LINE_STRONG: Color = Color("6b7f8c")    ## emphasised resting border
+const INK: Color = Color("18110c")            ## deepest panel fill (was a blue-black; now a dark umber)
+const SURFACE: Color = Color("2a1d14")        ## raised panel / card fill (dark walnut)
+const SURFACE_HOVER: Color = Color("3c2a19")  ## hovered / highlighted row fill (warm brown)
+const LINE: Color = Color("6b5335")           ## resting border (bronze/wood)
+const LINE_STRONG: Color = Color("a3763f")    ## emphasised resting border (bright bronze)
 const PANEL_ALPHA: float = 0.88               ## HUD pills and floating panels
 const CARD_ALPHA: float = 0.96                ## modal cards over a dim
 
+# --- Tiny Swords UI textures (assets/third_party/tiny_swords/UI/;
+# PROVENANCE.md; every file below is used verbatim, CC0) -------------------
+const TS_UI_ROOT: String = "res://assets/third_party/tiny_swords/UI/"
+## Carved wood/parchment panel (192x192): used for every static PILL/PANEL/
+## CARD/TOOLTIP surface (HUD pills, the Level-Up Draft card frame accent,
+## pause/settings/run-end/console modal cards, tooltips).
+const TEX_PANEL_CARVED: String = TS_UI_ROOT + "Banners/Carved_9Slides.png"
+## Small flat swatch (64x64) of the same carved-wood fill, tiled behind
+## draft-card text for a parchment texture at a size too small for the full
+## 9-slice frame to read cleanly.
+const TEX_PANEL_CARVED_SWATCH: String = TS_UI_ROOT + "Banners/Carved_Regular.png"
+const TEX_BUTTON_NORMAL: String = TS_UI_ROOT + "Buttons/Button_Blue_9Slides.png"
+const TEX_BUTTON_HOVER: String = TS_UI_ROOT + "Buttons/Button_Hover_9Slides.png"
+const TEX_BUTTON_PRESSED: String = TS_UI_ROOT + "Buttons/Button_Blue_9Slides_Pressed.png"
+const TEX_BUTTON_DISABLED: String = TS_UI_ROOT + "Buttons/Button_Disable_9Slides.png"
+## Ribbon banners (192x64, folded-cloth ends): the HUD's Wave banner and any
+## section-heading ribbon.
+const TEX_RIBBON_YELLOW: String = TS_UI_ROOT + "Ribbons/Ribbon_Yellow_3Slides.png"
+const TEX_RIBBON_BLUE: String = TS_UI_ROOT + "Ribbons/Ribbon_Blue_3Slides.png"
+const TEX_RIBBON_RED: String = TS_UI_ROOT + "Ribbons/Ribbon_Red_3Slides.png"
+## Gold-coin-pouch icon (128x128), used for the HUD's Scrap field (task
+## instruction: "Scrap shown with the gold icon").
+const TEX_SCRAP_ICON: String = "res://assets/third_party/tiny_swords/Resources/Resources/G_Idle_NoShadow.png"
+
+## 9-slice texture margins, in source-texture pixels, measured directly
+## against the PNGs (sandbox/inspect PIL scan, this session): the carved
+## ink-outline + bevel band on every `_9Slides.png` sheet (192x192) reads as
+## flat, repeatable fill by roughly 28-30px in from each edge. 26 sits just
+## inside that, so the decorative frame stays crisp and un-stretched even on
+## a HUD pill as short as ~56px tall (half of 26*2) while leaving the
+## flat interior free to stretch/tile for any larger panel.
+const PANEL_TEXTURE_MARGIN: int = 26
+## A shallow row/cell (the run-end stat grid) is often well under
+## 2*PANEL_TEXTURE_MARGIN tall; Godot proportionally shrinks a
+## StyleBoxTexture's margins to fit a box smaller than that, which
+## compresses the carved-wood corner art into an illegible smear (measured
+## against a real capture during this pass: the run-end stat cells read as
+## a faint dashed line, not a visible frame). A smaller, dedicated margin
+## for shallow rows keeps the frame crisp at their real height instead.
+const ROW_TEXTURE_MARGIN: int = 12
+## The 3-slice ribbon sheets (192x64) are exactly three 64px thirds (left
+## flag end / body / right flag end, PROVENANCE.md's own sheet-layout
+## convention) -- 64 is the true, exact seam, not a measured approximation,
+## and only the horizontal margins are used (a ribbon's height never
+## stretches).
+const RIBBON_TEXTURE_MARGIN: int = 64
+
 # --- Text -----------------------------------------------------------------
-const TEXT: Color = Color("ede6d6")
-const TEXT_DIM: Color = Color("8a97a0")
-const TEXT_DISABLED: Color = Color("5a656d")
-const TEXT_OUTLINE: Color = Color(0.02, 0.03, 0.04, 0.95)
+const TEXT: Color = Color("f5ecd8")           ## warm parchment-white (was a cooler cream)
+const TEXT_DIM: Color = Color("b3a181")       ## warm dim tan (was blue-grey)
+const TEXT_DISABLED: Color = Color("6b5f4f")  ## warm dim brown (was blue-grey)
+const TEXT_OUTLINE: Color = Color(0.05, 0.03, 0.02, 0.95) ## near-black, warmed to match the wood ink rather than a blue-black
 
 # --- Semantic -------------------------------------------------------------
 const ACCENT: Color = Color("ffd866")         ## focus, highlight, fill rings
@@ -41,11 +101,12 @@ const SHIELD: Color = Color("8fd3ff")         ## Tower shield segment
 const DANGER: Color = Color("e5484d")         ## low health, threat, defeat
 const XP: Color = Color("a78bfa")             ## XP bar, level
 const SCRAP: Color = Color("d9894a")          ## Scrap, prices
+const GOLD: Color = Color("f4c430")           ## the Scrap icon's own coin colour; punch/glow accents that read as "treasure" rather than the cooler ACCENT gold
 const SUCCESS: Color = Color("7be08a")        ## victory, affordable
 
 # --- Dims (full-screen backdrops behind modal UI) -------------------------
 const DIM_DRAFT: Color = Color(0.0, 0.0, 0.0, 1.0)  ## alpha is the owner's Register-cited figure
-const DIM_TINT: Color = Color("05080b")             ## tint used instead of pure black where the owner allows
+const DIM_TINT: Color = Color("0a0603")             ## tint used instead of pure black where the owner allows (warmed to match the wood/ink retint)
 
 # --- Spacing (px at the 1920x1080 base resolution) ------------------------
 const SPACE_XS: int = 4
@@ -89,6 +150,12 @@ const MOTION_BASE: float = 0.16
 const MOTION_SLOW: float = 0.28
 const BAR_FLASH: float = 0.22                 ## white flash on a bar losing value
 const BAR_LAG: float = 0.45                   ## trailing "ghost" segment catch-up
+const BAR_SHAKE: float = 0.24                 ## HUD pill shake decay on a health loss
+const BAR_SHAKE_AMPLITUDE_PX: float = 5.0     ## peak shake offset, decaying to 0 over BAR_SHAKE
+const VALUE_PUNCH: float = 0.18               ## a HUD value label's scale-punch on change (Scrap count, etc.)
+const VALUE_PUNCH_SCALE: float = 1.35         ## peak scale of a value punch
+const XP_GLOW: float = 0.35                   ## XP bar's brief brighten on a gain
+const XP_BURST: float = 0.55                  ## XP bar/level emblem celebration burst on a level-up
 
 
 static func with_alpha(c: Color, a: float) -> Color:

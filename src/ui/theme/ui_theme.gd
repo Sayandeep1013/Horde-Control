@@ -13,11 +13,27 @@ class_name UiTheme
 ##
 ## Type variations (set `theme_type_variation` on the node):
 ##   PanelContainer: &"UiPill", &"UiPanel", &"UiCard", &"UiTooltip", &"UiRow",
-##                   &"UiRowHighlighted"
+##                   &"UiRowHighlighted", &"UiRibbon"
 ##   Label:          &"UiTitle", &"UiHeading", &"UiValue", &"UiDim", &"UiSmall"
 ##   HBoxContainer / VBoxContainer: a separation step per UiPalette spacing
 ##                   token, via `hbox(step)` / `vbox(step)`. SPACE_S is the
 ##                   theme default and needs no variation.
+##
+## ## Tiny Swords medieval restyle (author decision, second UI pass)
+## Every panel/pill/card/tooltip/row variation and every Button state below
+## is now a `StyleBoxTexture` built from the pack's own carved-wood/parchment
+## and button 9-slice sheets (`UiPalette.TEX_*`,
+## assets/third_party/tiny_swords/UI/, PROVENANCE.md) instead of a flat
+## `StyleBoxFlat`. `make_box()` (below) is UNCHANGED and stays the helper for
+## every caller that mutates a StyleBox at RUNTIME (src/ui/console.gd's own
+## per-row/per-instance panels, src/ui/draft_card_view.gd's per-card frame,
+## which needs a real corner-radius toggle a texture cannot express) --
+## console.gd's own header names this exact seam ("restyle it only through
+## the theme"): its calls to `UiTheme.make_box()` and the `UiPalette` tokens
+## it passes are untouched by this file, so the Console reskins automatically
+## through the retinted `UiPalette` surface tokens (INK/SURFACE/LINE/...)
+## alone, with no edit to console.gd itself.
+const RIBBON: StringName = &"UiRibbon"
 
 const PILL: StringName = &"UiPill"
 const PANEL: StringName = &"UiPanel"
@@ -97,6 +113,54 @@ static func make_box(fill: Color, border: Color, radius: int, border_width: int 
 	return sb
 
 
+## A 9-slice `StyleBoxTexture` from one of `UiPalette`'s Tiny Swords sheets.
+## `texture_margin` controls how much of the TEXTURE is treated as a fixed
+## (non-stretched) corner/edge -- `UiPalette.PANEL_TEXTURE_MARGIN`, measured
+## against the source PNGs, for every caller below. `content_margin` is
+## independent and usually smaller: it is how much inner padding a child
+## Container reserves, and Godot does not require it to match the texture
+## margin (a thinner content inset than the decorative frame is a normal,
+## supported "framed insert" look, and is what keeps a HUD pill's total
+## height well under its sane-height test bound even with a generous-looking
+## wood frame). `modulate` tints/fades the whole texture -- used to keep a
+## HUD pill translucent over the battlefield the same way the old flat
+## `PANEL_ALPHA`/`CARD_ALPHA` did.
+static func make_texture_box(texture_path: String, texture_margin: int, content_margin: int, modulate: Color = Color(1.0, 1.0, 1.0, 1.0)) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(texture_path) as Texture2D
+	sb.texture_margin_left = texture_margin
+	sb.texture_margin_top = texture_margin
+	sb.texture_margin_right = texture_margin
+	sb.texture_margin_bottom = texture_margin
+	sb.content_margin_left = content_margin
+	sb.content_margin_top = content_margin
+	sb.content_margin_right = content_margin
+	sb.content_margin_bottom = content_margin
+	sb.modulate_color = modulate
+	return sb
+
+
+## A 3-slice ribbon banner (`UiPalette.TEX_RIBBON_*`, 192x64): only the
+## horizontal margins are real slice boundaries (PROVENANCE.md's own layout
+## note: the sheet is exactly three 64px thirds, left flag end / body /
+## right flag end) -- the vertical margin stays 0 so the whole 64px-tall
+## source simply scales to whatever height the ribbon is given, which is
+## always close to its native size in practice (a ribbon is never squashed
+## thin the way a HUD pill can be).
+static func make_ribbon_box(texture_path: String, content_margin_h: int = UiPalette.SPACE_L, content_margin_v: int = UiPalette.SPACE_XS) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(texture_path) as Texture2D
+	sb.texture_margin_left = UiPalette.RIBBON_TEXTURE_MARGIN
+	sb.texture_margin_right = UiPalette.RIBBON_TEXTURE_MARGIN
+	sb.texture_margin_top = 0
+	sb.texture_margin_bottom = 0
+	sb.content_margin_left = content_margin_h
+	sb.content_margin_right = content_margin_h
+	sb.content_margin_top = content_margin_v
+	sb.content_margin_bottom = content_margin_v
+	return sb
+
+
 static func _make_font(weight: int) -> Font:
 	var base: Font = null
 	if ResourceLoader.exists(UiPalette.FONT_PATH):
@@ -163,17 +227,44 @@ static func _label_variation(t: Theme, variation: StringName, font_size: int, co
 
 
 static func _build_panels(t: Theme) -> void:
-	var ink := UiPalette.with_alpha(UiPalette.INK, UiPalette.PANEL_ALPHA)
-	var surface := UiPalette.with_alpha(UiPalette.SURFACE, UiPalette.CARD_ALPHA)
+	# Tiny Swords medieval restyle: every static panel variation is now the
+	# carved-wood/parchment 9-slice (`UiPalette.TEX_PANEL_CARVED`), which
+	# already reads as a wood-framed parchment insert on its own -- no per-
+	# variation recolouring needed the way the old flat boxes needed a
+	# distinct fill Color each. `modulate`'s alpha keeps the HUD's small
+	# pills translucent over the battlefield (the old PANEL_ALPHA figure);
+	# a modal CARD stays fully opaque (CARD_ALPHA, matching the old value)
+	# since it always sits over a dedicated dim, never bare gameplay.
+	var pill_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.PANEL_TEXTURE_MARGIN, UiPalette.SPACE_S, Color(1, 1, 1, UiPalette.PANEL_ALPHA))
+	var panel_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.PANEL_TEXTURE_MARGIN, UiPalette.SPACE_L, Color(1, 1, 1, UiPalette.PANEL_ALPHA))
+	var card_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.PANEL_TEXTURE_MARGIN, UiPalette.SPACE_XL, Color(1, 1, 1, UiPalette.CARD_ALPHA))
+	var tooltip_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.PANEL_TEXTURE_MARGIN, UiPalette.SPACE_S)
+	# A row (the run-end stat grid; Console builds its OWN per-row
+	# StyleBoxFlat directly through make_box(), never this variation -- see
+	# console.gd's own header) is shallow -- UiPalette.ROW_TEXTURE_MARGIN
+	# (12, not the panel's own 26) keeps its carved frame crisp at that real
+	# height instead of Godot compressing the corner art to fit (see that
+	# constant's own header for the measured defect this replaced).
+	var row_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.ROW_TEXTURE_MARGIN, UiPalette.SPACE_XS, Color(1, 1, 1, 0.9))
+	# Highlighted row: the pack's own "hover" button sheet reads as a bright,
+	# gold-bordered inset -- exactly a highlight, with no recolouring needed.
+	var row_highlighted_box := make_texture_box(UiPalette.TEX_BUTTON_HOVER, UiPalette.ROW_TEXTURE_MARGIN, UiPalette.SPACE_XS)
 
-	t.set_stylebox("panel", "PanelContainer", make_box(ink, UiPalette.LINE, UiPalette.RADIUS_PANEL))
+	t.set_stylebox("panel", "PanelContainer", panel_box)
 
-	_panel_variation(t, PILL, make_box(ink, UiPalette.LINE, UiPalette.RADIUS_PILL, UiPalette.BORDER_THIN, UiPalette.SPACE_S))
-	_panel_variation(t, PANEL, make_box(ink, UiPalette.LINE, UiPalette.RADIUS_PANEL, UiPalette.BORDER_THIN, UiPalette.SPACE_L))
-	_panel_variation(t, CARD, make_box(surface, UiPalette.LINE_STRONG, UiPalette.RADIUS_PANEL, UiPalette.BORDER_THIN, UiPalette.SPACE_L))
-	_panel_variation(t, TOOLTIP, make_box(UiPalette.INK, UiPalette.LINE_STRONG, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, UiPalette.SPACE_S))
-	_panel_variation(t, ROW, make_box(UiPalette.with_alpha(UiPalette.SURFACE, 0.55), UiPalette.with_alpha(UiPalette.LINE, 0.0), UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, UiPalette.SPACE_XS))
-	_panel_variation(t, ROW_HIGHLIGHTED, make_box(UiPalette.with_alpha(UiPalette.SURFACE_HOVER, 0.95), UiPalette.ACCENT, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, UiPalette.SPACE_XS))
+	_panel_variation(t, PILL, pill_box)
+	_panel_variation(t, PANEL, panel_box)
+	_panel_variation(t, CARD, card_box)
+	_panel_variation(t, TOOLTIP, tooltip_box)
+	_panel_variation(t, ROW, row_box)
+	_panel_variation(t, ROW_HIGHLIGHTED, row_highlighted_box)
+	# The HUD's Wave banner and any section-heading ribbon (task item 1:
+	# "wave shown on a banner"). Yellow reads as a neutral/informational
+	# banner colour, distinct from the Red/Blue ribbons this pack also ships
+	# (kept available via UiPalette.TEX_RIBBON_BLUE/RED for a future caller
+	# that wants a differently-coloured ribbon without a second theme
+	# variation).
+	_panel_variation(t, RIBBON, make_ribbon_box(UiPalette.TEX_RIBBON_YELLOW))
 
 
 static func _panel_variation(t: Theme, variation: StringName, box: StyleBox) -> void:
@@ -184,10 +275,20 @@ static func _panel_variation(t: Theme, variation: StringName, box: StyleBox) -> 
 static func _build_buttons(t: Theme) -> void:
 	var pad_h: int = UiPalette.SPACE_XL
 	var pad_v: int = UiPalette.SPACE_M
-	var normal := _button_box(UiPalette.SURFACE, UiPalette.LINE, pad_h, pad_v)
-	var hover := _button_box(UiPalette.SURFACE_HOVER, UiPalette.LINE_STRONG, pad_h, pad_v)
-	var pressed := _button_box(UiPalette.INK, UiPalette.ACCENT, pad_h, pad_v)
-	var disabled := _button_box(UiPalette.with_alpha(UiPalette.SURFACE, 0.5), UiPalette.with_alpha(UiPalette.LINE, 0.5), pad_h, pad_v)
+	# Tiny Swords medieval restyle: carved wooden buttons (task item 2:
+	# "Button_Blue/Red 9-slices for buttons with hover/pressed/disabled
+	# variants"). The pack ships a matching sheet for every one of the four
+	# states used here, so no per-state recolouring of a shared texture is
+	# needed the way the old flat boxes needed one Color each.
+	var normal := make_texture_box(UiPalette.TEX_BUTTON_NORMAL, UiPalette.PANEL_TEXTURE_MARGIN, 0, Color(1, 1, 1, 1))
+	var hover := make_texture_box(UiPalette.TEX_BUTTON_HOVER, UiPalette.PANEL_TEXTURE_MARGIN, 0, Color(1, 1, 1, 1))
+	var pressed := make_texture_box(UiPalette.TEX_BUTTON_PRESSED, UiPalette.PANEL_TEXTURE_MARGIN, 0, Color(1, 1, 1, 1))
+	var disabled := make_texture_box(UiPalette.TEX_BUTTON_DISABLED, UiPalette.PANEL_TEXTURE_MARGIN, 0, Color(1, 1, 1, 1))
+	for box: StyleBoxTexture in [normal, hover, pressed, disabled]:
+		box.content_margin_left = pad_h
+		box.content_margin_right = pad_h
+		box.content_margin_top = pad_v
+		box.content_margin_bottom = pad_v
 	# Focus is drawn OVER the normal box, so it is border-only: a thicker
 	# accent outline. Shape (border weight), not colour alone, marks focus
 	# (MASTER_SDLC.md > Visual Edge Cases > "Colour-only distinctions").

@@ -140,8 +140,46 @@ const CONTENT_MIN_WIDTH: float = 300.0
 ## alongside the border-width/shadow changes above, same reasoning.
 const HIGHLIGHT_LIFT_SCALE: float = 1.09
 
+## Second UI pass (Tiny Swords restyle): a small custom-drawn Control
+## showing rank progress as filled/empty pips (task instruction: "rank
+## pips"), alongside -- never instead of -- the existing `_rank_label` text
+## ("Rank 1 -> 2 of 3"): docs/19's Readability rule is satisfied by the
+## text alone already; the pips are a purely additive visual reinforcement.
+## A no-max-rank fallback card (Overdrive/Reinforce) has nothing to show
+## pips FOR, so it hides them (see setup()) rather than drawing zero pips.
+class RankPips extends Control:
+	var max_rank: int = 0
+	var filled: int = 0
+	var fill_color: Color = UiPalette.ACCENT
+	var empty_color: Color = UiPalette.with_alpha(UiPalette.LINE_STRONG, 0.5)
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func configure(new_max_rank: int, new_filled: int) -> void:
+		max_rank = new_max_rank
+		filled = new_filled
+		queue_redraw()
+
+	func _draw() -> void:
+		if max_rank <= 0 or size.y <= 0.0:
+			return
+		var pip_radius: float = size.y * 0.5
+		var gap: float = UiPalette.SPACE_S
+		for i in range(max_rank):
+			var cx: float = pip_radius + float(i) * (pip_radius * 2.0 + gap)
+			var color: Color = fill_color if i < filled else empty_color
+			draw_circle(Vector2(cx, pip_radius), pip_radius, color)
+
+
 var _column: VBoxContainer
 var _accent_strip: ColorRect
+## Second UI pass: a tiled parchment swatch drawn BEHIND `_column` (added to
+## this PanelContainer first, so it renders first/underneath -- see
+## _init()) for actual parchment TEXTURE (task instruction: "parchment/
+## banner card look"), not just the warm flat colour `UiPalette`'s own
+## retint already gives every StyleBoxFlat surface.
+var _background: TextureRect
 var _header_label: Label
 ## Declared `Label` (get_glyph_label()'s own return type, unchanged --
 ## tests/unit/draft_input_lockout_test.gd's seam) though the instance built
@@ -150,6 +188,8 @@ var _glyph_label: Label
 var _name_label: Label
 var _effect_label: Label
 var _rank_label: Label
+## Second UI pass: rank pips alongside _rank_label (see RankPips above).
+var _rank_pips: RankPips
 var _style: StyleBoxFlat
 
 var _pool_ownership: int = ContractEnums.PoolOwnership.Player
@@ -176,6 +216,19 @@ func _init() -> void:
 	# mutating corner radius, border width, and border colour at runtime.
 	_style = UiTheme.make_box(UiPalette.with_alpha(UiPalette.SURFACE, UiPalette.CARD_ALPHA), BORDER_COLOR_NORMAL, CORNER_SQUARED_PX, BORDER_WIDTH_NORMAL, UiPalette.SPACE_L)
 	add_theme_stylebox_override("panel", _style)
+
+	# Second UI pass: added BEFORE _column, so PanelContainer draws it first
+	# (behind); a plain Control child of a PanelContainer fills the panel's
+	# content rect just like _column does, so the two simply overlap with
+	# this one behind.
+	_background = TextureRect.new()
+	_background.name = "ParchmentBackground"
+	_background.texture = load(UiPalette.TEX_PANEL_CARVED_SWATCH)
+	_background.stretch_mode = TextureRect.STRETCH_TILE
+	_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_background.modulate = Color(1.0, 1.0, 1.0, 0.55)
+	add_child(_background)
 
 	_column = VBoxContainer.new()
 	_column.name = "Column"
@@ -261,6 +314,12 @@ func _init() -> void:
 	_rank_label.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 0)
 	_column.add_child(_rank_label)
 
+	# Second UI pass: rank pips, right below the text line they reinforce.
+	_rank_pips = RankPips.new()
+	_rank_pips.name = "RankPips"
+	_rank_pips.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 14.0)
+	_column.add_child(_rank_pips)
+
 
 ## Typed command. Populates every Readability field and the Differentiation
 ## signals (frame corner radius, glyph, header word) for `def`, an upgrade
@@ -291,6 +350,12 @@ func setup(def: UpgradeDefinition, current_rank: int) -> void:
 	_effect_label.text = effect_text
 
 	_rank_label.text = _rank_change_text(def, current_rank)
+	# Second UI pass: pips only make sense for a ranked upgrade -- a no-max-
+	# rank fallback card (C-FALLBACK-CONSOLE) has no "of N" to show progress
+	# against, so the row is hidden rather than drawn with zero pips.
+	_rank_pips.visible = def.has_max_rank
+	if def.has_max_rank:
+		_rank_pips.configure(def.max_rank, current_rank)
 	_apply_highlight_style()
 
 
