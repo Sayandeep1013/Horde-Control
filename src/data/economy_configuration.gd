@@ -14,7 +14,11 @@ class_name EconomyConfiguration
 @export var unique_id: String = ""
 @export var merge_radius_px: int = 0
 @export var xp_level_cost: XpLevelCost = null
-@export var xp_cap_during_teaching_waves: int = 0
+## REMOVED (Author decision D108, 2026-09-23): this contract used to carry
+## `xp_cap_during_teaching_waves` (the teaching-wave XP ceiling that
+## suppressed level-ups during T1-T4). Level-ups now fire normally during
+## teaching waves, exactly as during a combat wave, so the field is gone
+## rather than kept unused -- see MASTER_SDLC.md's Review Decision Log, D108.
 @export var scrap_cap: int = 0
 @export var overflow_hopper_capacity: int = 0
 @export var hopper_conversion_rule: HopperConversionRule = null

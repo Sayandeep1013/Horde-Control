@@ -3,9 +3,11 @@ class_name DraftController
 
 ## Level-Up Draft (P2.12; MASTER_SDLC.md > Provisional Values Register >
 ## "Progression & Upgrades" > "Level-Up Draft", "Draft card display", "Draft
-## input" rows; > "Spawning & Waves" > "XP & levels", "Teaching wave XP
-## (C-XPCAP)"; > "Interfaces" > "Platform input floor"; docs/19_UI_UX.md >
-## "Upgrade Draft UI & Navigation" in full).
+## input" rows; > "Spawning & Waves" > "XP & levels"; > "Interfaces" >
+## "Platform input floor"; docs/19_UI_UX.md > "Upgrade Draft UI &
+## Navigation" in full). CHANGE 2 (Author decision D108, 2026-09-23) removed
+## the Register's former "Teaching wave XP (C-XPCAP)" row entirely -- see
+## this file's own "CHANGE 2" class-doc section below.
 ##
 ## ## Two clocks, deliberately, and why (open contradiction -- flagged for
 ## the author, not silently resolved)
@@ -60,6 +62,31 @@ class_name DraftController
 ## non-pause test as the inverse check, confirming the Console's own
 ## channel timer keeps running under SimClock."
 ##
+## ## CHANGE 2 (author decision D108, 2026-09-23): faster levelling, no more
+## teaching-wave suppression
+## The level curve moved from 10 + 5(L+1) XP to 5 + 3(L+1) XP (8, 11, 14,
+## 17... -- data/economy/prototype.tres, src/data/xp_level_cost.gd). The
+## teaching-wave XP cap (C-XPCAP, formerly `xp_cap_during_teaching_waves` on
+## EconomyConfiguration -- that field is now REMOVED, not merely unused) and
+## the level-up suppression it enforced during T1-T4 are both gone: a
+## level-up now fires exactly the same way whether the current wave is
+## teaching or combat. `physics_step()` therefore always calls
+## `_check_for_new_level_up_requests()` unconditionally -- the old
+## `_is_teaching_wave_active()` branch, `_enforce_xp_cap_and_revert_
+## erroneous_level_up()`, and `_teaching_xp_cap()` are deleted rather than
+## kept dead, since nothing calls them any more. The forced first
+## Level-Up Draft at T4's end (`_on_wave_ended()`, `_grant_forced_level()`,
+## `_is_last_teaching_wave()`, and this node's own `wave_ended` signal
+## connection) is deleted too, per this task's own recommendation: the
+## faster curve typically brings the player's first REAL level-up naturally
+## within the teaching waves, so a second, artificial "first Draft" trigger
+## would leave two mechanisms fighting over which one is really first. This
+## reverses D37's own rationale (a level-up mid-teaching-wave would pause
+## the simulation and interrupt the lesson) -- see D108's own row for the
+## alternatives weighed. `_wave_director`'s `notify_draft_closed()` call
+## (the post-Draft grace period hook, unrelated to teaching waves) is
+## UNCHANGED and still wired exactly as before.
+##
 ## ## Two responsibilities, one node, two entry points
 ## 1. `physics_step(delta)` -- called by SimLoop at step 11
 ##    (XP_AND_LEVEL_UP_REQUESTS, docs/20 > "SimLoop order") via the
@@ -68,10 +95,9 @@ class_name DraftController
 ##    a `_physics_process` call while the tree is paused, so this method
 ##    naturally cannot fire while a Draft it opened is on screen -- no extra
 ##    "already open" guard is needed against re-entering from this path).
-##    Detects new level-ups (queues a Draft request) and, during a teaching
-##    wave, enforces the XP cap and reverts any level-up RunInventory raised
-##    while the enforcing side of C-XPCAP had not yet run this same tick
-##    (see `_enforce_xp_cap_and_revert_erroneous_level_up()`).
+##    Detects new level-ups and queues a Draft request for each one, exactly
+##    the same during a teaching wave as during a combat wave (CHANGE 2,
+##    D108, above -- there is no longer a teaching-wave branch here at all).
 ## 2. `_process(delta)` -- this node's own PROCESS_MODE_ALWAYS loop, the
 ##    only thing still running once the tree is paused. Reads input, drives
 ##    the lockout/arming/repeat/hold timers, and resolves a Draft on
@@ -99,13 +125,18 @@ class_name DraftController
 ##   (and RunRecorder's run seed) by whoever assembles the run scene, or
 ##   the Determinism test's premise (one run seed governs every keyed
 ##   roll) does not hold across systems. Named in the P2.12 evidence report.
-## - `_wave_director` is read by DUCK TYPING (`has_method`/`.get()` on a
-##   plain Object), not a static `WaveDirector` type, so an isolated unit
-##   test can substitute a small fake exposing only
-##   `teaching_wave_unique_ids`, `get_current_wave_id()`, `wave_ended`, and
-##   `notify_draft_closed()` (see tests/unit/draft_fake_wave_director.gd)
-##   instead of constructing a full WaveDirector with every one of its own
-##   dependencies just to test this file.
+## - `_wave_director` is read by DUCK TYPING (`has_method()` on a plain
+##   Object), not a static `WaveDirector` type, so an isolated unit test can
+##   substitute a small fake exposing only `notify_draft_closed()` (see
+##   tests/unit/draft_fake_wave_director.gd) instead of constructing a full
+##   WaveDirector with every one of its own dependencies just to test this
+##   file. CHANGE 2 (D108): this fake ALSO still exposes
+##   `teaching_wave_unique_ids`/`get_current_wave_id()`/`wave_ended` for the
+##   suites that use them to set up a "current wave is a teaching wave"
+##   scenario (xp_cap_check_test.gd, guaranteed_first_draft_test.gd) -- this
+##   file itself no longer reads any of the three, which is exactly what
+##   those suites now prove (setting the fake's wave id has no effect on
+##   whether a level-up fires).
 
 ## Register > "Draft input": "0.4 s input lockout on open".
 const LOCKOUT_SECONDS: float = 0.4
@@ -155,10 +186,14 @@ const MAX_DISTINCT_REROLL_ATTEMPTS: int = 6
 @export var run_seed: int = 0
 
 ## Read-only default; never mutated (P2.11/P2.10's own convention of
-## preloading data/economy/prototype.tres as a shared default). Only
-## `xp_level_cost` (for reverting an erroneous level-up / granting the
-## forced first level) and `xp_cap_during_teaching_waves` (C-XPCAP) are
-## read from it.
+## preloading data/economy/prototype.tres as a shared default). CHANGE 2
+## (D108, 2026-09-23): this file no longer reads anything off it at all --
+## `xp_level_cost` and the since-removed `xp_cap_during_teaching_waves`
+## (C-XPCAP) were its only two consumers, and both of the functions that
+## read them are deleted (see class doc, "CHANGE 2"). The export is kept
+## (rather than deleted) as a documented seam for a future task that needs
+## this controller to read economy data again, so the wiring convention
+## does not have to be re-invented.
 @export var economy_configuration: EconomyConfiguration = preload("res://data/economy/prototype.tres")
 
 var _run_inventory: RunInventory = null
@@ -220,7 +255,6 @@ func _ready() -> void:
 	_build_ui()
 	if _run_inventory != null:
 		_last_observed_level = _run_inventory.level
-	_connect_wave_director_signal()
 	call_deferred("_find_and_register_with_sim_loop")
 
 
@@ -237,10 +271,11 @@ func _resolve_dependencies() -> void:
 		_ui_sfx = get_node_or_null(ui_sfx_path) as UiSfx
 
 
-func _connect_wave_director_signal() -> void:
-	if _wave_director != null and _wave_director.has_signal(&"wave_ended"):
-		if not _wave_director.wave_ended.is_connected(_on_wave_ended):
-			_wave_director.wave_ended.connect(_on_wave_ended)
+## CHANGE 2 (D108, 2026-09-23): REMOVED. `_connect_wave_director_signal()`
+## existed only to wire the now-deleted `_on_wave_ended()` (the forced
+## first Draft at T4's end) to the WaveDirector's `wave_ended` signal --
+## see class doc, "CHANGE 2." Nothing in this file consumes `wave_ended`
+## any more.
 
 
 func _find_and_register_with_sim_loop() -> void:
@@ -263,11 +298,11 @@ func set_upgrade_system_for_test(sys: UpgradeSystem) -> void:
 	_upgrade_system = sys
 
 
+## CHANGE 2 (D108, 2026-09-23): no longer connects/disconnects a
+## `wave_ended` listener (that signal has no consumer left in this file --
+## see class doc, "CHANGE 2") -- a plain assignment.
 func set_wave_director_for_test(wd: Object) -> void:
-	if _wave_director != null and _wave_director.has_signal(&"wave_ended") and _wave_director.wave_ended.is_connected(_on_wave_ended):
-		_wave_director.wave_ended.disconnect(_on_wave_ended)
 	_wave_director = wd
-	_connect_wave_director_signal()
 
 
 func set_ui_sfx_for_test(sfx: UiSfx) -> void:
@@ -416,78 +451,14 @@ func get_last_observed_level_for_test() -> int:
 
 # --- SimLoop step 11 entry point (unpaused only -- see class header) ---------
 
+## CHANGE 2 (D108, 2026-09-23): always the same path now, teaching wave or
+## not -- see class doc, "CHANGE 2." The old `_is_teaching_wave_active()`
+## branch that routed to a separate XP-cap-and-revert enforcement path is
+## gone; `_check_for_new_level_up_requests()` below is unconditional.
 func physics_step(_delta: float) -> void:
 	if _run_inventory == null:
 		return
-	if _is_teaching_wave_active():
-		_enforce_xp_cap_and_revert_erroneous_level_up()
-	else:
-		_check_for_new_level_up_requests()
-
-
-func _is_teaching_wave_active() -> bool:
-	if _wave_director == null or not _wave_director.has_method(&"get_current_wave_id"):
-		return false
-	var wave_id: String = _wave_director.get_current_wave_id()
-	var teaching_ids: Variant = _wave_director.get("teaching_wave_unique_ids")
-	if teaching_ids is Array:
-		return (teaching_ids as Array).has(wave_id)
-	return false
-
-
-func _is_last_teaching_wave(wave_id: String) -> bool:
-	if _wave_director == null:
-		return false
-	var teaching_ids: Variant = _wave_director.get("teaching_wave_unique_ids")
-	if teaching_ids is Array and not (teaching_ids as Array).is_empty():
-		return (teaching_ids as Array)[-1] == wave_id
-	return false
-
-
-## Register > "Teaching wave XP (C-XPCAP)": "Shards still collected during
-## T1-T4, but XP above 14 is discarded so no level-up fires." P2.10's
-## RunInventory.credit_xp() has no notion of teaching waves at all (it
-## always applies the level curve unconditionally) and P2.10's own task
-## brief explicitly left enforcement to this task -- this is that
-## enforcement, run every unpaused tick while a teaching wave is the
-## current wave. Because pickup collection (SimLoop step 10) runs BEFORE
-## this method (step 11) in the SAME tick, any erroneous level-up
-## `credit_xp()` already committed this tick is caught and reverted here,
-## before step 13 (Wave Director) or step 15 (UI) ever observes it -- never
-## user-visible.
-func _enforce_xp_cap_and_revert_erroneous_level_up() -> void:
-	if _run_inventory.consume_level_up_requested():
-		var gained: int = _run_inventory.level - _last_observed_level
-		if gained < 1:
-			gained = 1
-		var original_level: int = _last_observed_level
-		# credit_xp()'s own loop (src/economy/run_inventory.gd, outside this
-		# task's write scope) SUBTRACTED one level's cost from xp_current for
-		# each threshold it crossed, before this method ever ran -- reverting
-		# only `level` and leaving that subtraction in place would silently
-		# discard real XP the player is entitled to keep (Register: "XP
-		# above 14 is discarded", not "XP above 14 minus a level-up's cost").
-		# Refund every one of those subtractions before re-clamping to the
-		# cap, so the clamp is applied to the true accumulated total.
-		var refund: float = 0.0
-		for i in gained:
-			refund += _compute_level_cost(original_level + i)
-		_run_inventory.xp_current += refund
-		_run_inventory.level = maxi(0, _run_inventory.level - gained)
-		_run_inventory.xp_required_for_next_level = _compute_level_cost(_run_inventory.level)
-	_last_observed_level = _run_inventory.level
-	var cap: float = _teaching_xp_cap()
-	if _run_inventory.xp_current > cap:
-		_run_inventory.xp_current = cap
-
-
-func _teaching_xp_cap() -> float:
-	if economy_configuration != null:
-		return float(economy_configuration.xp_cap_during_teaching_waves)
-	# Defensive fallback for a misconfigured test only -- the real cap is
-	# always authored data (Register > "Teaching wave XP (C-XPCAP)": 14 on
-	# data/economy/prototype.tres). Never a second source of truth.
-	return 14.0
+	_check_for_new_level_up_requests()
 
 
 ## Register > "XP & levels" / "Experience (XP)": "simultaneous level-ups
@@ -509,16 +480,12 @@ func _check_for_new_level_up_requests() -> void:
 	_try_open_next_draft()
 
 
-## Register > "Spawning & Waves": "the forced first Level-Up Draft when T4
-## ends grants level 1 at no XP cost." Fires on the WaveDirector's own
-## `wave_ended` signal (read-only seam; `notify_draft_closed()` is the only
-## method this task calls back on it) for whichever wave is LAST in
-## `teaching_wave_unique_ids`, so this never hardcodes "wave_t4" as a
-## literal.
-func _on_wave_ended(wave_id: String, _wave_index: int) -> void:
-	if _is_last_teaching_wave(wave_id):
-		_enqueue_draft_request(true)
-		_try_open_next_draft()
+## CHANGE 2 (D108, 2026-09-23): REMOVED. The forced first Level-Up Draft at
+## T4's end (`_on_wave_ended()`, formerly connected to the WaveDirector's
+## own `wave_ended` signal via `_connect_wave_director_signal()`) no longer
+## exists -- see class doc, "CHANGE 2," for why. `_wave_director`'s
+## `notify_draft_closed()` call (the post-Draft grace period hook, a
+## SEPARATE mechanism) is unaffected and still wired below.
 
 
 func _enqueue_draft_request(forced: bool) -> void:
@@ -541,8 +508,14 @@ func _open_one_draft(forced: bool) -> void:
 		# tick the level-up was requested).
 		if _pause_authority != null:
 			_pause_authority.push_reason(REASON_DRAFT)
-	if forced:
-		_grant_forced_level()
+	# CHANGE 2 (D108, 2026-09-23): `forced` is no longer acted on here --
+	# _grant_forced_level() (the forced-first-Draft-at-T4's-end grant) is
+	# REMOVED, since nothing enqueues a request with forced=true any more
+	# (see class doc, "CHANGE 2"). The parameter itself, `_enqueue_draft_
+	# request()`, `_try_open_next_draft()`, and `force_open_for_test()`'s own
+	# signature are left UNCHANGED rather than threading a signature change
+	# through every caller, per this task's own "keep this file's diff
+	# small" instruction -- named here rather than silently narrowed.
 	_roll_three_cards([])
 	_reset_input_state_for_open()
 	_show_ui()
@@ -552,23 +525,12 @@ func _open_one_draft(forced: bool) -> void:
 		_event_bus.emit_draft_opened()
 
 
-## Register > "Spawning & Waves" > "Teaching wave XP (C-XPCAP)": "grants
-## level 1 at no XP cost, and the XP held counts toward level 2." `level`
-## only advances if it has not already reached 1 (defensive: this must
-## never be able to LOWER a level a real, later level-up already reached);
-## `xp_current` is deliberately left untouched.
-func _grant_forced_level() -> void:
-	if _run_inventory == null:
-		return
-	if _run_inventory.level < 1:
-		_run_inventory.level = 1
-	_run_inventory.xp_required_for_next_level = _compute_level_cost(_run_inventory.level)
-
-
-func _compute_level_cost(level: int) -> float:
-	if economy_configuration != null and economy_configuration.xp_level_cost != null:
-		return float(economy_configuration.xp_level_cost.compute_level_cost(level))
-	return 1.0 # defensive only; matches RunInventory's own "never divide by zero" placeholder reasoning
+## CHANGE 2 (D108, 2026-09-23): REMOVED. `_grant_forced_level()` and
+## `_compute_level_cost()` (its only other caller was the also-removed
+## `_enforce_xp_cap_and_revert_erroneous_level_up()`) existed solely to
+## serve the forced-first-Draft/XP-cap mechanics -- see class doc,
+## "CHANGE 2." Neither had a `_for_test()` caller of its own (grepped
+## before removal), so nothing else in this codebase calls them.
 
 
 # --- Card rolling (KeyedRng; one-of-each guarantee; fallback substitution) ---

@@ -11,8 +11,8 @@ const RunInventoryScript: GDScript = preload("res://src/economy/run_inventory.gd
 const HudEconomyStateScript: GDScript = preload("res://src/ui/hud_economy_state.gd")
 
 const REGISTER_SCRAP_CAP: int = 200 # Register > Economy & Pickups > "Scrap": "Cap 200"
-const REGISTER_XP_BASE_COST: int = 10
-const REGISTER_XP_PER_LEVEL: int = 5
+const REGISTER_XP_BASE_COST: int = 5 # Author decision D108, 2026-09-23 (was 10)
+const REGISTER_XP_PER_LEVEL: int = 3 # Author decision D108, 2026-09-23 (was 5)
 
 
 func _make_economy() -> EconomyConfiguration:
@@ -59,28 +59,29 @@ func test_scrap_overflow_beyond_the_cap_is_discarded_not_queued() -> void:
 	assert_int(inventory.scrap_current).is_equal(REGISTER_SCRAP_CAP)
 
 
-# --- XP / level curve: 10 + 5(L+1) -> 15, 20, 25 for the first three levels ---
+# --- XP / level curve: 5 + 3(L+1) -> 8, 11, 14 for the first three levels
+# (Author decision D108, 2026-09-23; was 10 + 5(L+1) -> 15, 20, 25) ---------
 
-func test_xp_curve_matches_15_20_25_for_the_first_three_levels() -> void:
+func test_xp_curve_matches_8_11_14_for_the_first_three_levels() -> void:
 	var inventory: RunInventory = RunInventoryScript.new()
 	inventory.configure(_make_economy(), _make_fake_bus_with_player_died())
 	assert_int(inventory.level).append_failure_message("MASTER_SDLC.md > 'Experience (XP)': a run starts at level 0").is_equal(0)
-	assert_float(inventory.xp_required_for_next_level).is_equal_approx(15.0, 0.001)
+	assert_float(inventory.xp_required_for_next_level).is_equal_approx(8.0, 0.001)
 
-	inventory.credit_xp(15.0)
+	inventory.credit_xp(8.0)
 	assert_int(inventory.level).is_equal(1)
 	assert_float(inventory.xp_current).is_equal_approx(0.0, 0.001)
-	assert_float(inventory.xp_required_for_next_level).append_failure_message("level 1->2 should cost 20 XP (10 + 5*2)").is_equal_approx(20.0, 0.001)
+	assert_float(inventory.xp_required_for_next_level).append_failure_message("level 1->2 should cost 11 XP (5 + 3*2)").is_equal_approx(11.0, 0.001)
 
-	inventory.credit_xp(20.0)
+	inventory.credit_xp(11.0)
 	assert_int(inventory.level).is_equal(2)
-	assert_float(inventory.xp_required_for_next_level).append_failure_message("level 2->3 should cost 25 XP (10 + 5*3)").is_equal_approx(25.0, 0.001)
+	assert_float(inventory.xp_required_for_next_level).append_failure_message("level 2->3 should cost 14 XP (5 + 3*3)").is_equal_approx(14.0, 0.001)
 
 
 func test_xp_remainder_carries_over_toward_the_next_level() -> void:
 	var inventory: RunInventory = RunInventoryScript.new()
 	inventory.configure(_make_economy(), _make_fake_bus_with_player_died())
-	inventory.credit_xp(18.0) # 15 to level up, 3 left over
+	inventory.credit_xp(11.0) # 8 to level up, 3 left over
 	assert_int(inventory.level).is_equal(1)
 	assert_float(inventory.xp_current).append_failure_message("XP beyond a level-up's cost must carry over as the remainder (MASTER_SDLC.md > 'Experience (XP)')").is_equal_approx(3.0, 0.001)
 
@@ -88,7 +89,7 @@ func test_xp_remainder_carries_over_toward_the_next_level() -> void:
 func test_a_single_large_credit_can_carry_through_multiple_level_ups() -> void:
 	var inventory: RunInventory = RunInventoryScript.new()
 	inventory.configure(_make_economy(), _make_fake_bus_with_player_died())
-	inventory.credit_xp(15.0 + 20.0 + 5.0) # exactly enough for two level-ups plus 5 remainder
+	inventory.credit_xp(8.0 + 11.0 + 5.0) # exactly enough for two level-ups plus 5 remainder
 	assert_int(inventory.level).is_equal(2)
 	assert_float(inventory.xp_current).is_equal_approx(5.0, 0.001)
 
@@ -97,7 +98,7 @@ func test_consume_level_up_requested_reports_exactly_once_per_level_up() -> void
 	var inventory: RunInventory = RunInventoryScript.new()
 	inventory.configure(_make_economy(), _make_fake_bus_with_player_died())
 	assert_bool(inventory.consume_level_up_requested()).is_false()
-	inventory.credit_xp(15.0)
+	inventory.credit_xp(8.0)
 	assert_bool(inventory.consume_level_up_requested()).append_failure_message("a level-up occurred but consume_level_up_requested() did not report it").is_true()
 	assert_bool(inventory.consume_level_up_requested()).append_failure_message("consume_level_up_requested() must clear its own flag and not report the same level-up twice").is_false()
 
@@ -146,7 +147,7 @@ func test_apply_to_hud_state_copies_the_exact_field_shape() -> void:
 	var inventory: RunInventory = RunInventoryScript.new()
 	inventory.configure(_make_economy(), _make_fake_bus_with_player_died())
 	inventory.credit_scrap(77)
-	inventory.credit_xp(15.0)
+	inventory.credit_xp(8.0)
 
 	var hud_state: HudEconomyState = HudEconomyStateScript.new()
 	inventory.apply_to_hud_state(hud_state)
@@ -155,4 +156,4 @@ func test_apply_to_hud_state_copies_the_exact_field_shape() -> void:
 	assert_int(hud_state.scrap_cap).is_equal(REGISTER_SCRAP_CAP)
 	assert_int(hud_state.level).is_equal(1)
 	assert_float(hud_state.xp_current).is_equal_approx(0.0, 0.001)
-	assert_float(hud_state.xp_required_for_next_level).is_equal_approx(20.0, 0.001)
+	assert_float(hud_state.xp_required_for_next_level).is_equal_approx(11.0, 0.001)

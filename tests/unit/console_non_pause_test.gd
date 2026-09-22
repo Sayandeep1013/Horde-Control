@@ -101,18 +101,20 @@ func test_console_open_and_purchase_never_pauses_the_tree_and_enemies_keep_movin
 
 	var now_before: float = _clock.now
 	var enemy_ticks_before: int = enemy.ticks
-	var channel_started: bool = false
 
-	# 1.5 s of real engine ticks: comfortably covers the 0.3 s open dwell and
-	# a full 0.5 s purchase channel with margin.
-	for i in range(90):
+	# CHANGE 1 (D107, 2026-09-23): the default control scheme opens via
+	# console_open (request_open()), not the old dwell -- see
+	# src/ui/console.gd's own class doc, "CHANGE 1." No dwell means no need
+	# to wait any frames before it succeeds.
+	assert_bool(console.request_open()).append_failure_message("Console did not open via request_open() under the scripted stand-still-inside-radius conditions").is_true()
+	var channel_started: bool = console.select_and_start_channel(1) # Rapid Fire (catalogue index 1)
+	assert_bool(channel_started).append_failure_message("Failed to start the Rapid Fire purchase channel").is_true()
+
+	# 1.0 s of real engine ticks: comfortably covers the 0.5 s purchase channel with margin.
+	for i in range(60):
 		await get_tree().physics_frame
-		if console.is_open() and not channel_started:
-			channel_started = true
-			console.select_and_start_channel(1) # Rapid Fire (catalogue index 1)
 
-	assert_bool(console.is_open()).append_failure_message("Console did not open under the scripted stand-still-inside-radius conditions").is_true()
-	assert_bool(channel_started).append_failure_message("Console never reached open state in time to start a purchase -- test setup issue, not a pause defect").is_true()
+	assert_bool(console.is_open()).append_failure_message("Console closed unexpectedly during the purchase channel").is_true()
 
 	assert_bool(get_tree().paused).append_failure_message("The Console must never add a pause reason; the tree paused while it was open/purchasing").is_false()
 	assert_int(_pause.get_active_reasons().size()).append_failure_message("PauseAuthority recorded a pause reason while the Console was open/purchasing: %s" % [_pause.get_active_reasons()]).is_equal(0)

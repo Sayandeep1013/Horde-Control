@@ -27,9 +27,6 @@ const RunInventoryScript: GDScript = preload("res://src/economy/run_inventory.gd
 const SimClockScript: GDScript = preload("res://src/core/sim_clock.gd")
 const PauseAuthorityScript: GDScript = preload("res://src/core/pause_authority.gd")
 
-const DWELL: float = Console.OPEN_DWELL_SECONDS
-
-
 class FakeInteractionRadius:
 	var inside: bool = true
 	func is_player_inside() -> bool:
@@ -85,8 +82,10 @@ func test_opening_the_console_while_taking_damage_results_in_measurable_damage_a
 	console.set_run_inventory(inventory)
 	add_child(console)
 
-	_advance(console, DWELL * 3.0)
-	assert_bool(console.is_open()).append_failure_message("Console did not open under the scripted stand-still conditions -- cannot exercise the interaction window").is_true()
+	# CHANGE 1 (D107, 2026-09-23): the default control scheme opens via
+	# console_open (request_open()), not the old dwell -- see
+	# src/ui/console.gd's own class doc, "CHANGE 1."
+	assert_bool(console.request_open()).append_failure_message("Console did not open under the scripted stand-still conditions -- cannot exercise the interaction window").is_true()
 
 	var health_before: float = player.death_state.current_hp
 

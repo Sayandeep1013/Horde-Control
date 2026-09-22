@@ -358,8 +358,7 @@ The Pickup Definition Contract carries no Entity cap weight field; the pickup ca
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| XP shard value and level cost formula | struct {shard value: integer, base cost: integer, per-level increment: integer} | XP granted per shard, and the cost to advance a level. The formula is `cost(L) = base cost + per-level increment × (L + 1)`; the Provisional Default coefficients are 10 and 5, and they are authored as data rather than hardcoded because the formula is a Provisional Default owned by document 13 (decision D89) |
-| XP cap during teaching waves | integer | XP ceiling while T1–T4 are open, before the forced first Draft |
+| XP shard value and level cost formula | struct {shard value: integer, base cost: integer, per-level increment: integer} | XP granted per shard, and the cost to advance a level. The formula is `cost(L) = base cost + per-level increment × (L + 1)`; the Provisional Default coefficients are 5 and 3 (Author decision D108, 2026-09-23, replacing the original 10 and 5), and they are authored as data rather than hardcoded because the formula is a Provisional Default owned by document 13 (decision D89) |
 | Merge radius | integer px | Default same-type pickup merge distance at the pickup cap (default 64 px; Fallback Ladder step 1 raises it to 128 px) |
 | Scrap cap | integer | Maximum carried Scrap before overflow |
 | Overflow hopper capacity | integer | Maximum Scrap the overflow hopper can hold |

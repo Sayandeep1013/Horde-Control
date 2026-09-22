@@ -38,7 +38,6 @@ script = ExtResource("5_l0bsi")
 unique_id = "PLACEHOLDER_economy_001"
 merge_radius_px = 71
 xp_level_cost = SubResource("Resource_hq57d")
-xp_cap_during_teaching_waves = 17
 scrap_cap = 233
 overflow_hopper_capacity = 113
 hopper_conversion_rule = SubResource("Resource_saqt1")

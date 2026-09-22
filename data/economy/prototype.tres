@@ -50,23 +50,28 @@ per_boss_killed_cores = 3
 per_full_minute_cores = 1
 
 ; MASTER_SDLC.md > "Experience (XP)": "advancing from level L to level L+1
-; costs 10 + 5(L+1) XP -- 15, 20, 25 XP for the first three levels"
-; (base_cost=10, per_level_increment=5, per decision D89's authored-data
+; costs 5 + 3(L+1) XP -- 8, 11, 14 XP for the first three levels" (Author
+; decision D108, 2026-09-23, replacing the original 10 + 5(L+1))
+; (base_cost=5, per_level_increment=3, per decision D89's authored-data
 ; resolution in src/data/xp_level_cost.gd). shard_value: Register > "XP &
 ; levels": "1 XP shard per standard enemy".
 [sub_resource type="Resource" id="Resource_xp"]
 script = ExtResource("6_xp")
 shard_value = 1
-base_cost = 10
-per_level_increment = 5
+base_cost = 5
+per_level_increment = 3
 
 ; merge_radius_px: Register > Economy & Pickups > "Merge radius (Economy
 ; Configuration field)": "Default 64 px; 128 px at Fallback Ladder step 1"
 ; -- base default authored; the Fallback Ladder's 128 px escalation is a
 ; runtime step (docs/20 > Performance Fallback Ladder step 1), not a second
 ; authored value this single-field schema carries.
-; xp_cap_during_teaching_waves: Register > "Experience (XP)": "During
-; teaching waves shards are still collected, but XP above 14 is discarded".
+; xp_cap_during_teaching_waves: REMOVED (Author decision D108, 2026-09-23).
+; The teaching-wave XP cap and level-up suppression are gone -- level-ups
+; now fire normally during T1-T4, exactly as during a combat wave -- so the
+; Economy Configuration Contract no longer carries this field; see
+; MASTER_SDLC.md's Review Decision Log, D108, and the Register's former
+; "Teaching wave XP (C-XPCAP)" row.
 ; scrap_cap: Register > Economy & Pickups > "Scrap": "Cap 200 (HUD 'n/200')".
 ; overflow_hopper_capacity: Register > Economy & Pickups > "Scrap": "the
 ; prototype has no hopper (overflow discarded with a FULL indicator)" --
@@ -83,7 +88,6 @@ script = ExtResource("5_economy")
 unique_id = "economy_prototype"
 merge_radius_px = 64
 xp_level_cost = SubResource("Resource_xp")
-xp_cap_during_teaching_waves = 14
 scrap_cap = 200
 overflow_hopper_capacity = 0
 hopper_conversion_rule = SubResource("Resource_hopper")

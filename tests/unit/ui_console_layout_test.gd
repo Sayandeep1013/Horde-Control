@@ -102,13 +102,10 @@ func _build_console() -> Console:
 func test_panel_with_the_real_seven_entry_catalogue_does_not_collapse_or_explode() -> void:
 	var console: Console = _build_console()
 
-	var opened: bool = false
-	for i in range(60):
-		await get_tree().physics_frame
-		if console.is_open():
-			opened = true
-			break
-	assert_bool(opened).append_failure_message("Console never opened under the scripted stand-still conditions -- cannot measure its layout").is_true()
+	# CHANGE 1 (D107, 2026-09-23): the default control scheme opens via
+	# console_open (request_open()), not the old dwell -- see
+	# src/ui/console.gd's own class doc, "CHANGE 1."
+	assert_bool(console.request_open()).append_failure_message("Console did not open via request_open() under the scripted stand-still conditions -- cannot measure its layout").is_true()
 
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -201,13 +198,9 @@ func test_panel_with_the_real_seven_entry_catalogue_does_not_collapse_or_explode
 func test_panel_grows_taller_not_narrower_under_pseudolocalizations_30_percent_expansion() -> void:
 	var console: Console = _build_console()
 
-	var opened: bool = false
-	for i in range(60):
-		await get_tree().physics_frame
-		if console.is_open():
-			opened = true
-			break
-	assert_bool(opened).is_true()
+	# CHANGE 1 (D107, 2026-09-23): opens via console_open (request_open()),
+	# not the old dwell -- see src/ui/console.gd's own class doc, "CHANGE 1."
+	assert_bool(console.request_open()).is_true()
 	await get_tree().process_frame
 	await get_tree().process_frame
 
@@ -287,13 +280,9 @@ const PANEL_HEIGHT_AUTHOR_CAP_PX: float = 1080.0 * 0.35 # 378 px at 1080p -- Aut
 func test_panel_height_stays_within_the_authors_35_percent_screen_height_allowance() -> void:
 	var console: Console = _build_console()
 
-	var opened: bool = false
-	for i in range(60):
-		await get_tree().physics_frame
-		if console.is_open():
-			opened = true
-			break
-	assert_bool(opened).is_true()
+	# CHANGE 1 (D107, 2026-09-23): opens via console_open (request_open()),
+	# not the old dwell -- see src/ui/console.gd's own class doc, "CHANGE 1."
+	assert_bool(console.request_open()).is_true()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame

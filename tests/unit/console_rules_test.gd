@@ -3,11 +3,27 @@ extends GdUnitTestSuite
 ## Console rules test (named acceptance test, P2.13): the full lifecycle
 ## rule from docs/19_UI_UX.md > "Tower Console UI" > "Lifecycle" and
 ## MASTER_SDLC.md > Provisional Values Register > Interfaces > "Tower
-## Console rules" -- the 0.3 s dwell, the speed gate, the affordability gate
-## (Repair greyed at 0 Scrap not counting toward opening, C-REPAIR), every
-## close condition, the stay-closed-after-Cancel rule, the 0.5 s channel
+## Console rules" -- the button-driven open (`console_open`, at any speed,
+## no dwell), the Movement-only mode's own retained 0.3 s dwell + speed
+## gate, the affordability gate (Repair greyed at 0 Scrap not counting
+## toward opening, C-REPAIR), every close condition, the new
+## Cancel-then-console_open-reopens-immediately rule, the Movement-only
+## dwell's own retained stay-closed-after-Cancel rule, the 0.5 s channel
 ## cancelling without charge above 10% base speed, and the Movement-only
 ## sector rearm rule (C-SECTORS).
+##
+## CHANGE 1 (author decision D107, 2026-09-23): the Console's DEFAULT
+## opening path is no longer the automatic dwell -- every test below that
+## opens the Console for the default control scheme (movement_only_
+## controls_enabled left at its false default) now calls
+## `console.request_open()` directly instead of `_advance()`-ing past
+## `OPEN_DWELL_SECONDS`. The dwell itself is NOT deleted: it is
+## Movement-only mode's own no-button path now (see console.gd's own class
+## doc, "CHANGE 1"), and is still exercised by
+## `test_sector_purchase_after_1_second_dwell_and_then_rearm_rule` below
+## (movement_only_controls_enabled = true) and by a dedicated test added in
+## this pass, `test_movement_only_dwell_still_locks_after_cancel_until_
+## leave_and_reenter`.
 ##
 ## Every scenario drives Console.physics_step() directly against a fresh,
 ## manually-advanced SimClock instance (never ticked by its own
@@ -136,33 +152,48 @@ func _damage_tower(tower: Tower, amount: float) -> void:
 	tower.death_state.current_hp = maxf(0.0, tower.death_state.current_hp - amount)
 
 
-# --- 0.3 s dwell -------------------------------------------------------------
+# --- CHANGE 1 (D107): button open (console_open), any speed, no dwell ------
 
-func test_console_does_not_open_before_0_3_second_dwell() -> void:
+func test_console_open_action_opens_immediately_regardless_of_speed() -> void:
 	var tower: Tower = _build_tower()
 	var player: Player = _build_player(0.0)
 	var system: UpgradeSystem = _build_upgrade_system()
 	var console: Console = _build_console(tower, player, system, _inventory(100), FakeInteractionRadius.new())
 
-	# Fine ticks (50) so the "dwell start" snapshot -- itself taken on the
-	# first qualifying tick, at that tick's own SimClock.now, not at 0 --
-	# loses only a negligible fraction of a second to tick granularity,
-	# keeping this boundary check tight against the real 0.3 s deadline.
-	_advance(console, DWELL - 0.05, 50)
-	assert_bool(console.is_open()).append_failure_message("Console opened before its 0.3 s dwell elapsed").is_false()
-
-	_advance(console, 0.10, 50)
-	assert_bool(console.is_open()).append_failure_message("Console did not open once the 0.3 s dwell elapsed with an affordable entry").is_true()
+	assert_bool(console.request_open()).append_failure_message("request_open() did not report success with the player standing still, inside the radius, with an affordable entry").is_true()
+	assert_bool(console.is_open()).is_true()
 
 
-func test_console_does_not_open_if_player_speed_is_at_or_above_10_percent_base() -> void:
+func test_console_open_action_opens_even_at_full_speed() -> void:
 	var tower: Tower = _build_tower()
-	var player: Player = _build_player(SPEED_GATE + 0.01) # just over the 10% gate
+	var player: Player = _build_player(1.0) # full base speed -- the OLD dwell's own speed gate would have blocked this
 	var system: UpgradeSystem = _build_upgrade_system()
 	var console: Console = _build_console(tower, player, system, _inventory(100), FakeInteractionRadius.new())
 
-	_advance(console, DWELL * 3.0)
-	assert_bool(console.is_open()).append_failure_message("Console opened while the player was moving at or above 10% base speed").is_false()
+	assert_bool(console.request_open()).append_failure_message("CHANGE 1 (D107): the console_open action must open the Console at ANY speed -- no speed gate at all for the default control scheme").is_true()
+	assert_bool(console.is_open()).is_true()
+
+
+func test_console_open_action_does_nothing_outside_the_radius() -> void:
+	var tower: Tower = _build_tower()
+	var player: Player = _build_player(0.0)
+	var system: UpgradeSystem = _build_upgrade_system()
+	var radius: FakeInteractionRadius = FakeInteractionRadius.new()
+	radius.inside = false
+	var console: Console = _build_console(tower, player, system, _inventory(100), radius)
+
+	assert_bool(console.request_open()).append_failure_message("request_open() must fail outside the Interaction Radius").is_false()
+	assert_bool(console.is_open()).is_false()
+
+
+func test_console_open_action_does_nothing_if_nothing_affordable() -> void:
+	var tower: Tower = _build_tower() # full health -- Repair unaffordable
+	var player: Player = _build_player(0.0)
+	var system: UpgradeSystem = _build_upgrade_system_repair_only() # every other entry unknown/never-affordable
+	var console: Console = _build_console(tower, player, system, _inventory(0), FakeInteractionRadius.new()) # 0 Scrap -- Repair unaffordable too
+
+	assert_bool(console.request_open()).append_failure_message("request_open() must fail when nothing is affordable, even inside the radius").is_false()
+	assert_bool(console.is_open()).is_false()
 
 
 # --- Affordability gate / C-REPAIR ------------------------------------------
@@ -174,8 +205,8 @@ func test_repair_at_zero_scrap_does_not_open_the_console_even_when_tower_is_dama
 	var system: UpgradeSystem = _build_upgrade_system_repair_only()
 	var console: Console = _build_console(tower, player, system, _inventory(0), FakeInteractionRadius.new())
 
-	_advance(console, DWELL * 3.0)
-	assert_bool(console.is_open()).append_failure_message("At 0 Scrap, Repair must not count toward opening the Console (C-REPAIR)").is_false()
+	assert_bool(console.request_open()).append_failure_message("At 0 Scrap, Repair must not count toward opening the Console (C-REPAIR)").is_false()
+	assert_bool(console.is_open()).is_false()
 
 	var repair_entry: Dictionary = console.get_entry_for_test(0)
 	assert_bool(bool(repair_entry.get("affordable", true))).append_failure_message("Repair entry reported affordable at 0 Scrap").is_false()
@@ -188,8 +219,8 @@ func test_repair_becomes_affordable_and_opens_the_console_once_scrap_is_held() -
 	var system: UpgradeSystem = _build_upgrade_system_repair_only()
 	var console: Console = _build_console(tower, player, system, _inventory(1), FakeInteractionRadius.new())
 
-	_advance(console, DWELL * 3.0)
-	assert_bool(console.is_open()).append_failure_message("Repair should be affordable (missing >= 2 health, >= 1 Scrap held) and open the Console").is_true()
+	assert_bool(console.request_open()).append_failure_message("Repair should be affordable (missing >= 2 health, >= 1 Scrap held) and open the Console").is_true()
+	assert_bool(console.is_open()).is_true()
 
 
 func test_repair_entry_stays_greyed_while_console_is_open_for_another_reason() -> void:
@@ -198,8 +229,7 @@ func test_repair_entry_stays_greyed_while_console_is_open_for_another_reason() -
 	var system: UpgradeSystem = _build_upgrade_system()
 	var console: Console = _build_console(tower, player, system, _inventory(40), FakeInteractionRadius.new()) # enough for Rapid Fire rank 1 (30)
 
-	_advance(console, DWELL * 3.0)
-	assert_bool(console.is_open()).append_failure_message("Console should have opened via Rapid Fire's affordability").is_true()
+	assert_bool(console.request_open()).append_failure_message("Console should have opened via Rapid Fire's affordability").is_true()
 	var repair_entry: Dictionary = console.get_entry_for_test(0)
 	assert_bool(bool(repair_entry.get("affordable", true))).append_failure_message("Repair entry must stay greyed (Tower undamaged) even while the Console is open for another entry, and it must never be hidden").is_false()
 
@@ -213,7 +243,7 @@ func test_console_closes_when_player_leaves_the_radius() -> void:
 	var radius: FakeInteractionRadius = FakeInteractionRadius.new()
 	var console: Console = _build_console(tower, player, system, _inventory(100), radius)
 
-	_advance(console, DWELL * 3.0)
+	assert_bool(console.request_open()).is_true()
 	assert_bool(console.is_open()).is_true()
 
 	radius.inside = false
@@ -221,23 +251,51 @@ func test_console_closes_when_player_leaves_the_radius() -> void:
 	assert_bool(console.is_open()).append_failure_message("Console must close on leaving the Interaction Radius").is_false()
 
 
-func test_cancel_closes_the_console_and_blocks_reopening_until_leave_and_reenter() -> void:
+func test_cancel_then_console_open_reopens_immediately_with_no_need_to_leave_the_radius() -> void:
 	var tower: Tower = _build_tower()
 	var player: Player = _build_player(0.0)
 	var system: UpgradeSystem = _build_upgrade_system()
 	var radius: FakeInteractionRadius = FakeInteractionRadius.new()
 	var console: Console = _build_console(tower, player, system, _inventory(100), radius)
 
-	_advance(console, DWELL * 3.0)
+	assert_bool(console.request_open()).is_true()
 	assert_bool(console.is_open()).is_true()
 
 	console.request_cancel()
 	assert_bool(console.is_open()).append_failure_message("Cancel must close the Console").is_false()
-	assert_bool(console.get_requires_reentry_for_test()).append_failure_message("Cancel must lock the Console closed until leave-and-reenter").is_true()
 
-	# Still standing still, still affordable, still inside -- must NOT reopen.
+	# CHANGE 1 (D107): still standing in the SAME radius, no leave-and-reenter
+	# at all -- pressing console_open again must reopen it immediately. This
+	# REPLACES the old dwell-based "stays closed until leave-and-reenter"
+	# rule for the button path (still retained for Movement-only mode --
+	# see test_movement_only_dwell_still_locks_after_cancel_until_leave_and_
+	# reenter below).
+	assert_bool(console.request_open()).append_failure_message("console_open after a Cancel did not reopen the Console -- CHANGE 1 (D107) removed the leave-and-reenter requirement for the button path").is_true()
+	assert_bool(console.is_open()).append_failure_message("Console did not reopen after Cancel + console_open with no leave-and-reenter").is_true()
+
+
+## Movement-only mode keeps the ORIGINAL dwell-based Lifecycle rule
+## byte-for-byte (see console.gd's own class doc, "CHANGE 1"): a Cancel
+## still locks the automatic no-button open until a genuine leave-and-
+## reenter, exactly as the whole Console used to work before D107.
+func test_movement_only_dwell_still_locks_after_cancel_until_leave_and_reenter() -> void:
+	var tower: Tower = _build_tower()
+	var player: Player = _build_player(0.0)
+	var system: UpgradeSystem = _build_upgrade_system()
+	var radius: FakeInteractionRadius = FakeInteractionRadius.new()
+	var console: Console = _build_console(tower, player, system, _inventory(100), radius)
+	console.movement_only_controls_enabled = true
+
+	_advance(console, DWELL * 3.0)
+	assert_bool(console.is_open()).append_failure_message("test setup: Movement-only mode's own dwell should have opened the Console").is_true()
+
+	console.request_cancel()
+	assert_bool(console.is_open()).append_failure_message("Cancel must close the Console").is_false()
+	assert_bool(console.get_requires_reentry_for_test()).append_failure_message("Cancel must lock the Movement-only dwell closed until leave-and-reenter").is_true()
+
+	# Still standing still, still affordable, still inside -- must NOT reopen via dwell.
 	_advance(console, DWELL * 5.0)
-	assert_bool(console.is_open()).append_failure_message("Console reopened after Cancel without the player leaving and re-entering the radius").is_false()
+	assert_bool(console.is_open()).append_failure_message("Console reopened via the Movement-only dwell after Cancel without the player leaving and re-entering the radius").is_false()
 
 	radius.inside = false
 	console.physics_step(0.016) # a real exit tick
@@ -248,7 +306,7 @@ func test_cancel_closes_the_console_and_blocks_reopening_until_leave_and_reenter
 	assert_bool(console.get_requires_reentry_for_test()).append_failure_message("A fresh entry after leaving must clear the post-Cancel lock").is_false()
 
 	_advance(console, DWELL * 3.0)
-	assert_bool(console.is_open()).append_failure_message("Console did not reopen after a genuine leave-and-reenter").is_true()
+	assert_bool(console.is_open()).append_failure_message("Console did not reopen via the Movement-only dwell after a genuine leave-and-reenter").is_true()
 
 
 func test_console_closes_on_player_death() -> void:
@@ -257,14 +315,14 @@ func test_console_closes_on_player_death() -> void:
 	var system: UpgradeSystem = _build_upgrade_system()
 	var console: Console = _build_console(tower, player, system, _inventory(100), FakeInteractionRadius.new())
 
-	_advance(console, DWELL * 3.0)
+	assert_bool(console.request_open()).is_true()
 	assert_bool(console.is_open()).is_true()
 
 	console._on_player_died() # this file's own DIRECT listener method, mirroring EventBus.player_died's payload-agnostic handler
 	assert_bool(console.is_open()).append_failure_message("Console must close on player death").is_false()
 
-	_advance(console, DWELL * 5.0)
-	assert_bool(console.is_open()).append_failure_message("Console must not reopen after player death").is_false()
+	assert_bool(console.request_open()).append_failure_message("Console must not reopen after player death, even via console_open").is_false()
+	assert_bool(console.is_open()).is_false()
 
 
 func test_draft_pause_reason_closes_the_console_without_requiring_reentry() -> void:
@@ -273,7 +331,7 @@ func test_draft_pause_reason_closes_the_console_without_requiring_reentry() -> v
 	var system: UpgradeSystem = _build_upgrade_system()
 	var console: Console = _build_console(tower, player, system, _inventory(100), FakeInteractionRadius.new())
 
-	_advance(console, DWELL * 3.0)
+	assert_bool(console.request_open()).is_true()
 	assert_bool(console.is_open()).is_true()
 
 	_pause.push_reason(PauseAuthority.REASON_DRAFT)
@@ -285,8 +343,11 @@ func test_draft_pause_reason_closes_the_console_without_requiring_reentry() -> v
 	_pause.pop_reason(PauseAuthority.REASON_DRAFT)
 	_pause.flush()
 
-	_advance(console, DWELL * 3.0)
-	assert_bool(console.is_open()).append_failure_message("Console should reopen normally (via ordinary dwell) once the Draft closes").is_true()
+	# CHANGE 1 (D107): no re-dwell -- the default scheme reopens via
+	# console_open, exactly like any other reopen, and a Draft close never
+	# sets the reentry lock in the first place (asserted above).
+	assert_bool(console.request_open()).append_failure_message("Console should reopen via console_open once the Draft closes, with no reentry lock").is_true()
+	assert_bool(console.is_open()).is_true()
 
 
 func test_console_hidden_while_a_non_draft_pause_reason_is_active_but_stays_open_underneath() -> void:
@@ -295,7 +356,7 @@ func test_console_hidden_while_a_non_draft_pause_reason_is_active_but_stays_open
 	var system: UpgradeSystem = _build_upgrade_system()
 	var console: Console = _build_console(tower, player, system, _inventory(100), FakeInteractionRadius.new())
 
-	_advance(console, DWELL * 3.0)
+	assert_bool(console.request_open()).is_true()
 	assert_bool(console.is_open()).is_true()
 	assert_bool(console.get_paused_for_test()).is_false()
 
@@ -311,6 +372,40 @@ func test_console_hidden_while_a_non_draft_pause_reason_is_active_but_stays_open
 	assert_bool(console.is_open()).append_failure_message("Console should still be open once the non-Draft pause reason clears -- no re-dwell needed").is_true()
 
 
+# --- CHANGE 1 (D107): pre-open prompt ---------------------------------------
+
+func test_prompt_shows_while_inside_the_radius_with_the_console_closed_and_hides_once_open() -> void:
+	var tower: Tower = _build_tower()
+	var player: Player = _build_player(0.0)
+	var system: UpgradeSystem = _build_upgrade_system()
+	var radius: FakeInteractionRadius = FakeInteractionRadius.new()
+	radius.inside = false
+	var console: Console = _build_console(tower, player, system, _inventory(100), radius)
+	console.force_refresh_for_test() # positions/refreshes visual state without a physics tick
+
+	assert_bool(console.get_prompt_visible_for_test()).append_failure_message("The prompt must not show outside the Interaction Radius").is_false()
+
+	radius.inside = true
+	console.force_refresh_for_test()
+	assert_bool(console.get_prompt_visible_for_test()).append_failure_message("The prompt must show while inside the radius with the Console closed").is_true()
+	assert_str(console.get_prompt_text_for_test()).append_failure_message("The prompt must show CONSOLE_PROMPT when at least one entry is affordable").is_equal(tr("CONSOLE_PROMPT"))
+
+	assert_bool(console.request_open()).is_true()
+	console.force_refresh_for_test()
+	assert_bool(console.get_prompt_visible_for_test()).append_failure_message("The prompt and the purchase list must be mutually exclusive -- the prompt must hide once the Console is open").is_false()
+
+
+func test_prompt_shows_greyed_unavailable_text_when_nothing_is_affordable() -> void:
+	var tower: Tower = _build_tower() # full health -- Repair unaffordable
+	var player: Player = _build_player(0.0)
+	var system: UpgradeSystem = _build_upgrade_system_repair_only()
+	var console: Console = _build_console(tower, player, system, _inventory(0), FakeInteractionRadius.new()) # 0 Scrap
+	console.force_refresh_for_test()
+
+	assert_bool(console.get_prompt_visible_for_test()).append_failure_message("The prompt must still show inside the radius even when nothing is affordable (greyed, never hidden -- C-REPAIR's own 'greyed, never hidden' precedent)").is_true()
+	assert_str(console.get_prompt_text_for_test()).append_failure_message("The prompt must show CONSOLE_PROMPT_UNAVAILABLE when nothing is affordable").is_equal(tr("CONSOLE_PROMPT_UNAVAILABLE"))
+
+
 # --- Purchase channel: charges exactly once, cancels without charge --------
 
 func test_purchase_channel_completes_and_charges_scrap_exactly_once() -> void:
@@ -320,7 +415,7 @@ func test_purchase_channel_completes_and_charges_scrap_exactly_once() -> void:
 	var inventory: RunInventory = _inventory(100)
 	var console: Console = _build_console(tower, player, system, inventory, FakeInteractionRadius.new())
 
-	_advance(console, DWELL * 3.0)
+	assert_bool(console.request_open()).is_true()
 	assert_bool(console.is_open()).is_true()
 	assert_bool(console.select_and_start_channel(1)).append_failure_message("Failed to start the Rapid Fire purchase channel").is_true()
 	assert_bool(console.is_channel_active()).is_true()
@@ -343,7 +438,7 @@ func test_purchase_channel_cancels_without_charge_above_10_percent_speed() -> vo
 	var inventory: RunInventory = _inventory(100)
 	var console: Console = _build_console(tower, player, system, inventory, FakeInteractionRadius.new())
 
-	_advance(console, DWELL * 3.0)
+	assert_bool(console.request_open()).is_true()
 	assert_bool(console.select_and_start_channel(1)).is_true()
 
 	# Halfway through the channel, the player moves fast.

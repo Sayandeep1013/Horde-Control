@@ -16,8 +16,8 @@ extends GdUnitTestSuite
 ## comparing RunInventory.level before/after -- and queues TWO requests,
 ## not one, so neither draft is dropped.
 
-const RegisterLevelOneCost: int = 15 # Register > "XP & levels": 10 + 5*(0+1)
-const RegisterLevelTwoCost: int = 20 # 10 + 5*(1+1)
+const RegisterLevelOneCost: int = 8 # Register > "XP & levels": 5 + 3*(0+1) (Author decision D108, 2026-09-23)
+const RegisterLevelTwoCost: int = 11 # 5 + 3*(1+1)
 
 var _controller: DraftController
 var _run_inventory: RunInventory
