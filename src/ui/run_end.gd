@@ -64,10 +64,20 @@ class_name RunEndScreen
 ## panel per stat, all three `STAT_CELL_MIN_WIDTH` wide so the grid stays
 ## even, holding only the (unchanged) value Label, which centres itself
 ## via its own `horizontal_alignment`.
+##
+## ## Main Menu option (title screen + credits session)
+## A second choice, "Main Menu," alongside Settings -- this project had no
+## restart or quit option anywhere on this screen to retarget (grepped;
+## none existed), so this is a genuinely new choice, not a retargeted one.
+## `RunFlowController._on_main_menu_requested()` is the one caller that
+## reacts to `main_menu_requested`, exactly like `settings_requested`
+## above; this file only reports which option the player picked.
 
 signal settings_requested()
+signal main_menu_requested()
 
 const OPTION_SETTINGS: int = 0
+const OPTION_MAIN_MENU: int = 1
 
 ## Above src/ui/hud.gd (10) / src/ui/threat_feedback.gd (11); same tier as
 ## src/ui/pause_menu.gd (18) since the two are mutually exclusive by
@@ -188,6 +198,8 @@ func get_time_label_for_test() -> Label:
 func _on_option_confirmed(index: int) -> void:
 	if index == OPTION_SETTINGS:
 		settings_requested.emit()
+	elif index == OPTION_MAIN_MENU:
+		main_menu_requested.emit()
 
 
 static func _format_time(total_seconds: float) -> String:
@@ -256,7 +268,7 @@ func _build_ui() -> void:
 
 	_bar = PausedChoiceBar.new()
 	_bar.name = "ChoiceBar"
-	_bar.set_options([tr("RUN_END_SETTINGS")])
+	_bar.set_options([tr("RUN_END_SETTINGS"), tr("RUN_END_MAIN_MENU")])
 	_bar.option_confirmed.connect(_on_option_confirmed)
 	_frame.column.add_child(_bar)
 	MenuFrame.style_choice_labels(_bar)
