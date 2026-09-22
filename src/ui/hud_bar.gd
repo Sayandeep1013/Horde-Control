@@ -51,6 +51,28 @@ class_name HudBar
 ## `PROCESS_MODE_ALWAYS`, and is always inside the tree by the time any test
 ## touches it (see hud_layout_test.gd/hud_economy_display_test.gd, which
 ## always `add_child(hud)` first).
+##
+## ## Tiny Swords restyle (second UI pass): a decaying shake on a loss
+## Task instruction: "a shake/flash when taking damage". The flash already
+## existed (above); a shake is added the same way -- a purely visual,
+## decaying offset driven from `_process(delta)`, seeded on the exact same
+## branch that already seeds the loss flash, so both fire together on every
+## real loss and neither can fire without the other going stale. It moves
+## `offset_transform_position`, never `position`/`size` (this Control always
+## sits in a Container -- docs/19 > "UI Layout"), matching
+## `src/ui/draft_card_view.gd`'s own established use of that same visual-
+## only property for its highlight lift and entrance animations.
+##
+## ## Tiny Swords restyle (second UI pass): a gain glow, symmetric to the
+## loss flash
+## Task instruction (XP bar): "a fill glow/animation on gain." Every
+## `HudBar` already had a flash on a LOSS (`_flash_alpha`, white); this adds
+## the mirror case on a RISE (`_gain_glow_alpha`, `UiPalette.GOLD`-tinted,
+## `UiPalette.XP_GLOW` seconds) on the exact branch that already handles a
+## rise, so the player and Tower bars get a subtle heal glow "for free" and
+## the XP bar's own gain -- the task's explicit ask -- is simply this same
+## generic behaviour applied to one more `HudBar` instance, not a special
+## case.
 
 ## Register > Interfaces > "HUD": "both bars tick at 40% of maximum and
 ## change border shape below it."
@@ -92,6 +114,13 @@ var _shield_max_value: float = 0.0
 var _ghost_fraction: float = 0.0
 var _flash_alpha: float = 0.0
 
+## Second UI pass: remaining shake time, counting down from
+## `UiPalette.BAR_SHAKE` to 0 on a loss; never read outside `_process()`.
+var _shake_remaining: float = 0.0
+## Second UI pass: gain-glow alpha, counting down from 1.0 to 0 over
+## `UiPalette.XP_GLOW` seconds on a rise; never read outside `_process()`/`_draw()`.
+var _gain_glow_alpha: float = 0.0
+
 
 ## Defaults every colour export from UiPalette. Done here, not as an inline
 ## `@export var x: Color = UiPalette.X` default expression, so every default
@@ -122,11 +151,15 @@ func _ready() -> void:
 	# hud.gd's label minimum widths -- the bar must never stretch, even if
 	# some future sibling gets this wrong again.
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# Second UI pass: the shake below moves `offset_transform_position`, a
+	# visual-only transform (see class header) that needs this flag on
+	# before it has any effect -- matches draft_card_view.gd's own _init().
+	offset_transform_enabled = true
 
 
-## Advances the two cosmetic-only effects (ghost catch-up, loss flash).
-## Guarded by `animating` so a bar that never loses value never redraws for
-## no reason.
+## Advances the three cosmetic-only effects (ghost catch-up, loss flash,
+## damage shake). Guarded by `animating` so a bar that never loses value
+## never redraws for no reason.
 func _process(delta: float) -> void:
 	var animating: bool = false
 	var fraction: float = get_fraction()
@@ -137,6 +170,19 @@ func _process(delta: float) -> void:
 	if _flash_alpha > 0.0:
 		_flash_alpha = maxf(0.0, _flash_alpha - delta / UiPalette.BAR_FLASH)
 		animating = true
+	if _gain_glow_alpha > 0.0:
+		_gain_glow_alpha = maxf(0.0, _gain_glow_alpha - delta / UiPalette.XP_GLOW)
+		animating = true
+	if _shake_remaining > 0.0:
+		_shake_remaining = maxf(0.0, _shake_remaining - delta)
+		var decay: float = _shake_remaining / UiPalette.BAR_SHAKE
+		# A decaying sideways wobble -- sin() at a fixed frequency scaled by
+		# the remaining time, so it settles to Vector2.ZERO exactly when
+		# _shake_remaining reaches 0 rather than snapping.
+		offset_transform_position = Vector2(sin(_shake_remaining * 50.0) * UiPalette.BAR_SHAKE_AMPLITUDE_PX * decay, 0.0)
+		animating = true
+	elif offset_transform_position != Vector2.ZERO:
+		offset_transform_position = Vector2.ZERO
 	if animating:
 		queue_redraw()
 
@@ -157,8 +203,11 @@ func set_value(current: float, max_v: float) -> void:
 		if new_fraction < old_fraction - 0.0005:
 			_ghost_fraction = maxf(_ghost_fraction, old_fraction)
 			_flash_alpha = 1.0
+			_shake_remaining = UiPalette.BAR_SHAKE # second UI pass: "a shake/flash when taking damage" -- same trigger as the flash above
 		else:
 			_ghost_fraction = maxf(_ghost_fraction, new_fraction)
+			if new_fraction > old_fraction + 0.0005:
+				_gain_glow_alpha = 1.0 # second UI pass: "a fill glow/animation on gain" -- see class header
 		queue_redraw()
 	else:
 		_value = current
@@ -245,6 +294,11 @@ func _draw() -> void:
 		# straight cut reads as a cut, not a rounded nub.
 		var right_radius: int = corner_radius if fraction >= 0.999 else 0
 		draw_style_box(_fill_box(current_fill_color, corner_radius, right_radius), Rect2(Vector2(0.0, fill_top), Vector2(box_size.x * fraction, fill_height)))
+		# Second UI pass: gain glow, a bright overlay on the fill's own region
+		# only, fading over UiPalette.XP_GLOW (see class header, "a gain glow,
+		# symmetric to the loss flash").
+		if _gain_glow_alpha > 0.0:
+			draw_style_box(_fill_box(UiPalette.with_alpha(UiPalette.GOLD, _gain_glow_alpha * FLASH_PEAK_ALPHA), corner_radius, right_radius), Rect2(Vector2(0.0, fill_top), Vector2(box_size.x * fraction, fill_height)))
 
 	if enable_shield_segment and _max_value > 0.0:
 		# The shield strip is scaled against the HEALTH bar's own max, not the
