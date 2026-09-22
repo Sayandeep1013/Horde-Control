@@ -95,6 +95,13 @@ func test_every_entity_scene_renders_at_least_one_texture() -> void:
 		remove_child(inst)
 
 
+## Art session: extended to also walk an AnimatedSprite2D's baked frames
+## (the player's Visuals/Sprite2D is one now, driving assets/sprite_frames/
+## player_archer.tres) -- CLAUDE.md: "if a test asserts on the old ...
+## structure, update it minimally; do not weaken what it proves." The claim
+## this suite makes ("a texture that loads but carries no pixels still gets
+## caught") now covers every baked frame of every animation, not just a
+## single Sprite2D.texture, which is a strictly WIDER check than before.
 func test_each_entity_texture_actually_resolves_to_image_data() -> void:
 	# A Sprite2D whose texture failed to load leaves `texture` null, which the
 	# test above catches. This one catches the subtler case: a texture that
@@ -117,10 +124,26 @@ func test_each_entity_texture_actually_resolves_to_image_data() -> void:
 					"%s > %s has a texture with zero height" % [name, inst.get_path_to(n)]
 				).is_greater(0)
 				checked += 1
+			elif n is AnimatedSprite2D and (n as AnimatedSprite2D).sprite_frames != null:
+				var frames: SpriteFrames = (n as AnimatedSprite2D).sprite_frames
+				for anim_name in frames.get_animation_names():
+					for idx in range(frames.get_frame_count(anim_name)):
+						var frame_tex: Texture2D = frames.get_frame_texture(anim_name, idx)
+						assert_object(frame_tex).append_failure_message(
+							"%s > %s animation '%s' frame %d has a null texture" % [name, inst.get_path_to(n), anim_name, idx]
+						).is_not_null()
+						if frame_tex != null:
+							assert_int(frame_tex.get_width()).append_failure_message(
+								"%s > %s animation '%s' frame %d has a texture with zero width" % [name, inst.get_path_to(n), anim_name, idx]
+							).is_greater(0)
+							assert_int(frame_tex.get_height()).append_failure_message(
+								"%s > %s animation '%s' frame %d has a texture with zero height" % [name, inst.get_path_to(n), anim_name, idx]
+							).is_greater(0)
+				checked += 1
 			for c in n.get_children():
 				stack.append(c)
 		assert_int(checked).append_failure_message(
-			"%s had no textured Sprite2D to check" % name
+			"%s had no textured Sprite2D/AnimatedSprite2D to check" % name
 		).is_greater(0)
 		remove_child(inst)
 
@@ -218,6 +241,28 @@ func test_rendered_art_is_not_smaller_than_the_collider_it_belongs_to() -> void:
 						eff *= absf((walk as Node2D).scale.x)
 					walk = walk.get_parent()
 				widest_render = maxf(widest_render, eff)
+			elif n is AnimatedSprite2D and (n as AnimatedSprite2D).sprite_frames != null and not _is_telegraph(n):
+				# Art session: the player's Visuals/Sprite2D is now an
+				# AnimatedSprite2D -- measured the same way, off its current
+				# (autoplay) animation's first frame, scale-chained to the
+				# scene root exactly like the Sprite2D branch above.
+				var anim_sprite: AnimatedSprite2D = n as AnimatedSprite2D
+				var frames: SpriteFrames = anim_sprite.sprite_frames
+				var anim_name: StringName = anim_sprite.animation
+				if not frames.has_animation(anim_name):
+					var names: PackedStringArray = frames.get_animation_names()
+					if names.size() > 0:
+						anim_name = StringName(names[0])
+				if frames.has_animation(anim_name) and frames.get_frame_count(anim_name) > 0:
+					var frame_tex: Texture2D = frames.get_frame_texture(anim_name, 0)
+					if frame_tex != null:
+						var eff2: float = float(frame_tex.get_width())
+						var walk2: Node = anim_sprite
+						while walk2 != null and walk2 != inst.get_parent():
+							if walk2 is Node2D:
+								eff2 *= absf((walk2 as Node2D).scale.x)
+							walk2 = walk2.get_parent()
+						widest_render = maxf(widest_render, eff2)
 			for c in n.get_children():
 				stack.append(c)
 

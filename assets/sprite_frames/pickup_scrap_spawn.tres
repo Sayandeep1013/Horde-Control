@@ -1,0 +1,60 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Resources/G_Spawn.png" id="1_xhur4"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_usntl"]
+atlas = ExtResource("1_xhur4")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ghyus"]
+atlas = ExtResource("1_xhur4")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lq1sr"]
+atlas = ExtResource("1_xhur4")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vugox"]
+atlas = ExtResource("1_xhur4")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ottdc"]
+atlas = ExtResource("1_xhur4")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qjiis"]
+atlas = ExtResource("1_xhur4")
+region = Rect2(640, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mhlk2"]
+atlas = ExtResource("1_xhur4")
+region = Rect2(768, 0, 128, 128)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_usntl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ghyus")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lq1sr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vugox")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ottdc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qjiis")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mhlk2")
+}],
+"loop": 0,
+"name": &"spawn",
+"speed": 14.0
+}]

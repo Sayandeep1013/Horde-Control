@@ -21,10 +21,10 @@ class_name PlayerProjectile
 ## Unlike tower_projectile.gd (which has no Sprite2D at all -- Tower's own
 ## evidence report never had to cite an opacity row, since none exists for
 ## Tower projectiles), this task's own binding sources name the player-
-## projectile opacity row explicitly, and assets/sprites/projectile_player.png
-## already exists in the repository (unused before this task), so a real
-## Sprite2D is added rather than leaving the opacity value on a node nothing
-## draws through.
+## projectile opacity row explicitly, so a real Sprite2D is added rather
+## than leaving the opacity value on a node nothing draws through (the
+## `projectile_texture` export's own comment, a few lines down, has the
+## current asset and why the art session swapped it).
 ##
 ## ## Departure from tower_projectile.gd: the intersect_ray sweep IS
 ## implemented here
@@ -115,16 +115,28 @@ const MAX_OPACITY: float = 0.7
 ## 12 pixels"). A framework/architecture constant, not a Register number.
 const SWEEP_THRESHOLD_PX: float = 12.0
 
-## Integration task, docs/25_Asset_Pipeline.md: the Kenney CC0 asset
-## replacing the generated placeholder sprite this field used to be a bare
-## `const` pointing at. An `@export` (D99: "asset paths ... never a
-## hardcoded path buried in a function") rather than a `const`, so a scene
-## or a future weapon evolution can swap it without touching this script --
-## the default below is only this field's fallback value, read the same way
-## whether the projectile is scene-instanced or built via `.new()` (as
-## src/combat/auto_weapon.gd's pooled factory does; export defaults apply
-## either way).
-@export var projectile_texture: Texture2D = preload("res://assets/third_party/kenney/projectiles/projectile_player.png")
+## Integration task, docs/25_Asset_Pipeline.md: the CC0 asset replacing the
+## generated placeholder sprite this field used to be a bare `const`
+## pointing at. An `@export` (D99: "asset paths ... never a hardcoded path
+## buried in a function") rather than a `const`, so a scene or a future
+## weapon evolution can swap it without touching this script -- the default
+## below is only this field's fallback value, read the same way whether the
+## projectile is scene-instanced or built via `.new()` (as src/combat/auto_
+## weapon.gd's pooled factory does; export defaults apply either way).
+##
+## Art session: swapped from the flat Kenney icon to the Tiny Swords Arrow
+## (assets/sprite_frames/arrow_projectile.tres, an AtlasTexture selecting
+## the fully-extended "in-flight" half of Arrow.png -- see that resource's
+## own header comment for why frame 0, not frame 1). `_ready()` below sizes
+## and filters it, and adds a faint trailing ghost sprite behind it.
+@export var projectile_texture: Texture2D = preload("res://assets/sprite_frames/arrow_projectile.tres")
+
+## Cosmetic-only constants (not Provisional Values Register numbers -- the
+## Register sizes the collision circle above, never a rendered sprite's
+## scale): how big the arrow art renders relative to Arrow.png's own 64x64
+## frame, and how far behind it the faint trail ghost sits.
+const PROJECTILE_ART_SCALE: float = 0.6
+const TRAIL_OFFSET_PX: float = 10.0
 
 ## See this file's header, "SimLoop / driven_externally". Defaults false
 ## (self-driven) -- no in-scope construction site ever flips this true
@@ -174,6 +186,9 @@ func _ready() -> void:
 	var sprite := Sprite2D.new()
 	sprite.texture = projectile_texture
 	sprite.name = "Sprite2D"
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.scale = Vector2(PROJECTILE_ART_SCALE, PROJECTILE_ART_SCALE)
+	_add_trail_sprite(sprite) # added first so it draws BEHIND the main sprite below
 	add_child(sprite)
 
 	visible = false
@@ -183,6 +198,24 @@ func _ready() -> void:
 func _resolve_sim_loop_for_ready() -> void:
 	if _sim_loop == null and is_inside_tree():
 		_sim_loop = get_tree().get_first_node_in_group(&"sim_loop")
+
+
+## Art session, cosmetic-only: a faint, static ghost of the arrow offset
+## behind it along the projectile's own -X (this Area2D's `rotation` already
+## points +X toward `_velocity`, per launch() below, so a fixed local offset
+## reads as "behind" regardless of travel direction). No per-frame update --
+## a real motion-trail (GPUParticles2D, or per-tick repositioning) is not
+## needed for a 1000 px/s shot with a ~0.29s lifetime; a single dimmer,
+## slightly smaller copy already reads as a soft streak at that speed.
+func _add_trail_sprite(main_sprite: Sprite2D) -> void:
+	var trail := Sprite2D.new()
+	trail.name = "Trail"
+	trail.texture = main_sprite.texture
+	trail.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	trail.scale = main_sprite.scale * 0.75
+	trail.modulate = Color(1.0, 1.0, 1.0, 0.25)
+	trail.position = Vector2(-TRAIL_OFFSET_PX, 0.0)
+	add_child(trail)
 
 
 func set_sim_loop_for_test(loop: Node) -> void:

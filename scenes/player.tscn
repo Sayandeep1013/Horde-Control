@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1_player"]
 [ext_resource type="Resource" path="res://data/player/prototype.tres" id="2_definition"]
@@ -6,11 +6,12 @@
 [ext_resource type="Script" path="res://src/player/collector.gd" id="4_collector"]
 [ext_resource type="Script" path="res://src/combat/death_state.gd" id="5_death"]
 [ext_resource type="Script" path="res://src/player/player_animator.gd" id="6_animator"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/entities/player.png" id="7_sprite"]
 [ext_resource type="Script" path="res://src/combat/auto_weapon.gd" id="8_auto_weapon"]
 [ext_resource type="Resource" path="res://data/weapons/handgun.tres" id="9_handgun"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/player_fire.ogg" id="10_playerfire"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/player_damage.ogg" id="11_playerdamage"]
+[ext_resource type="SpriteFrames" path="res://assets/sprite_frames/player_archer.tres" id="12_spriteframes"]
+[ext_resource type="Texture2D" path="res://assets/sprites/soft_shadow.png" id="13_shadow"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 14.0
@@ -49,12 +50,34 @@ hurtbox_paths = Array[NodePath]([NodePath("../Hurtbox")])
 body_path = NodePath("..")
 registry_entity_path = NodePath("..")
 
+; Static ground shadow, deliberately a SIBLING of Visuals rather than a child
+; of it: Visuals is the node PlayerAnimator moves/scales/rotates for the
+; bob/squash-stretch/lean effects (src/player/player_animator.gd), and a
+; shadow that squashed and leaned with the character would read as floating
+; rather than planted on the ground. Positioned at the character's
+; feet -- see src/player/player_animator.gd's header for the alpha-bbox
+; measurement this offset is based on (Archer_Blue's content sits vertically
+; centered on the frame, feet ~28-30px below that centre at scale 1.0).
+[node name="Shadow" type="Sprite2D" parent="."]
+position = Vector2(0, 28)
+scale = Vector2(0.85, 0.85)
+modulate = Color(1, 1, 1, 0.6)
+texture = ExtResource("13_shadow")
+
 [node name="Visuals" type="Node2D" parent="."]
 script = ExtResource("6_animator")
 sprite_path = NodePath("Sprite2D")
 
-[node name="Sprite2D" type="Sprite2D" parent="Visuals"]
-texture = ExtResource("7_sprite")
+; Archer_Blue.png frames are 192x192 but the drawn character only occupies
+; roughly 60-80px of that canvas (see PROVENANCE.md), already close to the
+; ~2.3x-body-diameter convention documented in assets/third_party/kenney/
+; PROVENANCE.md (28px diameter x 2.3 ~= 64px) -- so this AnimatedSprite2D is
+; left at scale 1.0 rather than rescaled a second time.
+[node name="Sprite2D" type="AnimatedSprite2D" parent="Visuals"]
+texture_filter = 1
+sprite_frames = ExtResource("12_spriteframes")
+animation = &"idle"
+autoplay = "idle"
 
 [node name="AutoWeapon" type="Node" parent="."]
 script = ExtResource("8_auto_weapon")

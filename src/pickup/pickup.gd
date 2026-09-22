@@ -59,12 +59,22 @@ const BLINK_WINDOW_SECONDS: float = 5.0
 ## balance number.
 const BLINK_PERIOD_SECONDS: float = 0.2
 
+## Art session, cosmetic-only (not Register numbers, same carve-out as
+## BLINK_PERIOD_SECONDS above): the gentle idle bob every pickup gets, and
+## the one-shot spawn animation Scrap specifically plays -- see
+## `_process()` and `configure()` below.
+const BOB_AMPLITUDE_PX: float = 2.0
+const BOB_FREQUENCY_HZ: float = 1.2
+const SPAWN_ANIMATION_NAME: StringName = &"spawn"
+
 @export var collision_shape_path: NodePath = NodePath("CollisionShape2D")
 @export var sprite_path: NodePath = NodePath("Sprite")
+@export var spawn_fx_path: NodePath = NodePath("SpawnFx")
 
 var _sim_clock: Node = SimClock
 var _registry: Node = EntityRegistry
 var _sprite: Sprite2D = null
+var _spawn_fx: AnimatedSprite2D = null
 
 ## Set by PickupDefinition/PickupSystem at configure() time; mutable
 ## afterwards only by the merge cascade (PickupSystem sums a merged-away
@@ -96,12 +106,39 @@ func _ready() -> void:
 	if shape_node != null and shape_node.shape is CircleShape2D:
 		(shape_node.shape as CircleShape2D).radius = COLLISION_RADIUS_PX
 	_sprite = get_node_or_null(sprite_path) as Sprite2D
+	_spawn_fx = get_node_or_null(spawn_fx_path) as AnimatedSprite2D
+	if _spawn_fx != null and not _spawn_fx.animation_finished.is_connected(_on_spawn_fx_finished):
+		_spawn_fx.animation_finished.connect(_on_spawn_fx_finished)
 
 
 func _physics_process(delta: float) -> void:
 	if driven_externally:
 		return
 	physics_step(delta)
+
+
+## Art session, cosmetic-only: a gentle bob on the SPRITE CHILD's local
+## position, never on this Area2D's own `global_position` -- the magnet/
+## raycast physics in physics_step() below reads and writes global_position
+## directly and tests/unit/pickup_physics_test.gd asserts exact values
+## against it, so the bob must never touch it. Runs on `_process` rather
+## than `_physics_process` (visuals, not gameplay), and reads the
+## test-injectable `_sim_clock` rather than the raw SimClock Autoload so a
+## test that swaps the clock is not fighting a second, un-injected timeline.
+func _process(_delta: float) -> void:
+	if _sprite == null:
+		return
+	var phase: float = _sim_clock.now * BOB_FREQUENCY_HZ * TAU
+	_sprite.position.y = sin(phase) * BOB_AMPLITUDE_PX
+
+
+## Art session: SpawnFx (scenes/pickups/pickup.tscn) finished its one-shot
+## G_Spawn burst -- hide it and reveal the real per-type "Sprite" again.
+func _on_spawn_fx_finished() -> void:
+	if _spawn_fx != null:
+		_spawn_fx.visible = false
+	if _sprite != null:
+		_sprite.visible = true
 
 
 # --- Test/orchestrator DI seams (matching entity_spawner.gd's/enemy_
@@ -137,10 +174,29 @@ func configure(pickup_definition: PickupDefinition, pickup_value: int, position:
 	_blocked = false
 	visible = true
 	modulate.a = 1.0
+	if _sprite != null:
+		_sprite.position.y = 0.0
 	if _sprite != null and pickup_definition != null and pickup_definition.visual_audio_cue != null:
 		var texture_path: String = pickup_definition.visual_audio_cue.sprite_reference
 		if texture_path != "" and ResourceLoader.exists(texture_path):
 			_sprite.texture = load(texture_path) as Texture2D
+
+	# Art session: Scrap specifically gets a one-shot G_Spawn burst before
+	# settling into its idle bob (task brief, "Pickups" > Scrap); every other
+	# pickup type just shows its static icon immediately. Gated on pickup_
+	# type rather than played for every drop -- G_Spawn.png is visually a
+	# GOLD coin burst, which would look wrong preceding the XP crystal.
+	var play_spawn_fx: bool = _spawn_fx != null and pickup_definition != null and pickup_definition.pickup_type == ContractEnums.PickupType.Scrap and _spawn_fx.sprite_frames != null and _spawn_fx.sprite_frames.has_animation(SPAWN_ANIMATION_NAME)
+	if play_spawn_fx:
+		if _sprite != null:
+			_sprite.visible = false
+		_spawn_fx.visible = true
+		_spawn_fx.play(SPAWN_ANIMATION_NAME)
+	else:
+		if _spawn_fx != null:
+			_spawn_fx.visible = false
+		if _sprite != null:
+			_sprite.visible = true
 
 
 func get_pickup_type() -> ContractEnums.PickupType:
