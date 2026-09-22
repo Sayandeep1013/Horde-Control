@@ -100,6 +100,15 @@ func test_each_entity_texture_actually_resolves_to_image_data() -> void:
 	# test above catches. This one catches the subtler case: a texture that
 	# loads but carries no pixels, which would render nothing while looking
 	# correctly wired in both the file and the inspector.
+	#
+	# Art session (D102 follow-up): the three enemies now render through an
+	# AnimatedSprite2D (src/enemy/enemy_animator.gd), not a Sprite2D -- a
+	# Shadow Sprite2D sibling still exists under each enemy's Visuals node,
+	# so the original Sprite2D-only walk below would keep passing (the
+	# shadow alone satisfies `checked > 0`) while silently no longer
+	# checking the actual character art at all. Checking AnimatedSprite2D's
+	# SpriteFrames explicitly, every frame of every animation, keeps this
+	# test proving what it always proved.
 	for name in ENTITY_SCENES:
 		var packed: PackedScene = load(ENTITY_SCENES[name]) as PackedScene
 		var inst: Node = auto_free(packed.instantiate())
@@ -117,10 +126,26 @@ func test_each_entity_texture_actually_resolves_to_image_data() -> void:
 					"%s > %s has a texture with zero height" % [name, inst.get_path_to(n)]
 				).is_greater(0)
 				checked += 1
+			elif n is AnimatedSprite2D and (n as AnimatedSprite2D).sprite_frames != null:
+				var frames: SpriteFrames = (n as AnimatedSprite2D).sprite_frames
+				for anim in frames.get_animation_names():
+					for i in frames.get_frame_count(anim):
+						var frame_tex: Texture2D = frames.get_frame_texture(anim, i)
+						assert_object(frame_tex).append_failure_message(
+							"%s > %s animation '%s' frame %d has a null texture" % [name, inst.get_path_to(n), anim, i]
+						).is_not_null()
+						if frame_tex != null:
+							assert_int(frame_tex.get_width()).append_failure_message(
+								"%s > %s animation '%s' frame %d has zero width" % [name, inst.get_path_to(n), anim, i]
+							).is_greater(0)
+							assert_int(frame_tex.get_height()).append_failure_message(
+								"%s > %s animation '%s' frame %d has zero height" % [name, inst.get_path_to(n), anim, i]
+							).is_greater(0)
+					checked += 1
 			for c in n.get_children():
 				stack.append(c)
 		assert_int(checked).append_failure_message(
-			"%s had no textured Sprite2D to check" % name
+			"%s had no textured Sprite2D/AnimatedSprite2D to check" % name
 		).is_greater(0)
 		remove_child(inst)
 
@@ -132,21 +157,22 @@ func test_the_three_enemies_use_the_silhouette_distinct_unit_art() -> void:
 	# colour-only distinctions are banned outright (Visual Edge Cases >
 	# "Colour-only distinctions").
 	#
-	# Kenney's top-down CHARACTER packs cannot supply that: every one of them
-	# is the same human-from-above oval, and rendered flat black the zombie
-	# and robot sprites are indistinguishable (F03-21). Kenney's top-down
-	# UNIT sprites can and do: a tank is a chunky body with a barrel stub, a
-	# plane is a cross, a small vehicle is a smooth oval, and the player is
-	# an asymmetric human with a protruding gun. Four shapes, no shared
-	# outline (F03-31).
-	#
-	# This test pins that outcome to the scenes, so a later asset sweep
-	# cannot quietly reintroduce character sprites and leave the silhouette
-	# requirement unmet with every other test still green.
+	# Art session (D102 follow-up): this used to pin each enemy's Sprite2D to
+	# one of the generated placeholder PNGs. Those Sprite2D nodes are gone --
+	# replaced by an AnimatedSprite2D per enemy (src/enemy/enemy_animator.gd)
+	# driven by a SpriteFrames resource built from the Tiny Swords CC0 sheets
+	# (tools/art/generate_enemy_sprite_frames.py) -- but the underlying
+	# constraint this test exists to pin is unchanged and, if anything, more
+	# clearly met: a torch-wielding goblin, a dynamite-throwing goblin and a
+	# disguised barrel share no outline at all. This asserts each enemy's
+	# AnimatedSprite2D resolves back to its OWN reserved sheet (unwrapping
+	# the AtlasTexture frame to the sheet it was cropped from), so a later
+	# asset sweep cannot quietly point two enemies at the same art, or drop
+	# back to a shared generic sprite, with every other test still green.
 	var expected: Dictionary = {
-		"tower_seeker": "res://assets/third_party/kenney/entities/enemy_tower_seeker.png",
-		"player_hunter": "res://assets/third_party/kenney/entities/enemy_player_hunter.png",
-		"opportunist": "res://assets/third_party/kenney/entities/enemy_opportunist.png",
+		"tower_seeker": "res://assets/third_party/tiny_swords/Factions/Goblins/Troops/Torch/Red/Torch_Red.png",
+		"player_hunter": "res://assets/third_party/tiny_swords/Factions/Goblins/Troops/TNT/Yellow/TNT_Yellow.png",
+		"opportunist": "res://assets/third_party/tiny_swords/Factions/Goblins/Troops/Barrel/Purple/Barrel_Purple.png",
 	}
 	for name in expected:
 		var packed: PackedScene = load(ENTITY_SCENES[name]) as PackedScene
@@ -156,14 +182,22 @@ func test_the_three_enemies_use_the_silhouette_distinct_unit_art() -> void:
 		var stack: Array[Node] = [inst]
 		while not stack.is_empty():
 			var n: Node = stack.pop_back()
-			if n is Sprite2D and (n as Sprite2D).texture != null:
-				paths.append((n as Sprite2D).texture.resource_path)
+			if n is AnimatedSprite2D and (n as AnimatedSprite2D).sprite_frames != null and not _is_telegraph(n):
+				var frames: SpriteFrames = (n as AnimatedSprite2D).sprite_frames
+				for anim in frames.get_animation_names():
+					if frames.get_frame_count(anim) <= 0:
+						continue
+					var tex: Texture2D = frames.get_frame_texture(anim, 0)
+					if tex is AtlasTexture and (tex as AtlasTexture).atlas != null:
+						paths.append((tex as AtlasTexture).atlas.resource_path)
+					elif tex != null:
+						paths.append(tex.resource_path)
 			for c in n.get_children():
 				stack.append(c)
 		assert_array(paths).append_failure_message(
-			"%s must render the silhouette-distinct unit sprite %s (F03-21 and F03-31: the stock top-down "
+			"%s must render the silhouette-distinct sheet %s (F03-21 and F03-31: shared/generic art "
 			% [name, expected[name]]
-			+ "CHARACTER packs are all the same oval and fail the requirement). Rendered instead: %s" % [paths]
+			+ "fails the readability requirement). Rendered instead: %s" % [paths]
 		).contains([expected[name]])
 		remove_child(inst)
 
@@ -218,6 +252,23 @@ func test_rendered_art_is_not_smaller_than_the_collider_it_belongs_to() -> void:
 						eff *= absf((walk as Node2D).scale.x)
 					walk = walk.get_parent()
 				widest_render = maxf(widest_render, eff)
+			# Art session (D102 follow-up): the three enemies render through
+			# an AnimatedSprite2D now (src/enemy/enemy_animator.gd), not a
+			# Sprite2D -- without this branch, `widest_render` would only
+			# ever see the small Shadow Sprite2D sibling and this assertion
+			# would silently stop checking the character art's own size.
+			elif n is AnimatedSprite2D and (n as AnimatedSprite2D).sprite_frames != null and not _is_telegraph(n):
+				var anim_sprite: AnimatedSprite2D = n as AnimatedSprite2D
+				var frames: SpriteFrames = anim_sprite.sprite_frames
+				var frame_tex: Texture2D = frames.get_frame_texture(anim_sprite.animation, 0) if frames.has_animation(anim_sprite.animation) else null
+				if frame_tex != null:
+					var eff: float = float(frame_tex.get_width())
+					var walk: Node = anim_sprite
+					while walk != null and walk != inst.get_parent():
+						if walk is Node2D:
+							eff *= absf((walk as Node2D).scale.x)
+						walk = walk.get_parent()
+					widest_render = maxf(widest_render, eff)
 			for c in n.get_children():
 				stack.append(c)
 

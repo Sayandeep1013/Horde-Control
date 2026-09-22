@@ -1,0 +1,114 @@
+[gd_resource type="SpriteFrames" load_steps=16 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Knights/Troops/Dead/Dead.png" id="1_sheet"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_fall_0"]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_fall_1"]
+atlas = ExtResource("1_sheet")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_fall_2"]
+atlas = ExtResource("1_sheet")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_fall_3"]
+atlas = ExtResource("1_sheet")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_fall_4"]
+atlas = ExtResource("1_sheet")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_fall_5"]
+atlas = ExtResource("1_sheet")
+region = Rect2(640, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_fall_6"]
+atlas = ExtResource("1_sheet")
+region = Rect2(768, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_dissolve_0"]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_dissolve_1"]
+atlas = ExtResource("1_sheet")
+region = Rect2(128, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_dissolve_2"]
+atlas = ExtResource("1_sheet")
+region = Rect2(256, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_dissolve_3"]
+atlas = ExtResource("1_sheet")
+region = Rect2(384, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_dissolve_4"]
+atlas = ExtResource("1_sheet")
+region = Rect2(512, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_dissolve_5"]
+atlas = ExtResource("1_sheet")
+region = Rect2(640, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skull_dissolve_6"]
+atlas = ExtResource("1_sheet")
+region = Rect2(768, 128, 128, 128)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_fall_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_fall_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_fall_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_fall_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_fall_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_fall_5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_fall_6")
+}],
+"loop": false,
+"name": &"skull_fall",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_dissolve_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_dissolve_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_dissolve_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_dissolve_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_dissolve_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_dissolve_5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skull_dissolve_6")
+}],
+"loop": false,
+"name": &"skull_dissolve",
+"speed": 10.0
+}]
