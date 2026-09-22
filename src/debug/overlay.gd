@@ -84,7 +84,11 @@ const UNSET_LABEL: String = "n/a"
 
 @onready var _fields_label: Label = $Panel/Margin/FieldsLabel
 
-var _visible_overlay: bool = true
+## Whether the overlay starts shown. Hidden by default in the build a player
+## launches (author decision, 2026-09-23); F1 still toggles it.
+@export var start_visible: bool = false
+
+var _visible_overlay: bool = false
 var _fps_samples: Array[Dictionary] = [] # [{"t_ms": int, "fps": float}, ...]
 
 # Injected gameplay state (see header comment). NAN / empty string sentinels
@@ -102,7 +106,8 @@ var _health_quadrant: String = ""
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_fields_label.visible = _visible_overlay
+	_visible_overlay = start_visible
+	_apply_visibility()
 
 
 func _process(delta: float) -> void:
@@ -113,7 +118,7 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"debug_overlay_toggle"):
 		_visible_overlay = not _visible_overlay
-		_fields_label.visible = _visible_overlay
+		_apply_visibility()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed(&"debug_pseudoloc_toggle"):
 		toggle_pseudolocalization()
@@ -133,6 +138,11 @@ func toggle_pseudolocalization() -> void:
 	ProjectSettings.set_setting("internationalization/pseudolocalization/expansion_ratio", PSEUDOLOC_EXPANSION_RATIO)
 	TranslationServer.set_pseudolocalization_enabled(enabled)
 	TranslationServer.reload_pseudolocalization()
+
+
+func _apply_visibility() -> void:
+	_fields_label.visible = _visible_overlay
+	$Panel.visible = _visible_overlay
 
 
 func is_overlay_visible() -> bool:

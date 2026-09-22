@@ -52,3 +52,4 @@ reports/
 
 # Generated sprite contact sheet, rebuilt on demand from the generator.
 assets/sprites/_contact_sheet.png
+.claude/worktrees/

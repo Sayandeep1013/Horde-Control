@@ -86,15 +86,22 @@ func test_injected_gameplay_state_is_displayed_once_set() -> void:
 	assert_str(text).contains("Health Quadrant: PlayerHigh_TowerLow")
 
 
-func test_f1_toggles_overlay_visibility() -> void:
-	assert_bool(_overlay.is_overlay_visible()).is_true()
-	assert_bool(_overlay._fields_label.visible).is_true()
+func test_overlay_starts_hidden_in_the_launched_build() -> void:
+	# Author decision 2026-09-23: hidden until F1.
+	assert_bool(_overlay.is_overlay_visible()).is_false()
+	assert_bool(_overlay.get_node("Panel").visible).is_false()
 
+
+func test_f1_toggles_overlay_visibility() -> void:
 	var press: InputEventAction = InputEventAction.new()
 	press.action = &"debug_overlay_toggle"
 	press.pressed = true
-	_overlay._unhandled_input(press)
+	_overlay._unhandled_input(press) # hidden -> shown
+	assert_bool(_overlay.is_overlay_visible()).is_true()
+	assert_bool(_overlay._fields_label.visible).is_true()
+	assert_bool(_overlay.get_node("Panel").visible).is_true()
 
+	_overlay._unhandled_input(press) # shown -> hidden
 	assert_bool(_overlay.is_overlay_visible()).is_false()
 	assert_bool(_overlay._fields_label.visible).is_false()
 
