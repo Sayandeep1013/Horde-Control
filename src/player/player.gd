@@ -344,6 +344,16 @@ func clear_input_buffer() -> void:
 func _on_hurtbox_damage_received(_amount: float, _source: Variant, _hitbox: Node) -> void:
 	if _animator != null:
 		_animator.play_hit_flash()
+	# Hit-feedback pass (restrained per brief -- a small burst only, no
+	# ground splat trailing the player around the arena; see
+	# src/fx/blood_fx.gd's own header for why this is not a seventh
+	# EntitySpawner budget category). The player is not a child of
+	# `Entities` (docs/20 > Scene Tree), so its own parent -- the gameplay
+	# root -- is the container to spawn into, matching every other cosmetic
+	# FX spawn in this project (enemy_animator.gd's `_spawn_death_fx()`
+	# uses the exact same "spawn into my own parent" convention).
+	var dir: Vector2 = BloodFx.direction_away_from(_source, global_position)
+	BloodFx.spawn_hit(get_parent(), global_position, dir, BloodFx.Tier.PLAYER)
 	if _audio_pool != null and damage_sfx != null and _audio_pool.has_method("play"):
 		# docs/20 > Audio Mixing & Dynamic Ducking: "Player damage ... routed
 		# to SFX_Priority" -- a priority voice, not the ordinary SFX default.
