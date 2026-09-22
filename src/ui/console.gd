@@ -109,11 +109,15 @@ class_name Console
 ## RefCounted (P2.10), not a scene node a NodePath can find.
 ##
 ## ## Presentation simplification, named rather than silently shipped
-## docs/19 describes each purchase channel "with a fill ring." This file
-## renders a linear `ProgressBar` instead of a circular radial fill --
-## functionally equivalent (0..1 progress, visible only while a channel is
-## active) but not pixel-for-pixel a ring, given this session's scope. Named
-## in the evidence report, not silently substituted.
+## docs/19 describes each purchase channel "with a fill ring." UI PASS
+## UPDATE: this file now uses the real ring (`DraftFillRing`, src/ui/
+## draft_fill_ring.gd -- owned by the Draft package this session; used here
+## only through its existing public surface: `progress`, `ring_color`,
+## `track_color`) instead of the linear `ProgressBar` this comment used to
+## describe as a deliberate simplification. Functionally identical to the
+## old bar (0..1 progress, visible only while a channel is active,
+## `get_channel_progress_for_test()` unchanged) -- the substitution is look
+## only, named here rather than silently done.
 ##
 ## ## GodotPrompter skill conflict, recorded per CLAUDE.md
 ## The `godot-ui` skill's own guidance: "Place UI nodes inside a
@@ -126,6 +130,177 @@ class_name Console
 ## size as the camera zooms) so it can sit anchored beside the Tower rather
 ## than pinned to the screen. This project's document wins; recorded here
 ## and in the evidence report/LEDGER per CLAUDE.md's GodotPrompter section.
+##
+## ## UI pass restyle (phases/UI_PASS/PLAN.md, package C) -- look and feel
+## only; every rule/number/timer/node-name/`_for_test` seam above is
+## UNCHANGED.
+## - `UiTheme.get_theme()` is applied once, at `_panel` (the first Control
+##   under this Node2D root -- see ui_theme.gd's own "apply ONCE, at its
+##   root Control" contract). Every StyleBoxFlat/Color/font-size literal
+##   this file used to hardcode now reads `UiPalette`/`UiTheme.make_box()`,
+##   EXCEPT `ENTRY_FONT_SIZE_PX` (the Register's 24 px floor), which stays a
+##   per-node `add_theme_font_size_override()` so the theme can never touch
+##   it, exactly as before.
+## - A compact header (title + the player's current Scrap, both already
+##   shown/read by this file -- no new data) and, per entry row: a dim
+##   number-key-hint chip (1-7, matching `SELECT_ACTIONS`), a leading caret
+##   glyph shown only while highlighted, and a right-aligned price chip
+##   (struck through and greyed when unaffordable, replaced by a MAX badge
+##   when maxed) are all NEW SIBLING nodes. The pre-existing `Frame`,
+##   `Glyph`, `Header`, `Text` nodes keep their exact names, types, and (for
+##   `Text`) content format -- `get_entry_label_for_test(i)` reads the same
+##   node with the same string it always did; only its font COLOUR (via
+##   `add_theme_color_override`, not the old `modulate` multiply) changed
+##   from a bare `Color(0.55,0.55,0.55,1)` to `UiPalette.TEXT_DISABLED`.
+## - Layout-collapse fix (evidence: a windowed capture of the assembled
+##   scene, phases/UI_PASS/screenshots/before_1920/05_console.png, showed
+##   the panel as a narrow column with every entry wrapped one character
+##   per line down its full height). Root cause #1: `Text`'s
+##   `size_flags_horizontal = SIZE_EXPAND_FILL` + `autowrap_mode =
+##   AUTOWRAP_WORD_SMART` has NO minimum width of its own, so its natural
+##   minimum size collapses toward zero and the whole panel follows it down
+##   to a sliver, wrapping every word (then every character) onto its own
+##   line. Fixed with two `custom_minimum_size` floors -- `ROW_TEXT_MIN_
+##   WIDTH_PX` on every row's `Text` label and `PANEL_MIN_WIDTH_PX` on
+##   `_panel` itself -- neither of which is a fixed `size` (both stay
+##   `custom_minimum_size`, so the panel/labels still expand freely beyond
+##   the floor: docs/19 > "UI Layout & Dynamic Container Rules" > "Max
+##   Dimensions": "Containers must have a defined custom_minimum_size but no
+##   fixed size"). Root cause #2, found while verifying the fix (tests/
+##   unit/ui_console_layout_test.gd's pseudo-localization case): every
+##   Control auto-translates its own text by default, and Godot's
+##   pseudo-localization runs on top of THAT -- fine for a plain Label, but
+##   `PriceTag` (a RichTextLabel holding hand-built BBCode markup, never a
+##   translatable message) had its `[right]`/`[color]`/`[s]` tags
+##   themselves mangled into unrecognisable garbage, so RichTextLabel
+##   stopped parsing them as tags and rendered the whole garbled string as
+##   one unbreakable literal line -- a 64 px floor ballooning to ~590 px per
+##   row. Fixed with `price_tag.auto_translate_mode =
+##   Node.AUTO_TRANSLATE_MODE_DISABLED` (see `_build_row()`).
+##   Measured, with the real 7-entry catalogue (tests/unit/
+##   ui_console_layout_test.gd, base resolution / view_scale 1.0): panel
+##   672x773 px normal, 759x997 px pseudo-localized (+30%, width bounded,
+##   height grows via wrapping -- neither collapses nor explodes). The
+##   residual tension neither fix resolves: several `UpgradeDefinition.
+##   effect_description` strings (data/upgrades/*.tres) are long enough
+##   that even this sensible row width wraps them to 2-3 lines, so the real
+##   catalogue's height (773-997 px) exceeds docs/19's own "Provisional
+##   Default 30% of screen height" guidance (324 px at 1080p) by roughly
+##   2-3x. This file's entry TEXT stays byte-for-byte unchanged per this
+##   task's scope, and adding the scrolling docs/19 prescribes for that
+##   case is a new interactive affordance, not a restyle -- both named as
+##   follow-ups in the evidence report, not resolved here.
+##   > Superseded (both the compaction follow-up below and UI pass round 2
+##   > below): the compaction follow-up brought this down to 512x377 (later
+##   > 528x377, round 2), and the author's 2026-09-20 decision (UR-25) gives
+##   > the Console its own 35% allowance (378 px at 1080p) rather than
+##   > docs/19's general 30%. The "roughly 2-3x" figure above describes the
+##   > FIRST restyle pass only and no longer applies.
+## - Open animation only (never close, per the task's own "hides
+##   immediately" rule): a bare `create_tween()` on this node fades/scales
+##   `_panel`'s own `modulate.a`/`scale` in from 0 whenever `_process()`
+##   sees `visible` flip from false to true. `Console.modulate.a`
+##   (`CONSOLE_OPACITY`) and `Console.scale` (the camera view-scale
+##   compensation) are never touched by it -- both stay exactly the values
+##   the rest of this file (and its tests) already depend on.
+##
+## ## UI pass follow-up: compaction (orchestrator decision, after seeing the
+## first restyle rendered in the assembled scene: panel ~650x750 px, top
+## clipped off-screen, every row 3-4 lines because it carried the FULL
+## `effect_description` sentence plus rank plus price)
+## The "entry text formats stay exactly as they are" constraint is LIFTED
+## for the ROW LABEL's composition only, an explicit orchestrator decision,
+## not a decision this file made itself: `get_entry_for_test(i)`'s own
+## dictionary (its "name" field in particular, still the full
+## `effect_description`) is byte-for-byte unchanged; only how
+## `_refresh_one_row()` builds the VISIBLE `Text` string from it changes --
+## checked against every covering test first (none asserts the row label's
+## exact content; see the follow-up evidence report).
+##   1. Row label shrinks to "<short name> <rank status>" (Repair: "Repair
+##      +<heal> HP") -- the price moves OUT of this label entirely, into
+##      `PriceTag` alone. `<short name>` is derived by splitting
+##      `effect_description` on its first ':', the EXACT interpretation
+##      src/ui/draft_card_view.gd's own `setup()` already uses and
+##      documents (that file's header, "Name/icon derivation") -- read
+##      here, not re-invented, via a new static `_split_name_and_effect()`.
+##   2. A new `Footer` label (bottom of the panel, `UiTheme.DIM`) shows the
+##      HIGHLIGHTED entry's effect sentence (the text after that same
+##      first ':') -- the one place that full sentence now lives on
+##      screen. `custom_minimum_size.y` reserves `FOOTER_MIN_LINES` worth
+##      of height so the panel does not resize as the highlight moves
+##      between a short and a long description.
+##   3. Row chrome tightened for a one-line row: the pool differentiation
+##      element (`Frame`) shrinks from a 24x24 swatch to a 4 px colour
+##      strip (`UiPalette.SPACE_XS` wide) at the row's left edge; the
+##      PRIMARY shape signal (rounded = Player, squared = Tower) moves to
+##      the row's OWN corner radius instead, since a radius on a 4 px-wide
+##      strip barely reads. This needed a per-row OWNED `StyleBoxFlat`
+##      (`_row_styles[i]`, built via `UiTheme.make_box()`) rather than
+##      `theme_type_variation = UiTheme.ROW`/`ROW_HIGHLIGHTED`, because a
+##      type variation resolves to the Theme's ONE shared, cached
+##      StyleBox -- mutating it per row would restyle every row (and every
+##      other ROW-styled control project-wide) at once. This is
+##      src/ui/draft_card_view.gd's own established pattern for the exact
+##      same reason (that file's header: "never `theme_type_variation =
+##      UiTheme.CARD` ... mutating it here would restyle every other
+##      CARD-styled control project-wide"), applied here rather than
+##      invented fresh. The number-key chip becomes a small
+##      `RADIUS_SMALL`, `SIZE_SHRINK_CENTER`-on-both-axes square instead of
+##      a `UiTheme.PILL` capsule that stretched to the row's full height.
+## `tests/unit/ui_console_layout_test.gd` (this package's own file) gained
+## a one-line-in-English assertion and a tightened height bound; measured
+## panel sizes are in the follow-up section of the evidence report.
+##
+## ## UI pass round 2 (review fixes, phases/UI_PASS/BRIEF_R2.md) -- every
+## rule/number/timer/node-name/`_for_test` seam above stays UNCHANGED except
+## where named below.
+## - **UR-06** (separation overrides): the three bare `add_theme_constant_
+##   override("separation", ...)` calls (`Rows`, `HeaderRow`, `RowContent`)
+##   are now `theme_type_variation = UiTheme.vbox("XS")` / `hbox("M")` /
+##   `hbox("XS")`. None of the three nodes carried another type variation, so
+##   none needed to stay an override.
+## - **UR-08** (string registration): `UiStrings.ensure_registered()` is now
+##   also called explicitly as `_build_ui()`'s first line, not reached only
+##   as `UiTheme.get_theme()`'s own side effect a few lines later.
+## - **UR-03** (glyphs): the row `Glyph` node is now a `UiShapeGlyph`
+##   (`Shape.TRIANGLE` for a Player entry, `Shape.SQUARE` for a Tower entry,
+##   `text` left empty, `set_side(UiPalette.FONT_SIZE_VALUE)`) instead of a
+##   plain `Label` showing `tr("CONSOLE_GLYPH_PLAYER")`/`tr("CONSOLE_GLYPH_
+##   TOWER")` -- neither key's character (U+25CF/U+25A0) exists in the
+##   shipped font (tests/unit/ui_console_layout_test.gd checks `Font.
+##   has_char()` directly). Both `tr()` keys are now unused by this file.
+## - **UR-05** (price/MAX text floor): built as the conservative reading
+##   pending an author decision -- that decision arrived 2026-09-20 (UI pass
+##   LEDGER UR-25) and CONFIRMS it: the Register's 24 px floor covers the
+##   row label AND the price/MAX badge (the header title, footer, key number
+##   and pool word may stay smaller). No further code change needed.
+##   `PriceTag`'s `normal_font_size` and `MaxBadgeLabel`'s `font_size` are
+##   both raised to `ENTRY_FONT_SIZE_PX`, the SAME constant `Text` uses, so
+##   all three sit under the identical floor and the identical per-frame
+##   Node2D `scale` compensation. `PRICE_TAG_MIN_WIDTH_PX` widened 40 -> 48
+##   to match. Nothing else was shrunk to pay for this.
+## - **UR-10** (empty footer): Repair's footer was always empty (its "name"
+##   has no ':' to split), leaving `FOOTER_MIN_LINES`' worth of blank space
+##   reserved on every open, since Repair is the default highlighted entry.
+##   `_refresh_footer()` now builds a one-line sentence from the SAME heal/
+##   cost values the row and `PriceTag` already show
+##   (the `CONSOLE_REPAIR_FOOTER` string) instead of leaving it blank. The
+##   alternative BRIEF_R2 also offered -- reserving the footer's height only
+##   while a ranked entry is highlighted -- was rejected because it resizes
+##   the panel as the highlight moves onto/off Repair, which is the jump
+##   this fix exists to remove.
+## - **UR-11** (regression bound): `tests/unit/ui_console_layout_test.gd`
+##   keeps its tight, current-measurement regression bound, and gains a
+##   SEPARATE, clearly named assertion against a height requirement -- this
+##   started as docs/19's general 30% screen-height cap (324 px at 1080p),
+##   deliberately left FAILING (a known, named gap, not loosened or
+##   skipped). Author decision 2026-09-20 (UI pass LEDGER UR-25) then gave
+##   the Console its own allowance of ~35% of screen height (378 px at
+##   1080p) instead, with docs/19 itself to be updated by its owner through
+##   HANDOFF H-05 -- not this package's file to change. The assertion is now
+##   a real, passing requirement check against that 378 px figure, not a
+##   "known gap" placeholder; see that test file's own comment and the
+##   report, "UR-11."
 
 # --- Provisional Values Register > Interfaces > "Tower Console rules" ------
 const OPEN_DWELL_SECONDS: float = 0.3 # "Opens after 0.3 s inside the radius..."
@@ -174,6 +349,82 @@ const SELECT_ACTIONS: Array[StringName] = [
 ]
 
 const MAX_LIST_ENTRIES: int = 9 # 7 fixed + Overdrive + Reinforce (C-FALLBACK-CONSOLE)
+
+# --- UI pass: cosmetic-only layout tokens. NOT Register/docs-19 numbers --
+# nothing above this line moved, and nothing below changes a rule, a price,
+# or the 24 px text floor. UiPalette has no "how wide is a Console row"
+# concept yet; these stay local consts with a promotion TODO rather than
+# bare literals scattered through _build_ui(), per phases/UI_PASS/BRIEF.md's
+# "list it in your report and use a local const ... for now."
+## TODO(ui-pass): promote to UiPalette. Base-resolution (view_scale = 1.0)
+## minimum width for an entry row's Text label. Without an explicit
+## minimum, a SIZE_EXPAND_FILL + AUTOWRAP_WORD_SMART Label reports a
+## near-zero natural minimum width, so the row -- and with it the whole
+## panel, since _panel_half_extent() sizes _panel from its children's
+## combined minimum -- collapses toward zero width and wraps every entry
+## one character per line (reproduced in the assembled scene: phases/
+## UI_PASS/screenshots/before_1920/05_console.png). This is a FLOOR
+## (custom_minimum_size), not a fixed size: text still wraps and grows past
+## it under pseudo-localization exactly as docs/19 requires. UI PASS
+## FOLLOW-UP: narrowed from 360 -> 300 alongside the row-label shortening
+## (class doc, "UI pass follow-up: compaction") -- the shortened row label
+## ("<name> Rank n of 3") fits one line well under this floor in English;
+## sized against the real catalogue's longest such label, not guessed.
+const ROW_TEXT_MIN_WIDTH_PX: float = 300.0
+## TODO(ui-pass): promote to UiPalette. Overall panel width floor so the
+## Console reads as one deliberate compact panel at every entry count (7
+## fixed, up to 9 once a pool's fallback card appears) rather than hugging
+## whatever its narrowest visible row happens to need that frame. UI PASS
+## FOLLOW-UP: narrowed from 480 -> 420 -- a floor only; the real catalogue's
+## natural width (driven by row content, not this floor) is what the
+## follow-up report measures.
+const PANEL_MIN_WIDTH_PX: float = 420.0
+## TODO(ui-pass): promote to UiPalette. Minimum width for the right-aligned
+## price chip (a RichTextLabel; see _refresh_price_and_badge()) -- the same
+## zero-minimum risk as ROW_TEXT_MIN_WIDTH_PX above, at a much smaller
+## scale (a 2-3 digit number), so it gets the same explicit floor. UI PASS
+## FOLLOW-UP: narrowed from 64 -> 40 (compaction; still fits "999"). UI PASS
+## ROUND 2 (UR-05): widened 40 -> 48 (40 * ENTRY_FONT_SIZE_PX/FONT_SIZE_BODY,
+## i.e. 40 * 24/20) alongside the price tag's own font-size floor raise, so
+## "999" still fits at the larger size without the row wrapping the price.
+const PRICE_TAG_MIN_WIDTH_PX: float = 48.0
+## TODO(ui-pass): promote to UiPalette (as a motion token) if another
+## surface ever wants the same pop-in. The fraction of full size _panel
+## starts at when the Console's open animation begins (see
+## _play_open_animation()) -- purely cosmetic, never read by a test.
+const OPEN_ANIM_START_SCALE: float = 0.92
+## Leading highlight marker (item 4, "a leading caret glyph"). Plain ASCII
+## so it renders regardless of the shipped font's exact glyph coverage (the
+## font's own header cites covering "the accented Latin range", not
+## necessarily general Unicode arrows/carets).
+const CARET_GLYPH: String = ">"
+## UI PASS FOLLOW-UP tokens (compaction pass, see class doc). None of these
+## is a Register/docs-19 number -- all cosmetic layout, same TODO-promote
+## reasoning as the block above.
+## Width of the pool-colour strip ("a thin 4 px bar at the row's left
+## edge", the coordinator's own follow-up wording) -- reads UiPalette.SPACE_XS
+## directly rather than a new const, since that token IS already 4.
+## Fixed square footprint for the number-key chip ("a small rounded square
+## with the digit centred").
+const NUMBER_CHIP_SIZE_PX: float = 22.0
+## Reserved height for the highlighted entry's effect-sentence footer, in
+## whole lines -- "reserve a minimum height for two lines so the panel does
+## not jump when the highlight moves between short and long descriptions."
+## One line since the font change: every ranked upgrade's sentence fits one
+## line at the panel's width, and two reserved lines put the panel 18 px over
+## the author's 35% allowance (UR-25). Only the two pool-exhausted fallback
+## entries run longer, and the panel grows for those.
+const FOOTER_MIN_LINES: int = 1
+
+## UI PASS ROUND 2 (UR-10). Repair's own "name" is the plain word "Repair"
+## (tr("CONSOLE_REPAIR")), never an "<name>: <effect>" sentence the way every
+## upgrade's effect_description is, so splitting it on ':' in
+## _refresh_footer() always produced an EMPTY footer for Repair -- the entry
+## highlighted by default on open (_open_console() resets _highlighted_index
+## to 0) -- leaving FOOTER_MIN_LINES' worth of reserved blank space every
+## time the Console opens (the defect this item fixes). The sentence is
+## the `CONSOLE_REPAIR_FOOTER` string (ui_strings.gd), filled with the same
+## heal and cost values the row already shows.
 
 # --- Wiring (orchestrator completes; scenes/prototype.tscn is out of this
 # task's write scope) --------------------------------------------------------
@@ -237,7 +488,33 @@ var _row_frames: Array = []
 var _row_glyphs: Array = []
 var _row_headers: Array = []
 var _row_texts: Array = []
-var _fill_bar: ProgressBar = null
+## UI pass additions -- decoration only, none of them is read by a test.
+var _row_carets: Array = []
+var _row_price_tags: Array = []
+var _row_max_badges: Array = []
+## UI pass follow-up (compaction): one owned StyleBoxFlat per row, built via
+## UiTheme.make_box() and mutated per refresh (pool-based corner radius,
+## highlight-based border) -- DraftCardView's own established pattern
+## (src/ui/draft_card_view.gd's `_style`) for exactly this reason: a
+## `theme_type_variation` resolves to the Theme's ONE shared, cached
+## StyleBox instance, so mutating IT per row would restyle every row (and
+## every other ROW/ROW_HIGHLIGHTED-styled control project-wide) at once.
+var _row_styles: Array = []
+var _scrap_label: Label = null
+## UI pass follow-up: the highlighted entry's effect sentence (the part of
+## effect_description after its first ":"), shown once at the panel's foot
+## instead of inside every row.
+var _footer_label: Label = null
+## UI pass: circular fill ring (DraftFillRing, another package's file --
+## used only through its public `progress`/`ring_color`/`track_color`
+## surface) replacing the old linear ProgressBar; see class doc,
+## "Presentation simplification."
+var _fill_bar: DraftFillRing = null
+## UI pass: the open-animation tween, killed before a fresh one starts so a
+## rapid close-then-reopen never leaves two tweens fighting over the same
+## `_panel.modulate`/`scale` properties (mirrors this codebase's own
+## hit-flash-tween-kill precedent, tests/unit/player_animation_test.gd).
+var _open_tween: Tween = null
 
 
 func _ready() -> void:
@@ -773,19 +1050,72 @@ func get_entry_label_for_test(i: int) -> Label:
 	return _row_texts[i] if i >= 0 and i < _row_texts.size() else null
 
 
+## UI pass round 2 (UR-03): new test seam, same shape as get_entry_label_for_test() above -- no existing test read the old Glyph Label, so nothing else changes shape.
+func get_entry_glyph_for_test(i: int) -> UiShapeGlyph:
+	return _row_glyphs[i] if i >= 0 and i < _row_glyphs.size() else null
+
+
+## UI pass round 2 (UR-05): new test seam for the price/MAX floor regression.
+func get_entry_price_tag_for_test(i: int) -> RichTextLabel:
+	return _row_price_tags[i] if i >= 0 and i < _row_price_tags.size() else null
+
+
+## UI pass round 2 (UR-05): new test seam for the price/MAX floor regression.
+func get_entry_max_badge_label_for_test(i: int) -> Label:
+	if i < 0 or i >= _row_max_badges.size():
+		return null
+	var badge: PanelContainer = _row_max_badges[i]
+	return badge.get_node("MaxBadgeLabel") as Label
+
+
 func get_panel_control_for_test() -> Control:
 	return _panel
+
+
+## UI pass follow-up (compaction): the highlighted entry's effect-sentence
+## footer -- new this follow-up, so no existing test reads it; added for
+## this package's own regression coverage.
+func get_footer_label_for_test() -> Label:
+	return _footer_label
 
 
 # --- Placement (docs/19 > Tower Console UI > "Placement") -------------------
 
 func _process(_delta: float) -> void:
 	if _paused or not _is_open:
+		# A rule hiding the Console hides it IMMEDIATELY, no animation (task
+		# brief, item 6) -- this branch never touches a tween.
 		visible = false
 		return
+	var was_visible: bool = visible
 	visible = true
+	if not was_visible:
+		_play_open_animation()
 	_update_placement()
 	_refresh_entries_ui()
+
+
+## Cosmetic open-only fade+scale (task brief, item 6: "If you cannot
+## guarantee that for close, animate open only" -- the close path above
+## sets `visible = false` synchronously and never creates a tween, so this
+## is the one animated transition). Targets `_panel`'s own `modulate.a` /
+## `scale`, never this node's (Console.modulate.a is CONSOLE_OPACITY, read
+## by nothing here but resting exactly where the class doc says it must;
+## Console.scale is the per-frame camera view-scale compensation
+## _update_placement() sets right after this returns -- animating it here
+## would fight that assignment and corrupt the 24 px on-screen text floor).
+func _play_open_animation() -> void:
+	if _panel == null or not is_inside_tree():
+		return
+	if _open_tween != null and _open_tween.is_valid():
+		_open_tween.kill() # a rapid close-then-reopen must not stack two tweens on the same properties
+	_panel.modulate.a = 0.0
+	_panel.scale = Vector2.ONE * OPEN_ANIM_START_SCALE
+	_open_tween = create_tween() # bare create_tween() on this node, never get_tree().create_tween()
+	_open_tween.set_parallel(true)
+	_open_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT) # godot-prompter:tween-animation's own "most common combo" for a natural-feeling UI transition
+	_open_tween.tween_property(_panel, "modulate:a", 1.0, UiPalette.MOTION_BASE)
+	_open_tween.tween_property(_panel, "scale", Vector2.ONE, UiPalette.MOTION_BASE)
 
 
 func _update_placement() -> void:
@@ -822,6 +1152,7 @@ func _panel_half_extent() -> Vector2:
 		return Vector2(100.0, 60.0)
 	_panel.size = sz
 	_panel.position = -sz / 2.0
+	_panel.pivot_offset = sz / 2.0 # UI pass: centres the open-animation's scale-in, cosmetic only
 	return sz / 2.0
 
 
@@ -846,72 +1177,283 @@ static func _angle_diff_deg(a: float, b: float) -> float:
 # size_flags_horizontal = SIZE_EXPAND_FILL) ----------------------------------
 
 func _build_ui() -> void:
+	UiStrings.ensure_registered() # UI pass round 2 (UR-08): explicit at this surface's own build entry point, not only as a side effect of UiTheme.get_theme() below
 	_panel = PanelContainer.new()
 	_panel.name = "Panel"
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.05, 0.05, 0.08, 0.9)
-	sb.set_corner_radius_all(6)
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	sb.content_margin_top = 10
-	sb.content_margin_bottom = 10
-	_panel.add_theme_stylebox_override("panel", sb)
+	_panel.theme = UiTheme.get_theme() # applied ONCE, at the root Control (ui_theme.gd's own contract) -- every descendant inherits it
+	# UI pass follow-up (compaction): an OWNED StyleBoxFlat, not
+	# `theme_type_variation = UiTheme.PANEL` (which would still work, but
+	# resolves to the Theme's ONE shared, cached PANEL StyleBox -- every
+	# other UiTheme.PANEL surface, e.g. the pause/settings menus, uses the
+	# SAME instance; tightening ITS padding for this one compact panel
+	# would tighten theirs too). Same reasoning, same fix shape, as
+	# `_row_styles` above and src/ui/draft_card_view.gd's own `_style`.
+	# Padding SPACE_L -> SPACE_S: "tighten the row chrome ... tighter
+	# padding, UiPalette.SPACE_XS/SPACE_S" (follow-up item 4).
+	_panel.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.with_alpha(UiPalette.INK, UiPalette.PANEL_ALPHA), UiPalette.LINE, UiPalette.RADIUS_PANEL, UiPalette.BORDER_THIN, UiPalette.SPACE_S))
+	# Layout-collapse fix floor (class doc, "UI pass restyle"): a
+	# custom_minimum_size, never a fixed size -- the panel still grows past
+	# this under pseudo-localization exactly as before.
+	_panel.custom_minimum_size = Vector2(PANEL_MIN_WIDTH_PX, 0)
 	add_child(_panel)
 
 	var vbox := VBoxContainer.new()
 	vbox.name = "Rows"
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_theme_constant_override("separation", 4)
+	vbox.theme_type_variation = UiTheme.vbox("XS") # UI pass round 2 (UR-06): was a bare "separation" override
 	_panel.add_child(vbox)
 
-	var title := _make_label(tr("CONSOLE_TITLE"), 20)
-	vbox.add_child(title)
+	_build_header(vbox)
 
 	for i in range(MAX_LIST_ENTRIES):
-		var row := HBoxContainer.new()
-		row.name = "Row%d" % i
-		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_theme_constant_override("separation", 6)
+		_build_row(vbox, i)
 
-		var frame := Panel.new()
-		frame.name = "Frame"
-		frame.custom_minimum_size = Vector2(20, 20)
-		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(frame)
-
-		var glyph := Label.new()
-		glyph.name = "Glyph"
-		glyph.custom_minimum_size = Vector2(18, 0)
-		glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(glyph)
-
-		var header := Label.new()
-		header.name = "Header"
-		header.custom_minimum_size = Vector2(64, 0)
-		header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(header)
-
-		var text := _make_label("", ENTRY_FONT_SIZE_PX)
-		text.name = "Text"
-		row.add_child(text)
-
-		vbox.add_child(row)
-		_rows.append(row)
-		_row_frames.append(frame)
-		_row_glyphs.append(glyph)
-		_row_headers.append(header)
-		_row_texts.append(text)
-
-	_fill_bar = ProgressBar.new()
+	_fill_bar = DraftFillRing.new() # UI pass: real ring, replacing the old linear ProgressBar (class doc, "Presentation simplification")
 	_fill_bar.name = "ChannelFill"
-	_fill_bar.min_value = 0.0
-	_fill_bar.max_value = 1.0
-	_fill_bar.show_percentage = false
-	_fill_bar.custom_minimum_size = Vector2(0, 8)
+	_fill_bar.custom_minimum_size = Vector2(UiPalette.SPACE_XXL * 1.5, UiPalette.SPACE_XXL * 1.5)
+	_fill_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_fill_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fill_bar.ring_color = UiPalette.ACCENT
+	_fill_bar.track_color = UiPalette.with_alpha(UiPalette.LINE, 0.6) # "a dim track" (task brief, item 5)
 	_fill_bar.visible = false
 	vbox.add_child(_fill_bar)
+
+	_build_footer(vbox)
+
+
+## UI pass follow-up (compaction, item 2): the effect sentence of the
+## HIGHLIGHTED entry only, shown once at the panel's foot instead of inside
+## every row -- this is what let the row label shrink to "<name> Rank n of
+## 3" in the first place. `custom_minimum_size.y` reserves FOOTER_MIN_LINES
+## worth of height so the panel does not resize/jump as the highlight moves
+## between a short and a long effect_description.
+func _build_footer(vbox: VBoxContainer) -> void:
+	# UiTheme.SMALL, not UiTheme.DIM -- item 2's own wording ("dim,
+	# UiTheme.DIM/SMALL"), and ui_theme.gd's SMALL variation IS a dim
+	# colour (UiPalette.TEXT_DIM) at the smaller FONT_SIZE_SMALL, so one
+	# variation satisfies both "dim" and "small" instead of stacking two.
+	_footer_label = _make_label("", UiPalette.FONT_SIZE_SMALL)
+	_footer_label.name = "Footer"
+	_footer_label.theme_type_variation = UiTheme.SMALL
+	var line_height: float = float(UiPalette.FONT_SIZE_SMALL) * 1.2 + 2.0 # small font size * a typical leading factor + the theme's own Label line_spacing (ui_theme.gd: 2)
+	_footer_label.custom_minimum_size = Vector2(ROW_TEXT_MIN_WIDTH_PX, line_height * float(FOOTER_MIN_LINES))
+	vbox.add_child(_footer_label)
+
+
+## Compact header: title + the player's current Scrap (task brief, item 2)
+## -- both already read elsewhere in this file (tr("CONSOLE_TITLE") below;
+## _run_inventory.scrap_current, e.g. get_scrap_current_for_test()), so
+## nothing here is new data.
+func _build_header(vbox: VBoxContainer) -> void:
+	var header_row := HBoxContainer.new()
+	header_row.name = "HeaderRow"
+	header_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header_row.theme_type_variation = UiTheme.hbox("M") # UI pass round 2 (UR-06): was a bare "separation" override
+	vbox.add_child(header_row)
+
+	# UI pass follow-up (compaction): FONT_SIZE_BODY -> FONT_SIZE_SMALL, one
+	# more contributor to the panel height target (follow-up item 4) --
+	# still comfortably above the 24 px floor, which only ever governs
+	# `ENTRY_FONT_SIZE_PX` (the entry rows' own Text label), never the
+	# header.
+	var title := _make_label(tr("CONSOLE_TITLE"), UiPalette.FONT_SIZE_SMALL)
+	title.name = "Title"
+	# Same zero-minimum risk as ROW_TEXT_MIN_WIDTH_PX below (any autowrap +
+	# SIZE_EXPAND_FILL Label has it) -- a small defensive floor, well short
+	# of ROW_TEXT_MIN_WIDTH_PX since the title is one short phrase, not a
+	# data-sourced sentence.
+	title.custom_minimum_size = Vector2(UiPalette.SPACE_XXL * 4.0, 0)
+	header_row.add_child(title)
+
+	_scrap_label = _make_label("", UiPalette.FONT_SIZE_SMALL)
+	_scrap_label.name = "ScrapValue"
+	_scrap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_scrap_label.custom_minimum_size = Vector2(UiPalette.SPACE_XXL * 3.0, 0)
+	_scrap_label.add_theme_color_override("font_color", UiPalette.SCRAP)
+	header_row.add_child(_scrap_label)
+
+
+func _build_row(vbox: VBoxContainer, i: int) -> void:
+	var row := PanelContainer.new() # UI pass: was HBoxContainer, then a UiTheme.ROW/ROW_HIGHLIGHTED PanelContainer; see class doc, "UI pass follow-up" for why it now owns a per-instance StyleBoxFlat instead
+	row.name = "Row%d" % i
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Owned per-row box (see `_row_styles`'s own doc comment): base values
+	# match what UiTheme.ROW used to supply; _refresh_one_row() mutates
+	# corner radius (pool shape) and border (highlight) on THIS instance.
+	var row_style := UiTheme.make_box(UiPalette.with_alpha(UiPalette.SURFACE, 0.55), UiPalette.LINE, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, UiPalette.SPACE_XS)
+	row.add_theme_stylebox_override("panel", row_style)
+	_row_styles.append(row_style)
+
+	var content := HBoxContainer.new()
+	content.name = "RowContent"
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# UI pass follow-up (compaction): SPACE_S -> SPACE_XS between the extra
+	# decoration columns a one-line row has no room to spare on.
+	# UI pass round 2 (UR-06): was a bare "separation" override.
+	content.theme_type_variation = UiTheme.hbox("XS")
+	row.add_child(content)
+
+	# Highlight marker (item 4: "a leading caret glyph"). Always present
+	# (text toggles "" / CARET_GLYPH) so the row's own width never jitters
+	# when the highlight moves.
+	var caret := Label.new()
+	caret.name = "Caret"
+	caret.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caret.custom_minimum_size = Vector2(UiPalette.SPACE_M, 0)
+	caret.add_theme_color_override("font_color", UiPalette.ACCENT)
+	content.add_child(caret)
+
+	# Number-key hint chip (item 3: "1-7 in a small dim chip"; follow-up
+	# item 3: "a small rounded square with the digit centred"). Static once
+	# built -- SELECT_ACTIONS never changes at runtime -- so no per-frame
+	# refresh or stored reference is needed beyond building it here. A
+	# RADIUS_SMALL box (not UiTheme.PILL's own RADIUS_PILL), and
+	# SIZE_SHRINK_CENTER on both axes, so it reads as a compact square chip
+	# rather than stretching to the row's own (now much shorter) height.
+	var number_hint := PanelContainer.new()
+	number_hint.name = "NumberHint"
+	number_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	number_hint.custom_minimum_size = Vector2(NUMBER_CHIP_SIZE_PX, NUMBER_CHIP_SIZE_PX)
+	number_hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	number_hint.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.INK, UiPalette.LINE, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, UiPalette.SPACE_XS))
+	var number_label := _make_pill_label(str(i + 1) if i < SELECT_ACTIONS.size() else "")
+	number_label.name = "NumberHintLabel"
+	number_hint.add_child(number_label)
+	content.add_child(number_hint)
+
+	# Pool-colour strip (follow-up item 3: "the strip a thin 4 px bar at the
+	# row's left edge") -- a REDUNDANT colour cue now, same role as
+	# DraftCardView's own `_accent_strip` (that file's header: "a redundant
+	# colour cue, never the only one"): the PRIMARY shape signal moved to
+	# the row's own corner radius (_row_styles[i], mutated in
+	# _refresh_one_row()) so it stays visible even at a 4 px strip width,
+	# where a corner radius would barely read. Colour set per-refresh.
+	var frame := Panel.new()
+	frame.name = "Frame"
+	frame.custom_minimum_size = Vector2(UiPalette.SPACE_XS, 0)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(frame)
+
+	# UI pass round 2 (UR-03): a vector shape, not a font character. The
+	# shipped font contains neither the old text glyphs ("CONSOLE_GLYPH_
+	# PLAYER"/"CONSOLE_GLYPH_TOWER", U+25CF/U+25A0) nor any other geometric
+	# shape codepoint (tests/unit/ui_console_layout_test.gd checks
+	# Font.has_char() directly and quotes the result). docs/19 > Tower
+	# Console UI > "Differentiation": "The same frame-shape and glyph rules
+	# as the Draft apply to its entries" -- the Draft's own player glyph
+	# (draft_card_view.gd's GLYPH_PLAYER) is a triangle, not a circle, so
+	# Shape.TRIANGLE/Shape.SQUARE below match it exactly, set per-refresh
+	# from each entry's pool. `text` stays empty (UiShapeGlyph's own
+	# contract, shape_glyph.gd's header); mouse_filter is already
+	# MOUSE_FILTER_IGNORE from UiShapeGlyph._init(), not re-set here.
+	var glyph := UiShapeGlyph.new()
+	glyph.name = "Glyph"
+	# Sized to the number chip beside it, not to a font-size token: the row's
+	# height is what the 35% panel allowance is spent on, and a token tuned
+	# for another font's metrics once made every row 6 px taller (UR-25).
+	glyph.set_side(int(NUMBER_CHIP_SIZE_PX))
+	content.add_child(glyph)
+
+	var header := Label.new()
+	header.name = "Header"
+	header.custom_minimum_size = Vector2(UiPalette.SPACE_XXL + UiPalette.SPACE_S, 0)
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header.theme_type_variation = UiTheme.DIM
+	content.add_child(header)
+
+	var text := _make_label("", ENTRY_FONT_SIZE_PX)
+	text.name = "Text"
+	# Layout-collapse fix floor (class doc, "UI pass restyle") -- the exact
+	# defect the coordinator's evidence caught: without this, this Label's
+	# own natural minimum width collapses toward zero and every entry wraps
+	# one character per line. custom_minimum_size, not size: still expands
+	# under pseudo-localization.
+	text.custom_minimum_size = Vector2(ROW_TEXT_MIN_WIDTH_PX, 0)
+	content.add_child(text)
+
+	# Price (item 3: "price right-aligned in UiPalette.SCRAP") and the MAX
+	# badge (item 4: "MAX = a distinct badge") are mutually exclusive per
+	# row (_refresh_price_and_badge() toggles `.visible`) and are NEW
+	# sibling nodes -- Text above keeps its own full "name -- suffix"
+	# content unchanged, per the task brief's "add new decoration as
+	# sibling nodes rather than changing what that label contains."
+	var price_tag := RichTextLabel.new()
+	price_tag.name = "PriceTag"
+	price_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	price_tag.bbcode_enabled = true
+	price_tag.fit_content = true
+	price_tag.scroll_active = false
+	price_tag.autowrap_mode = TextServer.AUTOWRAP_OFF
+	price_tag.custom_minimum_size = Vector2(PRICE_TAG_MIN_WIDTH_PX, 0)
+	# Every Control auto-translates its text by default, and pseudo-
+	# localization runs on top of THAT -- for a Label that is exactly what
+	# docs/19's pseudo-localization testing wants (Text/Title/etc. all
+	# benefit from it). PriceTag's `bbcode_text` is generated MARKUP
+	# ([right][color=#...][s]...[/s][/color][/right]), never a translatable
+	# message; pseudo-localized markup mangles the tag names themselves, so
+	# RichTextLabel stops recognising them as tags and renders the whole
+	# garbled tag soup as one unbreakable literal line -- reproduced while
+	# building this fix (a 64 px floor ballooning to ~590 px per row with
+	# pseudo-localization on, nothing else in the row changed). Disabling
+	# auto-translate on this one node is the documented way to opt
+	# programmatic markup out of the translation/pseudo-localization
+	# pipeline without touching TranslationServer or any other label.
+	price_tag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	# UI pass round 2 (UR-05). Author decision 2026-09-20 (UI pass LEDGER
+	# UR-25) confirms the Register's "text stays >= 24 px tall on screen"
+	# covers the price, not just the row label -- the conservative reading
+	# this was built with is now the settled answer, not a placeholder.
+	# Raised from the theme's default 20 px (FONT_SIZE_BODY, RichTextLabel's
+	# own fallback with no "normal_font_size" override) to
+	# ENTRY_FONT_SIZE_PX -- the SAME constant `Text` uses -- so PriceTag
+	# sits under the identical 24 px floor and the identical per-frame
+	# Node2D `scale` compensation (_update_placement()) that keeps `Text`
+	# >= 24 px tall; "normal_font_size" is the correct RichTextLabel theme
+	# property (RichTextLabel has no single "font_size" property the way
+	# Label does).
+	price_tag.add_theme_font_size_override("normal_font_size", ENTRY_FONT_SIZE_PX)
+	content.add_child(price_tag)
+
+	var max_badge := PanelContainer.new()
+	max_badge.name = "MaxBadge"
+	max_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	max_badge.theme_type_variation = UiTheme.PILL
+	max_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER # compaction follow-up: a badge, not a full-row-height pill
+	max_badge.visible = false
+	var max_label := _make_pill_label(tr("CONSOLE_MAX"))
+	max_label.name = "MaxBadgeLabel"
+	max_label.add_theme_color_override("font_color", UiPalette.ACCENT)
+	# UI pass round 2 (UR-05): same author-confirmed floor as PriceTag
+	# above (Author decision 2026-09-20, UR-25) -- raised from
+	# UiTheme.SMALL's 16 px to ENTRY_FONT_SIZE_PX, overriding the
+	# variation's own font size on this one label.
+	max_label.add_theme_font_size_override("font_size", ENTRY_FONT_SIZE_PX)
+	max_badge.add_child(max_label)
+	content.add_child(max_badge)
+
+	vbox.add_child(row)
+	_rows.append(row)
+	_row_frames.append(frame)
+	_row_glyphs.append(glyph)
+	_row_headers.append(header)
+	_row_texts.append(text)
+	_row_carets.append(caret)
+	_row_price_tags.append(price_tag)
+	_row_max_badges.append(max_badge)
+
+
+## Small dim label for a chip's interior (number-key hint / MAX badge).
+## Deliberately NOT autowrapping -- both callers pass a single short token
+## ("1".."7" or the MAX word), never free-form/pseudo-localized prose, so
+## the truncation-ban this file's docs/19 citation targets does not apply.
+func _make_pill_label(txt: String) -> Label:
+	var l := Label.new()
+	l.text = txt
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.theme_type_variation = UiTheme.SMALL
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return l
 
 
 ## docs/19 > UI Layout & Dynamic Container Rules: "must use Label or
@@ -926,7 +1468,7 @@ func _make_label(txt: String, font_size: int) -> Label:
 	l.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.add_theme_font_size_override("font_size", font_size)
+	l.add_theme_font_size_override("font_size", font_size) # the Register's 24 px floor stays a per-node override the theme never touches (ENTRY_FONT_SIZE_PX callers) -- also reused for the header title at UiPalette.FONT_SIZE_BODY
 	return l
 
 
@@ -940,38 +1482,154 @@ func _refresh_entries_ui() -> void:
 		var e: Dictionary = entries[i]
 		_refresh_one_row(i, e)
 
+	_refresh_header()
+	_refresh_footer(entries)
+
 	if _channel_active:
 		_fill_bar.visible = true
-		_fill_bar.value = get_channel_progress_for_test()
+		_fill_bar.progress = get_channel_progress_for_test()
 	else:
 		_fill_bar.visible = false
 
 
+func _refresh_header() -> void:
+	if _scrap_label == null:
+		return
+	var scrap: int = _run_inventory.scrap_current if _run_inventory != null else 0
+	_scrap_label.text = "%d %s" % [scrap, tr("CONSOLE_SCRAP")]
+
+
+## UI pass follow-up (compaction, item 2): shows the HIGHLIGHTED entry's
+## effect sentence only. `_highlighted_index` may point past `entries`'
+## current size for one frame right after the catalogue shrinks (e.g. a
+## fallback card that stops qualifying) -- guarded, matching how every
+## other `_highlighted_index` consumer in this file already tolerates that
+## (`cycle()`'s own `wrapi()` against the CURRENT count).
+func _refresh_footer(entries: Array) -> void:
+	if _footer_label == null:
+		return
+	if _highlighted_index < 0 or _highlighted_index >= entries.size():
+		_footer_label.text = ""
+		return
+	var e: Dictionary = entries[_highlighted_index]
+	# UI pass round 2 (UR-10): Repair has no ':' to split on -- build a real one-line
+	# sentence from the SAME heal/cost values the row label and PriceTag
+	# already show, rather than reserving the footer conditionally (which
+	# would resize the panel as the highlight moves onto/off Repair; see the
+	# report, "UR-10", for why that alternative was rejected).
+	if String(e.get("kind", "")) == "repair":
+		_footer_label.text = tr("CONSOLE_REPAIR_FOOTER") % [int(e.get("heal", 0.0)), int(e.get("cost", 0))]
+		return
+	var split: Dictionary = _split_name_and_effect(String(e.get("name", "")))
+	_footer_label.text = String(split.get("effect", ""))
+
+
+## Mirrors src/ui/draft_card_view.gd's own `setup()` derivation exactly
+## (that file's header: "every one of the eight authored data/upgrades/
+## *.tres files puts the display name before a ':' and the mechanical
+## effect after it") -- read, not edited, per this task's write scope; the
+## SAME interpretation applied a second time, not a new one invented here.
+## For Repair, `name` is already the plain word from tr("CONSOLE_REPAIR")
+## (no ':'), so `effect` comes back empty -- correct, since the row itself
+## now states the HP restored and the price tag its cost.
+static func _split_name_and_effect(full_text: String) -> Dictionary:
+	var parts: PackedStringArray = full_text.split(":", true, 1)
+	if parts.size() >= 2:
+		return {"name": parts[0].strip_edges(), "effect": parts[1].strip_edges()}
+	return {"name": full_text, "effect": ""}
+
+
 func _refresh_one_row(i: int, e: Dictionary) -> void:
 	var is_tower: bool = int(e.get("pool", 0)) == ContractEnums.PoolOwnership.Tower
+	var is_highlighted: bool = i == _highlighted_index
+	var affordable: bool = bool(e.get("affordable", false))
+	var is_max: bool = bool(e.get("is_max", false))
 
+	# Highlight: accent border (mutated on this row's OWN StyleBoxFlat, see
+	# `_row_styles`'s doc comment) plus the leading caret glyph -- shape/
+	# decoration, never colour alone (MASTER_SDLC.md > Visual Edge Cases >
+	# "Colour-only distinctions").
+	var row_style: StyleBoxFlat = _row_styles[i]
 	# Differentiation (docs/19 > Tower Console UI > "Differentiation": "The
 	# same frame-shape and glyph rules as the Draft apply to its entries" --
 	# rounded frame + glyph + header word for Player, squared for Tower,
-	# never colour alone).
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.35, 0.35, 0.15, 0.85) if i == _highlighted_index else Color(0.2, 0.2, 0.25, 0.6)
-	sb.set_corner_radius_all(0 if is_tower else 10)
-	_row_frames[i].add_theme_stylebox_override("panel", sb)
-	_row_glyphs[i].text = tr("CONSOLE_GLYPH_TOWER") if is_tower else tr("CONSOLE_GLYPH_PLAYER")
+	# never colour alone). UI pass follow-up: the PRIMARY shape signal is
+	# now the row's own corner radius (was the small Frame swatch's, before
+	# Frame became a 4 px colour strip too thin to read a radius on).
+	row_style.set_corner_radius_all(0 if is_tower else UiPalette.RADIUS_PANEL)
+	row_style.bg_color = UiPalette.with_alpha(UiPalette.SURFACE_HOVER, 0.95) if is_highlighted else UiPalette.with_alpha(UiPalette.SURFACE, 0.55)
+	row_style.border_color = UiPalette.ACCENT if is_highlighted else UiPalette.LINE
+	row_style.set_border_width_all(UiPalette.BORDER_THICK if is_highlighted else UiPalette.BORDER_THIN)
+	_row_carets[i].text = CARET_GLYPH if is_highlighted else ""
+
+	# Pool-colour strip (redundant cue; see _build_row()'s own comment) --
+	# colour only, never the sole differentiator (the row's own shape above
+	# and the glyph/header word below all vary too).
+	_row_frames[i].add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.TOWER if is_tower else UiPalette.PLAYER, Color(0, 0, 0, 0), 0, 0, 0))
+	# UI pass round 2 (UR-03): shape, never text -- tr("CONSOLE_GLYPH_PLAYER")
+	# / tr("CONSOLE_GLYPH_TOWER") are no longer called anywhere in this file;
+	# both keys are now unused (see the report, "UR-03", for ui_strings.gd,
+	# which this package does not edit).
+	var row_glyph: UiShapeGlyph = _row_glyphs[i]
+	row_glyph.shape = UiShapeGlyph.Shape.SQUARE if is_tower else UiShapeGlyph.Shape.TRIANGLE
 	_row_headers[i].text = tr("CONSOLE_HEADER_TOWER") if is_tower else tr("CONSOLE_HEADER_PLAYER")
 
-	var name_text: String = String(e.get("name", ""))
-	var suffix: String
-	if String(e.get("kind", "")) == "repair":
-		suffix = "%s (%d %s / %d %s)" % [tr("CONSOLE_REPAIR"), int(e.get("heal", 0.0)), tr("CONSOLE_HP"), int(e.get("cost", 0)), tr("CONSOLE_SCRAP")]
-	elif bool(e.get("is_max", false)):
-		suffix = tr("CONSOLE_MAX")
-	elif bool(e.get("has_max_rank", true)):
-		suffix = "%s %d %s 3 (%d %s)" % [tr("CONSOLE_RANK"), int(e.get("rank", 0)) + 1, tr("CONSOLE_OF"), int(e.get("cost", 0)), tr("CONSOLE_SCRAP")]
+	# UI PASS FOLLOW-UP (orchestrator decision, recorded as an
+	# interpretation per that decision's own instruction): the "entry text
+	# formats stay exactly as they are" constraint is lifted for the ROW
+	# LABEL's composition only -- `get_entry_for_test(i)`'s own dictionary
+	# (in particular its "name" field, still the FULL effect_description)
+	# is completely unchanged; only how the VISIBLE label is built from it
+	# changes below. The price, previously embedded in this label's own
+	# text ("(30 Scrap)"), now lives ONLY in PriceTag (task instruction:
+	# "drop the '(30 Scrap)' from the row label, since the tag shows it").
+	var kind: String = String(e.get("kind", ""))
+	var row_label: String
+	if kind == "repair":
+		row_label = "%s +%d %s" % [tr("CONSOLE_REPAIR"), int(e.get("heal", 0.0)), tr("CONSOLE_HP")]
 	else:
-		suffix = "%s %d (%d %s)" % [tr("CONSOLE_TAKEN"), int(e.get("rank", 0)), int(e.get("cost", 0)), tr("CONSOLE_SCRAP")]
+		var split: Dictionary = _split_name_and_effect(String(e.get("name", "")))
+		var short_name: String = String(split.get("name", ""))
+		var status: String
+		if is_max:
+			status = tr("CONSOLE_MAX")
+		elif bool(e.get("has_max_rank", true)):
+			status = "%s %d %s 3" % [tr("CONSOLE_RANK"), int(e.get("rank", 0)) + 1, tr("CONSOLE_OF")]
+		else:
+			status = "%s %d" % [tr("CONSOLE_TAKEN"), int(e.get("rank", 0))]
+		row_label = "%s %s" % [short_name, status]
 
-	_row_texts[i].text = "%s -- %s" % [name_text, suffix]
-	var affordable_or_max: bool = bool(e.get("affordable", false)) or bool(e.get("is_max", false))
-	_row_texts[i].modulate = Color(1, 1, 1, 1) if affordable_or_max else Color(0.55, 0.55, 0.55, 1.0)
+	# get_entry_label_for_test(i) reads this same `Text` node -- its NAME,
+	# type, and every other property (autowrap, overrun, font size) are
+	# unchanged; only the STRING this follow-up was explicitly authorized
+	# to shorten.
+	_row_texts[i].text = row_label
+	var affordable_or_max: bool = affordable or is_max
+	# UI pass: was a `modulate` multiply by a bare Color(0.55,0.55,0.55,1);
+	# now a direct per-node font-colour override reading UiPalette.TEXT /
+	# UiPalette.TEXT_DISABLED (task brief, item 4: "unaffordable = greyed
+	# (UiPalette.TEXT_DISABLED)").
+	_row_texts[i].add_theme_color_override("font_color", UiPalette.TEXT if affordable_or_max else UiPalette.TEXT_DISABLED)
+
+	_refresh_price_and_badge(i, int(e.get("cost", 0)), affordable, is_max)
+
+
+## Item 4: "unaffordable = greyed (UiPalette.TEXT_DISABLED) AND a distinct
+## marker (e.g. a lock/dash glyph, or struck price) - never hidden" and
+## "MAX = a distinct badge". Both are NEW nodes (see _build_row()); Text's
+## own content is untouched by either state.
+func _refresh_price_and_badge(i: int, cost: int, affordable: bool, is_max: bool) -> void:
+	_row_max_badges[i].visible = is_max
+	_row_price_tags[i].visible = not is_max
+	if is_max:
+		return
+	var price_text: String = str(cost)
+	var price_color: Color = UiPalette.SCRAP if affordable else UiPalette.TEXT_DISABLED
+	var price_html: String = price_color.to_html(false)
+	if affordable:
+		_row_price_tags[i].bbcode_text = "[right][color=#%s]%s[/color][/right]" % [price_html, price_text]
+	else:
+		# Struck price -- the "distinct marker" the greyed colour alone must
+		# never be (MASTER_SDLC.md > Visual Edge Cases > "Colour-only
+		# distinctions"); never simply hidden.
+		_row_price_tags[i].bbcode_text = "[right][color=#%s][s]%s[/s][/color][/right]" % [price_html, price_text]

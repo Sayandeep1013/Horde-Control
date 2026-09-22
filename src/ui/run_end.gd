@@ -37,6 +37,33 @@ class_name RunEndScreen
 ## ## Paused-menu timing carve-out (Author decision D104)
 ## Owns no timing of its own -- see src/run/paused_choice_bar.gd's header
 ## for the accumulator its "Settings" hold-to-confirm choice runs on.
+##
+## ## UI pass (package D): look and feel only
+## `_build_ui()` now goes through `src/ui/menu_frame.gd`'s shared builders,
+## matching pause_menu.gd/settings_menu.gd, plus a result-screen treatment
+## (task brief item 3): the title is coloured `UiPalette.DANGER`/`SUCCESS`
+## and paired with an `OutcomeGlyph` (an X or a check mark, drawn rather
+## than a font glyph -- see that file's header for why), and the wave/
+## Scrap/time fields sit in a 3-cell stat grid, each cell a `UiTheme.ROW`
+## panel of consistent width -- the four existing cause/wave/scrap/time
+## Labels keep the exact object identity, node name, and `show_summary()`
+## text format they always had; `get_*_label_for_test()` returns the same
+## nodes, restyled (`UiTheme.VALUE`/`DIM`), never replaced. The one new
+## behaviour is `_apply_outcome_style()`, called from `show_summary()` and
+## derived from the SAME `cause_text` emptiness the four existing lines
+## already branch on -- no second source of truth, no new public seam.
+## `set_active()` gained the same purely cosmetic fade/scale-in as the
+## other two menus. See phases/UI_PASS/reports/D_menus.md.
+##
+## ## Follow-up (coordinator review): sibling stat captions removed
+## An earlier version of this pass added a dim caption Label above each
+## stat-grid value ("Scrap" above "Scrap held: 180") -- the coordinator's
+## review (looking at the launched scene) found each caption just repeated
+## the word already baked into the value Label's own text below it. Those
+## captions are gone; `_build_stat_cell()` now builds a plain `UiTheme.ROW`
+## panel per stat, all three `STAT_CELL_MIN_WIDTH` wide so the grid stays
+## even, holding only the (unchanged) value Label, which centres itself
+## via its own `horizontal_alignment`.
 
 signal settings_requested()
 
@@ -57,6 +84,23 @@ var _cause_label: Label
 var _wave_label: Label
 var _scrap_label: Label
 var _time_label: Label
+var _frame: MenuFrame.Parts
+var _outcome_glyph: OutcomeGlyph
+var _wave_cell: PanelContainer ## the Wave stat cell; kept in sync with _wave_label's own visibility (UI pass) -- see show_summary(). A cell with no visible child sizes to ~0 in the grid rather than leaving an empty panel.
+
+## Round 2 (LEDGER UR-14): 220 was measured too tight for the widest cell.
+## "Time survived: 0:03" (the shortest, most common time reading) alone
+## measured 221 px against the real UiTheme.VALUE font (`Font.get_string_size`,
+## checked directly for this pass) -- already past the ~212 px a 220 px cell
+## left after its own UiTheme.ROW content margins, which is exactly why it
+## wrapped to two lines while "Scrap held: 150" (177 px) fit on one, so the
+## two cells' baselines did not line up. 320 clears every plausible value
+## checked the same way ("Time survived: 99:59" 236 px, "Wave reached: 8/8"
+## 218 px, "Scrap held: 200" 181 px) with headroom left for the outline
+## stroke and for pseudo-localization inflating the tr()'d prefix word
+## (F2, docs/19: strings render roughly 30% longer, bracket-wrapped) --
+## verified against the capture tool's --pseudo set, see the package report.
+const STAT_CELL_MIN_WIDTH: float = 320.0 ## TODO(ui-pass): promote to UiPalette as a shared stat-grid cell width token
 
 
 func _ready() -> void:
@@ -89,10 +133,32 @@ func show_summary(summary: Dictionary) -> void:
 	var seconds: float = float(summary.get("time_survived_seconds", 0.0))
 	_time_label.text = "%s: %s" % [tr("RUN_END_TIME_SURVIVED"), _format_time(seconds)]
 
+	_wave_cell.visible = _wave_label.visible # the wrapping cell (UI pass) tracks the SAME visibility flag, never a second decision -- an invisible child alone would leave an empty panel showing
+	_apply_outcome_style(cause_text.is_empty())
 
+
+## Colours and marks the outcome title from the SAME data `show_summary()`
+## already received above -- never a second source of truth (task brief,
+## item 3: "derive the outcome only from data show_summary() already
+## receives"). A defeat (player death or the Tower destroyed) always sets
+## a cause line (class header, "The death cause or the final wave
+## reached"); a victory (the wave sequence completed with nobody dead)
+## never does -- so `cause_text`'s emptiness alone already IS the outcome.
+func _apply_outcome_style(is_victory: bool) -> void:
+	_title_label.add_theme_color_override("font_color", UiPalette.SUCCESS if is_victory else UiPalette.DANGER)
+	_outcome_glyph.set_defeat(not is_victory)
+
+
+## The card's own fade/scale-in (UI pass) is purely cosmetic and runs
+## AFTER these two lines, never before or instead of them -- input
+## activation is never delayed by it (rule 6).
 func set_active(active: bool) -> void:
 	visible = active
 	_bar.set_active(active)
+	if active:
+		MenuFrame.animate_in(_frame)
+	else:
+		MenuFrame.reset_motion(_frame)
 
 
 func is_active_for_test() -> bool:
@@ -132,69 +198,102 @@ static func _format_time(total_seconds: float) -> String:
 
 
 func _build_ui() -> void:
-	_root = Control.new()
-	_root.name = "Root"
-	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_root)
+	UiStrings.ensure_registered() # UI pass round 2, UR-08: explicit here, not only reached as UiTheme.get_theme()'s side effect.
+	# 0.75 is deeper than the Draft's 60%: the run is over, not merely
+	# paused mid-play -- named as an interpretation, not a Register-restated
+	# figure. UiTheme.vbox("L") (UiPalette.SPACE_L, 16) is an exact match
+	# for this file's own former literal separation (16); no value change
+	# here.
+	_frame = MenuFrame.build(self, 0.75, "L")
+	_root = _frame.root
 
-	var dim := ColorRect.new()
-	dim.name = "Dim"
-	dim.color = Color(0.0, 0.0, 0.0, 0.75) # deeper than the Draft's 60%: the run is over, not merely paused mid-play -- named as an interpretation, not a Register-restated figure
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(dim)
+	var title_row := HBoxContainer.new()
+	title_row.name = "TitleRow"
+	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	title_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.theme_type_variation = UiTheme.hbox("M")
+	_frame.column.add_child(title_row)
 
-	var center := CenterContainer.new()
-	center.name = "Center"
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_PASS
-	_root.add_child(center)
+	_outcome_glyph = OutcomeGlyph.new()
+	_outcome_glyph.name = "OutcomeGlyph"
+	_outcome_glyph.custom_minimum_size = Vector2(48.0, 48.0)
+	title_row.add_child(_outcome_glyph)
 
-	var column := VBoxContainer.new()
-	column.name = "Column"
-	column.mouse_filter = Control.MOUSE_FILTER_PASS
-	column.add_theme_constant_override("separation", 16)
-	center.add_child(column)
+	_title_label = MenuFrame.build_title(title_row, tr("RUN_END_TITLE"), UiTheme.TITLE, 320.0)
+	MenuFrame.build_separator(_frame.column)
 
-	_title_label = Label.new()
-	_title_label.name = "Title"
-	_title_label.text = tr("RUN_END_TITLE")
-	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_title_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_title_label.custom_minimum_size = Vector2(400, 0)
-	column.add_child(_title_label)
+	_cause_label = _make_field_label("CauseLabel", 400.0)
+	_cause_label.theme_type_variation = UiTheme.DIM
+	_frame.column.add_child(_cause_label)
 
-	_cause_label = _make_field_label("CauseLabel")
-	column.add_child(_cause_label)
-	_wave_label = _make_field_label("WaveLabel")
-	column.add_child(_wave_label)
-	_scrap_label = _make_field_label("ScrapLabel")
-	column.add_child(_scrap_label)
-	_time_label = _make_field_label("TimeLabel")
-	column.add_child(_time_label)
+	var grid := HBoxContainer.new()
+	grid.name = "StatGrid"
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.theme_type_variation = UiTheme.hbox("L")
+	_frame.column.add_child(grid)
+
+	# Follow-up (coordinator review): the sibling captions an earlier
+	# version of this pass added here were removed -- each existing value
+	# Label already carries its own caption baked into its text
+	# ("Scrap held: 180"; that FORMAT is untouched, see show_summary()), so
+	# a second, standalone "Scrap" caption above it just repeated the same
+	# word. Each cell is now a UiTheme.ROW panel holding only the value
+	# Label, centred, all three the same width so the grid reads even.
+	_wave_cell = _build_stat_cell(grid, "Wave")
+	_wave_label = _make_field_label("WaveLabel", STAT_CELL_MIN_WIDTH)
+	_wave_label.theme_type_variation = UiTheme.VALUE
+	_wave_cell.add_child(_wave_label)
+
+	var scrap_cell: PanelContainer = _build_stat_cell(grid, "Scrap")
+	_scrap_label = _make_field_label("ScrapLabel", STAT_CELL_MIN_WIDTH)
+	_scrap_label.theme_type_variation = UiTheme.VALUE
+	scrap_cell.add_child(_scrap_label)
+
+	var time_cell: PanelContainer = _build_stat_cell(grid, "Time")
+	_time_label = _make_field_label("TimeLabel", STAT_CELL_MIN_WIDTH)
+	_time_label.theme_type_variation = UiTheme.VALUE
+	time_cell.add_child(_time_label)
 
 	_bar = PausedChoiceBar.new()
 	_bar.name = "ChoiceBar"
 	_bar.set_options([tr("RUN_END_SETTINGS")])
 	_bar.option_confirmed.connect(_on_option_confirmed)
-	column.add_child(_bar)
+	_frame.column.add_child(_bar)
+	MenuFrame.style_choice_labels(_bar)
+
+	var hold_footer: VBoxContainer = MenuFrame.build_hold_footer(_frame.column)
+	MenuFrame.build_highlight_row(hold_footer, _bar)
 
 	_fill_ring = DraftFillRing.new()
 	_fill_ring.name = "HoldRing"
 	_fill_ring.custom_minimum_size = Vector2(48, 48)
-	column.add_child(_fill_ring)
+	MenuFrame.style_fill_ring(_fill_ring)
+	hold_footer.add_child(_fill_ring)
 	_bar.set_fill_ring(_fill_ring)
 
 
-func _make_field_label(node_name: String) -> Label:
+## One stat-grid cell: a `UiTheme.ROW` `PanelContainer` slot named
+## `"%sCell" % node_prefix`, added to `grid`, consistent width
+## (`STAT_CELL_MIN_WIDTH`) so the grid reads even. The caller adds the
+## VALUE-styled field label into it afterward (still built by
+## `_make_field_label()`, unchanged) -- the panel centres it via that
+## label's own `horizontal_alignment`.
+func _build_stat_cell(grid: HBoxContainer, node_prefix: String) -> PanelContainer:
+	var cell := PanelContainer.new()
+	cell.name = "%sCell" % node_prefix
+	cell.theme_type_variation = UiTheme.ROW
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cell.custom_minimum_size = Vector2(STAT_CELL_MIN_WIDTH, 0.0)
+	grid.add_child(cell)
+	return cell
+
+
+func _make_field_label(node_name: String, min_width: float = 400.0) -> Label:
 	var lbl := Label.new()
 	lbl.name = node_name
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lbl.custom_minimum_size = Vector2(400, 0)
+	lbl.custom_minimum_size = Vector2(min_width, 0)
 	return lbl

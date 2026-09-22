@@ -1,0 +1,1380 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites id="2026-09-20" name="report_1" tests="588" failures="2" skipped="0" flaky="0" time="0.000">
+	<testsuite id="0" name="test_trivial_fail" package="tests/harness/fail" timestamp="2026-09-20T07:37:33" hostname="localhost" tests="1" failures="1" errors="0" skipped="0" flaky="0" time="0.054">
+		<testcase name="test_false_condition_fails" classname="test_trivial_fail" time="0.020">
+			<failure message="FAILED: res://tests/harness/fail/test_trivial_fail.gd:12" type="FAILURE">
+<![CDATA[
+Expecting: 'false' but is 'true'
+	at 'test_false_condition_fails' in res://tests/harness/fail/test_trivial_fail.gd:12
+]]>
+			</failure>
+		</testcase>
+	</testsuite>
+	<testsuite id="1" name="test_trivial_pass" package="tests/harness/pass" timestamp="2026-09-20T07:37:33" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" flaky="0" time="0.043">
+		<testcase name="test_true_condition_passes" classname="test_trivial_pass" time="0.018">
+		</testcase>
+	</testsuite>
+	<testsuite id="2" name="arena_scene_test" package="tests/unit" timestamp="2026-09-20T07:37:33" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.174">
+		<testcase name="test_floor_covers_exactly_the_registers_arena_size" classname="arena_scene_test" time="0.027">
+		</testcase>
+		<testcase name="test_arena_bounds_body_is_on_the_arenabounds_layer_with_no_mask" classname="arena_scene_test" time="0.029">
+		</testcase>
+		<testcase name="test_arena_bounds_has_exactly_four_wall_shapes_and_no_interior_obstacles" classname="arena_scene_test" time="0.029">
+		</testcase>
+		<testcase name="test_walls_fully_enclose_the_registers_arena_rectangle_with_no_gap" classname="arena_scene_test" time="0.025">
+		</testcase>
+	</testsuite>
+	<testsuite id="3" name="attack_slot_manager_test" package="tests/unit" timestamp="2026-09-20T07:37:33" hostname="localhost" tests="7" failures="0" errors="0" skipped="0" flaky="0" time="0.227">
+		<testcase name="test_slot_count_matches_the_registers_tower_seeker_worked_example" classname="attack_slot_manager_test" time="0.014">
+		</testcase>
+		<testcase name="test_slot_count_matches_the_registers_player_hunter_worked_example" classname="attack_slot_manager_test" time="0.018">
+		</testcase>
+		<testcase name="test_ring_radius_is_the_sum_the_formula_itself_uses" classname="attack_slot_manager_test" time="0.014">
+		</testcase>
+		<testcase name="test_claims_distinct_slots_for_distinct_claimants_and_reuses_none" classname="attack_slot_manager_test" time="0.018">
+		</testcase>
+		<testcase name="test_a_full_ring_refuses_a_new_claim" classname="attack_slot_manager_test" time="0.017">
+		</testcase>
+		<testcase name="test_releasing_a_claim_frees_it_for_another_claimant" classname="attack_slot_manager_test" time="0.019">
+		</testcase>
+		<testcase name="test_a_freed_claimant_instance_is_reaped_and_its_slot_becomes_available" classname="attack_slot_manager_test" time="0.018">
+		</testcase>
+	</testsuite>
+	<testsuite id="4" name="test_audio_ducking" package="tests/unit/audio" timestamp="2026-09-20T07:37:33" hostname="localhost" tests="10" failures="0" errors="0" skipped="0" flaky="0" time="0.322">
+		<testcase name="test_idle_state_is_fully_unducked" classname="test_audio_ducking" time="0.017">
+		</testcase>
+		<testcase name="test_attack_reaches_full_duck_in_50ms" classname="test_audio_ducking" time="0.016">
+		</testcase>
+		<testcase name="test_attack_partway_is_proportional" classname="test_audio_ducking" time="0.013">
+		</testcase>
+		<testcase name="test_release_returns_to_baseline_in_300ms" classname="test_audio_ducking" time="0.020">
+		</testcase>
+		<testcase name="test_release_partway_is_proportional" classname="test_audio_ducking" time="0.020">
+		</testcase>
+		<testcase name="test_music_floor_clamps_when_base_is_already_near_floor" classname="test_audio_ducking" time="0.017">
+		</testcase>
+		<testcase name="test_active_priority_count_does_not_go_negative" classname="test_audio_ducking" time="0.014">
+		</testcase>
+		<testcase name="test_second_overlapping_priority_sound_keeps_it_ducked" classname="test_audio_ducking" time="0.029">
+		</testcase>
+		<testcase name="test_re_trigger_during_release_ramps_back_toward_ducked" classname="test_audio_ducking" time="0.020">
+		</testcase>
+		<testcase name="test_process_mode_is_always" classname="test_audio_ducking" time="0.016">
+		</testcase>
+	</testsuite>
+	<testsuite id="5" name="test_audio_pool" package="tests/unit/audio" timestamp="2026-09-20T07:37:34" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.309">
+		<testcase name="test_pool_has_32_voices_all_initially_free" classname="test_audio_pool" time="0.024">
+		</testcase>
+		<testcase name="test_free_voices_are_used_before_anything_is_stolen" classname="test_audio_pool" time="0.022">
+		</testcase>
+		<testcase name="test_general_steal_picks_lowest_priority_voice_first" classname="test_audio_pool" time="0.022">
+		</testcase>
+		<testcase name="test_general_steal_tie_is_broken_by_oldest" classname="test_audio_pool" time="0.020">
+		</testcase>
+		<testcase name="test_priority_cap_never_exceeds_8" classname="test_audio_pool" time="0.026">
+		</testcase>
+		<testcase name="test_priority_cap_steals_oldest_priority_voice_not_lowest_priority" classname="test_audio_pool" time="0.021">
+		</testcase>
+		<testcase name="test_released_voice_no_longer_counts_as_active_priority" classname="test_audio_pool" time="0.014">
+		</testcase>
+		<testcase name="test_priority_cue_steals_voice_and_remains_audible_5_of_5" classname="test_audio_pool" time="0.030">
+		</testcase>
+	</testsuite>
+	<testsuite id="6" name="test_bus_layout" package="tests/unit/audio" timestamp="2026-09-20T07:37:34" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.268">
+		<testcase name="test_default_bus_layout_setting_points_at_the_project_root_resource" classname="test_bus_layout" time="0.025">
+		</testcase>
+		<testcase name="test_seven_buses_exist_with_the_expected_names" classname="test_bus_layout" time="0.017">
+		</testcase>
+		<testcase name="test_master_is_bus_zero" classname="test_bus_layout" time="0.026">
+		</testcase>
+		<testcase name="test_music_sfx_sfx_priority_ui_ambience_send_to_master" classname="test_bus_layout" time="0.013">
+		</testcase>
+		<testcase name="test_tower_cue_sends_to_sfx_priority_not_master" classname="test_bus_layout" time="0.018">
+		</testcase>
+		<testcase name="test_tower_cue_carries_an_audio_effect_panner" classname="test_bus_layout" time="0.017">
+		</testcase>
+		<testcase name="test_no_other_bus_carries_an_effect" classname="test_bus_layout" time="0.022">
+		</testcase>
+		<testcase name="test_sfx_priority_bus_never_ducks_meaning_it_is_not_a_ducking_target" classname="test_bus_layout" time="0.018">
+		</testcase>
+	</testsuite>
+	<testsuite id="7" name="test_cue_retrigger_limiter" package="tests/unit/audio" timestamp="2026-09-20T07:37:34" hostname="localhost" tests="9" failures="0" errors="0" skipped="0" flaky="0" time="0.277">
+		<testcase name="test_first_trigger_always_succeeds" classname="test_cue_retrigger_limiter" time="0.016">
+		</testcase>
+		<testcase name="test_retrigger_before_limit_is_blocked" classname="test_cue_retrigger_limiter" time="0.018">
+		</testcase>
+		<testcase name="test_retrigger_at_exactly_the_limit_succeeds" classname="test_cue_retrigger_limiter" time="0.020">
+		</testcase>
+		<testcase name="test_retrigger_after_limit_succeeds" classname="test_cue_retrigger_limiter" time="0.025">
+		</testcase>
+		<testcase name="test_blocked_trigger_does_not_reset_the_window" classname="test_cue_retrigger_limiter" time="0.015">
+		</testcase>
+		<testcase name="test_different_cue_ids_are_independent" classname="test_cue_retrigger_limiter" time="0.014">
+		</testcase>
+		<testcase name="test_player_damage_and_tower_damage_keep_their_own_register_values" classname="test_cue_retrigger_limiter" time="0.018">
+		</testcase>
+		<testcase name="test_reset_clears_a_single_cue" classname="test_cue_retrigger_limiter" time="0.015">
+		</testcase>
+		<testcase name="test_time_since_last_trigger_reports_minus_one_before_any_trigger" classname="test_cue_retrigger_limiter" time="0.013">
+		</testcase>
+	</testsuite>
+	<testsuite id="8" name="test_tower_cue_player" package="tests/unit/audio" timestamp="2026-09-20T07:37:35" hostname="localhost" tests="9" failures="0" errors="0" skipped="0" flaky="0" time="0.318">
+		<testcase name="test_bus_is_towercue" classname="test_tower_cue_player" time="0.023">
+		</testcase>
+		<testcase name="test_pan_formula_center" classname="test_tower_cue_player" time="0.021">
+		</testcase>
+		<testcase name="test_pan_formula_tower_to_the_right" classname="test_tower_cue_player" time="0.017">
+		</testcase>
+		<testcase name="test_pan_formula_clamps_to_positive_one" classname="test_tower_cue_player" time="0.026">
+		</testcase>
+		<testcase name="test_pan_formula_clamps_to_negative_one" classname="test_tower_cue_player" time="0.020">
+		</testcase>
+		<testcase name="test_first_tower_damage_play_succeeds" classname="test_tower_cue_player" time="0.023">
+		</testcase>
+		<testcase name="test_retrigger_within_250ms_is_blocked" classname="test_tower_cue_player" time="0.019">
+		</testcase>
+		<testcase name="test_retrigger_after_250ms_succeeds" classname="test_tower_cue_player" time="0.019">
+		</testcase>
+		<testcase name="test_apply_pan_sets_the_towercue_bus_panner_when_bus_exists" classname="test_tower_cue_player" time="0.018">
+		</testcase>
+	</testsuite>
+	<testsuite id="9" name="camera_bounds_test" package="tests/unit" timestamp="2026-09-20T07:37:35" hostname="localhost" tests="6" failures="0" errors="0" skipped="0" flaky="0" time="0.221">
+		<testcase name="test_visible_rect_stays_within_arena_bounds_across_the_full_view_scale_range" classname="camera_bounds_test" time="0.025">
+		</testcase>
+		<testcase name="test_camera_centred_at_arena_centre_stays_within_bounds" classname="camera_bounds_test" time="0.018">
+		</testcase>
+		<testcase name="test_visible_rect_respects_a_non_zero_arena_center" classname="camera_bounds_test" time="0.020">
+		</testcase>
+		<testcase name="test_view_scale_is_clamped_to_the_register_range" classname="camera_bounds_test" time="0.027">
+		</testcase>
+		<testcase name="test_max_trauma_shake_never_pushes_the_visible_rect_past_arena_bounds" classname="camera_bounds_test" time="0.027">
+		</testcase>
+		<testcase name="test_view_wider_than_arena_on_an_axis_centres_rather_than_errors" classname="camera_bounds_test" time="0.015">
+		</testcase>
+	</testsuite>
+	<testsuite id="10" name="combat_stats_test" package="tests/unit" timestamp="2026-09-20T07:37:35" hostname="localhost" tests="10" failures="0" errors="0" skipped="0" flaky="0" time="0.334">
+		<testcase name="test_process_mode_is_pausable" classname="combat_stats_test" time="0.015">
+		</testcase>
+		<testcase name="test_sheet_dps_is_damage_over_interval" classname="combat_stats_test" time="0.016">
+		</testcase>
+		<testcase name="test_sheet_dps_guards_against_division_by_zero" classname="combat_stats_test" time="0.017">
+		</testcase>
+		<testcase name="test_sheet_dps_from_attack_profile_reads_the_shared_struct" classname="combat_stats_test" time="0.017">
+		</testcase>
+		<testcase name="test_sheet_dps_from_attack_profile_handles_null" classname="combat_stats_test" time="0.019">
+		</testcase>
+		<testcase name="test_sheet_dps_from_weapon_reads_damage_band_and_engagement_rhythm" classname="combat_stats_test" time="0.022">
+		</testcase>
+		<testcase name="test_sheet_dps_from_weapon_handles_missing_substructs" classname="combat_stats_test" time="0.015">
+		</testcase>
+		<testcase name="test_report_and_get_sheet_dps_round_trips_per_subject" classname="combat_stats_test" time="0.014">
+		</testcase>
+		<testcase name="test_report_sheet_dps_refuses_negative_values" classname="combat_stats_test" time="0.017">
+		</testcase>
+		<testcase name="test_get_sheet_dps_defaults_to_zero_for_unreported_subject" classname="combat_stats_test" time="0.028">
+		</testcase>
+	</testsuite>
+	<testsuite id="11" name="console_interaction_window_test" package="tests/unit" timestamp="2026-09-20T07:37:35" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" flaky="0" time="0.072">
+		<testcase name="test_opening_the_console_while_taking_damage_results_in_measurable_damage_and_never_closes" classname="console_interaction_window_test" time="0.035">
+		</testcase>
+	</testsuite>
+	<testsuite id="12" name="console_non_pause_test" package="tests/unit" timestamp="2026-09-20T07:37:36" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" flaky="0" time="1.561">
+		<testcase name="test_console_open_and_purchase_never_pauses_the_tree_and_enemies_keep_moving" classname="console_non_pause_test" time="1.532">
+		</testcase>
+	</testsuite>
+	<testsuite id="13" name="console_rules_test" package="tests/unit" timestamp="2026-09-20T07:37:37" hostname="localhost" tests="16" failures="0" errors="0" skipped="0" flaky="0" time="0.676">
+		<testcase name="test_console_does_not_open_before_0_3_second_dwell" classname="console_rules_test" time="0.031">
+		</testcase>
+		<testcase name="test_console_does_not_open_if_player_speed_is_at_or_above_10_percent_base" classname="console_rules_test" time="0.021">
+		</testcase>
+		<testcase name="test_repair_at_zero_scrap_does_not_open_the_console_even_when_tower_is_damaged" classname="console_rules_test" time="0.034">
+		</testcase>
+		<testcase name="test_repair_becomes_affordable_and_opens_the_console_once_scrap_is_held" classname="console_rules_test" time="0.025">
+		</testcase>
+		<testcase name="test_repair_entry_stays_greyed_while_console_is_open_for_another_reason" classname="console_rules_test" time="0.026">
+		</testcase>
+		<testcase name="test_console_closes_when_player_leaves_the_radius" classname="console_rules_test" time="0.023">
+		</testcase>
+		<testcase name="test_cancel_closes_the_console_and_blocks_reopening_until_leave_and_reenter" classname="console_rules_test" time="0.027">
+		</testcase>
+		<testcase name="test_console_closes_on_player_death" classname="console_rules_test" time="0.022">
+		</testcase>
+		<testcase name="test_draft_pause_reason_closes_the_console_without_requiring_reentry" classname="console_rules_test" time="0.024">
+		</testcase>
+		<testcase name="test_console_hidden_while_a_non_draft_pause_reason_is_active_but_stays_open_underneath" classname="console_rules_test" time="0.024">
+		</testcase>
+		<testcase name="test_purchase_channel_completes_and_charges_scrap_exactly_once" classname="console_rules_test" time="0.022">
+		</testcase>
+		<testcase name="test_purchase_channel_cancels_without_charge_above_10_percent_speed" classname="console_rules_test" time="0.026">
+		</testcase>
+		<testcase name="test_sector_purchase_after_1_second_dwell_and_then_rearm_rule" classname="console_rules_test" time="0.028">
+		</testcase>
+		<testcase name="test_placement_puts_the_panels_nearest_edge_exactly_200px_from_the_tower_along_the_opposite_bearing" classname="console_rules_test" time="0.026">
+		</testcase>
+		<testcase name="test_placement_does_not_flip_side_until_a_30_degree_bearing_change" classname="console_rules_test" time="0.032">
+		</testcase>
+		<testcase name="test_placement_scale_follows_camera_view_scale_to_keep_entry_text_at_least_24px_tall" classname="console_rules_test" time="0.038">
+		</testcase>
+	</testsuite>
+	<testsuite id="14" name="console_ui_scaling_test" package="tests/unit" timestamp="2026-09-20T07:37:38" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" flaky="0" time="0.445">
+		<testcase name="test_console_entries_survive_pseudolocalizations_30_percent_expansion_without_truncating" classname="console_ui_scaling_test" time="0.414">
+		</testcase>
+	</testsuite>
+	<testsuite id="15" name="death_state_player_died_test" package="tests/unit" timestamp="2026-09-20T07:37:38" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.148">
+		<testcase name="test_player_tagged_entity_emits_player_died_and_not_enemy_died" classname="death_state_player_died_test" time="0.022">
+		</testcase>
+		<testcase name="test_player_died_carries_the_same_shape_as_enemy_died" classname="death_state_player_died_test" time="0.017">
+		</testcase>
+		<testcase name="test_enemy_tagged_entity_still_emits_enemy_died_and_not_player_died" classname="death_state_player_died_test" time="0.017">
+		</testcase>
+		<testcase name="test_unregistered_entity_still_emits_enemy_died_and_not_player_died" classname="death_state_player_died_test" time="0.015">
+		</testcase>
+	</testsuite>
+	<testsuite id="16" name="death_state_test" package="tests/unit" timestamp="2026-09-20T07:37:38" hostname="localhost" tests="13" failures="0" errors="0" skipped="0" flaky="0" time="0.455">
+		<testcase name="test_apply_damage_reduces_hp_without_killing_above_zero" classname="death_state_test" time="0.017">
+		</testcase>
+		<testcase name="test_apply_damage_at_or_below_zero_hp_triggers_logical_death" classname="death_state_test" time="0.021">
+		</testcase>
+		<testcase name="test_apply_damage_is_discarded_once_already_dead" classname="death_state_test" time="0.014">
+		</testcase>
+		<testcase name="test_apply_damage_ignores_non_positive_amounts" classname="death_state_test" time="0.021">
+		</testcase>
+		<testcase name="test_logical_death_deactivates_every_hitbox_synchronously_and_deferred" classname="death_state_test" time="0.021">
+		</testcase>
+		<testcase name="test_logical_death_clears_hurtbox_monitorable_and_layer_deferred" classname="death_state_test" time="0.022">
+		</testcase>
+		<testcase name="test_logical_death_clears_body_layer_and_restricts_mask_to_world_and_arena_bounds_deferred" classname="death_state_test" time="0.016">
+		</testcase>
+		<testcase name="test_logical_death_marks_the_registered_entity_not_alive" classname="death_state_test" time="0.027">
+		</testcase>
+		<testcase name="test_logical_death_does_not_touch_the_registry_for_an_unregistered_entity" classname="death_state_test" time="0.020">
+		</testcase>
+		<testcase name="test_logical_death_emits_event_bus_enemy_died_with_sim_time" classname="death_state_test" time="0.020">
+		</testcase>
+		<testcase name="test_logical_death_signal_fires_with_entity_and_position" classname="death_state_test" time="0.030">
+		</testcase>
+		<testcase name="test_visual_death_finished_fires_only_after_the_configured_duration_of_sim_time" classname="death_state_test" time="0.023">
+		</testcase>
+		<testcase name="test_reset_for_reuse_clears_is_dead_and_restores_hp_and_child_flags" classname="death_state_test" time="0.021">
+		</testcase>
+	</testsuite>
+	<testsuite id="17" name="debug_overlay_test" package="tests/unit" timestamp="2026-09-20T07:37:39" hostname="localhost" tests="6" failures="0" errors="0" skipped="0" flaky="0" time="0.223">
+		<testcase name="test_process_mode_is_always" classname="debug_overlay_test" time="0.020">
+		</testcase>
+		<testcase name="test_every_docs20_field_appears_in_the_rendered_text" classname="debug_overlay_test" time="0.023">
+		</testcase>
+		<testcase name="test_unset_gameplay_fields_show_the_unset_label_not_a_fabricated_value" classname="debug_overlay_test" time="0.014">
+		</testcase>
+		<testcase name="test_injected_gameplay_state_is_displayed_once_set" classname="debug_overlay_test" time="0.024">
+		</testcase>
+		<testcase name="test_f1_toggles_overlay_visibility" classname="debug_overlay_test" time="0.015">
+		</testcase>
+		<testcase name="test_f2_toggles_pseudolocalization_and_sets_the_registered_expansion_ratio" classname="debug_overlay_test" time="0.020">
+		</testcase>
+	</testsuite>
+	<testsuite id="18" name="draft_determinism_test" package="tests/unit" timestamp="2026-09-20T07:37:39" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" flaky="0" time="0.292">
+		<testcase name="test_same_run_seed_reproduces_identical_offers_10_of_10" classname="draft_determinism_test" time="0.200">
+		</testcase>
+		<testcase name="test_a_different_run_seed_changes_at_least_one_offer" classname="draft_determinism_test" time="0.050">
+		</testcase>
+	</testsuite>
+	<testsuite id="19" name="draft_input_lockout_test" package="tests/unit" timestamp="2026-09-20T07:37:39" hostname="localhost" tests="11" failures="0" errors="0" skipped="0" flaky="0" time="0.484">
+		<testcase name="test_confirm_is_ignored_during_the_0_4_second_lockout" classname="draft_input_lockout_test" time="0.022">
+		</testcase>
+		<testcase name="test_confirm_works_immediately_once_the_lockout_elapses" classname="draft_input_lockout_test" time="0.026">
+		</testcase>
+		<testcase name="test_hold_up_already_held_at_open_does_not_arm_after_lockout" classname="draft_input_lockout_test" time="0.024">
+		</testcase>
+		<testcase name="test_hold_up_arms_after_one_full_release_then_confirms_on_a_fresh_hold" classname="draft_input_lockout_test" time="0.022">
+		</testcase>
+		<testcase name="test_hold_ring_fills_proportionally_and_resets_on_early_release" classname="draft_input_lockout_test" time="0.029">
+		</testcase>
+		<testcase name="test_cycle_moves_one_step_per_press_and_repeats_every_0_3_seconds" classname="draft_input_lockout_test" time="0.039">
+		</testcase>
+		<testcase name="test_cycle_wraps_at_both_ends" classname="draft_input_lockout_test" time="0.032">
+		</testcase>
+		<testcase name="test_movement_only_keys_also_cycle_with_the_same_rule" classname="draft_input_lockout_test" time="0.026">
+		</testcase>
+		<testcase name="test_dim_background_covers_the_full_1920x1080_viewport" classname="draft_input_lockout_test" time="0.035">
+		</testcase>
+		<testcase name="test_card_views_render_on_screen_within_the_1920x1080_viewport" classname="draft_input_lockout_test" time="0.039">
+		</testcase>
+		<testcase name="test_card_differentiation_is_never_colour_alone" classname="draft_input_lockout_test" time="0.030">
+		</testcase>
+	</testsuite>
+	<testsuite id="20" name="draft_queue_test" package="tests/unit" timestamp="2026-09-20T07:37:40" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.219">
+		<testcase name="test_two_simultaneous_level_ups_queue_two_drafts_not_one" classname="draft_queue_test" time="0.026">
+		</testcase>
+		<testcase name="test_no_draft_is_dropped_across_the_whole_sequential_queue" classname="draft_queue_test" time="0.045">
+		</testcase>
+		<testcase name="test_each_queued_draft_offers_the_one_of_each_guarantee" classname="draft_queue_test" time="0.035">
+		</testcase>
+		<testcase name="test_pause_reason_stays_active_until_the_whole_queue_drains" classname="draft_queue_test" time="0.040">
+		</testcase>
+	</testsuite>
+	<testsuite id="21" name="drop_table_test" package="tests/unit" timestamp="2026-09-20T07:37:40" hostname="localhost" tests="6" failures="0" errors="0" skipped="0" flaky="0" time="0.253">
+		<testcase name="test_standard_enemy_death_drops_one_xp_and_one_scrap" classname="drop_table_test" time="0.026">
+		</testcase>
+		<testcase name="test_a_kill_with_zero_scrap_in_its_drop_table_spawns_no_scrap_pickup" classname="drop_table_test" time="0.029">
+		</testcase>
+		<testcase name="test_finisher_flag_suppresses_scrap_even_though_its_definition_authors_some" classname="drop_table_test" time="0.029">
+		</testcase>
+		<testcase name="test_stuck_despawned_enemy_still_drops_via_the_real_removed_while_stuck_signal" classname="drop_table_test" time="0.016">
+		</testcase>
+		<testcase name="test_a_null_drop_table_from_removed_while_stuck_drops_nothing" classname="drop_table_test" time="0.017">
+		</testcase>
+		<testcase name="test_a_drop_inside_terrain_is_placed_at_the_nearest_open_point" classname="drop_table_test" time="0.024">
+		</testcase>
+	</testsuite>
+	<testsuite id="22" name="encounter_alive_cap_test" package="tests/unit" timestamp="2026-09-20T07:37:40" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" flaky="0" time="0.090">
+		<testcase name="test_an_ordinary_spawn_group_is_throttled_by_the_encounters_own_alive_cap" classname="encounter_alive_cap_test" time="0.023">
+		</testcase>
+		<testcase name="test_the_alive_cap_counts_every_living_enemy_not_only_this_encounters_own" classname="encounter_alive_cap_test" time="0.018">
+		</testcase>
+	</testsuite>
+	<testsuite id="23" name="encounter_deferral_test" package="tests/unit" timestamp="2026-09-20T07:37:41" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" flaky="0" time="0.241">
+		<testcase name="test_simclock_is_frozen_for_the_whole_time_the_draft_is_open" classname="encounter_deferral_test" time="0.087">
+		</testcase>
+		<testcase name="test_notify_draft_closed_receives_the_close_instant_exactly_once" classname="encounter_deferral_test" time="0.056">
+		</testcase>
+		<testcase name="test_notify_draft_closed_is_not_called_until_the_whole_two_draft_queue_drains" classname="encounter_deferral_test" time="0.039">
+		</testcase>
+	</testsuite>
+	<testsuite id="24" name="encounter_recovery_test" package="tests/unit" timestamp="2026-09-20T07:37:41" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" flaky="0" time="0.116">
+		<testcase name="test_ten_of_ten_scripted_double_schedules_open_by_priority_and_defer_by_recovery_gap" classname="encounter_recovery_test" time="0.043">
+		</testcase>
+		<testcase name="test_a_genuinely_final_wave_defers_to_a_queued_encounter_instead_of_ending_early" classname="encounter_recovery_test" time="0.017">
+		</testcase>
+	</testsuite>
+	<testsuite id="25" name="enemy_tag_registration_test" package="tests/unit" timestamp="2026-09-20T07:37:41" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.182">
+		<testcase name="test_tower_seeker_registers_under_both_enemy_and_tower_seeker_tags" classname="enemy_tag_registration_test" time="0.023">
+		</testcase>
+		<testcase name="test_player_hunter_registers_under_enemy_only" classname="enemy_tag_registration_test" time="0.022">
+		</testcase>
+		<testcase name="test_opportunist_registers_under_enemy_only" classname="enemy_tag_registration_test" time="0.024">
+		</testcase>
+		<testcase name="test_a_real_tower_weapon_acquires_a_real_tower_seeker" classname="enemy_tag_registration_test" time="0.012">
+		</testcase>
+		<testcase name="test_a_hunter_that_converts_becomes_acquirable_by_the_real_tower_weapon" classname="enemy_tag_registration_test" time="0.025">
+		</testcase>
+	</testsuite>
+	<testsuite id="26" name="entity_cap_test" package="tests/unit" timestamp="2026-09-20T07:37:41" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.313">
+		<testcase name="test_enemy_cap_is_never_exceeded" classname="entity_cap_test" time="0.031">
+		</testcase>
+		<testcase name="test_pickup_cap_is_never_exceeded" classname="entity_cap_test" time="0.029">
+		</testcase>
+		<testcase name="test_projectile_cap_is_never_exceeded" classname="entity_cap_test" time="0.038">
+		</testcase>
+		<testcase name="test_damage_number_cap_is_never_exceeded" classname="entity_cap_test" time="0.025">
+		</testcase>
+		<testcase name="test_telegraph_cap_is_never_exceeded" classname="entity_cap_test" time="0.022">
+		</testcase>
+		<testcase name="test_high_intensity_vfx_cap_is_never_exceeded" classname="entity_cap_test" time="0.017">
+		</testcase>
+		<testcase name="test_spawn_enemy_registers_and_despawn_deregisters" classname="entity_cap_test" time="0.029">
+		</testcase>
+		<testcase name="test_damage_number_spawn_does_not_touch_entity_registry" classname="entity_cap_test" time="0.020">
+		</testcase>
+	</testsuite>
+	<testsuite id="27" name="entity_registry_query_perf_test" package="tests/unit" timestamp="2026-09-20T07:37:41" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" flaky="0" time="0.897">
+		<testcase name="test_uniform_distribution_meets_the_bound" classname="entity_registry_query_perf_test" time="0.144">
+		</testcase>
+		<testcase name="test_clustered_distribution_does_not_meet_the_bound" classname="entity_registry_query_perf_test" time="0.637">
+		</testcase>
+		<testcase name="test_wrong_set_guard_small_hand_checkable_scenario" classname="entity_registry_query_perf_test" time="0.042">
+		</testcase>
+	</testsuite>
+	<testsuite id="28" name="entity_registry_test" package="tests/unit" timestamp="2026-09-20T07:37:42" hostname="localhost" tests="15" failures="0" errors="0" skipped="0" flaky="0" time="0.734">
+		<testcase name="test_process_mode_is_pausable" classname="entity_registry_test" time="0.030">
+		</testcase>
+		<testcase name="test_register_refuses_null_and_duplicate" classname="entity_registry_test" time="0.028">
+		</testcase>
+		<testcase name="test_deregister_refuses_unknown_entity" classname="entity_registry_test" time="0.040">
+		</testcase>
+		<testcase name="test_update_position_refuses_unregistered_entity" classname="entity_registry_test" time="0.032">
+		</testcase>
+		<testcase name="test_set_entity_alive_refuses_unregistered_entity" classname="entity_registry_test" time="0.036">
+		</testcase>
+		<testcase name="test_radius_query_returns_exactly_the_entities_inside_the_circle" classname="entity_registry_test" time="0.034">
+		</testcase>
+		<testcase name="test_radius_query_excludes_dead_entities_by_default" classname="entity_registry_test" time="0.040">
+		</testcase>
+		<testcase name="test_radius_query_filters_by_tag" classname="entity_registry_test" time="0.036">
+		</testcase>
+		<testcase name="test_update_position_moves_entity_between_grid_cells" classname="entity_registry_test" time="0.024">
+		</testcase>
+		<testcase name="test_deregister_removes_entity_from_query_results" classname="entity_registry_test" time="0.018">
+		</testcase>
+		<testcase name="test_deregistered_slot_is_recycled_by_the_next_registration" classname="entity_registry_test" time="0.018">
+		</testcase>
+		<testcase name="test_get_live_enemy_count_matches_wave_completion_semantics" classname="entity_registry_test" time="0.018">
+		</testcase>
+		<testcase name="test_get_entities_with_tag_returns_only_live_matches" classname="entity_registry_test" time="0.032">
+		</testcase>
+		<testcase name="test_radius_query_with_zero_or_negative_radius_returns_empty" classname="entity_registry_test" time="0.019">
+		</testcase>
+		<testcase name="test_radius_query_works_across_multiple_grid_cells" classname="entity_registry_test" time="0.019">
+		</testcase>
+	</testsuite>
+	<testsuite id="29" name="entity_visual_test" package="tests/unit" timestamp="2026-09-20T07:37:43" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.186">
+		<testcase name="test_every_entity_scene_renders_at_least_one_texture" classname="entity_visual_test" time="0.024">
+		</testcase>
+		<testcase name="test_each_entity_texture_actually_resolves_to_image_data" classname="entity_visual_test" time="0.024">
+		</testcase>
+		<testcase name="test_the_three_enemies_use_the_silhouette_distinct_unit_art" classname="entity_visual_test" time="0.022">
+		</testcase>
+		<testcase name="test_rendered_art_is_not_smaller_than_the_collider_it_belongs_to" classname="entity_visual_test" time="0.035">
+		</testcase>
+	</testsuite>
+	<testsuite id="30" name="event_bus_test" package="tests/unit" timestamp="2026-09-20T07:37:43" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.177">
+		<testcase name="test_process_mode_is_always" classname="event_bus_test" time="0.014">
+		</testcase>
+		<testcase name="test_emit_enemy_died_carries_entity_position_and_sim_time" classname="event_bus_test" time="0.024">
+		</testcase>
+		<testcase name="test_emit_tower_damaged_carries_amount_and_resulting_pools" classname="event_bus_test" time="0.016">
+		</testcase>
+		<testcase name="test_emit_draft_opened_carries_sim_time" classname="event_bus_test" time="0.021">
+		</testcase>
+		<testcase name="test_signals_do_not_fire_without_an_explicit_emit_call" classname="event_bus_test" time="0.018">
+		</testcase>
+	</testsuite>
+	<testsuite id="31" name="focus_loss_test" package="tests/unit" timestamp="2026-09-20T07:37:43" hostname="localhost" tests="7" failures="0" errors="0" skipped="0" flaky="0" time="0.275">
+		<testcase name="test_focus_loss_pauses_immediately_via_push_reason_immediate" classname="focus_loss_test" time="0.019">
+		</testcase>
+		<testcase name="test_focus_regained_does_not_resume_on_its_own" classname="focus_loss_test" time="0.024">
+		</testcase>
+		<testcase name="test_regaining_focus_alone_does_not_resume" classname="focus_loss_test" time="0.023">
+		</testcase>
+		<testcase name="test_resume_requires_an_explicit_confirmation" classname="focus_loss_test" time="0.021">
+		</testcase>
+		<testcase name="test_controller_disconnect_opens_the_pause_menu_the_same_way" classname="focus_loss_test" time="0.018">
+		</testcase>
+		<testcase name="test_no_focus_pause_flag_disables_both_focus_loss_and_controller_disconnect" classname="focus_loss_test" time="0.020">
+		</testcase>
+		<testcase name="test_flag_parsing_recognizes_the_literal_flag_and_nothing_else" classname="focus_loss_test" time="0.033">
+		</testcase>
+	</testsuite>
+	<testsuite id="32" name="ghost_hit_test" package="tests/unit" timestamp="2026-09-20T07:37:44" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="10.568">
+		<testcase name="test_positive_control_hit_lands_when_attacker_is_not_killed" classname="ghost_hit_test" time="0.024">
+		</testcase>
+		<testcase name="test_100_mid_attack_kills_produce_zero_post_death_damage_events_fresh" classname="ghost_hit_test" time="4.986">
+		</testcase>
+		<testcase name="test_100_mid_attack_kills_produce_zero_post_death_damage_events_pooled" classname="ghost_hit_test" time="4.978">
+		</testcase>
+		<testcase name="test_10_same_tick_race_kills_produce_zero_ghost_hits" classname="ghost_hit_test" time="0.496">
+		</testcase>
+	</testsuite>
+	<testsuite id="33" name="guaranteed_first_draft_test" package="tests/unit" timestamp="2026-09-20T07:37:54" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" flaky="0" time="0.216">
+		<testcase name="test_first_draft_opens_at_t4_end_in_5_of_5_runs_regardless_of_xp" classname="guaranteed_first_draft_test" time="0.117">
+		</testcase>
+		<testcase name="test_first_draft_does_not_open_when_an_earlier_teaching_wave_ends" classname="guaranteed_first_draft_test" time="0.033">
+		</testcase>
+	</testsuite>
+	<testsuite id="34" name="hitbox_hurtbox_test" package="tests/unit" timestamp="2026-09-20T07:37:55" hostname="localhost" tests="15" failures="0" errors="0" skipped="0" flaky="0" time="0.704">
+		<testcase name="test_hitbox_applies_enemy_hitbox_layer_and_player_only_mask_by_default" classname="hitbox_hurtbox_test" time="0.026">
+		</testcase>
+		<testcase name="test_hitbox_extends_mask_to_tower_hurtbox_when_targeting_the_tower" classname="hitbox_hurtbox_test" time="0.031">
+		</testcase>
+		<testcase name="test_hurtbox_layer_matches_faction_and_mask_is_always_zero" classname="hitbox_hurtbox_test" time="0.015">
+		</testcase>
+		<testcase name="test_hitbox_joins_pool_hitbox_group" classname="hitbox_hurtbox_test" time="0.027">
+		</testcase>
+		<testcase name="test_hurtbox_joins_pool_hurtbox_group" classname="hitbox_hurtbox_test" time="0.029">
+		</testcase>
+		<testcase name="test_activate_window_sets_synchronous_flag_immediately" classname="hitbox_hurtbox_test" time="0.022">
+		</testcase>
+		<testcase name="test_deactivate_window_clears_synchronous_flag_immediately" classname="hitbox_hurtbox_test" time="0.028">
+		</testcase>
+		<testcase name="test_activate_window_monitoring_change_is_deferred_not_immediate" classname="hitbox_hurtbox_test" time="0.019">
+		</testcase>
+		<testcase name="test_deactivate_window_monitoring_change_is_deferred_not_immediate" classname="hitbox_hurtbox_test" time="0.028">
+		</testcase>
+		<testcase name="test_receive_hit_accepts_and_emits_when_not_dead" classname="hitbox_hurtbox_test" time="0.041">
+		</testcase>
+		<testcase name="test_receive_hit_is_discarded_once_marked_dead" classname="hitbox_hurtbox_test" time="0.041">
+		</testcase>
+		<testcase name="test_apply_logical_death_layers_is_deferred" classname="hitbox_hurtbox_test" time="0.022">
+		</testcase>
+		<testcase name="test_hitbox_reset_for_reuse_clears_window_flag" classname="hitbox_hurtbox_test" time="0.026">
+		</testcase>
+		<testcase name="test_hurtbox_reset_for_reuse_clears_dead_flag" classname="hitbox_hurtbox_test" time="0.030">
+		</testcase>
+		<testcase name="test_hitbox_ignores_an_overlapping_area_that_is_not_a_hurtbox" classname="hitbox_hurtbox_test" time="0.020">
+		</testcase>
+	</testsuite>
+	<testsuite id="35" name="hit_queue_real_combat_test" package="tests/unit" timestamp="2026-09-20T07:37:55" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" flaky="0" time="1.144">
+		<testcase name="test_a_real_contact_hit_populates_the_hit_queue_and_the_fake_player_takes_damage" classname="hit_queue_real_combat_test" time="0.538">
+		</testcase>
+		<testcase name="test_the_hit_queue_snapshot_on_the_landing_tick_names_the_real_target" classname="hit_queue_real_combat_test" time="0.567">
+		</testcase>
+	</testsuite>
+	<testsuite id="36" name="hit_queue_resolution_test" package="tests/unit" timestamp="2026-09-20T07:37:56" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.180">
+		<testcase name="test_two_hits_enqueued_out_of_order_resolve_in_target_then_attacker_serial_order" classname="hit_queue_resolution_test" time="0.026">
+		</testcase>
+		<testcase name="test_snapshot_reflects_the_sorted_order_used_for_resolution" classname="hit_queue_resolution_test" time="0.018">
+		</testcase>
+		<testcase name="test_a_hit_against_a_target_already_dead_this_same_tick_is_discarded" classname="hit_queue_resolution_test" time="0.018">
+		</testcase>
+		<testcase name="test_on_hit_accepted_callback_fires_only_for_accepted_hits" classname="hit_queue_resolution_test" time="0.021">
+		</testcase>
+		<testcase name="test_a_hit_record_with_no_target_hurtbox_resolves_to_a_no_op" classname="hit_queue_resolution_test" time="0.019">
+		</testcase>
+	</testsuite>
+	<testsuite id="37" name="hud_economy_display_test" package="tests/unit" timestamp="2026-09-20T07:37:57" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.193">
+		<testcase name="test_scrap_label_shows_current_over_cap" classname="hud_economy_display_test" time="0.024">
+		</testcase>
+		<testcase name="test_full_badge_hidden_below_cap_and_shown_at_cap" classname="hud_economy_display_test" time="0.025">
+		</testcase>
+		<testcase name="test_hopper_label_hidden_when_empty_and_shown_when_non_empty" classname="hud_economy_display_test" time="0.024">
+		</testcase>
+		<testcase name="test_xp_bar_and_level_and_rerolls_labels" classname="hud_economy_display_test" time="0.020">
+		</testcase>
+		<testcase name="test_scrap_truncation_full_value_is_recoverable_via_tooltip" classname="hud_economy_display_test" time="0.019">
+		</testcase>
+	</testsuite>
+	<testsuite id="38" name="hud_layout_check_test" package="tests/unit" timestamp="2026-09-20T07:37:57" hostname="localhost" tests="7" failures="0" errors="0" skipped="0" flaky="0" time="0.272">
+		<testcase name="test_viewport_is_actually_1920x1080_for_this_check" classname="hud_layout_check_test" time="0.038">
+		</testcase>
+		<testcase name="test_player_health_bar_sits_top_left" classname="hud_layout_check_test" time="0.019">
+		</testcase>
+		<testcase name="test_tower_health_bar_sits_top_centre_with_wave_label" classname="hud_layout_check_test" time="0.033">
+		</testcase>
+		<testcase name="test_scrap_counter_sits_top_right" classname="hud_layout_check_test" time="0.024">
+		</testcase>
+		<testcase name="test_xp_bar_sits_at_the_bottom_with_level_and_rerolls" classname="hud_layout_check_test" time="0.021">
+		</testcase>
+		<testcase name="test_all_four_fields_are_entirely_within_the_viewport" classname="hud_layout_check_test" time="0.028">
+		</testcase>
+		<testcase name="test_no_two_of_the_four_fields_overlap" classname="hud_layout_check_test" time="0.019">
+		</testcase>
+	</testsuite>
+	<testsuite id="39" name="hud_layout_test" package="tests/unit" timestamp="2026-09-20T07:37:57" hostname="localhost" tests="7" failures="0" errors="0" skipped="0" flaky="0" time="0.270">
+		<testcase name="test_player_health_bar_reflects_the_players_death_state" classname="hud_layout_test" time="0.021">
+		</testcase>
+		<testcase name="test_player_health_bar_is_below_tick_under_40_percent" classname="hud_layout_test" time="0.021">
+		</testcase>
+		<testcase name="test_player_health_bar_is_not_below_tick_above_40_percent" classname="hud_layout_test" time="0.030">
+		</testcase>
+		<testcase name="test_tower_health_bar_reflects_health_and_shield_split" classname="hud_layout_test" time="0.020">
+		</testcase>
+		<testcase name="test_tower_health_bar_is_below_tick_under_40_percent_health" classname="hud_layout_test" time="0.020">
+		</testcase>
+		<testcase name="test_wave_label_reads_from_the_hud_economy_state_seam" classname="hud_layout_test" time="0.026">
+		</testcase>
+		<testcase name="test_four_fields_are_distinct_nodes" classname="hud_layout_test" time="0.020">
+		</testcase>
+	</testsuite>
+	<testsuite id="40" name="hunt_test" package="tests/unit" timestamp="2026-09-20T07:37:57" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" flaky="0" time="0.577">
+		<testcase name="test_the_real_combat_1_hunt_spawns_exactly_its_own_data_defined_mix" classname="hunt_test" time="0.037">
+		</testcase>
+		<testcase name="test_generated_hunts_with_different_ratios_also_spawn_their_own_data_defined_mix" classname="hunt_test" time="0.024">
+		</testcase>
+		<testcase name="test_a_hunt_spawned_hunter_lands_a_real_hit_on_the_player" classname="hunt_test" time="0.469">
+		</testcase>
+	</testsuite>
+	<testsuite id="41" name="keyed_rng_test" package="tests/unit" timestamp="2026-09-20T07:37:58" hostname="localhost" tests="6" failures="0" errors="0" skipped="0" flaky="0" time="0.205">
+		<testcase name="test_same_key_reproduces_identically_10_of_10" classname="keyed_rng_test" time="0.017">
+		</testcase>
+		<testcase name="test_seed_is_deterministic_across_calls" classname="keyed_rng_test" time="0.018">
+		</testcase>
+		<testcase name="test_different_run_seed_diverges" classname="keyed_rng_test" time="0.020">
+		</testcase>
+		<testcase name="test_different_purpose_key_diverges" classname="keyed_rng_test" time="0.019">
+		</testcase>
+		<testcase name="test_different_roll_id_diverges" classname="keyed_rng_test" time="0.016">
+		</testcase>
+		<testcase name="test_part_boundary_does_not_collide" classname="keyed_rng_test" time="0.020">
+		</testcase>
+	</testsuite>
+	<testsuite id="42" name="leash_test" package="tests/unit" timestamp="2026-09-20T07:37:58" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.589">
+		<testcase name="test_hunter_does_not_convert_before_the_leash_timeout" classname="leash_test" time="0.026">
+		</testcase>
+		<testcase name="test_hunter_telegraphs_for_0_5s_then_converts_permanently_to_a_full_tower_seeker" classname="leash_test" time="0.024">
+		</testcase>
+		<testcase name="test_finisher_hunters_carry_no_leash_timer" classname="leash_test" time="0.027">
+		</testcase>
+		<testcase name="test_landing_a_real_hit_on_the_player_resets_the_leash_timer" classname="leash_test" time="0.438">
+		</testcase>
+	</testsuite>
+	<testsuite id="43" name="main_scene_structure_test" package="tests/unit" timestamp="2026-09-20T07:37:59" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.282">
+		<testcase name="test_gameplay_root_is_pausable" classname="main_scene_structure_test" time="0.020">
+		</testcase>
+		<testcase name="test_all_six_named_containers_exist" classname="main_scene_structure_test" time="0.019">
+		</testcase>
+		<testcase name="test_entities_is_y_sorted_and_others_are_not" classname="main_scene_structure_test" time="0.022">
+		</testcase>
+		<testcase name="test_container_z_index_matches_docs_20_draw_order" classname="main_scene_structure_test" time="0.021">
+		</testcase>
+		<testcase name="test_nothing_under_the_gameplay_root_is_process_mode_always" classname="main_scene_structure_test" time="0.021">
+		</testcase>
+		<testcase name="test_sim_loop_is_present_under_the_gameplay_root" classname="main_scene_structure_test" time="0.024">
+		</testcase>
+		<testcase name="test_entity_spawner_is_wired_to_all_four_pooled_containers" classname="main_scene_structure_test" time="0.022">
+		</testcase>
+		<testcase name="test_player_would_not_be_placed_inside_entities_container" classname="main_scene_structure_test" time="0.019">
+		</testcase>
+	</testsuite>
+	<testsuite id="44" name="movement_only_test" package="tests/unit" timestamp="2026-09-20T07:37:59" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" flaky="0" time="0.205">
+		<testcase name="test_every_level_up_draft_in_a_run_resolves_using_only_movement_input" classname="movement_only_test" time="0.072">
+		</testcase>
+		<testcase name="test_movement_only_on_completes_a_console_purchase_from_position_and_standing_still_alone" classname="movement_only_test" time="0.024">
+		</testcase>
+		<testcase name="test_movement_only_off_standing_beside_the_tower_for_sixty_seconds_buys_nothing" classname="movement_only_test" time="0.028">
+		</testcase>
+	</testsuite>
+	<testsuite id="45" name="opportunist_test" package="tests/unit" timestamp="2026-09-20T07:37:59" hostname="localhost" tests="10" failures="0" errors="0" skipped="0" flaky="0" time="0.437">
+		<testcase name="test_picks_the_closer_target_at_spawn_player_case" classname="opportunist_test" time="0.017">
+		</testcase>
+		<testcase name="test_footprint_edge_measurement_flips_the_spawn_pick_versus_a_naive_centre_distance" classname="opportunist_test" time="0.024">
+		</testcase>
+		<testcase name="test_damaged_by_the_other_target_switches_when_at_least_25_percent_closer" classname="opportunist_test" time="0.024">
+		</testcase>
+		<testcase name="test_damaged_by_the_other_target_does_not_switch_when_not_25_percent_closer" classname="opportunist_test" time="0.034">
+		</testcase>
+		<testcase name="test_damage_from_the_currently_targeted_faction_is_not_a_reevaluation_event" classname="opportunist_test" time="0.025">
+		</testcase>
+		<testcase name="test_switch_lockout_blocks_a_second_switch_within_3_seconds_then_allows_it_after" classname="opportunist_test" time="0.026">
+		</testcase>
+		<testcase name="test_out_of_range_event_fires_after_3_continuous_seconds_and_switches_when_qualified" classname="opportunist_test" time="0.024">
+		</testcase>
+		<testcase name="test_moving_back_into_range_before_3_seconds_resets_the_out_of_range_timer" classname="opportunist_test" time="0.031">
+		</testcase>
+		<testcase name="test_current_target_dying_forces_a_switch_regardless_of_the_25_percent_gate_or_lockout" classname="opportunist_test" time="0.022">
+		</testcase>
+		<testcase name="test_opportunist_registers_as_enemy_but_not_as_tower_seeker" classname="opportunist_test" time="0.030">
+		</testcase>
+	</testsuite>
+	<testsuite id="46" name="overlay_spawner_counts_test" package="tests/unit" timestamp="2026-09-20T07:38:00" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.173">
+		<testcase name="test_counts_that_the_registry_never_carried_are_reported" classname="overlay_spawner_counts_test" time="0.022">
+		</testcase>
+		<testcase name="test_counts_the_registry_already_carried_still_work" classname="overlay_spawner_counts_test" time="0.026">
+		</testcase>
+		<testcase name="test_counts_follow_despawn_as_well_as_spawn" classname="overlay_spawner_counts_test" time="0.027">
+		</testcase>
+		<testcase name="test_every_mapped_count_method_exists_on_the_spawner" classname="overlay_spawner_counts_test" time="0.019">
+		</testcase>
+	</testsuite>
+	<testsuite id="47" name="overtime_test" package="tests/unit" timestamp="2026-09-20T07:38:00" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.220">
+		<testcase name="test_kills_at_the_threshold_do_not_stall_and_no_finisher_ever_spawns" classname="overtime_test" time="0.032">
+		</testcase>
+		<testcase name="test_kills_one_below_the_threshold_stalls_and_finishers_spawn" classname="overtime_test" time="0.019">
+		</testcase>
+		<testcase name="test_finisher_carries_the_reduced_stat_definition_and_the_is_finisher_flag" classname="overtime_test" time="0.024">
+		</testcase>
+		<testcase name="test_finishers_spawn_at_two_per_five_seconds" classname="overtime_test" time="0.027">
+		</testcase>
+		<testcase name="test_finishers_are_throttled_by_the_same_alive_cap_as_an_ordinary_spawn" classname="overtime_test" time="0.020">
+		</testcase>
+	</testsuite>
+	<testsuite id="48" name="pause_authority_full_test" package="tests/unit" timestamp="2026-09-20T07:38:00" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" flaky="0" time="30.436">
+		<testcase name="test_draft_open_freezes_every_enemy_projectile_pickup_and_telegraph_for_ten_seconds" classname="pause_authority_full_test" time="10.124">
+		</testcase>
+		<testcase name="test_pause_menu_open_freezes_every_enemy_projectile_pickup_and_telegraph_for_ten_seconds" classname="pause_authority_full_test" time="10.090">
+		</testcase>
+		<testcase name="test_focus_lost_freezes_every_enemy_projectile_pickup_and_telegraph_for_ten_seconds" classname="pause_authority_full_test" time="10.130">
+		</testcase>
+	</testsuite>
+	<testsuite id="49" name="pause_clock_test" package="tests/unit" timestamp="2026-09-20T07:38:31" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.433">
+		<testcase name="test_now_advances_each_unpaused_physics_tick" classname="pause_clock_test" time="0.047">
+		</testcase>
+		<testcase name="test_now_stops_under_pause_and_resumes_exactly" classname="pause_clock_test" time="0.101">
+		</testcase>
+		<testcase name="test_push_reason_does_not_pause_until_flush" classname="pause_clock_test" time="0.044">
+		</testcase>
+		<testcase name="test_unpauses_only_when_reason_set_is_empty" classname="pause_clock_test" time="0.033">
+		</testcase>
+		<testcase name="test_flush_emits_reasons_changed_only_on_actual_change" classname="pause_clock_test" time="0.039">
+		</testcase>
+	</testsuite>
+	<testsuite id="50" name="pickup_merge_cap_test" package="tests/unit" timestamp="2026-09-20T07:38:31" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.380">
+		<testcase name="test_cap_never_exceeds_150_across_many_widely_spaced_drops" classname="pickup_merge_cap_test" time="0.116">
+		</testcase>
+		<testcase name="test_at_cap_the_oldest_of_the_incoming_type_expires_when_no_merge_partner_exists" classname="pickup_merge_cap_test" time="0.046">
+		</testcase>
+		<testcase name="test_merge_sums_value_into_the_nearest_same_type_neighbour_and_keeps_its_position" classname="pickup_merge_cap_test" time="0.036">
+		</testcase>
+		<testcase name="test_when_no_pickup_of_the_incoming_type_exists_the_oldest_xp_shard_expires_first" classname="pickup_merge_cap_test" time="0.041">
+		</testcase>
+		<testcase name="test_when_the_incoming_type_is_entirely_absent_the_oldest_xp_expires_before_any_scrap" classname="pickup_merge_cap_test" time="0.037">
+		</testcase>
+	</testsuite>
+	<testsuite id="51" name="pickup_physics_test" package="tests/unit" timestamp="2026-09-20T07:38:32" hostname="localhost" tests="11" failures="0" errors="0" skipped="0" flaky="0" time="0.403">
+		<testcase name="test_pickup_scene_renders_a_texture_even_before_configure" classname="pickup_physics_test" time="0.022">
+		</testcase>
+		<testcase name="test_configure_swaps_the_sprite_to_the_correct_per_type_icon" classname="pickup_physics_test" time="0.024">
+		</testcase>
+		<testcase name="test_z_index_is_10_per_readability_row" classname="pickup_physics_test" time="0.018">
+		</testcase>
+		<testcase name="test_pickup_out_of_magnet_range_never_moves_or_attracts" classname="pickup_physics_test" time="0.024">
+		</testcase>
+		<testcase name="test_pickup_accelerates_toward_the_player_once_in_range" classname="pickup_physics_test" time="0.021">
+		</testcase>
+		<testcase name="test_attraction_is_sticky_even_after_the_player_leaves_range" classname="pickup_physics_test" time="0.019">
+		</testcase>
+		<testcase name="test_enemy_body_blocks_the_magnet_ray_and_the_pickup_holds_position" classname="pickup_physics_test" time="0.027">
+		</testcase>
+		<testcase name="test_pickup_resumes_the_instant_the_blocking_ray_clears" classname="pickup_physics_test" time="0.019">
+		</testcase>
+		<testcase name="test_pickup_never_passes_through_terrain" classname="pickup_physics_test" time="0.017">
+		</testcase>
+		<testcase name="test_pickup_expires_after_its_lifetime" classname="pickup_physics_test" time="0.016">
+		</testcase>
+		<testcase name="test_pickup_blinks_during_the_last_5_seconds_of_its_lifetime" classname="pickup_physics_test" time="0.022">
+		</testcase>
+	</testsuite>
+	<testsuite id="52" name="player_animation_test" package="tests/unit" timestamp="2026-09-20T07:38:32" hostname="localhost" tests="13" failures="0" errors="0" skipped="0" flaky="0" time="0.704">
+		<testcase name="test_idle_bob_oscillates_while_stationary" classname="player_animation_test" time="0.103">
+		</testcase>
+		<testcase name="test_idle_bob_fades_out_at_full_speed" classname="player_animation_test" time="0.082">
+		</testcase>
+		<testcase name="test_stretches_along_motion_when_accelerating" classname="player_animation_test" time="0.020">
+		</testcase>
+		<testcase name="test_squashes_when_stopping" classname="player_animation_test" time="0.022">
+		</testcase>
+		<testcase name="test_scale_settles_back_to_neutral_at_steady_cruise" classname="player_animation_test" time="0.014">
+		</testcase>
+		<testcase name="test_leans_into_rightward_movement" classname="player_animation_test" time="0.016">
+		</testcase>
+		<testcase name="test_leans_into_leftward_movement_the_opposite_way" classname="player_animation_test" time="0.028">
+		</testcase>
+		<testcase name="test_lean_never_exceeds_its_configured_maximum" classname="player_animation_test" time="0.018">
+		</testcase>
+		<testcase name="test_hit_flash_sets_flash_colour_immediately" classname="player_animation_test" time="0.015">
+		</testcase>
+		<testcase name="test_hit_flash_reverts_to_base_modulate_after_it_finishes" classname="player_animation_test" time="0.017">
+		</testcase>
+		<testcase name="test_a_second_rapid_hit_restarts_the_flash_instead_of_competing" classname="player_animation_test" time="0.020">
+		</testcase>
+		<testcase name="test_continuous_effects_freeze_while_the_player_is_paused" classname="player_animation_test" time="0.103">
+		</testcase>
+		<testcase name="test_hurtbox_damage_triggers_the_hit_flash_through_player" classname="player_animation_test" time="0.049">
+		</testcase>
+	</testsuite>
+	<testsuite id="53" name="player_input_buffer_test" package="tests/unit" timestamp="2026-09-20T07:38:33" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.449">
+		<testcase name="test_buffer_duration_matches_register_row" classname="player_input_buffer_test" time="0.022">
+		</testcase>
+		<testcase name="test_buffer_holds_the_last_direction_immediately_after_release" classname="player_input_buffer_test" time="0.016">
+		</testcase>
+		<testcase name="test_buffer_expires_after_the_register_duration" classname="player_input_buffer_test" time="0.147">
+		</testcase>
+		<testcase name="test_buffer_refreshes_on_each_new_live_press" classname="player_input_buffer_test" time="0.038">
+		</testcase>
+		<testcase name="test_buffer_does_not_reintroduce_movement_after_release" classname="player_input_buffer_test" time="0.029">
+		</testcase>
+		<testcase name="test_notification_paused_clears_the_buffer_directly" classname="player_input_buffer_test" time="0.022">
+		</testcase>
+		<testcase name="test_real_engine_pause_clears_the_buffer_end_to_end" classname="player_input_buffer_test" time="0.026">
+		</testcase>
+		<testcase name="test_clear_input_buffer_is_a_public_typed_command" classname="player_input_buffer_test" time="0.025">
+		</testcase>
+	</testsuite>
+	<testsuite id="54" name="player_movement_test" package="tests/unit" timestamp="2026-09-20T07:38:33" hostname="localhost" tests="7" failures="0" errors="0" skipped="0" flaky="0" time="0.739">
+		<testcase name="test_accelerates_along_a_linear_curve_not_an_instant_snap" classname="player_movement_test" time="0.089">
+		</testcase>
+		<testcase name="test_decelerates_along_a_linear_curve_to_exactly_zero_in_register_stop_time" classname="player_movement_test" time="0.047">
+		</testcase>
+		<testcase name="test_diagonal_input_caps_at_reference_speed_not_faster" classname="player_movement_test" time="0.143">
+		</testcase>
+		<testcase name="test_velocity_handed_to_move_and_slide_is_scaled_by_sim_clock_time_scale" classname="player_movement_test" time="0.040">
+		</testcase>
+		<testcase name="test_real_input_action_drives_movement_without_the_test_override" classname="player_movement_test" time="0.123">
+		</testcase>
+		<testcase name="test_player_is_registered_with_the_player_tag_on_ready" classname="player_movement_test" time="0.028">
+		</testcase>
+		<testcase name="test_registry_position_tracks_the_player_as_it_moves" classname="player_movement_test" time="0.152">
+		</testcase>
+	</testsuite>
+	<testsuite id="55" name="player_projectile_test" package="tests/unit" timestamp="2026-09-20T07:38:34" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.506">
+		<testcase name="test_draws_at_z_index_30_and_at_most_70_percent_opacity" classname="player_projectile_test" time="0.020">
+		</testcase>
+		<testcase name="test_launch_source_is_a_value_not_a_live_node_reference" classname="player_projectile_test" time="0.025">
+		</testcase>
+		<testcase name="test_expires_after_its_lifetime_with_no_target_in_range" classname="player_projectile_test" time="0.020">
+		</testcase>
+		<testcase name="test_sweep_detects_a_hurtbox_the_projectile_would_otherwise_jump_over" classname="player_projectile_test" time="0.027">
+		</testcase>
+		<testcase name="test_a_hit_deactivates_the_projectile_so_it_cannot_hit_a_second_target" classname="player_projectile_test" time="0.327">
+		</testcase>
+	</testsuite>
+	<testsuite id="56" name="player_scene_test" package="tests/unit" timestamp="2026-09-20T07:38:34" hostname="localhost" tests="13" failures="0" errors="0" skipped="0" flaky="0" time="0.465">
+		<testcase name="test_player_root_is_character_body_2d_with_floating_motion_mode" classname="player_scene_test" time="0.020">
+		</testcase>
+		<testcase name="test_player_z_index_matches_register_readability_row" classname="player_scene_test" time="0.019">
+		</testcase>
+		<testcase name="test_process_mode_is_pausable" classname="player_scene_test" time="0.019">
+		</testcase>
+		<testcase name="test_body_collision_layer_and_mask_match_binding_table" classname="player_scene_test" time="0.019">
+		</testcase>
+		<testcase name="test_body_radius_is_read_from_definition" classname="player_scene_test" time="0.016">
+		</testcase>
+		<testcase name="test_hurtbox_faction_layer_and_radius" classname="player_scene_test" time="0.023">
+		</testcase>
+		<testcase name="test_collector_layer_mask_and_radius" classname="player_scene_test" time="0.016">
+		</testcase>
+		<testcase name="test_collector_emits_pickup_entered_on_overlap" classname="player_scene_test" time="0.021">
+		</testcase>
+		<testcase name="test_death_state_max_hp_and_current_hp_come_from_definition" classname="player_scene_test" time="0.024">
+		</testcase>
+		<testcase name="test_death_state_hitbox_paths_are_empty_player_has_no_hitbox" classname="player_scene_test" time="0.021">
+		</testcase>
+		<testcase name="test_player_hurtbox_receives_damage_and_reduces_hp" classname="player_scene_test" time="0.024">
+		</testcase>
+		<testcase name="test_lethal_damage_kills_the_player" classname="player_scene_test" time="0.019">
+		</testcase>
+		<testcase name="test_dead_player_hurtbox_discards_a_further_hit_ghost_hit_guard" classname="player_scene_test" time="0.015">
+		</testcase>
+	</testsuite>
+	<testsuite id="57" name="player_silhouette_test" package="tests/unit" timestamp="2026-09-20T07:38:35" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.209">
+		<testcase name="test_player_sprite_and_silhouette_assets_exist_and_load" classname="player_silhouette_test" time="0.021">
+		</testcase>
+		<testcase name="test_player_silhouette_has_visible_non_transparent_content" classname="player_silhouette_test" time="0.028">
+		</testcase>
+		<testcase name="test_player_silhouette_is_shape_distinct_from_each_enemy_silhouette" classname="player_silhouette_test" time="0.020">
+		</testcase>
+		<testcase name="test_player_z_index_is_above_the_register_enemy_z_index" classname="player_silhouette_test" time="0.022">
+		</testcase>
+		<testcase name="test_player_draws_above_enemies_surrounding_it_on_both_sides_of_its_y_position" classname="player_silhouette_test" time="0.025">
+		</testcase>
+	</testsuite>
+	<testsuite id="58" name="pool_test" package="tests/unit" timestamp="2026-09-20T07:38:35" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="1.671">
+		<testcase name="test_ten_thousand_single_object_cycles_keep_object_count_stable" classname="pool_test" time="0.664">
+		</testcase>
+		<testcase name="test_ten_thousand_batched_cycles_keep_object_count_stable" classname="pool_test" time="0.703">
+		</testcase>
+		<testcase name="test_throttle_policy_refuses_once_cap_reached" classname="pool_test" time="0.044">
+		</testcase>
+		<testcase name="test_recycle_oldest_policy_never_exceeds_cap_and_reclaims_oldest" classname="pool_test" time="0.027">
+		</testcase>
+		<testcase name="test_zero_cap_never_spawns_under_either_policy" classname="pool_test" time="0.015">
+		</testcase>
+		<testcase name="test_release_refuses_an_instance_it_never_handed_out" classname="pool_test" time="0.021">
+		</testcase>
+		<testcase name="test_acquire_restores_all_four_logical_death_flags_on_reuse" classname="pool_test" time="0.016">
+		</testcase>
+		<testcase name="test_acquire_restore_is_a_no_op_for_an_instance_with_no_pool_groups" classname="pool_test" time="0.020">
+		</testcase>
+	</testsuite>
+	<testsuite id="59" name="pressure_test" package="tests/unit" timestamp="2026-09-20T07:38:37" hostname="localhost" tests="30" failures="0" errors="0" skipped="0" flaky="0" time="1.172">
+		<testcase name="test_compute_pressure_matches_threat_over_capacity_times_20s" classname="pressure_test" time="0.024">
+		</testcase>
+		<testcase name="test_compute_pressure_is_zero_with_no_threat" classname="pressure_test" time="0.019">
+		</testcase>
+		<testcase name="test_compute_pressure_with_non_positive_capacity_and_positive_threat_is_the_documented_zero_fallback" classname="pressure_test" time="0.018">
+		</testcase>
+		<testcase name="test_compute_threat_sums_hp_times_intent_weight_times_sheet_dps_over_10" classname="pressure_test" time="0.034">
+		</testcase>
+		<testcase name="test_compute_threat_is_zero_for_an_empty_or_all_dead_enemy_list" classname="pressure_test" time="0.021">
+		</testcase>
+		<testcase name="test_intent_weights_in_director_configuration_match_the_register" classname="pressure_test" time="0.033">
+		</testcase>
+		<testcase name="test_compute_health_quadrant_boundary_and_nan_handling" classname="pressure_test" time="0.021">
+		</testcase>
+		<testcase name="test_escalation_requires_3_seconds_continuously_below_threshold" classname="pressure_test" time="0.015">
+		</testcase>
+		<testcase name="test_escalation_resets_the_hold_timer_if_pressure_recovers_above_threshold" classname="pressure_test" time="0.024">
+		</testcase>
+		<testcase name="test_escalation_enforces_4_second_minimum_gap_between_escalations" classname="pressure_test" time="0.019">
+		</testcase>
+		<testcase name="test_escalation_does_nothing_in_a_siege" classname="pressure_test" time="0.029">
+		</testcase>
+		<testcase name="test_de_escalation_activates_above_1_8_and_lifts_below_1_2" classname="pressure_test" time="0.022">
+		</testcase>
+		<testcase name="test_de_escalation_expires_after_10_seconds_even_if_pressure_stays_high" classname="pressure_test" time="0.024">
+		</testcase>
+		<testcase name="test_de_escalation_re_arm_lockout_blocks_immediate_retrigger" classname="pressure_test" time="0.019">
+		</testcase>
+		<testcase name="test_de_escalation_never_applies_during_a_siege" classname="pressure_test" time="0.024">
+		</testcase>
+		<testcase name="test_de_escalation_never_applies_during_overtime" classname="pressure_test" time="0.015">
+		</testcase>
+		<testcase name="test_boundary_oscillation_cannot_retrigger_escalation_inside_its_own_gap" classname="pressure_test" time="0.021">
+		</testcase>
+		<testcase name="test_boundary_oscillation_cannot_retrigger_de_escalation_inside_its_own_lockout" classname="pressure_test" time="0.022">
+		</testcase>
+		<testcase name="test_pressure_reproduces_the_formula_end_to_end_with_a_scripted_enemy_and_capacity" classname="pressure_test" time="0.015">
+		</testcase>
+		<testcase name="test_pressure_is_zero_with_no_enemies_end_to_end" classname="pressure_test" time="0.018">
+		</testcase>
+		<testcase name="test_escalation_starts_the_next_pending_spawn_group_before_its_authored_offset" classname="pressure_test" time="0.019">
+		</testcase>
+		<testcase name="test_escalation_does_nothing_when_no_spawn_group_remains" classname="pressure_test" time="0.029">
+		</testcase>
+		<testcase name="test_escalation_respects_the_minimum_gap_across_two_pending_groups" classname="pressure_test" time="0.022">
+		</testcase>
+		<testcase name="test_de_escalation_doubles_spawn_intervals_while_active" classname="pressure_test" time="0.029">
+		</testcase>
+		<testcase name="test_pressure_is_not_evaluated_during_a_teaching_wave" classname="pressure_test" time="0.024">
+		</testcase>
+		<testcase name="test_pressure_is_not_evaluated_during_the_grace_period" classname="pressure_test" time="0.026">
+		</testcase>
+		<testcase name="test_health_quadrant_reports_low_for_either_pool_and_has_no_effect_on_spawn_selection" classname="pressure_test" time="0.032">
+		</testcase>
+		<testcase name="test_overlay_receives_pressure_state_and_quadrant_pushed_by_the_wave_director" classname="pressure_test" time="0.027">
+		</testcase>
+		<testcase name="test_capacity_falls_back_through_provider_then_combat_stats_then_base_weapon" classname="pressure_test" time="0.025">
+		</testcase>
+		<testcase name="test_capacity_is_not_affected_by_an_unrelated_pause_reason" classname="pressure_test" time="0.022">
+		</testcase>
+	</testsuite>
+	<testsuite id="60" name="prototype_scene_test" package="tests/unit" timestamp="2026-09-20T07:38:38" hostname="localhost" tests="30" failures="0" errors="0" skipped="0" flaky="0" time="7.831">
+		<testcase name="test_every_required_node_is_present" classname="prototype_scene_test" time="0.076">
+		</testcase>
+		<testcase name="test_main_still_carries_the_six_named_containers" classname="prototype_scene_test" time="0.041">
+		</testcase>
+		<testcase name="test_entities_is_y_sorted_and_the_other_five_containers_are_not" classname="prototype_scene_test" time="0.042">
+		</testcase>
+		<testcase name="test_nothing_under_main_the_gameplay_root_sets_process_mode_always" classname="prototype_scene_test" time="0.049">
+		</testcase>
+		<testcase name="test_the_process_mode_always_nodes_this_scene_needs_exist_outside_main" classname="prototype_scene_test" time="0.050">
+		</testcase>
+		<testcase name="test_player_is_not_a_child_of_entities_and_not_in_its_y_sort_group" classname="prototype_scene_test" time="0.072">
+		</testcase>
+		<testcase name="test_player_effective_z_index_is_50" classname="prototype_scene_test" time="0.062">
+		</testcase>
+		<testcase name="test_environment_floor_effective_z_index_is_0" classname="prototype_scene_test" time="0.052">
+		</testcase>
+		<testcase name="test_enemies_effective_z_index_is_20" classname="prototype_scene_test" time="0.061">
+		</testcase>
+		<testcase name="test_tower_effective_z_index_is_25" classname="prototype_scene_test" time="0.077">
+		</testcase>
+		<testcase name="test_telegraph_visual_effective_z_index_is_40" classname="prototype_scene_test" time="0.094">
+		</testcase>
+		<testcase name="test_player_projectile_effective_z_index_is_30_not_accumulated" classname="prototype_scene_test" time="1.430">
+		</testcase>
+		<testcase name="test_tower_projectile_effective_z_index_is_30_not_accumulated" classname="prototype_scene_test" time="1.469">
+		</testcase>
+		<testcase name="test_all_three_enemies_are_registered_under_the_enemy_tag" classname="prototype_scene_test" time="0.048">
+		</testcase>
+		<testcase name="test_only_the_tower_seeker_carries_the_tower_seeker_tag" classname="prototype_scene_test" time="0.044">
+		</testcase>
+		<testcase name="test_the_towers_real_targeting_query_finds_the_placed_tower_seeker" classname="prototype_scene_test" time="0.068">
+		</testcase>
+		<testcase name="test_the_tower_is_wired_to_every_enemy_so_seeker_and_opportunist_can_find_it" classname="prototype_scene_test" time="0.066">
+		</testcase>
+		<testcase name="test_arena_floor_and_wall_textures_resolve_to_kenney_files" classname="prototype_scene_test" time="0.078">
+		</testcase>
+		<testcase name="test_tower_visuals_stage_and_platform_textures_are_all_non_null" classname="prototype_scene_test" time="0.096">
+		</testcase>
+		<testcase name="test_tower_weapon_projectile_texture_and_fire_sfx_are_non_null" classname="prototype_scene_test" time="0.081">
+		</testcase>
+		<testcase name="test_a_real_fired_tower_projectile_carries_the_wired_sprite" classname="prototype_scene_test" time="1.463">
+		</testcase>
+		<testcase name="test_player_autoweapon_fire_sfx_and_projectile_texture_are_non_null" classname="prototype_scene_test" time="0.049">
+		</testcase>
+		<testcase name="test_a_real_fired_player_projectile_carries_the_kenney_texture" classname="prototype_scene_test" time="1.409">
+		</testcase>
+		<testcase name="test_player_damage_sfx_is_non_null_and_wired_to_the_audio_pool" classname="prototype_scene_test" time="0.043">
+		</testcase>
+		<testcase name="test_every_enemy_hit_and_death_sfx_are_non_null" classname="prototype_scene_test" time="0.058">
+		</testcase>
+		<testcase name="test_every_telegraph_visual_texture_is_non_null_and_carries_a_real_sprite" classname="prototype_scene_test" time="0.045">
+		</testcase>
+		<testcase name="test_ui_sfx_cues_are_all_non_null_and_route_to_the_ui_bus" classname="prototype_scene_test" time="0.044">
+		</testcase>
+		<testcase name="test_tower_cue_stream_is_the_real_kenney_asset_not_the_placeholder_tone" classname="prototype_scene_test" time="0.045">
+		</testcase>
+		<testcase name="test_tower_cue_player_is_routed_to_the_towercue_bus" classname="prototype_scene_test" time="0.056">
+		</testcase>
+		<testcase name="test_shared_audio_ducking_wired_to_both_the_tower_cue_and_the_audio_pool" classname="prototype_scene_test" time="0.042">
+		</testcase>
+	</testsuite>
+	<testsuite id="61" name="prototype_wave_integration_test" package="tests/unit" timestamp="2026-09-20T07:38:46" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="5.227">
+		<testcase name="test_the_director_is_in_the_scene_at_all" classname="prototype_wave_integration_test" time="0.049">
+		</testcase>
+		<testcase name="test_the_directors_node_paths_resolve_to_real_nodes" classname="prototype_wave_integration_test" time="0.065">
+		</testcase>
+		<testcase name="test_the_three_enemy_scenes_are_supplied_to_the_director" classname="prototype_wave_integration_test" time="0.052">
+		</testcase>
+		<testcase name="test_running_the_scene_actually_spawns_enemies_beyond_the_hand_placed_three" classname="prototype_wave_integration_test" time="2.441">
+		</testcase>
+		<testcase name="test_the_director_left_its_idle_state_rather_than_sitting_still" classname="prototype_wave_integration_test" time="2.506">
+		</testcase>
+	</testsuite>
+	<testsuite id="62" name="run_flow_check_test" package="tests/unit" timestamp="2026-09-20T07:38:51" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.259">
+		<testcase name="test_player_death_shows_cause_wave_scrap_and_time" classname="run_flow_check_test" time="0.044">
+		</testcase>
+		<testcase name="test_tower_destroyed_shows_cause_wave_scrap_and_time" classname="run_flow_check_test" time="0.029">
+		</testcase>
+		<testcase name="test_sequence_completed_shows_wave_reached_with_no_cause_line" classname="run_flow_check_test" time="0.030">
+		</testcase>
+		<testcase name="test_run_end_screen_becomes_the_active_ui_once_the_run_ends" classname="run_flow_check_test" time="0.026">
+		</testcase>
+	</testsuite>
+	<testsuite id="63" name="run_inventory_test" package="tests/unit" timestamp="2026-09-20T07:38:51" hostname="localhost" tests="10" failures="0" errors="0" skipped="0" flaky="0" time="0.416">
+		<testcase name="test_scrap_credits_up_to_the_register_cap" classname="run_inventory_test" time="0.029">
+		</testcase>
+		<testcase name="test_scrap_overflow_beyond_the_cap_is_discarded_not_queued" classname="run_inventory_test" time="0.025">
+		</testcase>
+		<testcase name="test_xp_curve_matches_15_20_25_for_the_first_three_levels" classname="run_inventory_test" time="0.037">
+		</testcase>
+		<testcase name="test_xp_remainder_carries_over_toward_the_next_level" classname="run_inventory_test" time="0.029">
+		</testcase>
+		<testcase name="test_a_single_large_credit_can_carry_through_multiple_level_ups" classname="run_inventory_test" time="0.015">
+		</testcase>
+		<testcase name="test_consume_level_up_requested_reports_exactly_once_per_level_up" classname="run_inventory_test" time="0.021">
+		</testcase>
+		<testcase name="test_player_death_zeroes_carried_scrap" classname="run_inventory_test" time="0.015">
+		</testcase>
+		<testcase name="test_connection_is_guarded_when_the_bus_has_no_player_died_signal" classname="run_inventory_test" time="0.019">
+		</testcase>
+		<testcase name="test_double_configure_does_not_double_connect" classname="run_inventory_test" time="0.026">
+		</testcase>
+		<testcase name="test_apply_to_hud_state_copies_the_exact_field_shape" classname="run_inventory_test" time="0.017">
+		</testcase>
+	</testsuite>
+	<testsuite id="64" name="run_recorder_behavior_test" package="tests/unit" timestamp="2026-09-20T07:38:52" hostname="localhost" tests="11" failures="0" errors="0" skipped="0" flaky="0" time="0.653">
+		<testcase name="test_process_mode_is_pausable" classname="run_recorder_behavior_test" time="0.017">
+		</testcase>
+		<testcase name="test_record_tick_sample_writes_current_injected_state" classname="run_recorder_behavior_test" time="0.039">
+		</testcase>
+		<testcase name="test_record_event_writes_sim_time_type_intent_bearing_amount" classname="run_recorder_behavior_test" time="0.041">
+		</testcase>
+		<testcase name="test_end_run_writes_a_run_end_event" classname="run_recorder_behavior_test" time="0.051">
+		</testcase>
+		<testcase name="test_enemy_died_signal_is_recorded_as_a_death_event" classname="run_recorder_behavior_test" time="0.042">
+		</testcase>
+		<testcase name="test_tower_damaged_signal_is_recorded_with_amount" classname="run_recorder_behavior_test" time="0.053">
+		</testcase>
+		<testcase name="test_end_run_disconnects_from_event_bus" classname="run_recorder_behavior_test" time="0.028">
+		</testcase>
+		<testcase name="test_csv_fields_containing_commas_are_quoted" classname="run_recorder_behavior_test" time="0.047">
+		</testcase>
+		<testcase name="test_idleness_does_not_flag_before_the_threshold" classname="run_recorder_behavior_test" time="0.032">
+		</testcase>
+		<testcase name="test_idleness_flags_once_past_the_threshold_and_does_not_repeat" classname="run_recorder_behavior_test" time="0.044">
+		</testcase>
+		<testcase name="test_idleness_respects_scheduled_gap_and_grace_period" classname="run_recorder_behavior_test" time="0.051">
+		</testcase>
+	</testsuite>
+	<testsuite id="65" name="run_recorder_schema_test" package="tests/unit" timestamp="2026-09-20T07:38:52" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.292">
+		<testcase name="test_ticks_csv_header_matches_docs20_schema" classname="run_recorder_schema_test" time="0.040">
+		</testcase>
+		<testcase name="test_events_csv_header_matches_docs20_schema" classname="run_recorder_schema_test" time="0.038">
+		</testcase>
+		<testcase name="test_ticks_and_events_files_both_exist_in_the_run_folder" classname="run_recorder_schema_test" time="0.033">
+		</testcase>
+		<testcase name="test_run_folder_name_carries_seed_and_controller_id" classname="run_recorder_schema_test" time="0.033">
+		</testcase>
+		<testcase name="test_header_csv_records_seed_build_hash_and_godot_version" classname="run_recorder_schema_test" time="0.044">
+		</testcase>
+	</testsuite>
+	<testsuite id="66" name="scrap_loss_test" package="tests/unit" timestamp="2026-09-20T07:38:53" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" flaky="0" time="0.140">
+		<testcase name="test_scrap_reads_zero_on_run_end_screen_when_run_inventory_connects_first" classname="scrap_loss_test" time="0.025">
+		</testcase>
+		<testcase name="test_scrap_reads_zero_on_run_end_screen_when_controller_connects_first" classname="scrap_loss_test" time="0.027">
+		</testcase>
+		<testcase name="test_scrap_stays_zero_after_death_and_a_fresh_inventory_also_starts_at_zero" classname="scrap_loss_test" time="0.021">
+		</testcase>
+	</testsuite>
+	<testsuite id="67" name="siege_volume_formula_test" package="tests/unit" timestamp="2026-09-20T07:38:53" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" flaky="0" time="0.095">
+		<testcase name="test_at_base_tower_dps_the_authored_literal_counts_are_used_unchanged" classname="siege_volume_formula_test" time="0.024">
+		</testcase>
+		<testcase name="test_above_base_tower_dps_the_formula_is_recomputed_live" classname="siege_volume_formula_test" time="0.021">
+		</testcase>
+	</testsuite>
+	<testsuite id="68" name="sim_loop_order_test" package="tests/unit" timestamp="2026-09-20T07:38:53" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" flaky="0" time="0.102">
+		<testcase name="test_one_tick_runs_all_fifteen_steps_in_order" classname="sim_loop_order_test" time="0.026">
+		</testcase>
+		<testcase name="test_hit_queue_sorts_by_target_then_attacker_serial" classname="sim_loop_order_test" time="0.025">
+		</testcase>
+	</testsuite>
+	<testsuite id="69" name="sim_loop_registration_test" package="tests/unit" timestamp="2026-09-20T07:38:53" hostname="localhost" tests="10" failures="0" errors="0" skipped="0" flaky="0" time="0.425">
+		<testcase name="test_registered_node_is_stepped_exactly_once_per_tick" classname="sim_loop_registration_test" time="0.025">
+		</testcase>
+		<testcase name="test_register_refuses_the_same_node_twice_at_the_same_step" classname="sim_loop_registration_test" time="0.020">
+		</testcase>
+		<testcase name="test_register_allows_the_same_node_at_two_different_steps" classname="sim_loop_registration_test" time="0.020">
+		</testcase>
+		<testcase name="test_same_step_nodes_run_in_registration_order_by_default" classname="sim_loop_registration_test" time="0.028">
+		</testcase>
+		<testcase name="test_same_step_order_prefers_an_injected_entity_registry_serial_over_registration_order" classname="sim_loop_registration_test" time="0.025">
+		</testcase>
+		<testcase name="test_unregistered_node_is_not_stepped_again" classname="sim_loop_registration_test" time="0.022">
+		</testcase>
+		<testcase name="test_unregister_refuses_a_node_that_was_never_registered" classname="sim_loop_registration_test" time="0.025">
+		</testcase>
+		<testcase name="test_a_node_freed_mid_tree_is_never_stepped_and_does_not_break_the_step" classname="sim_loop_registration_test" time="0.019">
+		</testcase>
+		<testcase name="test_a_node_unregistering_itself_mid_step_does_not_skip_or_duplicate_others" classname="sim_loop_registration_test" time="0.021">
+		</testcase>
+		<testcase name="test_a_node_registered_mid_step_is_not_called_until_the_next_tick" classname="sim_loop_registration_test" time="0.050">
+		</testcase>
+	</testsuite>
+	<testsuite id="70" name="sim_loop_step_dispatch_test" package="tests/unit" timestamp="2026-09-20T07:38:54" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.168">
+		<testcase name="test_the_step_enum_still_has_the_documented_fifteen_steps" classname="sim_loop_step_dispatch_test" time="0.027">
+		</testcase>
+		<testcase name="test_every_step_dispatches_its_registrants_exactly_once_per_tick" classname="sim_loop_step_dispatch_test" time="0.024">
+		</testcase>
+		<testcase name="test_every_step_passes_the_real_delta_through_to_its_registrants" classname="sim_loop_step_dispatch_test" time="0.023">
+		</testcase>
+		<testcase name="test_a_second_tick_steps_every_registrant_again" classname="sim_loop_step_dispatch_test" time="0.019">
+		</testcase>
+	</testsuite>
+	<testsuite id="71" name="spawn_ring_test" package="tests/unit" timestamp="2026-09-20T07:38:54" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.653">
+		<testcase name="test_1000_scripted_spawns_that_validate_never_land_in_the_camera_margin_or_interaction_radius_or_outside_the_arena_inset" classname="spawn_ring_test" time="0.143">
+		</testcase>
+		<testcase name="test_shift_rescues_a_first_candidate_rejected_by_the_camera_view" classname="spawn_ring_test" time="0.017">
+		</testcase>
+		<testcase name="test_shift_rescues_a_first_candidate_rejected_by_the_interaction_radius" classname="spawn_ring_test" time="0.036">
+		</testcase>
+		<testcase name="test_candidate_outside_the_arena_inset_is_rejected" classname="spawn_ring_test" time="0.043">
+		</testcase>
+		<testcase name="test_no_valid_point_after_every_shift_reports_invalid" classname="spawn_ring_test" time="0.035">
+		</testcase>
+		<testcase name="test_nearest_valid_point_on_ring_finds_a_point_outside_a_blocked_arc" classname="spawn_ring_test" time="0.044">
+		</testcase>
+		<testcase name="test_nearest_valid_point_on_ring_returns_null_when_the_whole_ring_is_blocked" classname="spawn_ring_test" time="0.051">
+		</testcase>
+		<testcase name="test_wave_director_places_tower_seeker_on_the_tower_ring_and_hunter_on_the_view_ring" classname="spawn_ring_test" time="0.043">
+		</testcase>
+	</testsuite>
+	<testsuite id="72" name="split_assault_test" package="tests/unit" timestamp="2026-09-20T07:38:55" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" flaky="0" time="0.161">
+		<testcase name="test_20_generated_split_assaults_assign_lanes_correctly_and_keep_centres_180_degrees_apart" classname="split_assault_test" time="0.105">
+		</testcase>
+	</testsuite>
+	<testsuite id="73" name="stuck_exemption_test" package="tests/unit" timestamp="2026-09-20T07:38:55" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.270">
+		<testcase name="test_an_enemy_waiting_for_a_full_ring_accrues_no_stuck_time_and_claims_a_freed_slot" classname="stuck_exemption_test" time="0.070">
+		</testcase>
+		<testcase name="test_a_tower_seeker_blocked_by_the_players_body_accrues_no_stuck_time" classname="stuck_exemption_test" time="0.033">
+		</testcase>
+		<testcase name="test_a_genuinely_blocked_enemy_runs_the_3s_8s_20s_ladder" classname="stuck_exemption_test" time="0.043">
+		</testcase>
+		<testcase name="test_opportunist_falls_back_to_the_other_target_at_3s_then_forces_direct_approach_at_8s_if_still_stuck" classname="stuck_exemption_test" time="0.032">
+		</testcase>
+	</testsuite>
+	<testsuite id="74" name="teaching_siege_tuning_test" package="tests/unit" timestamp="2026-09-20T07:38:55" hostname="localhost" tests="11" failures="1" errors="0" skipped="0" flaky="0" time="400.541">
+		<testcase name="test_a1_no_player_seed_4001" classname="teaching_siege_tuning_test" time="40.025">
+		</testcase>
+		<testcase name="test_a2_no_player_seed_4002" classname="teaching_siege_tuning_test" time="40.027">
+		</testcase>
+		<testcase name="test_a3_no_player_seed_4003" classname="teaching_siege_tuning_test" time="40.019">
+		</testcase>
+		<testcase name="test_a4_no_player_seed_4004" classname="teaching_siege_tuning_test" time="40.001">
+		</testcase>
+		<testcase name="test_a5_no_player_seed_4005" classname="teaching_siege_tuning_test" time="40.003">
+		</testcase>
+		<testcase name="test_b1_responsive_bot_seed_4001" classname="teaching_siege_tuning_test" time="40.019">
+		</testcase>
+		<testcase name="test_b2_responsive_bot_seed_4002" classname="teaching_siege_tuning_test" time="40.023">
+		</testcase>
+		<testcase name="test_b3_responsive_bot_seed_4003" classname="teaching_siege_tuning_test" time="40.017">
+		</testcase>
+		<testcase name="test_b4_responsive_bot_seed_4004" classname="teaching_siege_tuning_test" time="40.026">
+		</testcase>
+		<testcase name="test_b5_responsive_bot_seed_4005" classname="teaching_siege_tuning_test" time="39.981">
+		</testcase>
+		<testcase name="test_z_aggregate_both_halves_of_the_t4_tuning_target" classname="teaching_siege_tuning_test" time="0.035">
+			<failure message="FAILED: res://tests/unit/teaching_siege_tuning_test.gd:439" type="FAILURE">
+<![CDATA[
+Expecting to be greater than or equal:
+ 3 but was 0
+Additional info:
+ No-player T4 measurement (current authored numbers: Seekers 12 @3s interval 2.0s, Hunters 2 @10s):
+seed 4001: destroyed=false at t=40.02s (2402 ticks), final health=500.0/500.0
+seed 4002: destroyed=false at t=40.02s (2402 ticks), final health=500.0/500.0
+seed 4003: destroyed=false at t=40.00s (2401 ticks), final health=500.0/500.0
+seed 4004: destroyed=false at t=40.00s (2401 ticks), final health=500.0/500.0
+seed 4005: destroyed=false at t=40.00s (2401 ticks), final health=500.0/500.0
+Destroyed in 0 of 5 seeds (target: >= 3 of 5).
+	at 'test_z_aggregate_both_halves_of_the_t4_tuning_target' in res://tests/unit/teaching_siege_tuning_test.gd:439
+]]>
+			</failure>
+		</testcase>
+	</testsuite>
+	<testsuite id="75" name="threat_feedback_indicator_test" package="tests/unit" timestamp="2026-09-20T07:45:36" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.461">
+		<testcase name="test_indicator_hidden_when_tower_is_onscreen" classname="threat_feedback_indicator_test" time="0.044">
+		</testcase>
+		<testcase name="test_indicator_shown_when_tower_is_offscreen" classname="threat_feedback_indicator_test" time="0.051">
+		</testcase>
+		<testcase name="test_indicator_shape_and_colour_both_change_below_40_percent_health" classname="threat_feedback_indicator_test" time="0.063">
+		</testcase>
+		<testcase name="test_hit_arc_appears_after_a_hit_and_points_at_the_side_hit" classname="threat_feedback_indicator_test" time="0.077">
+		</testcase>
+		<testcase name="test_hit_arc_expires_after_its_display_window" classname="threat_feedback_indicator_test" time="0.055">
+		</testcase>
+	</testsuite>
+	<testsuite id="76" name="threat_feedback_vignette_test" package="tests/unit" timestamp="2026-09-20T07:45:36" hostname="localhost" tests="7" failures="0" errors="0" skipped="0" flaky="0" time="0.836">
+		<testcase name="test_intensity_rises_immediately_on_damage" classname="threat_feedback_vignette_test" time="0.104">
+		</testcase>
+		<testcase name="test_intensity_holds_for_the_full_1s_window" classname="threat_feedback_vignette_test" time="0.085">
+		</testcase>
+		<testcase name="test_intensity_fades_gradually_not_as_an_instant_cliff" classname="threat_feedback_vignette_test" time="0.100">
+		</testcase>
+		<testcase name="test_intensity_fully_fades_within_0point6_seconds_of_the_window_closing" classname="threat_feedback_vignette_test" time="0.055">
+		</testcase>
+		<testcase name="test_shield_damage_and_health_damage_both_raise_intensity" classname="threat_feedback_vignette_test" time="0.090">
+		</testcase>
+		<testcase name="test_points_at_the_tower_when_it_is_offscreen" classname="threat_feedback_vignette_test" time="0.052">
+		</testcase>
+		<testcase name="test_points_at_the_attacker_not_the_tower_when_the_tower_is_onscreen" classname="threat_feedback_vignette_test" time="0.072">
+		</testcase>
+	</testsuite>
+	<testsuite id="77" name="tower_cue_audibility_test" package="tests/unit" timestamp="2026-09-20T07:45:37" hostname="localhost" tests="11" failures="0" errors="0" skipped="0" flaky="0" time="0.824">
+		<testcase name="test_towercue_bus_routes_to_sfx_priority_which_routes_to_master" classname="tower_cue_audibility_test" time="0.057">
+		</testcase>
+		<testcase name="test_cue_player_is_a_non_positional_audiostreamplayer_routed_to_towercue" classname="tower_cue_audibility_test" time="0.062">
+		</testcase>
+		<testcase name="test_pan_matches_formula_for_tower_far_to_the_right" classname="tower_cue_audibility_test" time="0.035">
+		</testcase>
+		<testcase name="test_pan_matches_formula_for_tower_far_to_the_left" classname="tower_cue_audibility_test" time="0.055">
+		</testcase>
+		<testcase name="test_pan_matches_formula_for_an_unclamped_offset" classname="tower_cue_audibility_test" time="0.060">
+		</testcase>
+		<testcase name="test_retrigger_limit_holds_under_a_rapid_burst" classname="tower_cue_audibility_test" time="0.045">
+		</testcase>
+		<testcase name="test_retrigger_limit_wired_through_real_tower_damage_events" classname="tower_cue_audibility_test" time="0.036">
+		</testcase>
+		<testcase name="test_cue_triggers_ducking_on_sfx_and_ambience_but_not_sfx_priority" classname="tower_cue_audibility_test" time="0.041">
+		</testcase>
+		<testcase name="test_pinned_viewport_and_stretch_settings" classname="tower_cue_audibility_test" time="0.040">
+		</testcase>
+		<testcase name="test_four_hud_fields_lay_out_within_the_pinned_viewport" classname="tower_cue_audibility_test" time="0.048">
+		</testcase>
+		<testcase name="test_hud_layout_survives_pseudolocalization_without_silent_truncation" classname="tower_cue_audibility_test" time="0.056">
+		</testcase>
+	</testsuite>
+	<testsuite id="78" name="tower_damage_path_test" package="tests/unit" timestamp="2026-09-20T07:45:38" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" flaky="0" time="8.704">
+		<testcase name="test_a_a_seeker_already_in_melee_range_with_the_tower_weapon_disabled_damages_the_tower" classname="tower_damage_path_test" time="1.562">
+		</testcase>
+		<testcase name="test_b_a_seeker_at_realistic_spawn_distance_with_the_tower_weapon_enabled" classname="tower_damage_path_test" time="7.055">
+		</testcase>
+	</testsuite>
+	<testsuite id="79" name="tower_entity_registry_query_test" package="tests/unit" timestamp="2026-09-20T07:45:46" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.352">
+		<testcase name="test_tower_registers_itself_under_the_tower_tag_on_ready" classname="tower_entity_registry_query_test" time="0.038">
+		</testcase>
+		<testcase name="test_tower_is_findable_via_get_entities_in_radius_by_the_tower_tag" classname="tower_entity_registry_query_test" time="0.034">
+		</testcase>
+		<testcase name="test_tower_is_findable_via_get_entities_with_tag" classname="tower_entity_registry_query_test" time="0.080">
+		</testcase>
+		<testcase name="test_a_query_for_an_unrelated_tag_does_not_find_the_tower" classname="tower_entity_registry_query_test" time="0.034">
+		</testcase>
+		<testcase name="test_tower_deregisters_from_the_registry_when_freed" classname="tower_entity_registry_query_test" time="0.035">
+		</testcase>
+	</testsuite>
+	<testsuite id="80" name="tower_health_recovery_test" package="tests/unit" timestamp="2026-09-20T07:45:47" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.371">
+		<testcase name="test_shield_does_not_regen_before_the_registers_delay_elapses" classname="tower_health_recovery_test" time="0.071">
+		</testcase>
+		<testcase name="test_shield_regenerates_at_the_registers_rate_once_the_delay_has_elapsed" classname="tower_health_recovery_test" time="0.053">
+		</testcase>
+		<testcase name="test_shield_regen_delay_restarts_on_every_hit_including_after_the_shield_breaks" classname="tower_health_recovery_test" time="0.036">
+		</testcase>
+		<testcase name="test_shield_clamps_at_maximum_and_never_overshoots" classname="tower_health_recovery_test" time="0.033">
+		</testcase>
+		<testcase name="test_a_destroyed_tower_does_not_regenerate_shield" classname="tower_health_recovery_test" time="0.040">
+		</testcase>
+	</testsuite>
+	<testsuite id="81" name="tower_projectile_sweep_test" package="tests/unit" timestamp="2026-09-20T07:45:47" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.579">
+		<testcase name="test_sweep_detects_a_hurtbox_the_projectile_would_otherwise_jump_over" classname="tower_projectile_sweep_test" time="0.061">
+		</testcase>
+		<testcase name="test_sweep_does_not_false_positive_when_nothing_is_on_the_path" classname="tower_projectile_sweep_test" time="0.063">
+		</testcase>
+		<testcase name="test_a_hit_still_deactivates_the_projectile_so_it_cannot_hit_a_second_target" classname="tower_projectile_sweep_test" time="0.291">
+		</testcase>
+		<testcase name="test_launch_still_deals_the_damage_amount_it_was_given" classname="tower_projectile_sweep_test" time="0.047">
+		</testcase>
+	</testsuite>
+	<testsuite id="82" name="tower_same_frame_death_test" package="tests/unit" timestamp="2026-09-20T07:45:48" hostname="localhost" tests="7" failures="0" errors="0" skipped="0" flaky="0" time="0.549">
+		<testcase name="test_genuine_same_tick_zero_zero_credits_the_tower" classname="tower_same_frame_death_test" time="0.042">
+		</testcase>
+		<testcase name="test_reversing_the_pure_input_order_does_not_change_the_recorded_cause" classname="tower_same_frame_death_test" time="0.041">
+		</testcase>
+		<testcase name="test_reversing_which_real_entity_is_damaged_first_in_code_still_credits_the_tower" classname="tower_same_frame_death_test" time="0.068">
+		</testcase>
+		<testcase name="test_pure_one_tick_apart_deaths_credit_whichever_died_first_and_the_later_one_does_not_overwrite_it" classname="tower_same_frame_death_test" time="0.034">
+		</testcase>
+		<testcase name="test_real_entities_one_tick_apart_do_not_get_credited_to_the_tower" classname="tower_same_frame_death_test" time="0.051">
+		</testcase>
+		<testcase name="test_an_ordinary_enemy_death_alone_does_not_end_the_run" classname="tower_same_frame_death_test" time="0.049">
+		</testcase>
+		<testcase name="test_tower_scene_reports_its_own_death_to_its_run_termination_recorder" classname="tower_same_frame_death_test" time="0.045">
+		</testcase>
+	</testsuite>
+	<testsuite id="83" name="tower_weapon_test" package="tests/unit" timestamp="2026-09-20T07:45:48" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="2.990">
+		<testcase name="test_fires_at_the_registers_cadence_and_damage_per_shot" classname="tower_weapon_test" time="1.762">
+		</testcase>
+		<testcase name="test_prefers_a_farther_tower_seeker_over_a_nearer_non_seeker" classname="tower_weapon_test" time="0.034">
+		</testcase>
+		<testcase name="test_drops_a_non_seeker_target_the_tick_a_seeker_enters_range" classname="tower_weapon_test" time="0.041">
+		</testcase>
+		<testcase name="test_keeps_its_current_target_until_it_dies_or_leaves_range_even_if_a_closer_enemy_appears" classname="tower_weapon_test" time="0.141">
+		</testcase>
+		<testcase name="test_kills_a_target_within_the_expected_number_of_shots" classname="tower_weapon_test" time="0.889">
+		</testcase>
+	</testsuite>
+	<testsuite id="84" name="upgrade_effect_check_test" package="tests/unit" timestamp="2026-09-20T07:45:51" hostname="localhost" tests="12" failures="0" errors="0" skipped="0" flaky="0" time="0.717">
+		<testcase name="test_rapid_fire_stacks_additively_to_exactly_rank_3_with_no_drift" classname="upgrade_effect_check_test" time="0.028">
+		</testcase>
+		<testcase name="test_heavy_rounds_stacks_additively_to_exactly_rank_3_with_no_drift" classname="upgrade_effect_check_test" time="0.049">
+		</testcase>
+		<testcase name="test_caliber_stacks_additively_to_exactly_rank_3_with_no_drift" classname="upgrade_effect_check_test" time="0.025">
+		</testcase>
+		<testcase name="test_optics_stacks_additively_to_exactly_rank_3_with_no_drift" classname="upgrade_effect_check_test" time="0.038">
+		</testcase>
+		<testcase name="test_shield_matrix_stacks_additively_and_tops_up_current_shield_by_exactly_the_delta" classname="upgrade_effect_check_test" time="0.031">
+		</testcase>
+		<testcase name="test_patch_kit_heals_a_flat_30_per_rank_taken_not_a_stacking_percentage" classname="upgrade_effect_check_test" time="0.028">
+		</testcase>
+		<testcase name="test_patch_kit_heal_clamps_to_max_health_and_never_overheals" classname="upgrade_effect_check_test" time="0.030">
+		</testcase>
+		<testcase name="test_ranks_apply_from_either_channel_and_cap_correctly_at_rank_3" classname="upgrade_effect_check_test" time="0.026">
+		</testcase>
+		<testcase name="test_fallback_cards_have_no_max_rank_and_stack_the_same_additive_10_percent" classname="upgrade_effect_check_test" time="0.035">
+		</testcase>
+		<testcase name="test_console_cost_scales_per_rank_for_ranked_upgrades_and_is_flat_for_fallback_cards" classname="upgrade_effect_check_test" time="0.059">
+		</testcase>
+		<testcase name="test_pool_exhaustion_unlocks_exactly_the_matching_fallback_card" classname="upgrade_effect_check_test" time="0.033">
+		</testcase>
+		<testcase name="test_all_eight_upgrade_definitions_load_with_the_expected_pool_and_rank_shape" classname="upgrade_effect_check_test" time="0.037">
+		</testcase>
+	</testsuite>
+	<testsuite id="85" name="wave_determinism_test" package="tests/unit" timestamp="2026-09-20T07:45:52" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" flaky="0" time="0.170">
+		<testcase name="test_same_seed_produces_identical_spawn_positions_in_order" classname="wave_determinism_test" time="0.060">
+		</testcase>
+		<testcase name="test_a_different_seed_changes_at_least_one_spawn_position" classname="wave_determinism_test" time="0.049">
+		</testcase>
+	</testsuite>
+	<testsuite id="86" name="wave_runtime_test" package="tests/unit" timestamp="2026-09-20T07:45:52" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.274">
+		<testcase name="test_non_final_wave_stalls_into_overtime_when_kills_are_below_the_threshold" classname="wave_runtime_test" time="0.039">
+		</testcase>
+		<testcase name="test_non_final_wave_does_not_stall_and_survivors_carry_over_when_kills_meet_the_threshold" classname="wave_runtime_test" time="0.049">
+		</testcase>
+		<testcase name="test_final_wave_never_ends_on_maximum_duration_even_under_a_real_stall_condition" classname="wave_runtime_test" time="0.037">
+		</testcase>
+		<testcase name="test_final_wave_stall_check_keeps_re_running_after_maximum_duration" classname="wave_runtime_test" time="0.045">
+		</testcase>
+	</testsuite>
+	<testsuite id="87" name="wave_sequence_test" package="tests/unit" timestamp="2026-09-20T07:45:53" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" flaky="0" time="0.257">
+		<testcase name="test_sequence_advances_t1_through_combat_4_in_order_with_the_correct_gaps" classname="wave_sequence_test" time="0.080">
+		</testcase>
+		<testcase name="test_no_spawn_group_starts_during_the_inter_wave_gap" classname="wave_sequence_test" time="0.034">
+		</testcase>
+		<testcase name="test_final_wave_never_ends_on_maximum_duration_but_ends_when_live_count_reaches_zero" classname="wave_sequence_test" time="0.055">
+		</testcase>
+	</testsuite>
+	<testsuite id="88" name="weapon_check_test" package="tests/unit" timestamp="2026-09-20T07:45:53" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="6.946">
+		<testcase name="test_fires_at_the_registers_cadence_and_damage_per_shot" classname="weapon_check_test" time="1.154">
+		</testcase>
+		<testcase name="test_sheet_dps_from_weapon_matches_the_register" classname="weapon_check_test" time="0.042">
+		</testcase>
+		<testcase name="test_does_not_fire_beyond_the_registers_range_and_fires_once_in_range" classname="weapon_check_test" time="0.931">
+		</testcase>
+		<testcase name="test_repicks_the_nearest_target_every_shot" classname="weapon_check_test" time="0.491">
+		</testcase>
+		<testcase name="test_kills_a_placeholder_enemy_within_the_expected_number_of_shots" classname="weapon_check_test" time="1.063">
+		</testcase>
+		<testcase name="test_reads_no_input_action_at_all" classname="weapon_check_test" time="0.060">
+		</testcase>
+		<testcase name="test_set_auto_fire_suppressed_stops_firing_and_unsuppressing_resumes_it" classname="weapon_check_test" time="1.449">
+		</testcase>
+		<testcase name="test_driven_externally_disables_self_stepping_but_physics_step_still_fires" classname="weapon_check_test" time="1.478">
+		</testcase>
+	</testsuite>
+	<testsuite id="89" name="xp_cap_check_test" package="tests/unit" timestamp="2026-09-20T07:46:00" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" flaky="0" time="0.245">
+		<testcase name="test_xp_never_exceeds_the_cap_across_all_four_teaching_waves" classname="xp_cap_check_test" time="0.044">
+		</testcase>
+		<testcase name="test_a_burst_that_crosses_the_level_1_threshold_is_fully_refunded_and_reverted" classname="xp_cap_check_test" time="0.031">
+		</testcase>
+		<testcase name="test_forced_first_draft_at_t4_end_grants_level_1_and_keeps_the_held_xp_toward_level_2" classname="xp_cap_check_test" time="0.054">
+		</testcase>
+	</testsuite>
+</testsuites>

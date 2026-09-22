@@ -31,10 +31,21 @@ class_name DraftController
 ## PROCESS_MODE_ALWAYS"; this CanvasLayer is likewise never placed under the
 ## gameplay root) and accumulates its OWN elapsed-time counter
 ## (`_time_since_open`) from `_process(delta)`'s own per-frame `delta` --
-## never `get_tree().create_timer()`/`create_tween()` (the specifically
-## banned APIs; P1.1's grep check targets exactly those two calls under the
-## gameplay root, not a plain float accumulator on a menu CanvasLayer), and
-## never SimClock.now. This is real elapsed time, not a simulation-time
+## never `get_tree().create_timer()`/`create_tween()` for this controller's
+## OWN input-timing accumulator (the specifically banned APIs for
+## game-state/input timing; P1.1's grep check targets exactly those two
+## calls under the gameplay root, not a plain float accumulator on a menu
+## CanvasLayer). That ban is about `get_tree()`-rooted timing standing in
+## for SimClock/PauseAuthority; it does NOT reach a bare, node-bound
+## `create_tween()` used purely for this surface's cosmetic motion --
+## MASTER_SDLC.md ("Determinism where it matters"): "`Node.create_tween()`
+## is permitted for cosmetic animation only, since a tween bound to a
+## paused node pauses with it. All of these remain permitted in pure UI,
+## which is not bound by SimClock," and P1.1's own banned-API grep check is
+## scoped "under the gameplay root ... Out: UI". src/ui/draft_card_view.gd's
+## highlight-lift and card-entrance tweens (UI Pass) are exactly that
+## permitted case -- named here so this header does not read as forbidding
+## them. Never SimClock.now either. This is real elapsed time, not a simulation-time
 ## value -- an open question for the author is whether a future phase should
 ## give SimClock a second, non-pausable "menu time" instead of each paused
 ## menu (Draft here; the pause menu and Console purchase-channel in P2.13/
@@ -102,6 +113,17 @@ const LOCKOUT_SECONDS: float = 0.4
 const CYCLE_REPEAT_SECONDS: float = 0.3
 ## Register > "Draft input": "hold up 1.0 s confirms with a fill ring that resets on release".
 const HOLD_CONFIRM_SECONDS: float = 1.0
+
+## UI Pass (look only). No UiPalette token covers a modal card's fixed
+## minimum footprint or a timed ring's diameter -- both are single-widget
+## dimensions, not a reusable spacing/colour/font concept.
+## TODO(ui-pass): promote to UiPalette if another surface needs the same
+## card or ring size.
+const CARD_MIN_SIZE: Vector2 = Vector2(360, 300)
+const HOLD_RING_DIAMETER: float = 56.0
+## `tr()` key for the heading Label; its English text is registered by
+## src/ui/theme/ui_strings.gd.
+const HEADING_TEXT_KEY: String = "DRAFT_TITLE"
 
 ## Draft is the topmost paused modal in this project: strictly above Hud
 ## (layer 10) and src/ui/threat_feedback.gd (layer 11, per hud.gd's own
@@ -858,19 +880,31 @@ func _reset_input_state_for_open() -> void:
 # --- UI construction ----------------------------------------------------------
 
 func _build_ui() -> void:
+	# Round 2, UR-08: explicit, not only as UiTheme.get_theme()'s side effect
+	# below -- tr(HEADING_TEXT_KEY) a few lines down needs the key registered
+	# regardless of theme-build order.
+	UiStrings.ensure_registered()
 	_root = Control.new()
 	_root.name = "Root"
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.visible = false
+	# UI Pass: applied ONCE at this surface's root Control, per
+	# src/ui/theme/ui_theme.gd's own header ("A surface applies it ONCE, at
+	# its root Control ... and inherits from there"). Every descendant
+	# Control built below (dim aside) inherits it.
+	_root.theme = UiTheme.get_theme()
 	add_child(_root)
 
 	# Register > "Level-Up Draft": "background dimmed 60%" -- battlefield
 	# stays visible underneath (this ColorRect is the only thing drawn here;
-	# nothing hides the gameplay viewport itself).
+	# nothing hides the gameplay viewport itself). The 0.6 alpha IS the
+	# Register-cited figure and is never touched by this pass; only its RGB
+	# is tinted, from UiPalette.DIM_TINT (no test asserts the exact colour --
+	# see UiPalette's own header on DIM_DRAFT/DIM_TINT).
 	var dim := ColorRect.new()
 	dim.name = "Dim"
-	dim.color = Color(0.0, 0.0, 0.0, 0.6)
+	dim.color = UiPalette.with_alpha(UiPalette.DIM_TINT, 0.6)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(dim)
@@ -884,39 +918,66 @@ func _build_ui() -> void:
 	var column := VBoxContainer.new()
 	column.name = "Column"
 	column.mouse_filter = Control.MOUSE_FILTER_PASS
-	column.add_theme_constant_override("separation", 28)
+	column.theme_type_variation = UiTheme.vbox("XL") # Round 2, UR-06
 	center.add_child(column)
+
+	# Heading (docs/19 > "Upgrade Draft UI & Navigation"; direction: "State
+	# is shown near the thing it describes"). A real `tr()` key, registered
+	# in src/ui/theme/ui_strings.gd, rather than a plain literal.
+	var heading := Label.new()
+	heading.name = "Heading"
+	heading.theme_type_variation = UiTheme.HEADING
+	heading.text = tr(HEADING_TEXT_KEY)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(heading)
 
 	_card_row = HBoxContainer.new()
 	_card_row.name = "CardRow"
 	_card_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	_card_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_card_row.add_theme_constant_override("separation", 32)
+	_card_row.theme_type_variation = UiTheme.hbox("XXL") # Round 2, UR-06
 	column.add_child(_card_row)
 
 	var bottom_row := HBoxContainer.new()
 	bottom_row.name = "BottomRow"
 	bottom_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	bottom_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	bottom_row.add_theme_constant_override("separation", 20)
+	bottom_row.theme_type_variation = UiTheme.hbox("L") # Round 2, UR-06
 	column.add_child(bottom_row)
 
 	_fill_ring = DraftFillRing.new()
 	_fill_ring.name = "HoldRing"
-	_fill_ring.custom_minimum_size = Vector2(56, 56)
+	# Round 2, UR-03: a drawn triangle, not the "▲" character (not in the
+	# shipped font -- see draft_fill_ring.gd's own header), the same shape
+	# geometry as the Player pool glyph on the cards above, hinting the
+	# "hold up" gesture this ring times (docs/19 > "Movement-only").
+	_fill_ring.center_shape = UiShapeGlyph.Shape.TRIANGLE
+	_fill_ring.custom_minimum_size = Vector2(HOLD_RING_DIAMETER, HOLD_RING_DIAMETER)
 	bottom_row.add_child(_fill_ring)
 
 	# docs/19 > "Draft Actions": "Reroll is also a focusable element beside
-	# the cards" (Register > "Platform input floor").
+	# the cards" (Register > "Platform input floor"). Wrapped in a UiPill
+	# panel (direction: "small pill-shaped edge widgets") -- purely a visual
+	# wrapper; get_reroll_label_for_test() still returns the Label itself,
+	# unchanged, at the same node name.
+	var reroll_pill := PanelContainer.new()
+	reroll_pill.name = "RerollPill"
+	reroll_pill.theme_type_variation = UiTheme.PILL
+	reroll_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bottom_row.add_child(reroll_pill)
+
 	_reroll_label = Label.new()
 	_reroll_label.name = "RerollHint"
 	_reroll_label.text = "Reroll: R / Square"
+	_reroll_label.theme_type_variation = UiTheme.DIM
 	_reroll_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_reroll_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_reroll_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_reroll_label.custom_minimum_size = Vector2(240, 0)
 	_reroll_label.focus_mode = Control.FOCUS_ALL
-	bottom_row.add_child(_reroll_label)
+	reroll_pill.add_child(_reroll_label)
 
 
 func _show_ui() -> void:
@@ -946,7 +1007,7 @@ func _build_card_views() -> void:
 		var def: UpgradeDefinition = _cards[i]
 		var view: DraftCardView = DraftCardView.new()
 		view.name = "Card%d" % i
-		view.custom_minimum_size = Vector2(360, 420)
+		view.custom_minimum_size = CARD_MIN_SIZE
 		view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		_card_row.add_child(view)
 		var current_rank: int = 0
@@ -954,6 +1015,13 @@ func _build_card_views() -> void:
 			current_rank = _upgrade_system.get_current_rank(def.unique_id)
 		view.setup(def, current_rank)
 		view.mouse_entered.connect(_on_card_hovered.bind(i))
+		# Card-row entrance (PLAN.md direction): a short staggered fade/rise,
+		# purely cosmetic (see DraftCardView.play_entrance()'s own header) --
+		# every existing rule below (lockout, arming, cycle, confirm, hover)
+		# reads `_cards`/`_highlighted_index`/input state directly, never
+		# this animation's progress, so a card is fully interactable
+		# regardless of where this playback is.
+		view.play_entrance(i * UiPalette.MOTION_FAST)
 		_card_views.append(view)
 	_refresh_highlight_visual()
 
