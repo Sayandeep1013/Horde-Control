@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://src/enemy/enemy_controller.gd" id="1_body"]
 [ext_resource type="Script" path="res://src/combat/hurtbox.gd" id="2_hurtbox"]
@@ -9,7 +9,9 @@
 [ext_resource type="Texture2D" path="res://assets/third_party/kenney/telegraphs/telegraph_diamond.png" id="7_diamond"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_hit.ogg" id="8_hit"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_death.ogg" id="9_death_sfx"]
-[ext_resource type="Texture2D" path="res://assets/third_party/kenney/entities/enemy_player_hunter.png" id="10_sprite"]
+[ext_resource type="Script" path="res://src/enemy/enemy_animator.gd" id="11_animator"]
+[ext_resource type="SpriteFrames" path="res://assets/sprite_frames/player_hunter.tres" id="12_frames"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Ground/Shadows.png" id="13_shadow"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 12.0
@@ -60,15 +62,25 @@ visual_death_duration = 0.5
 script = ExtResource("6_telegraph")
 texture = ExtResource("7_diamond")
 
-; The entity sprite. Generated art from tools/art/generate_sprites.py, not a
-; third-party pack: Kenney's top-down characters are all the same
-; human-from-above oval and fail this project's silhouette requirement
-; (LEDGER F03-21). Native size, no scale override, matching
-; scenes/player.tscn -- the generator sizes each sprite to its own body
-; radius, so the visual overhang is already consistent across entities.
-; No z_index here: the `Entities` container supplies z_index 20 and the
-; Y-sort group (docs/20 > Scene Tree; Register > Readability).
+; Art session (D102 follow-up): Tiny Swords CC0 (TNT_Yellow.png) replaces
+; the earlier generated placeholder -- src/enemy/enemy_animator.gd drives
+; idle/run/strike/hit-flash/death state (strike cued from attack_resolved,
+; not windup_started -- this enemy's Contact attack has a 0.0s wind-up);
+; scenes/fx/death_fx.tscn carries the skull fall+dissolve past this enemy's
+; own 0.5s Visual Death window (see that file's own header). Reserved
+; colour (yellow) unchanged from the placeholder mapping. No z_index here:
+; the `Entities` container supplies z_index 20 and the Y-sort group
+; (docs/20 > Scene Tree; Register > Readability).
 [node name="Visuals" type="Node2D" parent="."]
+script = ExtResource("11_animator")
 
-[node name="Sprite2D" type="Sprite2D" parent="Visuals"]
-texture = ExtResource("10_sprite")
+[node name="Shadow" type="Sprite2D" parent="Visuals"]
+modulate = Color(0, 0, 0, 0.55)
+scale = Vector2(0.85, 0.85)
+texture = ExtResource("13_shadow")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Visuals"]
+texture_filter = 1
+sprite_frames = ExtResource("12_frames")
+animation = &"idle"
+offset = Vector2(0, -38)

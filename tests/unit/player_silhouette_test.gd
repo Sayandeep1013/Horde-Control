@@ -43,10 +43,19 @@ const PlayerScene: PackedScene = preload("res://scenes/player.tscn")
 # sprite's own alpha makes that divergence impossible by construction.
 const PLAYER_SPRITE_PATH: String = "res://assets/third_party/kenney/entities/player.png"
 const PLAYER_SILHOUETTE_PATH: String = PLAYER_SPRITE_PATH
+
+## Art session (D102 follow-up): the three enemies used to render a single
+## standalone PNG each, so `path` alone was a complete silhouette. They now
+## render an AnimatedSprite2D whose SpriteFrames crop frames out of a shared
+## Tiny Swords sheet (tools/art/generate_enemy_sprite_frames.py) -- alpha-
+## gridding the WHOLE sheet would average dozens of unrelated frames into
+## noise, not a silhouette. `region` picks one representative frame (each
+## enemy's own idle/disguise pose, frame 0) out of that sheet instead, which
+## `_load_image()` below now crops to before building the alpha grid.
 const ENEMY_SILHOUETTES: Dictionary = {
-	"tower_seeker": "res://assets/third_party/kenney/entities/enemy_tower_seeker.png",
-	"player_hunter": "res://assets/third_party/kenney/entities/enemy_player_hunter.png",
-	"opportunist": "res://assets/third_party/kenney/entities/enemy_opportunist.png",
+	"tower_seeker": {"path": "res://assets/third_party/tiny_swords/Factions/Goblins/Troops/Torch/Red/Torch_Red.png", "region": Rect2i(0, 0, 192, 192)},
+	"player_hunter": {"path": "res://assets/third_party/tiny_swords/Factions/Goblins/Troops/TNT/Yellow/TNT_Yellow.png", "region": Rect2i(0, 0, 192, 192)},
+	"opportunist": {"path": "res://assets/third_party/tiny_swords/Factions/Goblins/Troops/Barrel/Purple/Barrel_Purple.png", "region": Rect2i(0, 0, 128, 128)},
 }
 
 # Register > Readability row: "draw order z_index: environment 0, pickups
@@ -64,11 +73,14 @@ const ENEMY_Z_INDEX: int = 20
 ## ERROR (tools/run_tests.ps1's Guard 4 only fails closed on ERROR/SCRIPT
 ## ERROR/USER ERROR/USER SCRIPT ERROR lines), but avoidable, so this suite
 ## avoids it rather than leaving a warning in every run's output.
-func _load_image(path: String) -> Image:
+func _load_image(path: String, region: Variant = null) -> Image:
 	var texture: Texture2D = load(path) as Texture2D
 	if texture == null:
 		return null
-	return texture.get_image()
+	var img: Image = texture.get_image()
+	if region is Rect2i and img != null:
+		img = img.get_region(region as Rect2i)
+	return img
 
 
 func test_player_sprite_and_silhouette_assets_exist_and_load() -> void:
@@ -95,8 +107,8 @@ func test_player_silhouette_has_visible_non_transparent_content() -> void:
 	assert_int(opaque_pixels).append_failure_message("player_silhouette.png has %d/%d non-transparent pixels -- silhouette appears blank" % [opaque_pixels, total_pixels]).is_greater(int(total_pixels * 0.05))
 
 
-func _alpha_grid(path: String, grid_size: int = 8) -> PackedFloat32Array:
-	var img: Image = _load_image(path)
+func _alpha_grid(path: String, region: Variant = null, grid_size: int = 8) -> PackedFloat32Array:
+	var img: Image = _load_image(path, region)
 	assert_object(img).append_failure_message("failed to load %s" % path).is_not_null()
 	img.resize(grid_size, grid_size, Image.INTERPOLATE_LANCZOS)
 	var grid: PackedFloat32Array = PackedFloat32Array()
@@ -117,7 +129,8 @@ func _grid_distance(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
 func test_player_silhouette_is_shape_distinct_from_each_enemy_silhouette() -> void:
 	var player_grid: PackedFloat32Array = _alpha_grid(PLAYER_SILHOUETTE_PATH)
 	for enemy_name in ENEMY_SILHOUETTES.keys():
-		var enemy_grid: PackedFloat32Array = _alpha_grid(ENEMY_SILHOUETTES[enemy_name])
+		var entry: Dictionary = ENEMY_SILHOUETTES[enemy_name]
+		var enemy_grid: PackedFloat32Array = _alpha_grid(entry["path"], entry["region"])
 		var distance: float = _grid_distance(player_grid, enemy_grid)
 		assert_float(distance).append_failure_message("player silhouette's coarse alpha shape is nearly identical to %s's (distance=%f) -- readability hierarchy requires these stay distinguishable at a glance" % [enemy_name, distance]).is_greater(1.0)
 
