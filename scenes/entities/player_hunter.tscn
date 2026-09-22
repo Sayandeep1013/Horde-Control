@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://src/enemy/enemy_controller.gd" id="1_body"]
 [ext_resource type="Script" path="res://src/combat/hurtbox.gd" id="2_hurtbox"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://src/enemy/enemy_animator.gd" id="11_animator"]
 [ext_resource type="SpriteFrames" path="res://assets/sprite_frames/player_hunter.tres" id="12_frames"]
 [ext_resource type="Texture2D" path="res://assets/sprites/soft_shadow.png" id="13_shadow"]
+[ext_resource type="Script" path="res://src/enemy/enemy_health_bar.gd" id="14_health_bar"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 12.0
@@ -85,3 +86,13 @@ texture_filter = 1
 sprite_frames = ExtResource("12_frames")
 animation = &"idle"
 offset = Vector2(0, -38)
+
+; Hit-feedback pass. src/enemy/enemy_health_bar.gd -- head measured off this
+; enemy's own idle frame (TNT_Yellow.png, 192px frame, AnimatedSprite2D
+; offset -38 above): the character's own pixels top out ~67px above the
+; body origin, so -76 clears the dynamite-goblin's head with a small margin.
+; A sibling of DeathState (not a child of Visuals) so it never inherits
+; sprite flip/squash.
+[node name="HealthBar" type="Node2D" parent="."]
+script = ExtResource("14_health_bar")
+vertical_offset = -76.0

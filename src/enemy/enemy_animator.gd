@@ -73,6 +73,15 @@ const HIT_FLASH_DURATION_SECONDS: float = 0.08
 const HIT_FLASH_COLOUR: Color = Color(2.4, 2.4, 2.4, 1.0)
 const MOVING_EPSILON_PX_PER_SEC: float = 4.0
 
+## Hit-feedback pass: a quick, purely cosmetic squash on THIS node (Visuals),
+## never the body -- brief: "a tiny knock-back squash (visual only, the
+## Visuals node, not the body)". Not directional (see `_apply_hit_squash()`
+## for why): a fixed horizontal-stretch/vertical-squash punch reads clearly
+## at a glance across a swarm of simultaneously-hit enemies without the
+## extra per-hit cost of rotating the squash axis to match the hit vector.
+const HIT_SQUASH_DURATION_SECONDS: float = 0.12
+const HIT_SQUASH_SCALE: Vector2 = Vector2(1.18, 0.82)
+
 var _controller: EnemyController = null
 var _death_state: DeathState = null
 var _sprite: AnimatedSprite2D = null
@@ -82,6 +91,14 @@ var _facing: Vector2 = Vector2.DOWN
 var _striking: bool = false
 var _death_played: bool = false
 var _flash_tween: Tween = null
+var _squash_tween: Tween = null
+
+## The most recent hit's away-from-source direction (`BloodFx.direction_
+## away_from()`), cached so `_on_logical_death()` -- fired synchronously
+## right after the killing blow's own `damage_applied` (death_state.gd's
+## `apply_damage()`) -- can reuse the exact same direction for the bigger
+## death burst/splat instead of picking a fresh random one.
+var _last_hit_direction: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -212,14 +229,35 @@ func _on_sprite_animation_finished() -> void:
 		_sprite.visible = false
 
 
-func _on_damage_applied(_amount: float, _source: Variant, _remaining_hp: float) -> void:
-	if _sprite == null:
+func _on_damage_applied(amount: float, source: Variant, remaining_hp: float) -> void:
+	if _sprite != null:
+		if _flash_tween != null and _flash_tween.is_valid():
+			_flash_tween.kill()
+		_sprite.modulate = HIT_FLASH_COLOUR
+		_flash_tween = _sprite.create_tween() # cosmetic-only Node.create_tween(), not gameplay timing (see CLAUDE.md banned-API rule)
+		_flash_tween.tween_property(_sprite, "modulate", Color.WHITE, HIT_FLASH_DURATION_SECONDS)
+
+	if _controller == null:
 		return
-	if _flash_tween != null and _flash_tween.is_valid():
-		_flash_tween.kill()
-	_sprite.modulate = HIT_FLASH_COLOUR
-	_flash_tween = _sprite.create_tween() # cosmetic-only Node.create_tween(), not gameplay timing (see CLAUDE.md banned-API rule)
-	_flash_tween.tween_property(_sprite, "modulate", Color.WHITE, HIT_FLASH_DURATION_SECONDS)
+	var enemy_position: Vector2 = _controller.global_position
+	var container: Node = _controller.get_parent()
+	_last_hit_direction = BloodFx.direction_away_from(source, enemy_position)
+	BloodFx.spawn_hit(container, enemy_position, _last_hit_direction, BloodFx.Tier.HIT)
+	DamageNumberFx.spawn(container, enemy_position, amount, remaining_hp <= 0.0)
+	_apply_hit_squash()
+
+
+## Hit-feedback pass. Non-directional by design -- see the constant's own
+## header comment. Runs on `self` (the `Visuals` node this script is
+## attached to), never the `CharacterBody2D` body, so it cannot desync from
+## the collision shapes or from `EnemyController`'s own movement.
+func _apply_hit_squash() -> void:
+	if _squash_tween != null and _squash_tween.is_valid():
+		_squash_tween.kill() # a rapid second hit restarts the squash rather than competing with the first (same precedent as _flash_tween above)
+	scale = Vector2.ONE
+	_squash_tween = create_tween() # cosmetic-only Node.create_tween()
+	_squash_tween.tween_property(self, "scale", HIT_SQUASH_SCALE, HIT_SQUASH_DURATION_SECONDS * 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_squash_tween.tween_property(self, "scale", Vector2.ONE, HIT_SQUASH_DURATION_SECONDS * 0.65).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## `death_state.gd`'s own `logical_death` signal -- fires once, synchronously,
@@ -227,12 +265,21 @@ func _on_damage_applied(_amount: float, _source: Variant, _remaining_hp: float) 
 ## instance after a real `reset_for_reuse()` + a second death (see header).
 func _on_logical_death(_entity: Node2D, position: Vector2) -> void:
 	_spawn_death_fx(position)
+	if _controller != null:
+		# `_last_hit_direction` is the killing blow's own direction -- see this
+		# var's header. `BloodFx.spawn_hit()` already falls back to a random
+		# direction if it is still `Vector2.ZERO` (no `damage_applied` ever
+		# fired, which should not happen but costs nothing to tolerate).
+		BloodFx.spawn_hit(_controller.get_parent(), position, _last_hit_direction, BloodFx.Tier.DEATH)
 
 
 func _on_death_visuals() -> void:
 	_striking = false
 	if _flash_tween != null and _flash_tween.is_valid():
 		_flash_tween.kill()
+	if _squash_tween != null and _squash_tween.is_valid():
+		_squash_tween.kill()
+	scale = Vector2.ONE
 	if _sprite != null:
 		_sprite.modulate = Color.WHITE
 		if death_animation != &"" and _sprite.sprite_frames != null and _sprite.sprite_frames.has_animation(death_animation):
@@ -246,6 +293,10 @@ func _on_death_visuals() -> void:
 
 func _restore_alive_visuals() -> void:
 	_striking = false
+	scale = Vector2.ONE # defensive: _on_death_visuals() already does this, but a reused instance must never start life mid-squash
+	if _squash_tween != null and _squash_tween.is_valid():
+		_squash_tween.kill()
+	_last_hit_direction = Vector2.ZERO
 	if _sprite != null:
 		_sprite.visible = true
 		_sprite.modulate = Color.WHITE
