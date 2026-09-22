@@ -23,6 +23,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/draft.tscn" id="21_draft"]
 [ext_resource type="PackedScene" path="res://scenes/ui/console.tscn" id="22_console"]
 [ext_resource type="Script" path="res://src/run/run_flow_controller.gd" id="23_runflow"]
+[ext_resource type="Script" path="res://src/audio/music_player.gd" id="24_musicplayer"]
+[ext_resource type="AudioStream" path="res://assets/third_party/opengameart/music/battle_theme_a.ogg" id="25_musicstream"]
 
 [node name="Prototype" type="Node2D"]
 script = ExtResource("1_integration")
@@ -62,6 +64,15 @@ cycle_stream = ExtResource("15_cycle")
 
 [node name="SharedAudioDucking" type="Node" parent="."]
 script = ExtResource("16_ducking")
+
+; Art pass (D102): looped battle-theme background music on the Music bus
+; (default_bus_layout.tres). See src/audio/music_player.gd's header for
+; why looping is set on the AudioStream resource's own import params
+; rather than in code, and for how it fades out on run end without
+; touching src/run/run_flow_controller.gd.
+[node name="Music" type="Node" parent="."]
+script = ExtResource("24_musicplayer")
+stream = ExtResource("25_musicstream")
 
 ; Integration task (F05-15). The Level-Up Draft: "nothing opens a Draft in
 ; the running game today" per P2.12's own evidence report. A CanvasLayer,

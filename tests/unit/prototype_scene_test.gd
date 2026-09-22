@@ -259,31 +259,49 @@ func test_the_tower_is_wired_to_every_enemy_so_seeker_and_opportunist_can_find_i
 
 # --- Every wired texture resolves to a non-null resource ---------------------
 
-func test_arena_floor_and_wall_textures_resolve_to_kenney_files() -> void:
+## Art pass (D102): the flat beige Kenney floor/wall tiles were replaced by
+## a Tiny Swords grassland island (grass Floor, a coastal water ring where
+## the wall sprites used to be). This test's own structure -- one Floor
+## sprite, four boundary sprites -- still holds; only which files it
+## resolves to has changed, so the assertions below are updated in place
+## rather than the test being weakened (CLAUDE.md's own instruction for
+## exactly this situation).
+func test_arena_floor_and_water_textures_resolve_to_tiny_swords_files() -> void:
 	var arena: Node = _main.get_node("Environment/ArenaInstance")
 	var floor_sprite: Sprite2D = arena.get_node("Floor") as Sprite2D
 	assert_object(floor_sprite.texture).append_failure_message("Floor.texture is null -- broken resource path").is_not_null()
-	assert_str(floor_sprite.texture.resource_path).contains("third_party/kenney/environment/floor_tile.png")
-	for wall_name in ["WallNorthSprite", "WallSouthSprite", "WallWestSprite", "WallEastSprite"]:
-		var wall: Sprite2D = arena.get_node(wall_name) as Sprite2D
-		assert_object(wall.texture).append_failure_message("%s.texture is null -- broken resource path" % wall_name).is_not_null()
-		assert_str(wall.texture.resource_path).append_failure_message("%s does not resolve to wall_tile.png" % wall_name).contains("third_party/kenney/environment/wall_tile.png")
+	assert_str(floor_sprite.texture.resource_path).contains("third_party/tiny_swords/Derived/grass_fill_tile.png")
+	for water_name in ["WaterNorthSprite", "WaterSouthSprite", "WaterWestSprite", "WaterEastSprite"]:
+		var water: Sprite2D = arena.get_node(water_name) as Sprite2D
+		assert_object(water.texture).append_failure_message("%s.texture is null -- broken resource path" % water_name).is_not_null()
+		assert_str(water.texture.resource_path).append_failure_message("%s does not resolve to Water.png" % water_name).contains("third_party/tiny_swords/Terrain/Water/Water.png")
 
 
-func test_tower_visuals_stage_and_platform_textures_are_all_non_null() -> void:
+## Art pass (D102): the four Kenney 64px stage tiles and the Kenney base
+## plate were replaced by Tiny Swords Knights building art (see
+## tower_visuals.gd's header for the canvas/anchor scheme and
+## PROVENANCE.md's Derived/ rows for the composited stage art). The old
+## `platform_texture`/`Platform` node was repurposed into
+## `ground_shadow_texture`/`GroundShadow`, a procedurally-generated shadow
+## rather than a Kenney base plate -- assertions below are updated in
+## place, per CLAUDE.md's instruction not to weaken what a test proves
+## when only the underlying asset changed.
+func test_tower_visuals_stage_and_ground_shadow_textures_are_all_non_null() -> void:
 	var visuals: TowerVisuals = _tower.visuals
 	assert_object(visuals).is_not_null()
 	assert_int(visuals.stage_textures.size()).append_failure_message("TowerVisuals.stage_textures must carry all four evolution stages").is_equal(4)
 	for i in range(4):
 		assert_object(visuals.stage_textures[i]).append_failure_message("stage_textures[%d] is null -- broken resource path" % i).is_not_null()
-	assert_object(visuals.platform_texture).append_failure_message("TowerVisuals.platform_texture is null -- broken resource path").is_not_null()
-	assert_str(visuals.platform_texture.resource_path).contains("third_party/kenney/tower/tower_platform.png")
+	assert_object(visuals.ground_shadow_texture).append_failure_message("TowerVisuals.ground_shadow_texture is null -- broken resource path").is_not_null()
+	assert_str(visuals.ground_shadow_texture.resource_path).contains("assets/sprites/tower/tower_ground_shadow.png")
+	assert_object(visuals.destroyed_tower_texture).append_failure_message("TowerVisuals.destroyed_tower_texture is null -- broken resource path").is_not_null()
+	assert_object(visuals.destroyed_castle_texture).append_failure_message("TowerVisuals.destroyed_castle_texture is null -- broken resource path").is_not_null()
 	# The initial (stage 0, Base) texture must already be applied -- primed
 	# once by Tower._ready(), not left waiting for a rank that is never
 	# taken in this prototype.
 	var sprite: Sprite2D = _tower.get_node("Visuals/Sprite") as Sprite2D
 	assert_object(sprite.texture).is_same(visuals.stage_textures[0])
-	assert_str(sprite.texture.resource_path).contains("tower_stage1_base.png")
+	assert_str(sprite.texture.resource_path).contains("tower_stage0_base.png")
 
 
 func test_tower_weapon_projectile_texture_and_fire_sfx_are_non_null() -> void:

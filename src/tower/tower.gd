@@ -112,6 +112,10 @@ func _ready() -> void:
 		weapon.fired.connect(func(t: float) -> void: visuals.on_fired(t))
 	if health != null:
 		health.tower_destroyed.connect(_on_tower_destroyed)
+	if health != null and visuals != null:
+		# Art pass (D102): show the Tower_Destroyed/Castle_Destroyed art at
+		# Logical Death -- see tower_visuals.gd's header, "Destroyed art."
+		health.tower_destroyed.connect(visuals.on_tower_destroyed)
 	if evolution_stage != null and visuals != null:
 		evolution_stage.stage_changed.connect(visuals.on_stage_changed)
 		# TowerEvolutionStage.configure() (called below, from configure())

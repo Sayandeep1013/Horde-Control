@@ -91,3 +91,19 @@ Sheet layouts (frame size, then rows top to bottom), so no reader has to re-deri
 | `Terrain/Water/Rocks/Rocks_03.png` | `Terrain/Water/Rocks/Rocks_03.png` | verbatim | `cb407bf96983b553` |
 | `Terrain/Water/Rocks/Rocks_04.png` | `Terrain/Water/Rocks/Rocks_04.png` | verbatim | `7c3d7f8db1d18fe5` |
 | `Terrain/Water/Water.png` | `Terrain/Water/Water.png` | verbatim | `5ef30a00bbff2259` |
+
+## Derived files (art pass, D102)
+
+Every file below is a Python/PIL transform of one or more of the verbatim files above -- built by
+`sandbox/inspect/` scratch scripts during this session, not hand-drawn, and reproducible from the
+verbatim sources at any time. "Original path" below names the source file(s) transformed rather than
+an upstream path (there is no single upstream original for a composite).
+
+| Path under `assets/third_party/tiny_swords/` | Source file(s) | Transform | sha256 (16) |
+| --- | --- | --- | --- |
+| `Derived/tower_stage0_base.png` | `Factions/Knights/Buildings/Tower/Tower_Blue.png` | letterboxed onto a transparent 320x256 canvas, horizontally centred, bottom-aligned (matches Castle_Blue.png's own native 320x256 canvas so every Tower evolution stage shares one size/anchor) | `308c250617e5028d` |
+| `Derived/tower_destroyed_padded.png` | `Factions/Knights/Buildings/Tower/Tower_Destroyed.png` | same 320x256 letterbox as `tower_stage0_base.png` | `e62d9676f20905eb` |
+| `Derived/tower_stage1_archer.png` | `Factions/Knights/Buildings/Tower/Tower_Blue.png` + `Factions/Knights/Troops/Archer/Blue/Archer_Blue.png` (frame [0,0], the idle pose, alpha-trimmed) | Tower_Blue letterboxed as above, one archer frame composited standing on the tower's top platform | `00af7348b9848f04` |
+| `Derived/tower_stage3_archers.png` | `Factions/Knights/Buildings/Castle/Castle_Blue.png` + `Factions/Knights/Troops/Archer/Blue/Archer_Blue.png` (frame [0,0], alpha-trimmed, one instance mirrored) | two archer frames composited standing on the castle's battlements, left and right of centre | `b20003da4cd3ad91` |
+| `Derived/grass_fill_tile.png` | `Terrain/Ground/Tilemap_Flat.png` | 64x64 crop of the grass 9-slice's centre/fill tile (atlas col 1, row 1) | `c080267c6f90f981` |
+| `Derived/sand_fill_tile.png` | `Terrain/Ground/Tilemap_Flat.png` | 64x64 crop of the sand 9-slice's centre/fill tile (atlas col 6, row 1) | `db6f26fe7472b067` |
