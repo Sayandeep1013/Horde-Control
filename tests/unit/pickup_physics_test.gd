@@ -77,14 +77,18 @@ func test_pickup_scene_renders_a_texture_even_before_configure() -> void:
 	assert_int(sprite.texture.get_height()).is_greater(0)
 
 
+## Art session: swapped from the flat Kenney icons to the crystal (XP) and
+## the Tiny Swords gold pouch (Scrap) -- updated here rather than left
+## asserting paths this task deliberately changed (CLAUDE.md: "if a test
+## asserts on the old ... structure, update it minimally").
 func test_configure_swaps_the_sprite_to_the_correct_per_type_icon() -> void:
 	var xp_pickup: Pickup = _make_pickup(Vector2.ZERO, XpShardDefinition)
 	var xp_sprite: Sprite2D = xp_pickup.get_node_or_null("Sprite") as Sprite2D
-	assert_str(xp_sprite.texture.resource_path).contains("pickup_xp.png")
+	assert_str(xp_sprite.texture.resource_path).contains("pickup_xp_crystal.png")
 
 	var scrap_pickup: Pickup = _make_pickup(Vector2.ZERO, ScrapDefinition)
 	var scrap_sprite: Sprite2D = scrap_pickup.get_node_or_null("Sprite") as Sprite2D
-	assert_str(scrap_sprite.texture.resource_path).contains("pickup_scrap.png")
+	assert_str(scrap_sprite.texture.resource_path).contains("G_Idle.png")
 
 
 func test_z_index_is_10_per_readability_row() -> void:

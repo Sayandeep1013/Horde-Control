@@ -16,15 +16,20 @@ trigger = "at pickup cap"
 same_type_only = true
 resulting_behaviour = "sum into nearest same-type neighbour within radius, else expire oldest of that type"
 
-; sprite_reference: real asset, assets/third_party/kenney/pickups/pickup_xp.png
-; (confirmed on disk with a valid .import). audio_cue_id: NO REGISTER ROW --
-; escalated. No pickup-collect audio cue has been authored yet; this follows
-; the same PLACEHOLDER_cue_ convention data/enemies/*.tres already uses for
-; the same situation (an asset reference with nothing behind it yet, not a
-; gameplay number).
+; sprite_reference: art session -- swapped from the flat Kenney icon to a
+; hand-drawn pixel-art crystal shard (assets/sprites/pickup_xp_crystal.png,
+; confirmed on disk with a valid .import), deliberately NOT a Tiny Swords
+; asset re-tint: the pack ships no gem/crystal icon, and the closest
+; candidate (the gold pouch, G_Idle.png) still reads as a coin purse once
+; recoloured (its "$" glyph survives a hue shift), which fights the "crystal"
+; read this pickup needs to stay obviously distinct from Scrap's gold pouch
+; at a glance. audio_cue_id: NO REGISTER ROW -- escalated. No pickup-collect
+; audio cue has been authored yet; this follows the same PLACEHOLDER_cue_
+; convention data/enemies/*.tres already uses for the same situation (an
+; asset reference with nothing behind it yet, not a gameplay number).
 [sub_resource type="Resource" id="Resource_visual"]
 script = ExtResource("2_visual")
-sprite_reference = "res://assets/third_party/kenney/pickups/pickup_xp.png"
+sprite_reference = "res://assets/sprites/pickup_xp_crystal.png"
 audio_cue_id = "PLACEHOLDER_cue_pickup_xp_collect"
 
 ; value: MASTER_SDLC.md > "Experience (XP)" / > Provisional Values Register

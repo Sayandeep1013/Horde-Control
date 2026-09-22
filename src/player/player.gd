@@ -71,10 +71,17 @@ class_name Player
 @export var death_state_path: NodePath = NodePath("DeathState")
 @export var animator_path: NodePath = NodePath("Visuals")
 
+## Art session (visuals only, no targeting/fire-rate change): the sibling
+## AutoWeapon node this controller listens to purely to drive the shoot
+## animation -- see `_on_weapon_fired()` below. Not read by any gameplay
+## logic in this file.
+@export var weapon_path: NodePath = NodePath("AutoWeapon")
+
 var hurtbox: Hurtbox = null
 var collector: PlayerCollector = null
 var death_state: DeathState = null
 var _animator: PlayerAnimator = null
+var _weapon: AutoWeapon = null
 
 ## The controller's own persistent velocity accumulator, BEFORE SimClock.
 ## time_scale is applied. MASTER_SDLC.md > Global Simulation Authority:
@@ -133,9 +140,25 @@ func _ready() -> void:
 	collector = get_node_or_null(collector_path) as PlayerCollector
 	death_state = get_node_or_null(death_state_path) as DeathState
 	_animator = get_node_or_null(animator_path) as PlayerAnimator
+	_weapon = get_node_or_null(weapon_path) as AutoWeapon
 
 	if hurtbox != null:
 		hurtbox.damage_received.connect(_on_hurtbox_damage_received)
+
+	# Art session: cosmetic-only wiring so the animator knows WHEN a shot
+	# fires and WHICH direction to aim the shoot pose in. AutoWeapon's own
+	# retarget/fire-rate/damage logic (src/combat/auto_weapon.gd) is
+	# untouched -- this only reads its `fired` signal and its existing
+	# get_current_target()/get_effective_fire_interval_seconds() queries.
+	if _weapon != null:
+		_weapon.fired.connect(_on_weapon_fired)
+
+	# Art session: lets the animator play something on death (flash + fade +
+	# the Dead.png skull) without this file or death_state.gd changing WHEN
+	# death happens or how long its own Visual Death window lasts --
+	# death_state.visual_death_duration is read, never restated.
+	if death_state != null:
+		death_state.logical_death.connect(_on_logical_death)
 
 	# Guarded (not an unconditional overwrite): this controller registers
 	# itself with the registry at the end of THIS SAME _ready() call, below
@@ -325,6 +348,36 @@ func _on_hurtbox_damage_received(_amount: float, _source: Variant, _hitbox: Node
 		# docs/20 > Audio Mixing & Dynamic Ducking: "Player damage ... routed
 		# to SFX_Priority" -- a priority voice, not the ordinary SFX default.
 		_audio_pool.play(damage_sfx, global_position, 10, true, "SFX_Priority")
+
+
+## Art session: AutoWeapon.fired only carries a timestamp (auto_weapon.gd's
+## own signal signature), so the aim direction is derived here from the
+## SAME target that weapon has already committed to firing at
+## (get_current_target() is written immediately before fired.emit() in
+## _fire_at() -- see that file's header on `_current_target` being
+## write-only-at-fire-time). The fire interval is read live from the weapon
+## (get_effective_fire_interval_seconds(), P2.11's upgrade-aware query) so a
+## Rapid Fire rank changes the animation's pacing exactly the way it changes
+## the real fire rate, never a restated literal.
+func _on_weapon_fired(_timestamp: float) -> void:
+	if _weapon == null or _animator == null:
+		return
+	var target: Node2D = _weapon.get_current_target()
+	if target == null or not is_instance_valid(target):
+		return
+	var direction: Vector2 = target.global_position - global_position
+	if direction.length_squared() <= 0.0001:
+		return
+	_animator.play_shoot(direction.normalized(), _weapon.get_effective_fire_interval_seconds())
+
+
+## Art session: death_state.gd (outside this task's write scope) owns
+## Logical/Visual Death timing entirely -- this only hands the animator the
+## SAME visual_death_duration death_state already timed its own window to,
+## so the visual finishes exactly when the logical window does.
+func _on_logical_death(_entity: Node2D, _position: Vector2) -> void:
+	if _animator != null and death_state != null:
+		_animator.play_death(death_state.visual_death_duration)
 
 
 ## Typed command forwarding to death_state.gd, mirroring placeholder_

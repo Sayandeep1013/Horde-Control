@@ -13,13 +13,16 @@ trigger = "at pickup cap"
 same_type_only = true
 resulting_behaviour = "sum into nearest same-type neighbour within radius, else expire oldest of that type"
 
-; sprite_reference: real asset, assets/third_party/kenney/pickups/pickup_scrap.png
-; (confirmed on disk with a valid .import). audio_cue_id: NO REGISTER ROW --
-; escalated, same PLACEHOLDER_cue_ convention as xp_shard.tres and
-; data/enemies/*.tres.
+; sprite_reference: art session -- swapped from the flat Kenney icon to the
+; Tiny Swords gold pouch (assets/third_party/tiny_swords/Resources/
+; Resources/G_Idle.png, confirmed on disk with a valid .import); pickup.gd's
+; own configure() also briefly plays G_Spawn.png through the scene's
+; "SpawnFx" child for this pickup type specifically (src/pickup/pickup.gd
+; header). audio_cue_id: NO REGISTER ROW -- escalated, same PLACEHOLDER_cue_
+; convention as xp_shard.tres and data/enemies/*.tres.
 [sub_resource type="Resource" id="Resource_visual"]
 script = ExtResource("2_visual")
-sprite_reference = "res://assets/third_party/kenney/pickups/pickup_scrap.png"
+sprite_reference = "res://assets/third_party/tiny_swords/Resources/Resources/G_Idle.png"
 audio_cue_id = "PLACEHOLDER_cue_pickup_scrap_collect"
 
 ; value: MASTER_SDLC.md > Provisional Values Register > "Economy & Pickups"

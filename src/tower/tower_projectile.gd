@@ -71,6 +71,19 @@ class_name TowerProjectile
 ## explicitly rather than silently treated as a balance number.
 const COLLISION_RADIUS_PX: float = 6.0
 
+## Art session, cosmetic-only constants (not Register numbers, same carve-
+## out as COLLISION_RADIUS_PX above): src/tower/tower_weapon.gd's own
+## `_projectile_factory()` composes a plain, unscaled, unfiltered "Sprite2D"
+## child onto this projectile from its own `projectile_texture` export
+## (assigned in scenes/tower.tscn, outside this task's write scope) -- this
+## file cannot touch that scene, so `_ready()` below reaches for that
+## already-composed child by name and sizes/filters/trails it instead,
+## whichever texture ends up wired there. Same scale the player's own
+## projectile uses (src/combat/player_projectile.gd's PROJECTILE_ART_SCALE)
+## for a consistent arrow size across both factions' shots.
+const PROJECTILE_ART_SCALE: float = 0.6
+const TRAIL_OFFSET_PX: float = 10.0
+
 ## docs/20 > Physics & Collisions: the sweep threshold, verbatim ("exceeds
 ## 12 pixels"). A framework/architecture constant, not a Register number --
 ## same constant, same citation, as player_projectile.gd's own
@@ -116,8 +129,33 @@ func _ready() -> void:
 	shape.shape = circle
 	shape.name = "CollisionShape2D"
 	add_child(shape)
+	_style_composed_sprite()
 	visible = false
 	call_deferred(&"_resolve_sim_loop_for_ready")
+
+
+## Art session: styles whatever "Sprite2D" TowerWeapon._projectile_factory()
+## already composed onto this instance (see this file's header) -- NEAREST
+## filtering, a consistent art scale, and a faint trailing ghost behind it,
+## mirroring src/combat/player_projectile.gd's own treatment. A no-op if
+## TowerWeapon's `projectile_texture` export was never assigned (no
+## Sprite2D child exists yet) -- named as the seam the author wires by
+## setting that export in scenes/tower.tscn.
+func _style_composed_sprite() -> void:
+	var sprite: Sprite2D = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite == null or sprite.texture == null:
+		return
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.scale = Vector2(PROJECTILE_ART_SCALE, PROJECTILE_ART_SCALE)
+	var trail := Sprite2D.new()
+	trail.name = "Trail"
+	trail.texture = sprite.texture
+	trail.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	trail.scale = sprite.scale * 0.75
+	trail.modulate = Color(1.0, 1.0, 1.0, 0.25)
+	trail.position = Vector2(-TRAIL_OFFSET_PX, 0.0)
+	add_child(trail)
+	move_child(trail, sprite.get_index()) # draw behind the main sprite
 
 
 func _resolve_sim_loop_for_ready() -> void:

@@ -1,0 +1,13 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Knights/Troops/Archer/Arrow/Arrow.png" id="1_arrow"]
+
+; Arrow.png is 64x128: two stacked 64x64 frames. Frame 0 (this region, y=0..64)
+; is the fully-extended arrow (its alpha bounding box reaches the frame's
+; right edge); frame 1 (y=64..128) is a shorter, nocked/at-rest variant. This
+; resource picks frame 0 as the in-flight look for both the player's and the
+; Tower's projectile (src/combat/player_projectile.gd, src/tower/tower_
+; projectile.gd rotate this texture to the projectile's velocity).
+[resource]
+atlas = ExtResource("1_arrow")
+region = Rect2(0, 0, 64, 64)

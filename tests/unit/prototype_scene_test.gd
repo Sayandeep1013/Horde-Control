@@ -309,14 +309,19 @@ func test_player_autoweapon_fire_sfx_and_projectile_texture_are_non_null() -> vo
 	assert_str((auto_weapon.get("fire_sfx") as AudioStream).resource_path).contains("third_party/kenney/audio/sfx/player_fire.ogg")
 
 
-func test_a_real_fired_player_projectile_carries_the_kenney_texture() -> void:
+## Art session: PlayerProjectile's default `projectile_texture` moved from
+## the flat Kenney icon to the Tiny Swords arrow (src/combat/player_
+## projectile.gd's own header names why); updated here rather than left
+## asserting a path this task deliberately changed (CLAUDE.md: "if a test
+## asserts on the old ... structure, update it minimally").
+func test_a_real_fired_player_projectile_carries_the_arrow_texture() -> void:
 	await _advance_physics(90)
 	var projectiles_container: Node = _player.get_node("Projectiles")
 	var live: Array = projectiles_container.get_children()
 	assert_array(live).append_failure_message("AutoWeapon never fired").is_not_empty()
 	var projectile: PlayerProjectile = live[0] as PlayerProjectile
 	assert_object(projectile.projectile_texture).is_not_null()
-	assert_str(projectile.projectile_texture.resource_path).contains("third_party/kenney/projectiles/projectile_player.png")
+	assert_str(projectile.projectile_texture.resource_path).contains("sprite_frames/arrow_projectile.tres")
 	var sprite: Sprite2D = projectile.get_node_or_null("Sprite2D") as Sprite2D
 	assert_object(sprite).is_not_null()
 	assert_object(sprite.texture).is_same(projectile.projectile_texture)
