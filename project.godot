@@ -203,3 +203,7 @@ EventBus="*res://src/core/event_bus.gd"
 EntityRegistry="*res://src/core/entity_registry.gd"
 CombatStats="*res://src/core/combat_stats.gd"
 MetaProgress="*res://src/meta/meta_progress.gd"
+
+[editor]
+
+export/convert_text_resources_to_binary=false
