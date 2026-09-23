@@ -142,13 +142,14 @@ func _register_adapters(sim_loop: Node) -> void:
 	_movement_adapter.configure(Callable(self, "step_pickup_movement_and_collection"))
 	add_child(_movement_adapter)
 
-	_xp_adapter = PickupSystemStepAdapter.new()
-	_xp_adapter.configure(Callable(self, "step_xp_and_level_up_requests"))
-	add_child(_xp_adapter)
-
 	sim_loop.register(SimLoop.Step.DROPS, _drops_adapter)
 	sim_loop.register(SimLoop.Step.PICKUP_MOVEMENT_AND_COLLECTION, _movement_adapter)
-	sim_loop.register(SimLoop.Step.XP_AND_LEVEL_UP_REQUESTS, _xp_adapter)
+	# NOT registered at XP_AND_LEVEL_UP_REQUESTS any more (orchestrator fix,
+	# 2026-09-23): step_xp_and_level_up_requests() CONSUMES RunInventory's
+	# one-shot level-up flag and discards the result, and it shared step 11
+	# with DraftController. Whenever this adapter ran first the Draft never
+	# saw the level-up, so the player levelled with no Draft and no pause.
+	# The Draft controller is the flag's only consumer now.
 
 
 func _connect_enemy_died() -> void:

@@ -306,3 +306,23 @@ func test_killing_an_enemy_moves_the_huds_own_numbers() -> void:
 
 	inventory.credit_xp(1.0)
 	assert_float(inventory.xp_current).append_failure_message("the run inventory did not take the XP credit").is_greater(xp_before)
+
+
+# --- a level-up in the assembled scene opens the Draft -----------------------
+
+## Regression (orchestrator, 2026-09-23): PickupSystem's step-11 adapter
+## consumed RunInventory's level-up flag before DraftController could, so in
+## the real scene a level-up raised the level with no Draft and no pause.
+## Every unit suite passed because none assembled both consumers.
+## FALSIFICATION: re-registering the pickup XP adapter at step 11 made this
+## test fail (draft never showing) - see the orchestrator's report.
+func test_a_level_up_in_the_assembled_scene_opens_the_draft_and_pauses() -> void:
+	var inventory: Variant = _node("Main/PickupSystem").get("run_inventory")
+	assert_object(inventory).is_not_null()
+	var draft: Node = _node("DraftInstance")
+	inventory.credit_xp(float(inventory.xp_required_for_next_level) + 0.5)
+	for i in 6:
+		await get_tree().physics_frame
+	assert_bool(bool(draft.get("_draft_showing"))).append_failure_message("a level-up must open the Level-Up Draft").is_true()
+	assert_bool(get_tree().paused).append_failure_message("the Draft must pause the game").is_true()
+	PauseAuthority.pop_reason_immediate(&"draft")

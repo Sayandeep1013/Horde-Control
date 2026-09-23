@@ -33,6 +33,7 @@ var _has_player_pos: bool = false
 var _player_pos: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS # keep counting frames while a Draft or menu pauses the tree
 	var scene_path: String = "res://scenes/prototype.tscn"
 	var size: Vector2i = Vector2i(1920, 1080)
 	for arg in OS.get_cmdline_user_args():

@@ -303,8 +303,12 @@ func _init() -> void:
 	_rarity_label = Label.new()
 	_rarity_label.name = "Rarity"
 	_rarity_label.theme_type_variation = UiTheme.SMALL
-	_rarity_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# No autowrap: inside the header HBox a wrapping label is given ~1 glyph
+	# of width and stacks "RARE" one letter per line (orchestrator fix).
+	_rarity_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_rarity_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_rarity_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(_rarity_label)
 
 	# Clear hierarchy: name in VALUE weight (display font, larger than body).
@@ -388,7 +392,7 @@ func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnum
 		card_name = parts[0].strip_edges()
 		effect_text = parts[1].strip_edges()
 	_name_label.text = card_name
-	_effect_label.text = effect_text
+	_effect_label.text = _scaled_effect_text(effect_text, float(DraftController.RARITY_VALUE_MULTIPLIER.get(_rarity, 1.0)))
 
 	_rank_label.text = _rank_change_text(def, current_rank)
 	# Second UI pass: pips only make sense for a ranked upgrade -- a no-max-
@@ -555,3 +559,22 @@ func get_rarity_for_test() -> int:
 
 func get_rarity_label_for_test() -> Label:
 	return _rarity_label
+
+
+## The card's description is authored at the Common value; a Rare or Epic
+## card applies its rarity multiplier to that value (UpgradeSystem.apply_rank),
+## so the text must show the value the player will actually get. Scales every
+## "N%" figure, rounded to a whole percent (orchestrator fix, 2026-09-23).
+static func _scaled_effect_text(text: String, multiplier: float) -> String:
+	if is_equal_approx(multiplier, 1.0):
+		return text
+	var re: RegEx = RegEx.new()
+	re.compile("(\\d+(?:\\.\\d+)?)%")
+	var out: String = ""
+	var last: int = 0
+	for m in re.search_all(text):
+		out += text.substr(last, m.get_start() - last)
+		out += "%d%%" % roundi(float(m.get_string(1)) * multiplier)
+		last = m.get_end()
+	out += text.substr(last)
+	return out
