@@ -70,7 +70,7 @@ Tier drives the price formula (section 4.3) and is authored per node in `data/me
 | Tower | Shield Runes | 2 | 2 | +15% Tower max shield |
 | Tower | Mason's Kit | 2 | 2 | -15% Tower Console repair price |
 | Tower | Watchtower | 3 | 2 | +10% Tower weapon range |
-| Tower | Fortress (capstone) | 4 | 1 | the Tower starts the run one evolution stage up |
+| Tower | Fortress (capstone) | 4 | 1 | the Tower starts the run one evolution stage up, with +20% max health and +20% weapon damage (D114) |
 | Fortune | Scavenger | 1 | 3 | start each run with 15 Scrap |
 | Fortune | Scholar | 1 | 3 | +10% XP from shards |
 | Fortune | Lucky Draw | 2 | 2 | +1 Level-Up Draft reroll per run |
