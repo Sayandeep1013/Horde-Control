@@ -66,6 +66,13 @@ const TEX_BUTTON_NORMAL: String = TS_UI_ROOT + "Buttons/Button_Blue_9Slides.png"
 const TEX_BUTTON_HOVER: String = TS_UI_ROOT + "Buttons/Button_Hover_9Slides.png"
 const TEX_BUTTON_PRESSED: String = TS_UI_ROOT + "Buttons/Button_Blue_9Slides_Pressed.png"
 const TEX_BUTTON_DISABLED: String = TS_UI_ROOT + "Buttons/Button_Disable_9Slides.png"
+## Skill Tree art pass (author request, 2026-09-23: "the skill tree graphics
+## needs to be more detailed"): the pack's own red-rimmed stone tablet, for
+## an UNAFFORDABLE node frame -- was unused by any caller before this pass
+## (every other `TEX_BUTTON_*` above already had one), matching this
+## project's own DANGER colour semantics elsewhere without inventing a new
+## texture or a runtime recolour of an existing one.
+const TEX_BUTTON_DANGER: String = TS_UI_ROOT + "Buttons/Button_Red_9Slides.png"
 ## Ribbon banners (192x64, folded-cloth ends): the HUD's Wave banner and any
 ## section-heading ribbon.
 const TEX_RIBBON_YELLOW: String = TS_UI_ROOT + "Ribbons/Ribbon_Yellow_3Slides.png"
@@ -91,6 +98,12 @@ const PANEL_TEXTURE_MARGIN: int = 26
 ## a faint dashed line, not a visible frame). A smaller, dedicated margin
 ## for shallow rows keeps the frame crisp at their real height instead.
 const ROW_TEXTURE_MARGIN: int = 12
+## Skill Tree art pass: a Skill Tree grid node (SkillNodeView.NODE_SIZE,
+## 112px) sits between ROW_TEXTURE_MARGIN's shallow row and PANEL_TEXTURE_
+## MARGIN's own full-size panel -- 26 read acceptably at 112px in a capture
+## but crowded the icon/name column inside it; 16 keeps the carved-stone
+## corner bevel legible while leaving more of the small square for content.
+const NODE_TEXTURE_MARGIN: int = 16
 ## The 3-slice ribbon sheets (192x64) are exactly three 64px thirds (left
 ## flag end / body / right flag end, PROVENANCE.md's own sheet-layout
 ## convention) -- 64 is the true, exact seam, not a measured approximation,

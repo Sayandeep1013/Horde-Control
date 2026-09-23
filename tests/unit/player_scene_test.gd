@@ -36,10 +36,11 @@ func test_player_root_is_character_body_2d_with_floating_motion_mode() -> void:
 
 
 func test_player_z_index_matches_register_readability_row() -> void:
-	# MASTER_SDLC.md > Provisional Values Register > Readability: "draw
-	# order z_index: environment 0, pickups 10, enemies 20 ..., player 50,
-	# damage numbers 60."
-	assert_int(_player.z_index).is_equal(50)
+	# MASTER_SDLC.md > Provisional Values Register > Readability (Author
+	# decision D119, 2026-09-23): "draw order z_index: environment 0,
+	# pickups 10, the play layer 20 (player, Tower, and enemies, Y-sorted
+	# together) ..." -- replaces the player's own earlier fixed band of 50.
+	assert_int(_player.z_index).is_equal(20)
 
 
 func test_process_mode_is_pausable() -> void:

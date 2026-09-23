@@ -7,14 +7,30 @@ extends Node
 ## Usage (a window opens briefly; audio is muted by the dummy driver):
 ##   Godot_v4.7.1-stable_win64_console.exe --path . --audio-driver Dummy \
 ##     res://src/dev/scene_capture.tscn -- --scene=res://scenes/prototype.tscn \
-##     --frames=240,600 --out=sandbox/captures/shot [--size=1920x1080] [--hold_move=right]
+##     --frames=240,600 --out=sandbox/captures/shot [--size=1920x1080] [--hold_move=right] \
+##     [--player_pos=X,Y] [--meta-profile-dir=<dir>] [--debug-panel=skill_tree]
 ## Writes <out>_<frame>.png for each listed frame.
+##
+## `--player_pos=X,Y` and `--meta-profile-dir=`/`--debug-panel=` are not
+## parsed by THIS file: the first teleports `res://scenes/prototype.tscn`'s
+## own `Main/Player` (best-effort -- silently skipped for any scene without
+## that exact path) to an exact world position immediately after the scene
+## loads, for a deterministic depth/occlusion capture that a single held
+## direction from the player's fixed spawn point cannot reach in one run
+## (Draw-order verification, Author decision D119). The other two are read
+## directly by `src/meta/meta_progress.gd`'s own `_resolve_base_path_from_
+## cmdline()` and `src/ui/hub_screen.gd`'s own `_apply_debug_panel_flag()`
+## -- both already existing, generic `OS.get_cmdline_user_args()` readers,
+## independent of this harness; named here only so a caller finds them
+## documented in the one place they would think to look.
 
 var _frames: Array[int] = []
 var _out: String = "sandbox/captures/shot"
 var _count: int = 0
 var _hold_action: String = ""
 var _dump_filter: String = ""
+var _has_player_pos: bool = false
+var _player_pos: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	var scene_path: String = "res://scenes/prototype.tscn"
@@ -34,13 +50,23 @@ func _ready() -> void:
 			_dump_filter = arg.trim_prefix("--dump-tree=")
 		elif arg.begins_with("--hold_move="):
 			_hold_action = "move_" + arg.trim_prefix("--hold_move=")
+		elif arg.begins_with("--player_pos="):
+			var xy: PackedStringArray = arg.trim_prefix("--player_pos=").split(",")
+			if xy.size() == 2:
+				_player_pos = Vector2(float(xy[0]), float(xy[1]))
+				_has_player_pos = true
 	if _frames.is_empty():
 		_frames = [240]
 	_frames.sort()
 	get_window().size = size
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://").path_join(_out.get_base_dir()))
 	var packed: PackedScene = load(scene_path)
-	add_child(packed.instantiate())
+	var instance: Node = packed.instantiate()
+	add_child(instance)
+	if _has_player_pos:
+		var player: Node2D = instance.get_node_or_null("Main/Player") as Node2D
+		if player != null:
+			player.global_position = _player_pos
 	if _hold_action != "" and InputMap.has_action(_hold_action):
 		Input.action_press(_hold_action)
 

@@ -135,6 +135,7 @@ func _ready() -> void:
 
 	_apply_meta_loadout()
 	_wire_hud()
+	_wire_overhead_bars()
 	_wire_threat_feedback()
 	_wire_audio_ducking()
 	_wire_audio_pool()
@@ -355,6 +356,22 @@ func _wire_hud() -> void:
 		_hud.set_player_ref(_player)
 	if _tower != null:
 		_hud.set_tower_ref(_tower)
+
+
+## Author request (2026-09-23): the player's always-visible overhead XP bar
+## (src/player/player_overhead_bar.gd) reads from the SAME `HudEconomyState`
+## instance src/ui/hud.gd's own XP ribbon already reads
+## (`Hud.economy_state`), per that file's own header, "XP source" -- a
+## single `set_economy_state()` typed-command call, the same pattern
+## `_wire_hud()` above already uses for the Player/Tower refs themselves.
+## The Tower's own overhead bar needs no equivalent call: it reads its
+## sibling TowerHealth/DeathState directly (no cross-scene reference).
+func _wire_overhead_bars() -> void:
+	if _player == null or _hud == null:
+		return
+	var bar: Node = _player.get_node_or_null("OverheadBar")
+	if bar != null and bar.has_method("set_economy_state"):
+		bar.call("set_economy_state", _hud.economy_state)
 
 
 func _wire_threat_feedback() -> void:

@@ -5,8 +5,17 @@ extends GdUnitTestSuite
 ## reporting success is not evidence") that scenes/main.tscn, as built,
 ## actually matches docs/20_Technical_Architecture.md > Godot 4.x
 ## Implementation Standards > "Scene Tree": the named container list, the
-## z_index draw order, y_sort_enabled on Entities only, and "Nothing under
+## z_index draw order, y_sort_enabled on Entities, and "Nothing under
 ## the gameplay root may set PROCESS_MODE_ALWAYS."
+##
+## Author decision D119 (2026-09-23): `Main` itself is now ALSO
+## y_sort_enabled (not "Entities only" any more) so the Player and the
+## Tower -- both instanced as Main's direct children in scenes/prototype.tscn,
+## outside this scene -- nest into Entities' own Y-sort space at runtime
+## (Godot 4 nests Y-sort through y_sort-enabled descendants). See
+## tests/unit/prototype_scene_test.gd for the assembled-scene assertions
+## this enables; this suite only proves Main's own flag, since Main.tscn
+## alone carries no Player/Tower to nest.
 
 const MainScene: PackedScene = preload("res://scenes/main.tscn")
 
@@ -31,7 +40,15 @@ func test_entities_is_y_sorted_and_others_are_not() -> void:
 	assert_bool(_main.get_node("Entities").y_sort_enabled).is_true()
 	for name in ["Projectiles", "Pickups", "Effects", "Environment"]:
 		var n: Node2D = _main.get_node(name)
-		assert_bool(n.y_sort_enabled).append_failure_message("%s must not be y-sorted; only Entities is (docs/20 > Scene Tree)" % name).is_false()
+		assert_bool(n.y_sort_enabled).append_failure_message("%s must not be y-sorted; only Entities and Main itself are (docs/20 > Scene Tree; Author decision D119)" % name).is_false()
+
+
+## Author decision D119 (2026-09-23): Main must ALSO be y_sort_enabled --
+## see this suite's own header for why (the Player/Tower, both instanced as
+## Main's direct children in scenes/prototype.tscn, need Main's own flag to
+## nest into Entities' Y-sort space).
+func test_main_itself_is_also_y_sorted_for_the_nested_play_layer() -> void:
+	assert_bool((_main as Node2D).y_sort_enabled).append_failure_message("Main must be y_sort_enabled so the Player/Tower/Entities nested Y-sort applies (Author decision D119)").is_true()
 
 
 func test_container_z_index_matches_docs_20_draw_order() -> void:

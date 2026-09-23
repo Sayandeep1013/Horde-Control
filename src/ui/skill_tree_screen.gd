@@ -136,13 +136,21 @@ const MAX_Y: int = 5
 ## Polish pass item 2: bigger cells for the bigger `SkillNodeView.NODE_SIZE`
 ## (84 -> 112). Padding (CELL - NODE_SIZE) stays roomy enough for the
 ## prerequisite lines to read clearly between nodes.
-const CELL_W: float = 150.0
-const CELL_H: float = 122.0 # 7 rows x 122 = 854 px fits the 1080p board; 132 clipped the bottom row (orchestrator review)
+##
+## Skill Tree art pass: shrunk again (150x122 -> 130x104), together with
+## `SkillNodeView.NODE_SIZE`'s own matching shrink (112 -> 92, same file's
+## header for the measured reason) -- freeing 7 rows x 18px = 126px of
+## vertical room in the SAME 1080-px budget for the new branch-header-
+## ribbon row and legend row this pass adds above/below the board.
+const CELL_W: float = 130.0
+const CELL_H: float = 104.0
 const DETAIL_PANEL_WIDTH: float = 420.0
 ## The root's own footprint (polish pass item 2: "keep the root visibly
-## special ... larger").
-const ROOT_SIZE: float = 172.0 # a clearly bigger footprint than any real node's own NODE_SIZE (112) -- see coordinator review, "keep the root visibly special ... larger"
-const RESPEC_WIDGET_SIZE: float = 92.0
+## special ... larger"). Skill Tree art pass: shrunk to keep the same
+## ~1.5x-of-a-real-node ratio after NODE_SIZE's own shrink (172/112 ~=
+## 142/92).
+const ROOT_SIZE: float = 142.0 # a clearly bigger footprint than any real node's own NODE_SIZE (92) -- see coordinator review, "keep the root visibly special ... larger"
+const RESPEC_WIDGET_SIZE: float = 80.0
 
 var _tree: SkillTreeDefinition = null
 var _content_root: Control = null # the root Control _build_ui() creates -- see set_active()'s own header on why the fade targets this, not `self`
@@ -318,6 +326,12 @@ func _state_for(id: String) -> int:
 	return SkillNodeView.State.BUYABLE if MetaProgress.get_cores() >= price else SkillNodeView.State.UNAFFORDABLE
 
 
+## Skill Tree art pass (task instruction: "connection lines as inked/rope
+## lines that glow when the path is owned"). Each entry now also carries
+## `owned` -- SkillTreeBoard._draw() below uses it to pick a plain thin
+## ink stroke (not yet owned) vs. a layered glow+ink+core stroke (an owned
+## path), rather than deciding that from colour/width alone the way the
+## pre-existing caller did.
 func _rebuild_lines() -> void:
 	var lines: Array = []
 	for def in _tree.nodes:
@@ -334,12 +348,14 @@ func _rebuild_lines() -> void:
 			if parent_view == null:
 				continue
 			var parent_owned: bool = prereq_id == _tree.root_id or MetaProgress.get_rank(prereq_id) > 0
-			var line_color: Color = _branch_color(def.branch) if (parent_owned and child_owned) else (UiPalette.LINE_STRONG if parent_owned else UiPalette.LINE)
+			var owned_path: bool = parent_owned and child_owned
+			var line_color: Color = _branch_color(def.branch) if owned_path else (UiPalette.LINE_STRONG if parent_owned else UiPalette.LINE)
 			lines.append({
 				"from": _node_center(parent_view),
 				"to": _node_center(child_view),
 				"color": line_color,
 				"width": 5.0 if parent_owned else 2.0,
+				"owned": owned_path,
 			})
 	_board.set_lines(lines)
 
@@ -373,10 +389,26 @@ func _branch_name(branch: int) -> String:
 	return ""
 
 
+## Skill Tree art pass (author request, 2026-09-23: "arrow for damage, boots
+## for speed, heart for vitality, tower for tower nodes, gold for fortune").
+## `vitality`/`swift_boots` are the two node ids the task names specifically
+## (HEART/BOOT); every other Archer node keeps the branch's own new ARROW
+## icon (replacing the former plain TRIANGLE), and Tower/Fortune already
+## used TOWER/COIN before this pass -- no change needed for those two
+## branches' default shape.
+static func _icon_shape_for(def: SkillNodeDefinition) -> int:
+	match def.id:
+		"vitality":
+			return UiShapeGlyph.Shape.HEART
+		"swift_boots":
+			return UiShapeGlyph.Shape.BOOT
+	return _shape_for(def)
+
+
 static func _shape_for(def: SkillNodeDefinition) -> int:
 	match def.branch:
 		SkillNodeDefinition.Branch.ARCHER:
-			return UiShapeGlyph.Shape.TRIANGLE
+			return UiShapeGlyph.Shape.ARROW
 		SkillNodeDefinition.Branch.TOWER:
 			return UiShapeGlyph.Shape.TOWER
 		SkillNodeDefinition.Branch.FORTUNE:
@@ -796,7 +828,11 @@ func _build_ui() -> void:
 	# The tree's own parchment board (docs/18 section 4.1: "nodes laid out
 	# ... on a parchment board") -- a real UiTheme.PANEL, matching the
 	# detail panel's own material, so the node graph reads as one wooden-
-	# framed board rather than floating over the bare screen dim.
+	# framed board rather than floating over the bare screen dim. Skill Tree
+	# art pass: PanelContainer's own single-child rule now wraps a
+	# VBoxContainer ("BoardColumn") instead of `board_center` directly, so a
+	# branch-header ribbon row and a legend row can sit above/below the
+	# board itself, inside the SAME carved-wood frame.
 	var board_panel := PanelContainer.new()
 	board_panel.name = "BoardPanel"
 	board_panel.theme_type_variation = UiTheme.PANEL
@@ -805,12 +841,20 @@ func _build_ui() -> void:
 	board_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	body.add_child(board_panel)
 
+	var board_column := VBoxContainer.new()
+	board_column.name = "BoardColumn"
+	board_column.mouse_filter = Control.MOUSE_FILTER_PASS
+	board_column.theme_type_variation = UiTheme.vbox("XS")
+	board_panel.add_child(board_column)
+
+	_build_branch_header_row(board_column)
+
 	var board_center := CenterContainer.new()
 	board_center.name = "BoardCenter"
 	board_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	board_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board_center.mouse_filter = Control.MOUSE_FILTER_PASS
-	board_panel.add_child(board_center)
+	board_column.add_child(board_center)
 
 	_board = SkillTreeBoard.new()
 	_board.name = "Board"
@@ -827,10 +871,111 @@ func _build_ui() -> void:
 	_selection_caret.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_board.add_child(_selection_caret)
 
+	_build_legend_row(board_column)
+
 	var vsep := VSeparator.new()
 	body.add_child(vsep)
 
 	_build_detail_panel(body)
+
+
+## Skill Tree art pass (task instruction: "branch headers on ribbons
+## ('Archer', 'Tower', 'Fortune')"). Three ribbon banners in one row above
+## the board: Archer (red -- the combat branch) on the left, Fortune
+## (yellow/gold -- matches its own COIN icon and branch colour) centred,
+## Tower (blue -- a steady, defensive read) on the right. `UiTheme.
+## make_ribbon_box()` is the SAME helper the HUD's own Wave ribbon already
+## uses (src/ui/hud.gd), just with the pack's Red/Blue sheets instead of
+## its default Yellow -- `UiTheme`'s own header names these two as "kept
+## available ... for a future caller that wants a differently-coloured
+## ribbon," which this is. A plain per-instance `add_theme_stylebox_
+## override()` rather than a new theme_type_variation, matching this
+## screen's own established "mutate a StyleBox at runtime" convention
+## (SkillNodeView's frame, above) for a one-off, three-colour need a shared
+## Theme variation would not fit any better.
+func _build_branch_header_row(parent: Container) -> void:
+	var row := HBoxContainer.new()
+	row.name = "BranchHeaderRow"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.theme_type_variation = UiTheme.hbox("M")
+	parent.add_child(row)
+
+	var archer_ribbon := _make_branch_ribbon(UiPalette.TEX_RIBBON_RED, _branch_name(SkillNodeDefinition.Branch.ARCHER))
+	archer_ribbon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(archer_ribbon)
+
+	var fortune_ribbon := _make_branch_ribbon(UiPalette.TEX_RIBBON_YELLOW, _branch_name(SkillNodeDefinition.Branch.FORTUNE))
+	row.add_child(fortune_ribbon)
+
+	var tower_ribbon := _make_branch_ribbon(UiPalette.TEX_RIBBON_BLUE, _branch_name(SkillNodeDefinition.Branch.TOWER))
+	tower_ribbon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(tower_ribbon)
+
+
+## `content_margin_v` is a small explicit override (4, not `UiTheme.make_
+## ribbon_box()`'s own `UiPalette.SPACE_XS` default), and the label keeps
+## `UiTheme.VALUE` rather than the taller `HEADING` variation -- both purely
+## for VERTICAL compactness (this row competes with the legend row below for
+## the same tight 1080-px budget CELL_H's own header names), not a style
+## preference; the ribbon still reads clearly as a named banner at this
+## smaller height.
+func _make_branch_ribbon(texture_path: String, label_text: String) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", UiTheme.make_ribbon_box(texture_path, UiPalette.SPACE_L, 4))
+	var label := Label.new()
+	label.name = "Label"
+	label.text = label_text
+	label.theme_type_variation = UiTheme.VALUE
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(label)
+	return panel
+
+
+## Skill Tree art pass (task instruction: "a clear legend"). Four compact
+## entries, each a small sample of the exact frame/icon a real node would
+## show in that state, immediately below the board -- reuses `UiShapeGlyph`
+## for the lock sample so the legend's own glyph is pixel-identical to what
+## a real LOCKED node draws, rather than a separately-drawn approximation.
+func _build_legend_row(parent: Container) -> void:
+	var row := HBoxContainer.new()
+	row.name = "LegendRow"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.theme_type_variation = UiTheme.hbox("L")
+	parent.add_child(row)
+
+	_add_legend_entry(row, UiPalette.TEX_BUTTON_HOVER, UiShapeGlyph.Shape.SQUARE, UiPalette.ACCENT, tr("SKILL_TREE_LEGEND_OWNED"))
+	_add_legend_entry(row, UiPalette.TEX_BUTTON_NORMAL, UiShapeGlyph.Shape.SQUARE, UiPalette.TEXT, tr("SKILL_TREE_LEGEND_AVAILABLE"))
+	_add_legend_entry(row, UiPalette.TEX_BUTTON_DANGER, UiShapeGlyph.Shape.SQUARE, UiPalette.DANGER, tr("SKILL_TREE_LEGEND_UNAFFORDABLE"))
+	_add_legend_entry(row, UiPalette.TEX_BUTTON_DISABLED, UiShapeGlyph.Shape.LOCK, UiPalette.TEXT_DIM, tr("SKILL_TREE_LEGEND_LOCKED"))
+
+
+func _add_legend_entry(row: Container, texture_path: String, shape: int, glyph_color: Color, label_text: String) -> void:
+	var entry := HBoxContainer.new()
+	entry.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entry.theme_type_variation = UiTheme.hbox("XS")
+	row.add_child(entry)
+
+	var swatch := PanelContainer.new()
+	swatch.custom_minimum_size = Vector2(22.0, 22.0)
+	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	swatch.add_theme_stylebox_override("panel", UiTheme.make_texture_box(texture_path, 5, 0))
+	entry.add_child(swatch)
+
+	var glyph := UiShapeGlyph.new()
+	glyph.shape = shape
+	glyph.glyph_color = glyph_color
+	glyph.set_side(12)
+	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	swatch.add_child(glyph)
+
+	var label := Label.new()
+	label.text = label_text
+	label.theme_type_variation = UiTheme.SMALL
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entry.add_child(label)
 
 
 func _build_header(parent: Container) -> void:
@@ -906,7 +1051,7 @@ func _build_nodes() -> void:
 		view.name = "Node_%s" % def.id
 		_board.add_child(view)
 		var is_root: bool = def.id == _tree.root_id
-		var shape: int = UiShapeGlyph.Shape.TENT if is_root else _shape_for(def)
+		var shape: int = UiShapeGlyph.Shape.TENT if is_root else _icon_shape_for(def)
 		view.configure(def.id, shape, _branch_color(def.branch), def.display_name)
 		view.node_hovered.connect(_on_node_hovered)
 		_position_node(view, def.grid_position, ROOT_SIZE if is_root else SkillNodeView.NODE_SIZE)
@@ -1126,7 +1271,24 @@ func tick_for_test(delta: float) -> void:
 ## (a Control's own `_draw()` runs before its children's, so the lines
 ## always sit behind the node widgets). `set_lines()` is the only seam --
 ## see `SkillTreeScreen._rebuild_lines()`.
+##
+## ## Skill Tree art pass: "inked/rope lines that glow when the path is
+## owned"
+## A NOT-yet-owned path draws as a single stroke (unchanged look, just a
+## plain line) -- the pre-existing behaviour. An OWNED path draws as three
+## layered strokes, widest-and-faintest first: a soft outer glow
+## (`UiPalette.ACCENT` at low alpha, matching `SkillNodeView`'s own owned-
+## node halo so the glow motif reads as one consistent visual language), a
+## dark ink outline (`UiPalette.INK`, matching the carved-stone frames'
+## own dark bevel colour) giving the rope a drawn edge, and the real branch-
+## coloured core line on top -- three `draw_line` calls per owned segment
+## instead of one, cheap at the handful of prerequisite edges this tree
+## ever has (18 nodes, at most 2 prerequisites each).
 class SkillTreeBoard extends Control:
+	const GLOW_WIDTH_ADD: float = 10.0
+	const OUTLINE_WIDTH_ADD: float = 3.0
+	const GLOW_ALPHA: float = 0.20
+
 	var _lines: Array = []
 
 
@@ -1137,4 +1299,11 @@ class SkillTreeBoard extends Control:
 
 	func _draw() -> void:
 		for line: Dictionary in _lines:
-			draw_line(line["from"], line["to"], line["color"], line["width"], true)
+			var from: Vector2 = line["from"]
+			var to: Vector2 = line["to"]
+			var color: Color = line["color"]
+			var width: float = line["width"]
+			if line.get("owned", false):
+				draw_line(from, to, UiPalette.with_alpha(UiPalette.ACCENT, GLOW_ALPHA), width + GLOW_WIDTH_ADD, true)
+				draw_line(from, to, UiPalette.INK, width + OUTLINE_WIDTH_ADD, true)
+			draw_line(from, to, color, width, true)

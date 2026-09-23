@@ -6,6 +6,7 @@
 
 [node name="Main" type="Node2D"]
 process_mode = 1
+y_sort_enabled = true
 
 [node name="Entities" type="Node2D" parent="."]
 y_sort_enabled = true

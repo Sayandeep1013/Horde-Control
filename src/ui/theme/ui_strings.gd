@@ -142,6 +142,10 @@ const MESSAGES: Dictionary = {
 	"SKILL_TREE_BRANCH_ARCHER": "Archer",
 	"SKILL_TREE_BRANCH_TOWER": "Tower",
 	"SKILL_TREE_BRANCH_FORTUNE": "Fortune",
+	"SKILL_TREE_LEGEND_OWNED": "Owned",
+	"SKILL_TREE_LEGEND_AVAILABLE": "Available",
+	"SKILL_TREE_LEGEND_UNAFFORDABLE": "Can't afford",
+	"SKILL_TREE_LEGEND_LOCKED": "Locked",
 
 	# --- Meta layer core: Records panel -------------------------------------
 	"RECORDS_TITLE": "Records",

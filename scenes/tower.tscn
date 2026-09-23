@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://src/tower/tower_evolution_stage.gd" id="11_stage"]
 [ext_resource type="Texture2D" path="res://assets/sprite_frames/arrow_projectile.tres" id="16_projtower"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/tower_fire.ogg" id="17_towerfire"]
+[ext_resource type="Script" path="res://src/tower/tower_overhead_bar.gd" id="28_overheadbar"]
 
 ; Art pass (D102): Tiny Swords Knights buildings replace the Kenney 64px
 ; tower tiles. See src/tower/tower_visuals.gd's header for the canvas/
@@ -37,7 +38,7 @@ radius = 160.0
 
 [node name="Tower" type="Node2D"]
 process_mode = 1
-z_index = 25
+z_index = 20
 script = ExtResource("1_tower")
 definition = ExtResource("2_basedef")
 weapon_definition = ExtResource("3_baseweapon")
@@ -127,3 +128,10 @@ script = ExtResource("11_stage")
 [node name="Projectiles" type="Node2D" parent="."]
 z_index = 30
 z_as_relative = false
+
+; Author request (2026-09-23): "show ... tower healthbar right above them
+; just like enemies but in different colours". src/tower/tower_overhead_bar.gd's
+; own header explains the z_index 50/z_as_relative=false choice (Author
+; decision D119) and where it reads the shield/health pools and the trail.
+[node name="OverheadBar" type="Node2D" parent="."]
+script = ExtResource("28_overheadbar")
