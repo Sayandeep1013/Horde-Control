@@ -1,5 +1,27 @@
 # Next Session — Start Here
 
+## TODO - resume here (handoff written 2026-09-23 ~14:20, author left mid-task)
+
+The author asked for these, in order. None is started except where noted. Working tree was clean at handoff (main = 37835ef, pushed).
+
+1. **Settings: audio + graphics** (NOT started - the agent was stopped before writing anything). Author's words: "give one option in settings to mute or lower the volume of music and other sound effects .. and more quality settings if needed". Build:
+   - `GameSettings` persistence (static class, ConfigFile at `user://settings.cfg`, injectable path for tests - never the real file in tests). Do not add a sixth autoload without a decision row.
+   - Options: Master / Music / Sound effects volume, each 0-100% in 10% steps, 0% = bus muted (Effects drives SFX, SFX_Priority, UI, Ambience, TowerCue); Mute all; Display mode (Windowed / Fullscreen / Borderless); V-Sync; Screen shake (gate src/camera/game_camera.gd shake); Damage numbers (src/fx/damage_number_fx.gd); Movement-only controls (existing, now persisted). Apply on boot and on change.
+   - UI: rebuild src/ui/settings_menu.gd as a vertical list of rows (label left, "< value >" right). Up/down selects, left/right changes immediately, mouse clicks arrows. Keep docs/19's movement-only path. Medieval UiTheme. Must read at 1280x720.
+   - Reachable from pause menu and run-end (existing) AND the title screen and the Hub (new Settings buttons, same screen as an overlay). The README already claims these three places - make it true or edit the README.
+   - Docs: docs/19 settings section; Register row "Settings" (defaults Master 100, Music 70, Effects 80, Mute off, Windowed, V-Sync on, Shake on, Damage numbers on, Movement-only off); decision row **D121** (alternatives: sliders; single mute toggle only).
+   - Tests: persistence round trip (temp path), bus volumes/mutes applied, 0% mutes, left/right changes values, reachable from title/hub/pause; falsify one.
+2. **Game icon**: `icon.png` (256 px castle, already committed at repo root) - add `config/icon="res://icon.png"` under `[application]` in project.godot, re-import, run tests/settings_check.gd standalone (it audits project.godot).
+3. **Full suite** (`tests/run_tests.ps1 -TestPath "res://tests"`, one Godot suite at a time - the machine ran out of memory with two). Green = only tests/harness/fail/test_trivial_fail.gd fails.
+4. **Build**: `--export-release "Windows Desktop" builds/windows/HordeControl.exe`. The preset now EMBEDS the pck (single file) and carries version 0.1.0.0 metadata. Verify the export really contains the arena BEFORE shipping (the binary scene conversion once dropped it; conversion is off in project.godot):
+   `Godot --main-pack <build> ... res://src/dev/scene_capture.tscn -- --frames=5 --out=x --dump-tree=Main/Environment` must list ArenaInstance with 26 children. With an embedded pck, point `--main-pack` at the exe itself, or export a debug .pck alongside for the check.
+5. **Push** main.
+6. **GitHub release v0.1.0** (author asked: "the release ... exe in release section"). Match the author's own style (see their DiscRec repo release "v0.1.0 — Windows"): title `v0.1.0 — Windows`, attach `HordeControl.exe`, short body: what it is in one line, bullets (run loop, level-up drafts with rarity, skill tree + achievements, no installer, saves under %APPDATA%\Godotpp_userdata\Horde Control), requirements (Windows 10/11 64-bit, Vulkan GPU), credits line. `gh release create v0.1.0 builds/windows/HordeControl.exe -R Sayandeep1013/Horde-Control --title "v0.1.0 — Windows" --notes-file <file>`.
+   - Already DONE: README.md with screenshots in docs/screenshots/ (pushed); GitHub About description, homepage (-> Releases) and 12 topics set via `gh repo edit`.
+7. Afterwards, known polish items: Skill Tree node text is small and its state colours are loud; docs/20 still describes the Tower Console (removed by D115); single-suite runs print exit-time leak errors from static theme/FX caches; no review gate has run on any of the 2026-09-23 work.
+
+**Working style the author set this session:** when they are away, take the recommended option, log a decision row, keep going; Sonnet agents implement in worktrees, Opus reviews blind; check every change in real screenshots (and in the exported build) before calling it done; always close every Godot process started.
+
 **State on 2026-09-23, end of day (D105-D120).** Horde Control is a playable roguelite loop: Title -> War Camp (Hub) -> run -> results -> War Camp.
 - **Meta layer (docs/18, docs/24):** MetaProgress autoload (fifth autoload, D112), atomic versioned profile (schema 2), Run-End Settlement (time, waves, kills, victory, Scrap at 10:1), 20-node Skill Tree with fog reveal and hold-to-buy, free respec, records, 6 achievements that unlock Draft cards (D118). A blind Opus review found an idle-buy/idle-respec bug, a cosmetic-only Fortress and flag-lifecycle bugs; all fixed with tests.
 - **Run mechanics:** no in-run shop - the Tower Console is gone (D115). Level-Up Drafts open the moment XP fills, pausing (D116); cards roll Common/Rare/Epic (D117) from an 18-card pool. XP curve 5 + 3(L+1) from wave 1 (D108).
