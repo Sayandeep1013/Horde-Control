@@ -231,11 +231,16 @@ static func _build_panels(t: Theme) -> void:
 	# carved-wood/parchment 9-slice (`UiPalette.TEX_PANEL_CARVED`), which
 	# already reads as a wood-framed parchment insert on its own -- no per-
 	# variation recolouring needed the way the old flat boxes needed a
-	# distinct fill Color each. `modulate`'s alpha keeps the HUD's small
-	# pills translucent over the battlefield (the old PANEL_ALPHA figure);
-	# a modal CARD stays fully opaque (CARD_ALPHA, matching the old value)
-	# since it always sits over a dedicated dim, never bare gameplay.
-	var pill_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.PANEL_TEXTURE_MARGIN, UiPalette.SPACE_S, Color(1, 1, 1, UiPalette.PANEL_ALPHA))
+	# distinct fill Color each. A modal CARD stays fully opaque (CARD_ALPHA,
+	# matching the old value) since it always sits over a dedicated dim,
+	# never bare gameplay.
+	#
+	# HUD polish (coordinator review, third pass): PILL is the one variation
+	# that sits directly over LIVE, undimmed gameplay (the HUD's own field
+	# pills, the Draft's Reroll pill) -- see UiPalette.PILL_TINT's own header
+	# for why it darkens the same texture instead of using the lighter
+	# PANEL_ALPHA every other variation keeps.
+	var pill_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.PANEL_TEXTURE_MARGIN, UiPalette.SPACE_S, UiPalette.PILL_TINT)
 	var panel_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.PANEL_TEXTURE_MARGIN, UiPalette.SPACE_L, Color(1, 1, 1, UiPalette.PANEL_ALPHA))
 	var card_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.PANEL_TEXTURE_MARGIN, UiPalette.SPACE_XL, Color(1, 1, 1, UiPalette.CARD_ALPHA))
 	var tooltip_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.PANEL_TEXTURE_MARGIN, UiPalette.SPACE_S)

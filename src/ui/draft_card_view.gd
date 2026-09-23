@@ -114,7 +114,12 @@ const BORDER_WIDTH_NORMAL: int = UiPalette.BORDER_THIN
 ## UiPalette.BORDER_THICK. TODO(ui-pass): promote to UiPalette if another
 ## surface wants a border weight beyond THICK for a selection/focus cue.
 const BORDER_WIDTH_HIGHLIGHTED: int = 5
-const BORDER_COLOR_NORMAL: Color = UiPalette.LINE_STRONG
+## HUD polish (coordinator review, third pass): a dark wood-brown frame
+## (task instruction, "a flat parchment StyleBoxFlat with a wood border"),
+## not the bronze LINE_STRONG every HUD pill uses -- higher contrast against
+## the card's own light UiPalette.PARCHMENT fill (below) than bronze-on-tan
+## would be.
+const BORDER_COLOR_NORMAL: Color = UiPalette.WOOD_BORDER
 const BORDER_COLOR_HIGHLIGHTED: Color = UiPalette.ACCENT
 
 ## Round 2 (review): a shadow, present only while highlighted, is a
@@ -151,7 +156,11 @@ class RankPips extends Control:
 	var max_rank: int = 0
 	var filled: int = 0
 	var fill_color: Color = UiPalette.ACCENT
-	var empty_color: Color = UiPalette.with_alpha(UiPalette.LINE_STRONG, 0.5)
+	## HUD polish (third pass): darkened to UiPalette.WOOD_BORDER, matching
+	## the card's own new wood-border frame colour -- LINE_STRONG (bronze)
+	## at 0.5 alpha read too close to the new light UiPalette.PARCHMENT fill
+	## behind it to register as an "empty" pip.
+	var empty_color: Color = UiPalette.with_alpha(UiPalette.WOOD_BORDER, 0.45)
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -174,12 +183,6 @@ class RankPips extends Control:
 
 var _column: VBoxContainer
 var _accent_strip: ColorRect
-## Second UI pass: a tiled parchment swatch drawn BEHIND `_column` (added to
-## this PanelContainer first, so it renders first/underneath -- see
-## _init()) for actual parchment TEXTURE (task instruction: "parchment/
-## banner card look"), not just the warm flat colour `UiPalette`'s own
-## retint already gives every StyleBoxFlat surface.
-var _background: TextureRect
 var _header_label: Label
 ## Declared `Label` (get_glyph_label()'s own return type, unchanged --
 ## tests/unit/draft_input_lockout_test.gd's seam) though the instance built
@@ -214,21 +217,18 @@ func _init() -> void:
 	# UiTheme.make_box() (never `theme_type_variation = UiTheme.CARD` --
 	# see class header) so setup()/_apply_highlight_style() can keep
 	# mutating corner radius, border width, and border colour at runtime.
-	_style = UiTheme.make_box(UiPalette.with_alpha(UiPalette.SURFACE, UiPalette.CARD_ALPHA), BORDER_COLOR_NORMAL, CORNER_SQUARED_PX, BORDER_WIDTH_NORMAL, UiPalette.SPACE_L)
+	#
+	# HUD polish (coordinator review, third pass): a flat UiPalette.PARCHMENT
+	# fill (opaque -- a "calm surface" for the text, task instruction) with a
+	# UiPalette.WOOD_BORDER frame, not a tiled texture swatch. The earlier
+	# version of this pass added a SECOND child, a TextureRect tiling
+	# Carved_Regular.png (64x64) behind `_column` for a parchment TEXTURE;
+	# a real capture showed it as a visible "waffle grid" of repeat seams
+	# at the card's size, not a seamless parchment surface -- a flat fill
+	# has no seam to show, by construction, so it replaces the texture
+	# entirely rather than trying to hide the seam.
+	_style = UiTheme.make_box(UiPalette.PARCHMENT, BORDER_COLOR_NORMAL, CORNER_SQUARED_PX, BORDER_WIDTH_NORMAL, UiPalette.SPACE_L)
 	add_theme_stylebox_override("panel", _style)
-
-	# Second UI pass: added BEFORE _column, so PanelContainer draws it first
-	# (behind); a plain Control child of a PanelContainer fills the panel's
-	# content rect just like _column does, so the two simply overlap with
-	# this one behind.
-	_background = TextureRect.new()
-	_background.name = "ParchmentBackground"
-	_background.texture = load(UiPalette.TEX_PANEL_CARVED_SWATCH)
-	_background.stretch_mode = TextureRect.STRETCH_TILE
-	_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_background.modulate = Color(1.0, 1.0, 1.0, 0.55)
-	add_child(_background)
 
 	_column = VBoxContainer.new()
 	_column.name = "Column"
