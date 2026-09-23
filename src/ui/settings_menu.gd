@@ -148,6 +148,30 @@ func get_movement_only_controls_enabled_for_test() -> bool:
 	return movement_only_controls_enabled
 
 
+## Public static read of the process-lifetime setting (see class header,
+## "Temporary debug persistence") -- the SAME source `Console.
+## movement_only_controls_enabled` is itself seeded from in `_ready()`
+## above. Exposed here so a screen with no Console reference of its own
+## (e.g. the Hub's Skill Tree screen: there is no run in progress, hence no
+## Console, while the player is in the Hub) can still read the player's
+## last choice instead of inventing a second copy of it (blind review of
+## the meta layer, finding #1: the Skill Tree's own movement-only
+## stand-still purchase path must read the SAME setting Console reads, not
+## always be on).
+static func get_movement_only_controls_enabled() -> bool:
+	return _static_last_value
+
+
+## Test seam: sets the process-lifetime static directly, for a test that
+## checks a movement-only-gated behaviour in ANOTHER screen (e.g.
+## SkillTreeScreen) without instantiating a whole SettingsMenu/Console
+## pair. This is a STATIC (class-level, process-lifetime) value shared by
+## every test file that runs in the same headless process -- any test that
+## calls this MUST reset it to false in its own `after_test()`.
+static func set_movement_only_controls_enabled_for_test(enabled: bool) -> void:
+	_static_last_value = enabled
+
+
 func _on_option_confirmed(index: int) -> void:
 	if index == OPTION_TOGGLE:
 		_toggle_movement_only()

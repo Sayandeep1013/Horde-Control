@@ -47,6 +47,28 @@ class_name MetaLoadoutApplier
 ## `DraftController.queue_forced_draft_for_meta()` when `wave_index == 0`
 ## (the first wave). None of the three mutate a definition Resource.
 ##
+## ## Fortress ALSO carries a scalar gameplay effect (decision D114, blind
+## review of the meta layer finding #2)
+## The evolution-stage head start alone changes only the Tower's art in the
+## prototype (no stat difference is wired to evolution stage yet) -- D114
+## adds a fixed +20% Tower max health and +20% Tower weapon damage on top of
+## it, composed EXACTLY like Stone Walls (`tower_max_health_bonus`) and
+## Arrow Slits (`tower_weapon_damage_bonus`): `FORTRESS_TOWER_MAX_HEALTH_
+## BONUS`/`FORTRESS_TOWER_WEAPON_DAMAGE_BONUS` below are added into the SAME
+## local bonus fractions `_apply_tower()` already computes from those two
+## nodes' own loadout fields, so a profile owning Fortress AND Stone Walls
+## (say) gets both bonuses added together before the base value is
+## multiplied ONCE -- the Register's own "percentages add ... and multiply
+## the base once" rule, applied across sibling nodes touching the same stat
+## rather than only within one node's own ranks. These two fractions are
+## hardcoded constants, not read off `SkillNodeDefinition.value_per_rank`,
+## because Fortress has exactly one rank and `value_per_rank` there is a
+## presence flag (1.0), not a percentage (see that file's own "mechanic
+## node" comment) -- the two numbers instead live directly beside the
+## Register row they cite (Provisional Values Register > "Meta: Skill Tree
+## effects" > "Fortress ... adds +20% Tower max health and +20% Tower
+## weapon damage").
+##
 ## ## Idempotence for every test/harness that instantiates scenes/
 ## prototype.tscn without ever buying a Skill Tree rank
 ## `MetaProgress`'s own in-memory default profile starts at zero ranks (see
@@ -55,6 +77,12 @@ class_name MetaLoadoutApplier
 ## test and every fresh install. Every step below is written to be a true
 ## no-op in that case: duplicating a Resource and re-applying identical
 ## values is behaviourally indistinguishable from never having run.
+
+## Register > "Meta: Skill Tree effects" / decision D114 -- see class
+## header, "Fortress ALSO carries a scalar gameplay effect."
+const FORTRESS_TOWER_MAX_HEALTH_BONUS: float = 0.20
+const FORTRESS_TOWER_WEAPON_DAMAGE_BONUS: float = 0.20
+
 
 ## Typed command: applies every field on `loadout` to the given live run.
 ## Every parameter after `loadout` may be null (a system not present in a
@@ -104,14 +132,26 @@ static func _apply_player(loadout: MetaLoadout, player: Player, player_weapon: A
 static func _apply_tower(loadout: MetaLoadout, tower: Tower) -> void:
 	if tower == null or tower.definition == null:
 		return
-	var needs_tower_dup: bool = loadout.tower_max_health_bonus != 0.0 or loadout.tower_max_shield_bonus != 0.0 or loadout.repair_price_reduction != 0.0 or loadout.tower_weapon_range_bonus != 0.0
-	var needs_weapon_dup: bool = loadout.tower_weapon_damage_bonus != 0.0
+	# Finding #2 / D114: Fortress's own two fixed fractions compose ADDITIVELY
+	# with Stone Walls'/Arrow Slits' own loadout fields for the SAME stat --
+	# see class header, "Fortress ALSO carries a scalar gameplay effect."
+	# Combined into local vars up front so every branch below (the dup-need
+	# checks AND the actual mutation) reads ONE number per stat, exactly as
+	# if a single node had granted the combined bonus.
+	var tower_max_health_bonus: float = loadout.tower_max_health_bonus
+	var tower_weapon_damage_bonus: float = loadout.tower_weapon_damage_bonus
+	if loadout.fortress_enabled:
+		tower_max_health_bonus += FORTRESS_TOWER_MAX_HEALTH_BONUS
+		tower_weapon_damage_bonus += FORTRESS_TOWER_WEAPON_DAMAGE_BONUS
+
+	var needs_tower_dup: bool = tower_max_health_bonus != 0.0 or loadout.tower_max_shield_bonus != 0.0 or loadout.repair_price_reduction != 0.0 or loadout.tower_weapon_range_bonus != 0.0
+	var needs_weapon_dup: bool = tower_weapon_damage_bonus != 0.0
 
 	var dup_tower: TowerDefinition = tower.definition
 	if needs_tower_dup:
 		dup_tower = tower.definition.duplicate(true) as TowerDefinition
-		if loadout.tower_max_health_bonus != 0.0 and dup_tower.max_health_and_shield_fraction != null:
-			dup_tower.max_health_and_shield_fraction.maximum_health = int(round(float(dup_tower.max_health_and_shield_fraction.maximum_health) * (1.0 + loadout.tower_max_health_bonus)))
+		if tower_max_health_bonus != 0.0 and dup_tower.max_health_and_shield_fraction != null:
+			dup_tower.max_health_and_shield_fraction.maximum_health = int(round(float(dup_tower.max_health_and_shield_fraction.maximum_health) * (1.0 + tower_max_health_bonus)))
 		if loadout.tower_max_shield_bonus != 0.0 and dup_tower.max_health_and_shield_fraction != null:
 			# Additive to the base shield fraction, folded in BEFORE
 			# TowerHealth.configure() derives `_base_max_shield` -- see this
@@ -128,7 +168,7 @@ static func _apply_tower(loadout: MetaLoadout, tower: Tower) -> void:
 	var dup_weapon: WeaponDefinition = tower.weapon_definition
 	if needs_weapon_dup and tower.weapon_definition != null and tower.weapon_definition.damage_band != null:
 		dup_weapon = tower.weapon_definition.duplicate(true) as WeaponDefinition
-		dup_weapon.damage_band.value = int(round(float(dup_weapon.damage_band.value) * (1.0 + loadout.tower_weapon_damage_bonus))) # BandedValue.value is int -- see the identical fix/comment on the player weapon branch above
+		dup_weapon.damage_band.value = int(round(float(dup_weapon.damage_band.value) * (1.0 + tower_weapon_damage_bonus))) # BandedValue.value is int -- see the identical fix/comment on the player weapon branch above
 
 	if needs_tower_dup or needs_weapon_dup:
 		tower.configure(dup_tower, dup_weapon)

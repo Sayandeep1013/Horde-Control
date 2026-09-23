@@ -78,6 +78,23 @@ class_name SkillTreeScreen
 ## could be) -- the movement equivalent of the Draft's own neutral-return
 ## arming rule.
 ##
+## BUGFIX (blind review of the meta layer, finding #1): this stand-still
+## path used to fire regardless of the Movement-only controls SETTING
+## (`SettingsMenu.movement_only_controls_enabled` / the same process-lifetime
+## `SettingsMenu.get_movement_only_controls_enabled()` Console itself reads
+## via `SettingsMenu.set_console_ref()`) -- so ANY keyboard/gamepad player
+## simply resting on a buyable node after navigating to it (arrow/WASD/d-pad,
+## no key held) silently bought it 1.0s later, with Reset Tree wiped by the
+## exact same accident. `_poll_hold()` below now (a) only accumulates the
+## stand-still path when that setting is actually ON, reading the SAME
+## source Console reads rather than a second copy of it, and (b) NEVER
+## accumulates it for `RESPEC_ID` at all, in EITHER mode -- Reset Tree
+## always requires an explicit held `confirm` (mouse/keyboard/gamepad),
+## satisfying "give respec a two-step ... or exclude it" by excluding it
+## from the one-mechanic-fits-all stand-still gesture entirely, since a
+## silently-wiped tree is a far worse failure than one capstone the player
+## must hold a real button to reach.
+##
 ## ## Reveal / fog (docs/18 section 4.1)
 ## `refresh()` diffs `MetaProgress.is_visible(id)` against the previous call
 ## (`_was_visible`) and fades in (`SkillNodeView.play_reveal_fade()`) any
@@ -675,7 +692,11 @@ func _poll_hold(delta: float) -> void:
 	if state == SkillNodeView.State.BUYABLE:
 		if confirm_down and not _confirm_requires_release:
 			accumulating = true
-		elif _movement_only_armed and not _any_direction_pressed():
+		# Finding #1: gated on the Movement-only controls SETTING (the same
+		# source Console reads) and NEVER for Respec -- see class header,
+		# "BUGFIX." A player who merely navigates with arrows/WASD/d-pad,
+		# with the setting off, must never auto-buy by resting on a node.
+		elif _selected_id != RESPEC_ID and SettingsMenu.get_movement_only_controls_enabled() and _movement_only_armed and not _any_direction_pressed():
 			accumulating = true
 
 	if accumulating:

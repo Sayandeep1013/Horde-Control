@@ -100,6 +100,12 @@ const MESSAGES: Dictionary = {
 	"RUN_END_NEW_BEST_KILLS": "NEW BEST -- enemies defeated",
 	"RUN_END_NEW_BEST_TIME": "NEW BEST -- time survived",
 	"RUN_END_ALREADY_SETTLED": "Already settled",
+	# Blind review of the meta layer, finding #6: shown instead of a Cores
+	# total when `MetaProgress.settle_run()`'s own breakdown reports
+	# `saved == false` -- most commonly a read-only-newer-version profile
+	# (docs/18 section 6) -- so the results screen never claims Cores were
+	# saved when they were not.
+	"RUN_END_NOT_SAVED": "Not saved -- this profile could not be written to.",
 
 	# --- Meta layer core: Hub (War Camp) -----------------------------------
 	"HUB_TITLE": "War Camp",

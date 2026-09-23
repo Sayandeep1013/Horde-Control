@@ -105,3 +105,41 @@ func test_lifetime_cores_accumulates_across_settlements_and_survives_spending() 
 	assert_int(MetaProgress.get_lifetime_cores()).is_equal(50)
 	MetaProgress.buy("vitality") # spending the wallet must not reduce the lifetime total
 	assert_int(MetaProgress.get_lifetime_cores()).is_equal(50)
+
+
+# --- Frozen loadout: bonuses never change mid-run (docs/18 section 6) ----------
+
+## docs/18 section 6 edge case: "Meta bonuses mid-run: Never. Loadout is
+## computed once at run start and frozen for the run." `build_run_loadout()`
+## is called exactly once, at run start (`PrototypeIntegration._ready()`);
+## nothing re-reads `MetaProgress` afterward to refresh an already-built
+## `MetaLoadout`. This proves the ARCHITECTURE actually holds that
+## guarantee: a `MetaLoadout` returned before a purchase is a plain snapshot
+## whose fields never move, however much `MetaProgress`'s own live ranks
+## change afterward -- there is no live binding, callable, or getter
+## anywhere on `MetaLoadout` that could re-read `MetaProgress` on a later
+## access (see that file's own header: "a plain, immutable-by-convention
+## data holder").
+##
+## FALSIFICATION (named in the report): temporarily replacing `MetaLoadout.
+## player_max_health_bonus`'s plain `float` field with a computed getter
+## that re-read `MetaProgress.get_rank("vitality")` live (simulating the bug
+## this test guards against) made the final assertion fail (0.20 instead of
+## the frozen 0.10). Reverted after confirming the failure.
+func test_a_loadout_already_built_is_never_recomputed_by_a_later_tree_change() -> void:
+	_grant_cores(200)
+	assert_bool(MetaProgress.buy("vitality")).is_true() # rank 1 of 3, +10% each
+
+	var loadout: MetaLoadout = MetaProgress.build_run_loadout()
+	assert_float(loadout.player_max_health_bonus).is_equal_approx(0.10, 0.001)
+
+	# Buying MORE ranks after the loadout is already in a run's hands must
+	# never retroactively change it -- this is what "buying ... during a run
+	# is impossible" (docs/18 section 6) protects against structurally: the
+	# Skill Tree screen exists only in the Hub, never during a run, but this
+	# proves the SNAPSHOT itself is also inert even if something else were
+	# to call MetaProgress mid-run.
+	assert_bool(MetaProgress.buy("vitality")).is_true() # rank 2, +20% total
+	MetaProgress.respec() # even a full reset must not reach back into the already-built snapshot
+
+	assert_float(loadout.player_max_health_bonus).append_failure_message("a MetaLoadout already handed to a run must be frozen -- it must never reflect a LATER MetaProgress change").is_equal_approx(0.10, 0.001)

@@ -67,13 +67,50 @@ func test_a_recovered_from_corruption_profile_shows_the_warning_banner() -> void
 	_corrupt_profile_file()
 	var hub: HubScreen = auto_free(HubScreen.new())
 	add_child(hub)
-	assert_bool(MetaProgress.get_flags()["recovered_from_corruption"]).is_true()
 	assert_bool(hub.get_warning_banner_for_test().visible).append_failure_message("a corrupted-then-recovered profile must show a non-blocking warning").is_true()
 	var label: Label = hub.get_warning_banner_for_test().get_node("Row/Label") as Label
 	assert_str(label.text).is_equal(tr("HUB_WARNING_RECOVERED"))
 	# Non-blocking: every real action stays usable underneath the banner.
 	assert_bool(hub.get_start_run_button_for_test().disabled).is_false()
 	assert_bool(hub.get_skill_tree_button_for_test().disabled).is_false()
+	# BUGFIX (blind review of the meta layer, finding #3): the flag itself
+	# must not survive being shown once -- a flag that never clears would
+	# show this banner "forever," one Hub visit after another. See the
+	# dedicated lifecycle tests below.
+	assert_bool(MetaProgress.get_flags()["recovered_from_corruption"]).append_failure_message("the corruption flag must be cleared once the Hub has shown its one-time banner").is_false()
+
+
+## FALSIFICATION (named in the report): temporarily removing the
+## `MetaProgress.acknowledge_recovered_from_corruption()` call from
+## `HubScreen._refresh_warning_banner()` (the pre-fix behaviour) made the
+## last assertion below fail -- a second Hub instance still showed the
+## banner. Reverted after confirming the failure.
+func test_the_recovered_from_corruption_banner_never_shows_again_once_acknowledged() -> void:
+	_corrupt_profile_file()
+	var hub1: HubScreen = auto_free(HubScreen.new())
+	add_child(hub1)
+	assert_bool(hub1.get_warning_banner_for_test().visible).is_true()
+
+	# Same in-process MetaProgress instance (a fresh Hub screen never
+	# reloads an already-loaded profile) -- proves the clear is not merely
+	# a one-off local variable inside _refresh_warning_banner() itself.
+	var hub2: HubScreen = auto_free(HubScreen.new())
+	add_child(hub2)
+	assert_bool(hub2.get_warning_banner_for_test().visible).append_failure_message("the recovered-from-corruption banner must never show again once it has already been shown and acknowledged").is_false()
+
+
+func test_the_recovered_from_corruption_flag_is_cleared_on_disk_not_only_in_memory() -> void:
+	_corrupt_profile_file()
+	var hub1: HubScreen = auto_free(HubScreen.new())
+	add_child(hub1)
+	assert_bool(hub1.get_warning_banner_for_test().visible).is_true()
+
+	MetaProgress.reload_for_test() # re-reads from disk -- proves the clear was actually SAVED, not merely held in memory
+	assert_bool(MetaProgress.get_flags()["recovered_from_corruption"]).append_failure_message("acknowledging the corruption banner must persist to disk, not just clear in-memory state").is_false()
+
+	var hub2: HubScreen = auto_free(HubScreen.new())
+	add_child(hub2)
+	assert_bool(hub2.get_warning_banner_for_test().visible).is_false()
 
 
 # --- Cores balance display ------------------------------------------------------
