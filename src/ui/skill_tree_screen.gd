@@ -120,7 +120,7 @@ const MAX_Y: int = 5
 ## (84 -> 112). Padding (CELL - NODE_SIZE) stays roomy enough for the
 ## prerequisite lines to read clearly between nodes.
 const CELL_W: float = 150.0
-const CELL_H: float = 132.0
+const CELL_H: float = 122.0 # 7 rows x 122 = 854 px fits the 1080p board; 132 clipped the bottom row (orchestrator review)
 const DETAIL_PANEL_WIDTH: float = 420.0
 ## The root's own footprint (polish pass item 2: "keep the root visibly
 ## special ... larger").
