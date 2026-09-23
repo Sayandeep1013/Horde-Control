@@ -89,18 +89,83 @@ var _face: TileMapLayer = null
 func _ready() -> void:
 	z_index = 0
 	z_as_relative = false
-	if flat_tilemap_texture == null or elevation_texture == null:
-		push_warning("ElevationPlateau is missing a required texture; no plateaus will be placed.")
-		return
-	modulate = TOP_TINT
-	_build_top_tileset()
-	_build_face_layer()
+	# Orchestrator rework: plateaus are drawn as layered smooth polygons
+	# (shadow -> cliff face -> raised grass top with the pack's ink outline),
+	# the same technique as sand_network.gd and pond_field.gd. The tile-stamped
+	# version read as stair-stepped slabs with stone blocks at the corners.
+	# The tile helpers below are kept for reference and are no longer called.
 	for i in plateau_centers.size():
 		var radius: float = plateau_radii[i] if i < plateau_radii.size() else 280.0
-		var cells: Dictionary = _grow_blob(plateau_centers[i], radius, i)
-		cells = _smooth(cells)
-		_paint_top(cells)
-		_paint_face_and_shadow(cells, i == stair_plateau_index)
+		var rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "plateau", i])
+		var top: PackedVector2Array = _blob_points(plateau_centers[i], radius, rng)
+		var shift: Vector2 = Vector2(0.0, CLIFF_HEIGHT_PX)
+		_add_poly(_translated(top, shift + Vector2(10.0, 18.0)), null, SHADOW_COLOR, "Shadow%d" % i)
+		_add_poly(_translated(top, shift), cliff_face_texture, Color.WHITE, "Cliff%d" % i)
+		_add_line(_translated(top, shift), "CliffOutline%d" % i)
+		_add_poly(top, grass_top_texture, TOP_TINT, "Top%d" % i)
+		_add_line(top, "TopOutline%d" % i)
+
+
+const CLIFF_HEIGHT_PX: float = 44.0
+const BLOB_SAMPLES: int = 64
+const BLOB_SQUASH_Y: float = 0.72
+const SHADOW_COLOR: Color = Color(0.0, 0.0, 0.0, 0.22)
+const INK_COLOR: Color = Color(22.0 / 255.0, 28.0 / 255.0, 46.0 / 255.0)
+@export var grass_top_texture: Texture2D = preload("res://assets/third_party/tiny_swords/Derived/grass_fill_tile.png")
+@export var cliff_face_texture: Texture2D = preload("res://assets/third_party/tiny_swords/Derived/cliff_face_tile.png")
+
+
+func _blob_points(center: Vector2, radius: float, rng: RandomNumberGenerator) -> PackedVector2Array:
+	var raw: Array[float] = []
+	for k in BLOB_SAMPLES:
+		raw.append(1.0 + rng.randf_range(-0.2, 0.2))
+	# Two passes of a 5-tap average: lumpy like a hand-drawn island, not jagged.
+	for _pass in 2:
+		var smoothed: Array[float] = []
+		for k in BLOB_SAMPLES:
+			var acc: float = 0.0
+			for d in range(-2, 3):
+				acc += raw[(k + d + BLOB_SAMPLES) % BLOB_SAMPLES]
+			smoothed.append(acc / 5.0)
+		raw = smoothed
+	var pts: PackedVector2Array = PackedVector2Array()
+	for k in BLOB_SAMPLES:
+		var r: float = raw[k]
+		var a: float = float(k) / float(BLOB_SAMPLES) * TAU
+		pts.append(center + Vector2(cos(a), sin(a) * BLOB_SQUASH_Y) * radius * r)
+	return pts
+
+
+static func _translated(points: PackedVector2Array, offset: Vector2) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	for p in points:
+		out.append(p + offset)
+	return out
+
+
+func _add_poly(points: PackedVector2Array, tex: Texture2D, colour: Color, node_name: String) -> void:
+	var poly: Polygon2D = Polygon2D.new()
+	poly.name = node_name
+	poly.polygon = points
+	poly.color = colour
+	if tex != null:
+		poly.uv = points
+		poly.texture = tex
+		poly.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		poly.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(poly)
+
+
+func _add_line(points: PackedVector2Array, node_name: String) -> void:
+	var line: Line2D = Line2D.new()
+	line.name = node_name
+	var closed: PackedVector2Array = points.duplicate()
+	closed.append(points[0])
+	line.points = closed
+	line.width = 5.0
+	line.default_color = INK_COLOR
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	add_child(line)
 
 
 func _build_top_tileset() -> void:

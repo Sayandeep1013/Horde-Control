@@ -46,14 +46,30 @@ func _ready() -> void:
 	if foam_texture == null:
 		push_warning("FoamRing has no foam_texture assigned; no foam will be placed.")
 		return
-	_build_frames()
-	var rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "foam"])
+	# Orchestrator rework: a drawn surf band along the coast instead of a row
+	# of 192 px foam sprites, which read as evenly spaced squares on a
+	# straight edge. Same treatment as pond_field.gd's surf.
 	var half: Vector2 = arena_size / 2.0
+	var corners: PackedVector2Array = PackedVector2Array([
+		Vector2(-half.x, -half.y), Vector2(half.x, -half.y),
+		Vector2(half.x, half.y), Vector2(-half.x, half.y), Vector2(-half.x, -half.y),
+	])
+	_band(corners, Color(0.9, 1.0, 0.98, 0.35), SURF_OUTER_WIDTH_PX)
+	_band(corners, Color(0.9, 1.0, 0.98, 0.55), SURF_MID_WIDTH_PX)
+	_band(corners, Color(0.95, 1.0, 1.0, 0.95), 4.0)
 
-	_line(Vector2(-half.x, -half.y), Vector2(half.x, -half.y), 0.0, rng) # north
-	_line(Vector2(-half.x, half.y), Vector2(half.x, half.y), 0.0, rng) # south
-	_line(Vector2(-half.x, -half.y), Vector2(-half.x, half.y), 90.0, rng) # west
-	_line(Vector2(half.x, -half.y), Vector2(half.x, half.y), 90.0, rng) # east
+
+const SURF_OUTER_WIDTH_PX: float = 56.0
+const SURF_MID_WIDTH_PX: float = 22.0
+
+
+func _band(points: PackedVector2Array, colour: Color, width: float) -> void:
+	var line: Line2D = Line2D.new()
+	line.points = points
+	line.width = width
+	line.default_color = colour
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	add_child(line)
 
 
 func _build_frames() -> void:

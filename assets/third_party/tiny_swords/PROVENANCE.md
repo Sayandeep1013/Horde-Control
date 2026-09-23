@@ -203,3 +203,4 @@ an upstream path (there is no single upstream original for a composite).
 | `Resources/Resources/G_Idle_NoShadow.png` | `Resources/Resources/G_Idle_(NoShadow).png` | verbatim | `e0815b6545ad3cc5` |
 | `Factions/Goblins/Buildings/Wood_House/Goblin_House_Destroyed.png` | `Factions/Goblins/Buildings/Wood_House/Goblin_House_Destroyed.png` | verbatim | `75998fbb9dff099c` |
 | `Factions/Goblins/Buildings/Wood_Tower/Wood_Tower_Destroyed.png` | `Factions/Goblins/Buildings/Wood_Tower/Wood_Tower_Destroyed.png` | verbatim | `beca37f966313c58` |
+| `Derived/cliff_face_tile.png` | `Terrain/Ground/Tilemap_Elevation.png` | derived: the 64x64 cliff-face cell at column 1, row 3, cropped for tiling under the plateau polygons | `b6af8560c4bbbe07` |

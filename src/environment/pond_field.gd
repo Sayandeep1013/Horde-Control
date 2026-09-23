@@ -59,12 +59,18 @@ const FOAM_ANIM: StringName = &"foam"
 const FOAM_FPS: float = 6.0
 const FOAM_SPACING_PX: float = 90.0
 
+const POLY_SAMPLES: int = 72
+const SHORE_OUTLINE_COLOR: Color = Color(22.0 / 255.0, 28.0 / 255.0, 46.0 / 255.0) # sand_network.gd's ink colour
+const WATER_EDGE_COLOR: Color = Color(0.85, 0.97, 0.95, 0.9)
+const SURF_COLOR: Color = Color(0.9, 1.0, 0.98, 0.45)
+const SURF_WIDTH_PX: float = 16.0
 const ROCK_FRAME_SIZE: int = 128
 const ROCK_FRAME_COUNT: int = 8
 
 @export var water_texture: Texture2D
 @export var foam_texture: Texture2D
-@export var flat_tilemap_texture: Texture2D # Tilemap_Flat.png, for the shore's sand ring
+@export var flat_tilemap_texture: Texture2D # Tilemap_Flat.png, for the shore's sand ring (unused since the polygon rework; kept so arena.tscn stays valid)
+@export var sand_fill_texture: Texture2D = preload("res://assets/third_party/tiny_swords/Derived/sand_fill_tile.png")
 @export var rock_textures: Array[Texture2D] = []
 
 ## Parallel arrays: pond i is centred at `pond_centers[i]` with OUTER
@@ -77,14 +83,14 @@ const ROCK_FRAME_COUNT: int = 8
 
 ## How much of the outer ellipse the visible water (the inner ellipse)
 ## fills -- 0.6 means the shore/sand ring is the outer 40% of the radius.
-@export var shore_fraction: float = 0.62
+@export var shore_fraction: float = 0.8
 @export var seed_key: String = "arena_biome"
 
 
 func _ready() -> void:
 	z_index = 0
 	z_as_relative = false
-	if water_texture == null or flat_tilemap_texture == null:
+	if water_texture == null or sand_fill_texture == null:
 		push_warning("PondField is missing a required texture; no ponds will be placed.")
 		return
 	var foam_frames: SpriteFrames = _build_foam_frames() if foam_texture != null else null
@@ -94,16 +100,19 @@ func _ready() -> void:
 		var jitter: Array[float] = _make_jitter(rng)
 		var inner_axes: Vector2 = axes * shore_fraction
 
-		var water: TileMapLayer = _build_water_layer(i)
-		add_child(water)
-		_paint_ellipse(water, pond_centers[i], axes, jitter)
-
-		if foam_frames != null:
-			_ring_foam(pond_centers[i], inner_axes, jitter, rng, foam_frames)
-
-		var sand: TileMapLayer = _build_sand_layer(i)
-		add_child(sand)
-		_paint_ring(sand, pond_centers[i], axes, inner_axes, jitter)
+		# Orchestrator rework: drawn as smooth polygons (the same technique as
+		# sand_network.gd) instead of 64 px tile stamps, which read as blocky
+		# squares at the shore. Sand shore (with ink outline) -> water -> surf.
+		var shore_pts: PackedVector2Array = _ellipse_points(pond_centers[i], axes, jitter)
+		var water_pts: PackedVector2Array = _ellipse_points(pond_centers[i], inner_axes, jitter)
+		_add_polygon(shore_pts, sand_fill_texture, "Shore%d" % i)
+		_add_outline(shore_pts, "ShoreOutline%d" % i)
+		_add_polygon(water_pts, water_texture, "Water%d" % i)
+		# Surf: a soft wide band plus a crisp inner line along the water's
+		# edge. The pack's 192 px Foam.png frames are sized for whole island
+		# coastlines and swamped a pond this small.
+		_add_outline(water_pts, "Surf%d" % i, SURF_COLOR, SURF_WIDTH_PX)
+		_add_outline(water_pts, "WaterOutline%d" % i, WATER_EDGE_COLOR, 3.0)
 
 		if not rock_textures.is_empty():
 			_place_rocks(pond_centers[i], inner_axes, jitter, rng)
@@ -272,3 +281,39 @@ func _place_rocks(center: Vector2, inner_axes: Vector2, jitter: Array[float], rn
 		rock.z_index = 0
 		rock.z_as_relative = true
 		add_child(rock)
+
+
+func _ellipse_points(center: Vector2, axes: Vector2, jitter: Array[float]) -> PackedVector2Array:
+	var pts: PackedVector2Array = PackedVector2Array()
+	for k in POLY_SAMPLES:
+		var angle: float = (float(k) / float(POLY_SAMPLES)) * TAU - PI
+		var t: float = _threshold_at(jitter, angle)
+		pts.append(center + Vector2(cos(angle) * axes.x, sin(angle) * axes.y) * t)
+	return pts
+
+
+func _add_polygon(points: PackedVector2Array, tex: Texture2D, node_name: String) -> void:
+	var poly: Polygon2D = Polygon2D.new()
+	poly.name = node_name
+	poly.polygon = points
+	poly.uv = points
+	poly.texture = tex
+	poly.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	poly.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	poly.z_index = 0
+	poly.z_as_relative = true
+	add_child(poly)
+
+
+func _add_outline(points: PackedVector2Array, node_name: String, colour: Color = SHORE_OUTLINE_COLOR, width: float = 5.0) -> void:
+	var line: Line2D = Line2D.new()
+	line.name = node_name
+	var closed: PackedVector2Array = points.duplicate()
+	closed.append(points[0])
+	line.points = closed
+	line.width = width
+	line.default_color = colour
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	line.z_index = 0
+	line.z_as_relative = true
+	add_child(line)
