@@ -2,12 +2,26 @@ extends TileMapLayer
 class_name GroundDetail
 
 ## Ground detail overlay (art pass, D102). Paints organic sand onto the
-## grass `Floor` beneath it: a clearing around the Tower, a handful of
-## free-standing patches, path strips connecting them, and a coastal ring
-## around the whole arena so the play space reads as an island rather than
-## an infinite grass plain (author's biome brief: "a green grassland
-## island ... with a few organic sand patches/paths ... including a
-## sand/stone clearing around the Tower").
+## grass `Floor` beneath it: a handful of free-standing patches and a
+## coastal ring around the whole arena so the play space reads as an
+## island rather than an infinite grass plain (author's biome brief: "a
+## green grassland island ... with a few organic sand patches").
+##
+## THE TOWER PLAZA AND EVERY PATH LIVE ELSEWHERE NOW. This file used to
+## also tile-stamp the Tower clearing, the landmark clearings and every
+## connecting path; a supervisor review of this session's own captures
+## called that out by name -- 64px tile stamps produce a visible single-
+## tile staircase on any diagonal, and a tile-stamped circle reads as "a
+## jagged cross" once several paths converge on it, not the rounded plaza
+## the biome brief asks for. `sand_network.gd` (a sibling node in
+## scenes/arena.tscn, placed after this one) replaces all of that with a
+## single smooth Polygon2D + Line2D shape (a rounded plaza, rounded
+## landmark clearings and curved ribbon paths, unioned via
+## `Geometry2D.merge_polygons` into one seamless outline) -- vector shapes
+## do not have this file's 64px grid problem at all. `get_patch_centers()`
+## below is this file's side of that split: sand_network.gd still needs to
+## know where the random patches below ended up so it can route a path
+## ribbon to each one.
 ##
 ## WHY A TileMapLayer. `Terrain/Ground/Tilemap_Flat.png`'s sand tiles (atlas
 ## cols 5-7, rows 0-2) are a classic 3x3 "blob" autotile set -- each tile is
@@ -55,21 +69,20 @@ const SAND_BR: Vector2i = Vector2i(7, 2)
 @export var arena_size: Vector2 = Vector2(4800.0, 3200.0)
 @export var tower_center: Vector2 = Vector2.ZERO
 
-## Radius of the sand/stone clearing around the Tower. Bigger than
-## SceneryScatter's own tower_clear_radius_px (320 px, the Interaction
-## Radius doubled) so the clearing's visible edge sits just outside where
-## ground clutter already stops, rather than the two boundaries
-## coinciding.
+## Kept only as the "stay clear of the plaza" radius patches are rejection-
+## sampled against below; sand_network.gd owns the plaza's own radius
+## export now (its `plaza_radius_px`), since it is the one that actually
+## renders it.
 @export var tower_clearing_radius_px: float = 400.0
 
 ## How far in from the true arena edge the coastal sand ring extends.
 ## Density/feel numbers, not gameplay numbers -- see class header.
 @export var coastal_band_px: float = 176.0
 @export var patch_count: int = 4
-@export var path_count: int = 3
 @export var seed_key: String = "arena_biome"
 
 var _sand: Dictionary = {}
+var _patch_centers: Array[Vector2] = []
 
 
 func _ready() -> void:
@@ -79,10 +92,18 @@ func _ready() -> void:
 		push_warning("GroundDetail has no flat_tilemap_texture assigned; no sand will be painted.")
 		return
 	_build_tileset()
-	_mark_tower_clearing()
 	_mark_coastal_ring()
-	_mark_patches_and_paths()
+	_mark_patches()
+	_sand = _smooth(_sand)
 	_paint()
+
+
+## sand_network.gd (a later sibling in scenes/arena.tscn) reads this after
+## this node's own _ready() has already run, to route one path ribbon to
+## each random patch -- see the class header for why the two files split
+## this way.
+func get_patch_centers() -> Array[Vector2]:
+	return _patch_centers
 
 
 func _build_tileset() -> void:
@@ -101,18 +122,6 @@ func _world_to_cell(p: Vector2) -> Vector2i:
 	return Vector2i(int(floor(p.x / TILE_SIZE)), int(floor(p.y / TILE_SIZE)))
 
 
-func _mark_tower_clearing() -> void:
-	var r: float = tower_clearing_radius_px
-	var r_sq: float = r * r
-	var min_cell: Vector2i = _world_to_cell(tower_center - Vector2(r, r))
-	var max_cell: Vector2i = _world_to_cell(tower_center + Vector2(r, r))
-	for cy in range(min_cell.y, max_cell.y + 1):
-		for cx in range(min_cell.x, max_cell.x + 1):
-			var center: Vector2 = Vector2(cx * TILE_SIZE + TILE_SIZE / 2.0, cy * TILE_SIZE + TILE_SIZE / 2.0)
-			if center.distance_squared_to(tower_center) <= r_sq:
-				_sand[Vector2i(cx, cy)] = true
-
-
 func _mark_coastal_ring() -> void:
 	var half: Vector2 = arena_size / 2.0
 	var min_cell: Vector2i = _world_to_cell(-half)
@@ -124,31 +133,55 @@ func _mark_coastal_ring() -> void:
 				_sand[Vector2i(cx, cy)] = true
 
 
-func _mark_patches_and_paths() -> void:
+## Random free-standing sand patches only -- no paths (see class header;
+## sand_network.gd routes a smooth ribbon to each of `_patch_centers`
+## instead of this file carving one itself).
+func _mark_patches() -> void:
 	var half: Vector2 = arena_size / 2.0
 	var inner_margin: float = coastal_band_px + TILE_SIZE * 2.0
 	var rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "sand_patches", patch_count])
 
-	var patch_centers: Array[Vector2] = []
 	var attempts: int = 0
-	while patch_centers.size() < patch_count and attempts < patch_count * 20:
+	while _patch_centers.size() < patch_count and attempts < patch_count * 20:
 		attempts += 1
 		var p: Vector2 = Vector2(
 			rng.randf_range(-half.x + inner_margin, half.x - inner_margin),
 			rng.randf_range(-half.y + inner_margin, half.y - inner_margin)
 		)
 		if p.distance_to(tower_center) < tower_clearing_radius_px + 260.0:
-			continue # leave a grass gap between the clearing and a patch
-		patch_centers.append(p)
+			continue # leave a grass gap between the plaza and a patch
+		_patch_centers.append(p)
 		_grow_blob(p, rng)
 
-	# Paths: organic 2-tile-wide corridors from the Tower clearing's edge
-	# out toward a few of the patches, so the clearing does not sit
-	# isolated in a sea of grass.
-	var path_rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "sand_paths", path_count])
-	var path_targets: int = mini(path_count, patch_centers.size())
-	for i in path_targets:
-		_carve_path(tower_center, patch_centers[i], path_rng)
+
+## One lenient cellular-automata pass (procedural-generation skill's cave-
+## smoothing recipe): fills a concave single-cell notch (>= 5 of 8
+## neighbours already sand) and drops a near-isolated protruding cell
+## (< 3 of 8 neighbours sand), leaving every patch blob's own body
+## untouched. This is what turns the random-walk patches' and the coastal
+## ring's single-tile staircase edges into a rounder, organic coastline --
+## this task's own "no single-tile stair-steps" requirement.
+func _smooth(cells: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	var candidates: Dictionary = {}
+	for cell: Vector2i in cells.keys():
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				candidates[cell + Vector2i(dx, dy)] = true
+	for cell: Vector2i in candidates.keys():
+		var filled_neighbors: int = 0
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				if dx == 0 and dy == 0:
+					continue
+				if cells.has(cell + Vector2i(dx, dy)):
+					filled_neighbors += 1
+		var was_filled: bool = cells.has(cell)
+		if was_filled and filled_neighbors >= 3:
+			out[cell] = true
+		elif not was_filled and filled_neighbors >= 5:
+			out[cell] = true
+	return out
 
 
 func _grow_blob(origin: Vector2, rng: RandomNumberGenerator) -> void:
@@ -162,22 +195,6 @@ func _grow_blob(origin: Vector2, rng: RandomNumberGenerator) -> void:
 		# as a filled patch rather than a single-cell-wide scribble.
 		_sand[cursor + dirs[rng.randi_range(0, 3)]] = true
 		cursor += dirs[rng.randi_range(0, 3)]
-
-
-func _carve_path(from_pos: Vector2, to_pos: Vector2, rng: RandomNumberGenerator) -> void:
-	var dist: float = from_pos.distance_to(to_pos)
-	var steps: int = maxi(4, int(dist / (TILE_SIZE * 1.5)))
-	var perpendicular: Vector2 = (to_pos - from_pos).orthogonal().normalized()
-	for i in range(steps + 1):
-		var t: float = float(i) / float(steps)
-		var jitter: float = rng.randf_range(-1.0, 1.0) * TILE_SIZE * 1.5
-		var p: Vector2 = from_pos.lerp(to_pos, t) + perpendicular * jitter
-		var c: Vector2i = _world_to_cell(p)
-		# A 2-tile-wide corridor: the sampled cell plus its immediate
-		# neighbours on the perpendicular axis.
-		_sand[c] = true
-		_sand[c + Vector2i(1, 0)] = true
-		_sand[c + Vector2i(0, 1)] = true
 
 
 func _paint() -> void:

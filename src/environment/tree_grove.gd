@@ -46,6 +46,28 @@ const FPS: float = 5.0
 @export var cluster_radius_px: float = 220.0
 @export var seed_key: String = "arena_biome"
 
+## Rim clusters (this array), placed inside a band close to `edge_inset_px`
+## so the forest reads "thicker toward the edges, framing the play space"
+## per this biome pass's brief -- kept separate from `cluster_count`'s
+## general clusters (which can land anywhere in the mid-field) rather than
+## just raising `cluster_count`, so the density gradient from rim to
+## centre is deliberate instead of an accident of where the RNG happened
+## to land.
+@export var rim_cluster_count: int = 5
+@export var rim_band_px: float = 260.0 # how deep, past edge_inset_px, the rim band extends
+@export var rim_trees_per_cluster: int = 8
+
+## Sparse single trees scattered through the interior (brief: "sparse lone
+## trees inside"), independent of the clustered groves above.
+@export var lone_tree_count: int = 14
+
+## Circles other biome features occupy (plateaus, ponds, landmarks) that a
+## tree must not spawn inside -- e.g. a tree trunk rendered on top of a
+## pond reads as a bug, not scenery. Parallel arrays, set from
+## scenes/arena.tscn alongside those features' own exported positions.
+@export var avoid_centers: Array[Vector2] = []
+@export var avoid_radii: Array[float] = []
+
 var _frames: SpriteFrames = null
 
 
@@ -57,6 +79,18 @@ func _ready() -> void:
 		return
 	_build_frames()
 	_scatter_clusters()
+	_scatter_rim_clusters()
+	_scatter_lone_trees()
+
+
+func _blocked(pos: Vector2) -> bool:
+	if pos.distance_to(tower_center) < tower_clear_radius_px * 0.6:
+		return true
+	for i in avoid_centers.size():
+		var r: float = avoid_radii[i] if i < avoid_radii.size() else 0.0
+		if pos.distance_to(avoid_centers[i]) < r:
+			return true
+	return false
 
 
 func _build_frames() -> void:
@@ -100,10 +134,64 @@ func _scatter_clusters() -> void:
 		for i in trees_per_cluster:
 			var offset: Vector2 = Vector2(tree_rng.randf_range(-1.0, 1.0), tree_rng.randf_range(-1.0, 1.0)) * cluster_radius_px
 			var pos: Vector2 = center + offset
-			if pos.distance_to(tower_center) < tower_clear_radius_px * 0.6:
+			if _blocked(pos):
 				continue
 			_place_tree(pos, tree_rng)
 			placed_trees += 1
+
+
+## Denser groves confined to a band just inside the coastal sand ring, so
+## the forest visually frames the island rather than being spread evenly
+## (the general clusters above already cover the mid-field).
+func _scatter_rim_clusters() -> void:
+	var half: Vector2 = arena_size / 2.0
+	var band_min: float = edge_inset_px
+	var band_max: float = edge_inset_px + rim_band_px
+	var center_rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "tree_rim_clusters", rim_cluster_count])
+
+	for cluster_i in rim_cluster_count:
+		# Pick one of the four sides, then a point inside that side's band.
+		var side: int = center_rng.randi_range(0, 3)
+		var t: float = center_rng.randf_range(-1.0, 1.0)
+		var depth: float = center_rng.randf_range(band_min, band_max)
+		var center: Vector2
+		match side:
+			0: center = Vector2(t * (half.x - band_max), -half.y + depth) # north
+			1: center = Vector2(t * (half.x - band_max), half.y - depth) # south
+			2: center = Vector2(-half.x + depth, t * (half.y - band_max)) # west
+			_: center = Vector2(half.x - depth, t * (half.y - band_max)) # east
+		if _blocked(center):
+			continue
+		var tree_rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "tree_rim", cluster_i])
+		for i in rim_trees_per_cluster:
+			var offset: Vector2 = Vector2(tree_rng.randf_range(-1.0, 1.0), tree_rng.randf_range(-1.0, 1.0)) * cluster_radius_px * 0.85
+			var pos: Vector2 = center + offset
+			if _blocked(pos):
+				continue
+			_place_tree(pos, tree_rng)
+
+
+## Sparse single trees through the interior (brief: "sparse lone trees
+## inside"), rejection-sampled against the Tower's approach and every
+## `avoid_centers` circle so a lone tree never lands on a pond, a plateau
+## or a landmark's footprint.
+func _scatter_lone_trees() -> void:
+	var half: Vector2 = arena_size / 2.0
+	var min_x: float = -half.x + edge_inset_px
+	var max_x: float = half.x - edge_inset_px
+	var min_y: float = -half.y + edge_inset_px
+	var max_y: float = half.y - edge_inset_px
+	var rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "lone_trees", lone_tree_count])
+
+	var placed: int = 0
+	var attempts: int = 0
+	while placed < lone_tree_count and attempts < lone_tree_count * 20:
+		attempts += 1
+		var pos: Vector2 = Vector2(rng.randf_range(min_x, max_x), rng.randf_range(min_y, max_y))
+		if _blocked(pos):
+			continue
+		_place_tree(pos, rng)
+		placed += 1
 
 
 func _place_tree(pos: Vector2, rng: RandomNumberGenerator) -> void:
