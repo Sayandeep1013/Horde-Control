@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/records_panel.gd" id="1_records_panel"]
+
+[node name="RecordsPanel" type="CanvasLayer"]
+script = ExtResource("1_records_panel")

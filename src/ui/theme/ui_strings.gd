@@ -69,14 +69,80 @@ const MESSAGES: Dictionary = {
 	"SETTINGS_BACK": "Back",
 
 	"RUN_END_TITLE": "Run Over",
+	# Meta layer core: the outcome header itself now reads as one of these
+	# four words (build brief: "outcome header (Victory / Defeated / Tower
+	# Fallen / Abandoned)") in place of the generic RUN_END_TITLE above,
+	# which stays registered as the show_summary() fallback for a caller
+	# that supplies no outcome_title (see run_end.gd's own show_summary()).
+	"RUN_END_OUTCOME_VICTORY": "Victory",
+	"RUN_END_OUTCOME_DEFEATED": "Defeated",
+	"RUN_END_OUTCOME_TOWER_FALLEN": "Tower Fallen",
+	"RUN_END_OUTCOME_ABANDONED": "Abandoned",
 	"RUN_END_CAUSE": "Cause",
 	"RUN_END_CAUSE_PLAYER": "You were defeated",
 	"RUN_END_CAUSE_TOWER": "The Tower was destroyed",
+	# Meta layer core (D113): promotes the literal src/run/run_flow_controller.gd
+	# named as a follow-up seam for whoever next owned this file (its own
+	# header, "cause_text = 'Run abandoned'") -- now a real key.
+	"RUN_END_CAUSE_ABANDONED": "Run abandoned",
 	"RUN_END_WAVE_REACHED": "Wave reached",
 	"RUN_END_SCRAP_HELD": "Scrap held",
 	"RUN_END_TIME_SURVIVED": "Time survived",
 	"RUN_END_SETTINGS": "Settings",
 	"RUN_END_MAIN_MENU": "Main Menu",
+	# Meta layer core (build brief item 4): the run-end screen's new primary
+	# choice -- promotes the plain literal RunEndScreen._build_ui() used
+	# ("Continue," named there as "no tr() key exists for it yet") to a real
+	# key now that this session owns this file.
+	"RUN_END_CONTINUE": "Continue",
+	"RUN_END_SETTLEMENT_TOTAL": "Cores earned",
+	"RUN_END_NEW_BEST_WAVES": "NEW BEST -- waves cleared",
+	"RUN_END_NEW_BEST_KILLS": "NEW BEST -- enemies defeated",
+	"RUN_END_NEW_BEST_TIME": "NEW BEST -- time survived",
+	"RUN_END_ALREADY_SETTLED": "Already settled",
+
+	# --- Meta layer core: Hub (War Camp) -----------------------------------
+	"HUB_TITLE": "War Camp",
+	"HUB_START_RUN": "Start Run",
+	"HUB_SKILL_TREE": "Skill Tree",
+	"HUB_RECORDS": "Records",
+	"HUB_BACK_TO_TITLE": "Back to Title",
+	# docs/18_Permanent_Skill_Tree.md section 2: "the first time the Hub
+	# opens ... a one-line hint," quoted verbatim.
+	"HUB_FIRST_VISIT_HINT": "Earn Cores in battle. Spend them here. Every run counts.",
+	"HUB_HINT_DISMISS": "Got it",
+	"HUB_WARNING_SAVE_FAILED": "Your progress could not be saved. It will retry automatically.",
+	"HUB_WARNING_RECOVERED": "Your save could not be read; a new profile was started. The damaged file was kept as profile.corrupt.json.",
+	"HUB_WARNING_READ_ONLY": "This save was made by a newer version of the game and is read-only here.",
+
+	# --- Meta layer core: Skill Tree screen --------------------------------
+	"SKILL_TREE_TITLE": "Skill Tree",
+	"SKILL_TREE_BACK": "Back",
+	"SKILL_TREE_RESPEC": "Reset Tree",
+	"SKILL_TREE_RESPEC_DESC": "Refunds every Core spent and resets every rank to 0. Hub only.",
+	"SKILL_TREE_RESPEC_REFUND": "Refund: %d Cores",
+	"SKILL_TREE_RESPEC_NONE": "Nothing to refund",
+	"SKILL_TREE_MAX": "MAX",
+	"SKILL_TREE_RANK_OF": "Rank %d of %d",
+	"SKILL_TREE_CURRENT": "Current",
+	"SKILL_TREE_NEXT": "Next rank",
+	"SKILL_TREE_STILL_NEEDS": "Still needs: %s",
+	"SKILL_TREE_SILHOUETTE_NAME": "???",
+	"SKILL_TREE_SILHOUETTE_HINT": "Unlocks a neighbouring node to reveal this one.",
+	"SKILL_TREE_SELECT_HINT": "Select a node to see what it does.",
+	"SKILL_TREE_ALWAYS_OWNED": "The heart of the War Camp. Always yours.",
+	"SKILL_TREE_HOLD_TO_BUY": "Hold to buy",
+	"SKILL_TREE_HOLD_TO_RESET": "Hold to reset",
+
+	# --- Meta layer core: Records panel -------------------------------------
+	"RECORDS_TITLE": "Records",
+	"RECORDS_BEST_WAVE": "Best wave reached",
+	"RECORDS_LONGEST_TIME": "Longest time survived",
+	"RECORDS_MOST_KILLS": "Most kills in a run",
+	"RECORDS_RUNS": "Runs played",
+	"RECORDS_VICTORIES": "Victories",
+	"RECORDS_LIFETIME_CORES": "Lifetime Cores earned",
+	"RECORDS_BACK": "Back",
 
 	"TITLE_GAME_NAME": "HORDE CONTROL",
 	"TITLE_TAGLINE": "Defend the Tower. Survive the horde.",

@@ -700,19 +700,26 @@ func _capture_final_wave() -> void:
 
 func _build_summary() -> Dictionary:
 	var cause_text: String = ""
+	# Meta layer core (Hub/Skill Tree screen session, build brief item 4):
+	# the outcome header itself now reads as one of four words rather than
+	# the generic RUN_END_TITLE -- resolved here, from the SAME _end_cause
+	# this method already branches on for cause_text, never a second source
+	# of truth (matching this file's own established "compute once, pass the
+	# resolved value" convention for cause_text/wave_reached/scrap_held).
+	var outcome_title: String = tr("RUN_END_OUTCOME_VICTORY")
 	if _end_cause == EndCause.PLAYER_DEFEATED:
 		cause_text = tr("RUN_END_CAUSE_PLAYER")
+		outcome_title = tr("RUN_END_OUTCOME_DEFEATED")
 	elif _end_cause == EndCause.TOWER_DESTROYED:
 		cause_text = tr("RUN_END_CAUSE_TOWER")
+		outcome_title = tr("RUN_END_OUTCOME_TOWER_FALLEN")
 	elif _end_cause == EndCause.ABANDONED:
-		# Meta layer core (D113). No UiStrings/tr() key exists for this cause
-		# (src/ui/theme/* -- where every OTHER cause's key is registered --
-		# is off limits this session; see this file's own header for the
-		# HUD-visuals agent's exclusive scope). A literal English string,
-		# named here as a follow-up seam for whoever next owns
-		# src/ui/theme/ui_strings.gd to promote to a real
-		# RUN_END_CAUSE_ABANDONED key, exactly like every other cause line.
-		cause_text = "Run abandoned"
+		# Meta layer core (D113). The Hub/Skill Tree screen session promoted
+		# this from the plain literal the P2.14 task left here (see the
+		# superseded comment this replaces) to a real key, registered
+		# alongside every other cause line.
+		cause_text = tr("RUN_END_CAUSE_ABANDONED")
+		outcome_title = tr("RUN_END_OUTCOME_ABANDONED")
 	# EndCause.SEQUENCE_COMPLETED intentionally leaves cause_text empty --
 	# see class header, "The death cause or the final wave reached."
 
@@ -721,6 +728,7 @@ func _build_summary() -> Dictionary:
 
 	return {
 		"cause_text": cause_text,
+		"outcome_title": outcome_title,
 		"wave_reached": _final_wave_index,
 		"wave_total": _final_wave_total,
 		"scrap_held": scrap_held,

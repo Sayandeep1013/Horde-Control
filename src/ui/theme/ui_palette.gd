@@ -126,6 +126,13 @@ const XP: Color = Color("a78bfa")             ## XP bar, level
 const SCRAP: Color = Color("d9894a")          ## Scrap, prices
 const GOLD: Color = Color("f4c430")           ## the Scrap icon's own coin colour; punch/glow accents that read as "treasure" rather than the cooler ACCENT gold
 const SUCCESS: Color = Color("7be08a")        ## victory, affordable
+## Meta layer core (Hub/Skill Tree screen): the Core currency's own colour --
+## deliberately distinct from SCRAP/GOLD (the in-run economy) and XP (the
+## player's own level bar), so a glance never confuses "Cores, spent between
+## runs" with either in-run resource. An amethyst crystal tone (the Skill
+## Tree screen draws it as a gem via UiShapeGlyph.Shape.CRYSTAL, not a font
+## character or a reused Tiny Swords coin icon -- see that file's header).
+const CORES: Color = Color("b18ee0")
 
 # --- Dims (full-screen backdrops behind modal UI) -------------------------
 const DIM_DRAFT: Color = Color(0.0, 0.0, 0.0, 1.0)  ## alpha is the owner's Register-cited figure

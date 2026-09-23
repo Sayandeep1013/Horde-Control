@@ -105,10 +105,9 @@ var _frame: MenuFrame.Parts
 var _outcome_glyph: OutcomeGlyph
 var _wave_cell: PanelContainer ## the Wave stat cell; kept in sync with _wave_label's own visibility (UI pass) -- see show_summary(). A cell with no visible child sizes to ~0 in the grid rather than leaving an empty panel.
 
-## Meta layer core (build brief item 4). Plain, unstyled data display for
-## now -- see class header note below and this task's own instruction
-## ("render it plainly for now ... the screen agent will style it"). Built
-## once in `_build_ui()`; populated/cleared by `set_settlement()`.
+## Meta layer core (build brief item 4). The settlement card -- built once
+## (empty) in `_build_ui()`; populated/cleared and styled by
+## `set_settlement()`.
 var _settlement_box: VBoxContainer
 
 ## Round 2 (LEDGER UR-14): 220 was measured too tight for the widest cell.
@@ -139,6 +138,13 @@ func _ready() -> void:
 ## Called by src/run/run_flow_controller.gd once, at the moment the run
 ## ends, with values it has already finished computing (see class header).
 func show_summary(summary: Dictionary) -> void:
+	# Meta layer core (Hub/Skill Tree screen session, build brief item 4):
+	# the outcome header itself now reads Victory/Defeated/Tower Fallen/
+	# Abandoned (run_flow_controller.gd's own `_build_summary()` resolves
+	# which one) rather than the generic RUN_END_TITLE -- falls back to the
+	# old fixed title if a caller supplies no `outcome_title` at all.
+	_title_label.text = String(summary.get("outcome_title", tr("RUN_END_TITLE")))
+
 	var cause_text: String = String(summary.get("cause_text", ""))
 	_cause_label.visible = not cause_text.is_empty()
 	if _cause_label.visible:
@@ -192,6 +198,10 @@ func get_bar_for_test() -> PausedChoiceBar:
 	return _bar
 
 
+func get_title_label_for_test() -> Label:
+	return _title_label
+
+
 func get_cause_label_for_test() -> Label:
 	return _cause_label
 
@@ -217,16 +227,21 @@ func _on_option_confirmed(index: int) -> void:
 		main_menu_requested.emit()
 
 
-## Meta layer core (build brief item 4): "pass the breakdown to the run-end
-## screen via a data setter ... render it plainly for now (a few labels:
-## each line and total, NEW BEST markers)." `breakdown` is exactly what
+## Meta layer core (build brief item 4). `breakdown` is exactly what
 ## `MetaProgress.settle_run()` returns (that file's own header documents the
 ## shape): `lines` (Array of {label, amount} Dictionaries), `total_cores`,
 ## `new_best_waves`/`new_best_kills`/`new_best_survival_seconds` (bool), and
 ## `already_settled` (true only for a cross-process idempotent replay with
-## no itemisation to show). Plain Labels, no theme work -- the screen agent
-## restyles this box; `get_settlement_box_for_test()` below is the seam it
-## can read to confirm this data landed before restyling it.
+## no itemisation to show).
+##
+## Hub/Skill Tree screen session: a proper settlement card -- each
+## Core line as its own `UiTheme.ROW` (matching the stat grid's own cell
+## treatment), the total prominent below, and a `UiTheme.RIBBON` per NEW
+## BEST flag. `_animate_settlement()` reveals the rows one after another and
+## counts each amount up from 0, rather than dumping every number at once --
+## the build brief's own "each Core line counting up one after another."
+## `_settlement_box`'s own node identity/name is unchanged
+## (`get_settlement_box_for_test()`'s contract).
 func set_settlement(breakdown: Dictionary) -> void:
 	for child in _settlement_box.get_children():
 		child.queue_free()
@@ -235,28 +250,106 @@ func set_settlement(breakdown: Dictionary) -> void:
 		_settlement_box.visible = false
 		return
 	_settlement_box.visible = true
+
+	var entries: Array[Dictionary] = []
 	for entry in lines:
 		var line: Dictionary = entry
 		var amount: int = int(line.get("amount", 0))
-		var label := Label.new()
-		label.text = "%s: %s%d" % [String(line.get("label", "")), "+" if amount >= 0 else "", amount]
-		_settlement_box.add_child(label)
+		var row := PanelContainer.new()
+		row.theme_type_variation = UiTheme.ROW
+		row.modulate.a = 0.0
+		_settlement_box.add_child(row)
+
+		var hbox := HBoxContainer.new()
+		hbox.theme_type_variation = UiTheme.hbox("L")
+		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(hbox)
+
+		var name_label := Label.new()
+		name_label.text = String(line.get("label", ""))
+		name_label.theme_type_variation = UiTheme.DIM
+		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.custom_minimum_size = Vector2(280.0, 0.0)
+		hbox.add_child(name_label)
+
+		var amount_label := Label.new()
+		amount_label.name = "Amount"
+		amount_label.theme_type_variation = UiTheme.VALUE
+		amount_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		amount_label.text = _format_settlement_amount(0)
+		hbox.add_child(amount_label)
+
+		entries.append({"row": row, "label": amount_label, "target": amount})
+
 	var total_label := Label.new()
 	total_label.name = "SettlementTotal"
-	total_label.text = "Cores earned: %d" % int(breakdown.get("total_cores", 0))
+	total_label.theme_type_variation = UiTheme.HEADING
+	total_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	total_label.modulate.a = 0.0
+	total_label.text = "%s: 0" % tr("RUN_END_SETTLEMENT_TOTAL")
 	_settlement_box.add_child(total_label)
+
+	var ribbon_panels: Array[PanelContainer] = []
 	if bool(breakdown.get("new_best_waves", false)):
-		_settlement_box.add_child(_make_settlement_label("NEW BEST -- waves cleared"))
+		ribbon_panels.append(_build_new_best_ribbon(tr("RUN_END_NEW_BEST_WAVES")))
 	if bool(breakdown.get("new_best_kills", false)):
-		_settlement_box.add_child(_make_settlement_label("NEW BEST -- enemies defeated"))
+		ribbon_panels.append(_build_new_best_ribbon(tr("RUN_END_NEW_BEST_KILLS")))
 	if bool(breakdown.get("new_best_survival_seconds", false)):
-		_settlement_box.add_child(_make_settlement_label("NEW BEST -- time survived"))
+		ribbon_panels.append(_build_new_best_ribbon(tr("RUN_END_NEW_BEST_TIME")))
+
+	_animate_settlement(entries, total_label, int(breakdown.get("total_cores", 0)), ribbon_panels)
 
 
-func _make_settlement_label(text: String) -> Label:
+func _build_new_best_ribbon(text: String) -> PanelContainer:
+	var ribbon := PanelContainer.new()
+	ribbon.name = "NewBestRibbon"
+	ribbon.theme_type_variation = UiTheme.RIBBON
+	ribbon.modulate.a = 0.0
+	_settlement_box.add_child(ribbon)
+
 	var label := Label.new()
 	label.text = text
-	return label
+	label.theme_type_variation = UiTheme.VALUE
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ribbon.add_child(label)
+	return ribbon
+
+
+static func _format_settlement_amount(amount: int) -> String:
+	return "%s%d" % ["+" if amount >= 0 else "", amount]
+
+
+## One continuous `Node.create_tween()` sequence (pure cosmetic UI motion,
+## permitted regardless of pause state; `tools/checks/banned_api_check.sh`
+## exempts every `.../ui/...` path outright): each row fades in, its own
+## amount counts up from 0 to its final value, then the next row starts --
+## "one after another," never all at once. The total counts up the same way
+## once every line has landed, and any NEW BEST ribbons fade in last.
+func _animate_settlement(entries: Array[Dictionary], total_label: Label, total_target: int, ribbon_panels: Array[PanelContainer]) -> void:
+	var tween: Tween = create_tween()
+	for entry in entries:
+		var row: PanelContainer = entry["row"]
+		var amount_label: Label = entry["label"]
+		var target: int = entry["target"]
+		tween.tween_property(row, "modulate:a", 1.0, 0.12)
+		tween.parallel().tween_method(_apply_amount_text.bind(amount_label), 0.0, float(target), 0.22)
+		tween.tween_interval(0.05)
+	tween.tween_property(total_label, "modulate:a", 1.0, 0.12)
+	var total_prefix: String = tr("RUN_END_SETTLEMENT_TOTAL") # tr() needs an instance; resolved here, not inside the static callable below
+	tween.parallel().tween_method(_apply_total_text.bind(total_label, total_prefix), 0.0, float(total_target), 0.3)
+	for ribbon in ribbon_panels:
+		tween.tween_property(ribbon, "modulate:a", 1.0, 0.2)
+
+
+static func _apply_amount_text(value: float, label: Label) -> void:
+	label.text = _format_settlement_amount(int(round(value)))
+
+
+static func _apply_total_text(value: float, label: Label, prefix: String) -> void:
+	label.text = "%s: %d" % [prefix, int(round(value))]
 
 
 func get_settlement_box_for_test() -> VBoxContainer:
@@ -327,10 +420,9 @@ func _build_ui() -> void:
 	_time_label.theme_type_variation = UiTheme.VALUE
 	time_cell.add_child(_time_label)
 
-	# Meta layer core: plain, unstyled settlement display -- see
-	# set_settlement()'s own header. No UiTheme variation applied
-	# deliberately (this task's instruction: "the screen agent will style
-	# it"); hidden until set_settlement() has real lines to show.
+	# Meta layer core: the settlement card container -- see set_settlement()'s
+	# own header for the styling it applies to each child it builds. Hidden
+	# until set_settlement() has real lines to show.
 	_settlement_box = VBoxContainer.new()
 	_settlement_box.name = "SettlementBox"
 	_settlement_box.visible = false

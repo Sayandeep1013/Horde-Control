@@ -488,6 +488,15 @@ func get_records() -> Dictionary:
 	return (_profile.get("records", {}) as Dictionary).duplicate()
 
 
+## Read-only query (Records panel: docs/18 section 5, "lifetime Cores
+## earned"). `lifetime_cores` is a top-level profile field, not part of
+## `get_records()`'s own dictionary (`_fresh_profile()`'s shape) -- a
+## dedicated query rather than folding it into `get_records()`'s existing,
+## already-asserted-on shape.
+func get_lifetime_cores() -> int:
+	return int(_profile.get("lifetime_cores", 0))
+
+
 func get_flags() -> Dictionary:
 	return (_profile.get("flags", {}) as Dictionary).duplicate()
 
@@ -549,6 +558,39 @@ func _prerequisites_met(node: SkillNodeDefinition) -> bool:
 		if get_rank(prereq) <= 0:
 			return false
 	return true
+
+
+## Read-only query (Hub/Skill Tree screen). Whether every one of `id`'s
+## prerequisites is owned at rank >= 1 -- the SAME gate `can_buy()` applies
+## internally (`_prerequisites_met()`), exposed publicly so the screen can
+## tell "revealed but a prerequisite still missing" (docs/18 section 4.1's
+## dim/locked state, shown with a price in place but no purchase possible)
+## apart from "prerequisites met but too few Cores" (the separate red-price
+## state) without duplicating this Autoload's own rule. The root and any
+## unknown id both report true (the root has no prerequisites of its own;
+## an unknown id has nothing to be locked behind).
+func prerequisites_met(id: String) -> bool:
+	if skill_tree != null and id == skill_tree.root_id:
+		return true
+	var node: SkillNodeDefinition = skill_tree.get_node_definition(id) if skill_tree != null else null
+	if node == null:
+		return true
+	return _prerequisites_met(node)
+
+
+## Read-only query (Hub/Skill Tree screen's Reset Tree control: docs/18
+## section 4.5, "Respec ... shows the refund amount" before the hold-to-
+## confirm completes). Mirrors `respec()`'s own refund arithmetic exactly
+## (`_cost_of_ranks(node.tier, 1, rank)` per owned node) without mutating
+## anything -- `respec()` itself remains the only writer.
+func get_respec_refund_preview() -> int:
+	var ranks: Dictionary = _profile.get("tree_ranks", {})
+	var refund: int = 0
+	for id in ranks.keys():
+		var node: SkillNodeDefinition = skill_tree.get_node_definition(String(id)) if skill_tree != null else null
+		if node != null:
+			refund += _cost_of_ranks(node.tier, 1, int(ranks[id]))
+	return refund
 
 
 func can_buy(id: String) -> bool:

@@ -25,7 +25,11 @@ class_name UiShapeGlyph
 ## (the shipped font has no heart/tower/refresh glyph either; adding one
 ## more case here costs nothing new to license or provenance).
 
-enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE }
+## Meta layer core (Hub/Skill Tree screen): two more shapes -- COIN (the
+## Fortune branch's icon) and CRYSTAL (the Cores currency's own icon,
+## UiPalette.CORES) -- added at the END, same convention as HEART/TOWER/
+## RECYCLE's own addition note above (never renumbered).
+enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE, COIN, CRYSTAL }
 
 ## Fraction of the shorter side left empty around the shape.
 const INSET_FRACTION: float = 0.12
@@ -84,6 +88,10 @@ static func draw_shape(canvas: CanvasItem, which: Shape, rect: Rect2, color: Col
 			_draw_tower(canvas, rect, color)
 		Shape.RECYCLE:
 			_draw_recycle(canvas, rect, color)
+		Shape.COIN:
+			_draw_coin(canvas, rect, color)
+		Shape.CRYSTAL:
+			_draw_crystal(canvas, rect, color)
 
 
 ## A classic double-lobe heart, sampled from the standard parametric heart
@@ -167,3 +175,32 @@ static func _draw_recycle_arrowhead(canvas: CanvasItem, center: Vector2, radius:
 	var p1: Vector2 = back + normal * head_size * 0.75
 	var p2: Vector2 = back - normal * head_size * 0.75
 	canvas.draw_colored_polygon(PackedVector2Array([tip + tangent * head_size * 0.5, p1, p2]), color)
+
+
+## Meta layer core (Hub/Skill Tree screen): the Fortune branch's icon -- a
+## plain filled coin/token, the simplest possible read at the small size a
+## grid node's icon renders at (matches SQUARE's own single-primitive
+## simplicity, deliberately not a two-tone coin that would need a second
+## colour this shared, one-colour `draw_shape()` contract cannot carry).
+static func _draw_coin(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
+	var radius: float = minf(rect.size.x, rect.size.y) * 0.5
+	canvas.draw_circle(rect.get_center(), radius, color, true, -1.0, true)
+
+
+## Meta layer core: the Cores currency's own icon (UiPalette.CORES) -- a
+## faceted gem silhouette, authored in a 0..1 unit square and mapped into
+## `rect`, matching TOWER's own "author in local space, scale to rect"
+## approach. Drawn rather than a font character or a reused Tiny Swords coin
+## icon for the same reason every other shape in this file is (class
+## header): the Cores currency is not Scrap (already the coin-pouch icon in
+## the HUD) and needs its own, unambiguous silhouette.
+static func _draw_crystal(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
+	var unit_points := PackedVector2Array([
+		Vector2(0.50, 0.00), Vector2(0.85, 0.30), Vector2(1.00, 0.55),
+		Vector2(0.70, 1.00), Vector2(0.30, 1.00), Vector2(0.00, 0.55),
+		Vector2(0.15, 0.30),
+	])
+	var out := PackedVector2Array()
+	for p in unit_points:
+		out.append(rect.position + Vector2(p.x * rect.size.x, p.y * rect.size.y))
+	canvas.draw_colored_polygon(out, color)
