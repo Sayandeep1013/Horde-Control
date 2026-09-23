@@ -1,5 +1,13 @@
 # Next Session — Start Here
 
+**State on 2026-09-23, end of day (D105-D120).** Horde Control is a playable roguelite loop: Title -> War Camp (Hub) -> run -> results -> War Camp.
+- **Meta layer (docs/18, docs/24):** MetaProgress autoload (fifth autoload, D112), atomic versioned profile (schema 2), Run-End Settlement (time, waves, kills, victory, Scrap at 10:1), 20-node Skill Tree with fog reveal and hold-to-buy, free respec, records, 6 achievements that unlock Draft cards (D118). A blind Opus review found an idle-buy/idle-respec bug, a cosmetic-only Fortress and flag-lifecycle bugs; all fixed with tests.
+- **Run mechanics:** no in-run shop - the Tower Console is gone (D115). Level-Up Drafts open the moment XP fills, pausing (D116); cards roll Common/Rare/Epic (D117) from an 18-card pool. XP curve 5 + 3(L+1) from wave 1 (D108).
+- **Look:** Tiny Swords art, animated goblins with health bars, blood and skulls, attack warnings as ground rings, y-sorted depth (D119), overhead bars for player and Tower, medieval HUD, a grassland island with smooth paths, ponds, plateaus and landmarks.
+- **Bugs found by measurement, not by the suite:** (1) the export's text-to-binary scene conversion silently dropped the arena and two enemies from prototype.tscn - conversion is now off in project.godot; verify any future build with `--main-pack <pck> ... --dump-tree=Main/Environment`. (2) PickupSystem consumed the level-up flag before the Draft could, so the real game never opened a Draft - fixed, with an assembled-scene regression test.
+- **Suite:** 750 cases, only the harness canary fails. Run full suites one at a time (the machine ran out of memory with two).
+- **Known gaps:** Skill Tree node text is small; single-suite runs print exit-time leaks (static theme/FX caches); docs/20's Tower Console prose still needs a sweep after D115; no review gate has run for any of this.
+
 **State on 2026-09-23 (art session, D102).** The game has a title screen, real art and music. What landed:
 - **Art:** Pixel Frog's Tiny Swords, CC0 edition (D105). Goblins in each intent's reserved colour with idle, run, strike, hit-flash and death (skull FX); blue Archer player with directional shoot frames; arrow projectiles for player and Tower; gold and crystal pickups; the Tower evolves Tower -> Tower+archer -> Castle -> Castle+archers, burns when low and shows ruins when destroyed; a grassland island with sand paths, water, foam, tree groves, sheep and deco. cynicmusic's CC0 "Battle Theme A" loops on the Music bus.
 - **Title screen** (`scenes/title.tscn`, now `run/main_scene`) with Controls and Credits; pause menu and run-end screen offer Main Menu.
