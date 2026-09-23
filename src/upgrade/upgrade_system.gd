@@ -89,13 +89,30 @@ class_name UpgradeSystem
 ## script; set_upgrade_definitions_for_test() below lets a test suite
 ## substitute a smaller subset (e.g. to exhaust a one-upgrade pool without
 ## maxing all three real Tower upgrades first).
+## D115/D117 pool expansion: six new Player cards, four new Tower cards
+## (Swift Feet/Vitality/Magnet/Regeneration/Piercing Arrows/Multishot;
+## Reinforced Plating/Watchtower/Tower Volley/Repair Kit), added alongside
+## the original eight. "Reinforced Plating" is the task's own "Reinforce"
+## renamed to avoid colliding with the existing `reinforce_fallback` card
+## (also displayed "Reinforce", a different effect) -- named here rather
+## than silently reusing the name for two different cards.
 @export var upgrade_definitions: Array[UpgradeDefinition] = [
 	preload("res://data/upgrades/rapid_fire.tres"),
 	preload("res://data/upgrades/heavy_rounds.tres"),
 	preload("res://data/upgrades/patch_kit.tres"),
+	preload("res://data/upgrades/swift_feet.tres"),
+	preload("res://data/upgrades/vitality.tres"),
+	preload("res://data/upgrades/magnet.tres"),
+	preload("res://data/upgrades/regeneration.tres"),
+	preload("res://data/upgrades/piercing_arrows.tres"),
+	preload("res://data/upgrades/multishot.tres"),
 	preload("res://data/upgrades/caliber.tres"),
 	preload("res://data/upgrades/optics.tres"),
 	preload("res://data/upgrades/shield_matrix.tres"),
+	preload("res://data/upgrades/reinforced_plating.tres"),
+	preload("res://data/upgrades/watchtower_upgrade.tres"),
+	preload("res://data/upgrades/tower_volley.tres"),
+	preload("res://data/upgrades/repair_kit.tres"),
 	preload("res://data/upgrades/overdrive_fallback.tres"),
 	preload("res://data/upgrades/reinforce_fallback.tres"),
 ]
@@ -130,6 +147,14 @@ class_name UpgradeSystem
 ## across two stores.
 var _ranks: Dictionary = {}
 
+## D118: card unique_ids gated by a lifetime achievement (`UpgradeDefinition.
+## is_unlock`) that have been unlocked -- String -> true. Empty by default,
+## so every `is_unlock` card is correctly absent from a fresh profile's
+## Draft pool until `set_unlocked_card_ids()` is called (the production
+## caller is `src/integration/prototype_integration.gd`, reading
+## `MetaProgress`'s own unlocked-achievement query at run start).
+var _unlocked_ids: Dictionary = {}
+
 var _definitions_by_id: Dictionary = {} # String -> UpgradeDefinition
 
 var _player_weapon: AutoWeapon = null
@@ -147,6 +172,18 @@ const OPTICS_ID: String = "optics"
 const SHIELD_MATRIX_ID: String = "shield_matrix"
 const OVERDRIVE_FALLBACK_ID: String = "overdrive_fallback"
 const REINFORCE_FALLBACK_ID: String = "reinforce_fallback"
+
+# --- D115/D117 pool expansion ------------------------------------------------
+const SWIFT_FEET_ID: String = "swift_feet"
+const VITALITY_ID: String = "vitality"
+const MAGNET_ID: String = "magnet"
+const REGENERATION_ID: String = "regeneration"
+const PIERCING_ARROWS_ID: String = "piercing_arrows"
+const MULTISHOT_ID: String = "multishot"
+const REINFORCED_PLATING_ID: String = "reinforced_plating"
+const WATCHTOWER_UPGRADE_ID: String = "watchtower_upgrade"
+const TOWER_VOLLEY_ID: String = "tower_volley"
+const REPAIR_KIT_ID: String = "repair_kit"
 
 
 func _ready() -> void:
@@ -222,16 +259,42 @@ func is_maxed(upgrade_id: String) -> bool:
 	return get_current_rank(upgrade_id) >= def.max_rank
 
 
-## Typed query ("what is offerable"): every ranked (has_max_rank true)
-## upgrade in `pool_ownership` that is not already at max rank. Fallback
-## cards are never included here -- P2.12's own exhausted-pool substitution
-## reaches them through get_fallback_card() below, only once
-## is_pool_exhausted() is true, never as one of the normal three random
-## draws that consult this list.
+## D118: true once `def` counts as part of the "live" pool -- ranked
+## (has_max_rank) AND (not an achievement-gated `is_unlock` card, or
+## already unlocked). A locked `is_unlock` card is treated as if it did not
+## exist in the pool at all: never offered, and never counted toward
+## `is_pool_exhausted()`'s "every ranked upgrade is maxed" check (a card the
+## player cannot yet reach must never block or fake that check).
+func _is_live(def: UpgradeDefinition) -> bool:
+	if def == null or not def.has_max_rank:
+		return false
+	return not def.is_unlock or _unlocked_ids.has(def.unique_id)
+
+
+## Typed command (D118). Replaces the whole unlocked set -- called once, at
+## run start, by whoever wires MetaProgress's achievement query to this
+## system (production: src/integration/prototype_integration.gd). Also
+## usable directly from a test.
+func set_unlocked_card_ids(ids: Array[String]) -> void:
+	_unlocked_ids.clear()
+	for id in ids:
+		_unlocked_ids[id] = true
+
+
+func is_card_unlocked_for_test(upgrade_id: String) -> bool:
+	return bool(_unlocked_ids.has(upgrade_id))
+
+
+## Typed query ("what is offerable"): every LIVE upgrade (see _is_live())
+## in `pool_ownership` that is not already at max rank. Fallback cards are
+## never included here -- P2.12's own exhausted-pool substitution reaches
+## them through get_fallback_card() below, only once is_pool_exhausted() is
+## true, never as one of the normal three random draws that consult this
+## list.
 func get_offerable_upgrades(pool_ownership: ContractEnums.PoolOwnership) -> Array[UpgradeDefinition]:
 	var result: Array[UpgradeDefinition] = []
 	for def in upgrade_definitions:
-		if def == null or def.pool_ownership != pool_ownership or not def.has_max_rank:
+		if def == null or def.pool_ownership != pool_ownership or not _is_live(def):
 			continue
 		if not is_maxed(def.unique_id):
 			result.append(def)
@@ -239,16 +302,15 @@ func get_offerable_upgrades(pool_ownership: ContractEnums.PoolOwnership) -> Arra
 
 
 ## Typed query ("whether a pool is exhausted, so fallbacks unlock"): true
-## once every ranked (has_max_rank true) upgrade authored for
-## `pool_ownership` is at max rank. False for a pool with no ranked
-## upgrades authored at all (Weapon/Utility in the prototype -- weapon
-## upgrades are explicitly out of this task's scope), so a caller cannot be
-## misled into treating a pool that was simply never populated as
-## "exhausted."
+## once every LIVE upgrade (see _is_live()) authored for `pool_ownership`
+## is at max rank. False for a pool with no live upgrades at all (Weapon/
+## Utility in the prototype, or every card in `pool_ownership` still
+## achievement-locked), so a caller cannot be misled into treating a pool
+## that was simply never populated -- or not yet unlocked -- as "exhausted."
 func is_pool_exhausted(pool_ownership: ContractEnums.PoolOwnership) -> bool:
 	var ranked_found: bool = false
 	for def in upgrade_definitions:
-		if def == null or def.pool_ownership != pool_ownership or not def.has_max_rank:
+		if def == null or def.pool_ownership != pool_ownership or not _is_live(def):
 			continue
 		ranked_found = true
 		if not is_maxed(def.unique_id):
@@ -319,7 +381,22 @@ func get_console_cost(upgrade_id: String) -> int:
 ##
 ## Returns false (applies nothing, rank unchanged) for an unknown
 ## upgrade_id or one already at max rank; true on success.
-func apply_rank(upgrade_id: String) -> bool:
+##
+## D117 (card rarity): `rarity_multiplier` is the rolled card's own value
+## multiplier (Common 1.0 / Rare 1.5 / Epic 2.2, src/ui/draft_controller.gd's
+## own roll) -- REPLACES the previous multiplier for this upgrade_id, never
+## compounds, matching this file's own established replace-not-compound
+## convention for every other multiplier field. A named simplification for a
+## multi-rank upgrade bought at different rarities across separate
+## purchases: the MOST RECENT purchase's rarity governs the whole
+## accumulated stack's scaling (`total_fraction` below), not a per-rank
+## locked-in value -- the alternative (summing per-rank values independently
+## of the shared-rank counter) would require a second parallel accumulator
+## next to `_ranks` for no gameplay benefit this prototype's own acceptance
+## test needs. Defaults to 1.0 (Common) so every existing caller -- the
+## Console price/rank formula tests and any direct test call -- is
+## unaffected.
+func apply_rank(upgrade_id: String, rarity_multiplier: float = 1.0) -> bool:
 	var def: UpgradeDefinition = get_definition(upgrade_id)
 	if def == null:
 		push_error("UpgradeSystem.apply_rank(): unknown upgrade_id '%s'" % upgrade_id)
@@ -330,7 +407,7 @@ func apply_rank(upgrade_id: String) -> bool:
 
 	var new_rank: int = get_current_rank(upgrade_id) + 1
 	_ranks[upgrade_id] = new_rank
-	_apply_effect(def, new_rank)
+	_apply_effect(def, new_rank, rarity_multiplier)
 
 	# F05-06 (fixed): sum evolution_stage_contribution into
 	# TowerEvolutionStage.add_ranks(), once per rank ACTUALLY just taken
@@ -363,8 +440,18 @@ func apply_rank(upgrade_id: String) -> bool:
 ## a capped rank (is_maxed() never true for a fallback card, so `rank` can
 ## grow without bound, exactly matching "no max rank ... so Scrap always has
 ## a sink").
-func _apply_effect(def: UpgradeDefinition, rank: int) -> void:
-	var total_fraction: float = def.effect_per_rank * float(rank) # C-STACK: sum first, apply once
+##
+## D117: `rarity_multiplier` (see apply_rank()'s own header) scales every
+## PERCENTAGE-based effect below (`total_fraction`). It does NOT scale a
+## flat one-shot heal fired once per rank-TAKEN event (Patch Kit,
+## Reinforced Plating's heal-the-increase, Repair Kit) -- rarity is about
+## how much bigger a stat bonus is, not about a one-time heal amount, named
+## here rather than silently applied everywhere -- nor a discrete integer
+## count (Piercing Arrows' pierce count, Multishot's extra-arrow count),
+## since "1.5 extra pierced enemies" has no meaning; those two always use
+## `def.effect_per_rank * rank` directly, at every rarity.
+func _apply_effect(def: UpgradeDefinition, rank: int, rarity_multiplier: float = 1.0) -> void:
+	var total_fraction: float = def.effect_per_rank * float(rank) * rarity_multiplier # C-STACK: sum first, apply once, then scale by rarity
 	match def.unique_id:
 		RAPID_FIRE_ID:
 			if _player_weapon != null:
@@ -375,19 +462,52 @@ func _apply_effect(def: UpgradeDefinition, rank: int) -> void:
 		CALIBER_ID, REINFORCE_FALLBACK_ID:
 			if _tower_weapon != null:
 				_tower_weapon.set_damage_multiplier(1.0 + total_fraction)
-		OPTICS_ID:
+		OPTICS_ID, WATCHTOWER_UPGRADE_ID:
 			if _tower_weapon != null:
 				_tower_weapon.set_range_multiplier(1.0 + total_fraction)
+		TOWER_VOLLEY_ID:
+			if _tower_weapon != null:
+				_tower_weapon.set_fire_rate_multiplier(1.0 + total_fraction)
 		SHIELD_MATRIX_ID:
 			if _tower_health != null:
 				_tower_health.set_bonus_max_shield_fraction(total_fraction)
+		REINFORCED_PLATING_ID:
+			if _tower_health != null:
+				_tower_health.set_bonus_max_health_fraction(total_fraction)
+		SWIFT_FEET_ID:
+			if _player != null:
+				_player.set_speed_multiplier(1.0 + total_fraction)
+		VITALITY_ID:
+			if _player != null:
+				_player.set_max_health_bonus_fraction(total_fraction)
+		MAGNET_ID:
+			if _player != null:
+				_player.set_pickup_radius_multiplier(1.0 + total_fraction)
+		REGENERATION_ID:
+			if _player != null:
+				_player.set_regen_fraction_per_second(total_fraction)
+		PIERCING_ARROWS_ID:
+			# Discrete count -- rarity does not scale "extra enemies pierced."
+			if _player_weapon != null:
+				_player_weapon.set_pierce_bonus(int(round(def.effect_per_rank * float(rank))))
+		MULTISHOT_ID:
+			# Discrete count -- rarity does not scale "extra arrows fired."
+			if _player_weapon != null:
+				_player_weapon.set_multishot_extra_count(int(round(def.effect_per_rank * float(rank))))
 		PATCH_KIT_ID:
 			# Not a persistent multiplier -- "restores 30 health per rank
 			# TAKEN" fires once, per rank-taking event, using
 			# def.effect_per_rank directly (never `total_fraction`, which
 			# would wrongly treat 30 as a per-rank ADDITIVE percentage
-			# instead of a flat heal fired once per event).
+			# instead of a flat heal fired once per event, and never scaled
+			# by rarity -- see this function's own header).
 			if _player != null:
 				_player.heal(def.effect_per_rank)
+		REPAIR_KIT_ID:
+			# Same one-shot-per-take shape as Patch Kit, applied to the
+			# Tower's CURRENT max_health (25% of whatever it is right now,
+			# including any Reinforced Plating/meta bonus already applied).
+			if _tower_health != null:
+				_tower_health.heal(_tower_health.max_health * def.effect_per_rank)
 		_:
 			push_warning("UpgradeSystem._apply_effect(): '%s' has no routing -- effect not applied to any live component" % def.unique_id)

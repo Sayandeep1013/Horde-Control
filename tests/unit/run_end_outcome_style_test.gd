@@ -77,6 +77,40 @@ func test_new_best_flags_add_a_ribbon_per_flag() -> void:
 	assert_int(ribbon_count).append_failure_message("two NEW BEST flags were set -- exactly two ribbons must be built").is_equal(2)
 
 
+## D118 (achievements). `newly_unlocked_achievements` reuses the exact same
+## ribbon shape as the NEW BEST flags above -- one ribbon per entry, text
+## "Achievement unlocked: <name>" (RUN_END_ACHIEVEMENT_UNLOCKED).
+func test_newly_unlocked_achievements_add_one_ribbon_each_with_the_right_text() -> void:
+	var screen: RunEndScreen = _make_screen()
+	screen.set_settlement({
+		"lines": [{"label": "Enemies defeated (300)", "amount": 12}],
+		"total_cores": 12, "new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
+		"newly_unlocked_achievements": [{"id": "goblin_slayer", "display_name": "Goblin Slayer"}],
+	})
+	var box: VBoxContainer = screen.get_settlement_box_for_test()
+	var found_text: String = ""
+	for child in box.get_children():
+		if child is PanelContainer and (child as PanelContainer).theme_type_variation == UiTheme.RIBBON:
+			var label: Label = (child as PanelContainer).get_child(0) as Label
+			if label != null:
+				found_text = label.text
+	assert_str(found_text).is_equal(tr("RUN_END_ACHIEVEMENT_UNLOCKED") % "Goblin Slayer")
+
+
+func test_no_newly_unlocked_achievements_key_builds_no_extra_ribbon() -> void:
+	var screen: RunEndScreen = _make_screen()
+	screen.set_settlement({
+		"lines": [{"label": "Time survived (1 min)", "amount": 1}],
+		"total_cores": 1, "new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
+	})
+	var box: VBoxContainer = screen.get_settlement_box_for_test()
+	var ribbon_count: int = 0
+	for child in box.get_children():
+		if child is PanelContainer and (child as PanelContainer).theme_type_variation == UiTheme.RIBBON:
+			ribbon_count += 1
+	assert_int(ribbon_count).append_failure_message("no newly_unlocked_achievements key was passed -- no ribbon should be built").is_equal(0)
+
+
 func test_empty_lines_hides_the_settlement_box() -> void:
 	var screen: RunEndScreen = _make_screen()
 	screen.set_settlement({"lines": [], "total_cores": 0})

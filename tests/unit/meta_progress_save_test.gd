@@ -186,7 +186,13 @@ func test_reconcile_refunds_a_rank_above_current_max_and_clamps_it() -> void:
 ## `_profile` verbatim, before the post-write update ever ran). Reverted
 ## after confirming the failure.
 func test_a_failed_save_sets_last_save_failed_and_a_later_successful_save_clears_it_on_disk() -> void:
-	_settle("flag_1", 600.0, 4, 100) # a real, successful save paying enough Cores (10 + 8 + 4 = 22) for the two tier-1 buys below
+	# BUGFIX (found while adding the D118 schema-migration tests below and
+	# running this file in isolation): the settlement previously earned only
+	# 4 Cores (1 minute + 2 waves + floor(25/25) kill = 4), one short of a
+	# SINGLE tier-1 node's 5-Core price -- both buy() calls a few lines down
+	# need one each (10 total). 10 minutes/1 wave/25 kills earns 13, enough
+	# for both with headroom.
+	_settle("flag_1", 600.0, 1, 25) # a real, successful save
 	assert_bool(MetaProgress.get_flags()["last_save_failed"]).is_false()
 
 	MetaProgress.set_fail_after_tmp_write_for_test(true)
@@ -309,3 +315,61 @@ func test_reconcile_refunds_and_drops_an_unknown_node_id() -> void:
 
 	assert_int(MetaProgress.get_rank("ghost_node_removed_from_tree")).append_failure_message("an unknown node id must not be kept as a live rank").is_equal(0)
 	assert_int(MetaProgress.get_cores()).append_failure_message("Cores spent on a node removed from the authored tree must be refunded, not silently lost").is_greater(0)
+
+
+# --- Schema version 2 migration (D118, achievements) -------------------------
+
+## docs/24 section 5's own `migrate_N_to_N_plus_1` naming; MASTER_SDLC.md >
+## Provisional Values Register > "Meta: Save profile" (schema_version 2).
+## A profile saved by a build that predates achievements has none of the
+## three new fields at all -- `_migrate_1_to_2()` must add them at their
+## correct historical value (zero/empty) rather than erroring or dropping
+## the rest of the profile.
+func test_a_schema_version_1_profile_migrates_to_2_with_zeroed_achievement_fields() -> void:
+	DirAccess.make_dir_recursive_absolute(_dir)
+	var f: FileAccess = FileAccess.open(_dir.path_join("profile.json"), FileAccess.WRITE)
+	f.store_string(JSON.stringify({
+		"schema_version": 1, "cores": 42, "lifetime_cores": 100,
+		"tree_ranks": {}, "records": {}, "settled_run_ids": [], "first_hub_seen": true, "flags": {},
+	}))
+	f.close()
+
+	MetaProgress.reload_for_test()
+
+	assert_int(MetaProgress.get_cores()).append_failure_message("migration must preserve every pre-existing field, not just add the new ones").is_equal(42)
+	assert_int(MetaProgress.get_lifetime_kills()).append_failure_message("a v1 profile has no achievement history to backfill from -- the migrated value must be zero").is_equal(0)
+	assert_int(MetaProgress.get_lifetime_scrap_collected()).is_equal(0)
+	assert_int(MetaProgress.get_unlocked_achievement_ids().size()).is_equal(0)
+
+	# Migration must itself be a SAVED effect, not merely an in-memory
+	# artefact of this one load -- the next save must persist schema_version
+	# 2 and the three new fields, so a second process reading the same file
+	# does not re-migrate (and does not silently downgrade schema_version).
+	# settle_run() always calls _save() unconditionally (see the
+	# read-only-newer-version test above), so a zero-Cores settlement is
+	# the simplest real production call that forces one for this readback.
+	_settle("migrate_save_check", 0.0, 0, 0)
+	var raw: Dictionary = _read_raw("profile.json")
+	assert_int(int(raw.get("schema_version", 0))).is_equal(2)
+	assert_bool(raw.has("lifetime_kills")).is_true()
+	assert_bool(raw.has("lifetime_scrap_collected")).is_true()
+	assert_bool(raw.has("unlocked_achievement_ids")).is_true()
+
+
+## A profile schema_version 0 (the key stripped entirely, e.g. by a hand
+## edit) is treated identically to schema_version 1 -- `_migrate()`'s own
+## `if version < 2` branch covers both, so a missing key never accidentally
+## skips the achievement-fields migration.
+func test_a_profile_with_no_schema_version_key_at_all_still_migrates_to_2() -> void:
+	DirAccess.make_dir_recursive_absolute(_dir)
+	var f: FileAccess = FileAccess.open(_dir.path_join("profile.json"), FileAccess.WRITE)
+	f.store_string(JSON.stringify({
+		"cores": 5, "lifetime_cores": 5,
+		"tree_ranks": {}, "records": {}, "settled_run_ids": [], "first_hub_seen": false, "flags": {},
+	}))
+	f.close()
+
+	MetaProgress.reload_for_test()
+
+	assert_int(MetaProgress.get_cores()).is_equal(5)
+	assert_int(MetaProgress.get_lifetime_kills()).is_equal(0)

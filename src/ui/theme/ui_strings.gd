@@ -37,25 +37,9 @@ const MESSAGES: Dictionary = {
 
 	"DRAFT_TITLE": "Level-Up Draft",
 
-	"CONSOLE_TITLE": "Tower Console",
-	"CONSOLE_HEADER_PLAYER": "PLAYER",
-	"CONSOLE_HEADER_TOWER": "TOWER",
-	"CONSOLE_REPAIR": "Repair",
-	"CONSOLE_REPAIR_FOOTER": "Restores %d HP for %d Scrap",
-	"CONSOLE_HP": "HP",
-	"CONSOLE_SCRAP": "Scrap",
-	"CONSOLE_RANK": "Rank",
-	"CONSOLE_OF": "of",
-	"CONSOLE_MAX": "MAX",
-	"CONSOLE_TAKEN": "Taken",
-	# CHANGE 1 (D107, 2026-09-23): the pre-open prompt shown while inside the
-	# Tower Interaction Radius with the Console closed (src/ui/console.gd's
-	# own `_refresh_prompt()`). Both bindings shown together, matching this
-	# file's/title_screen.gd's own established convention of always listing
-	# every binding rather than swapping by detected device (e.g.
-	# TITLE_CONTROLS_CONSOLE_CANCEL's own "Q, B / Circle").
-	"CONSOLE_PROMPT": "[E / Y] Tower Console",
-	"CONSOLE_PROMPT_UNAVAILABLE": "(nothing affordable)",
+	# D115 (no in-run shop): every CONSOLE_* key (Tower Console UI text) is
+	# removed along with the Console itself -- nothing left registers or
+	# reads them (verified by grep before removal).
 
 	"PAUSE_MENU_TITLE": "Paused",
 	"PAUSE_MENU_RESUME": "Resume",
@@ -106,12 +90,17 @@ const MESSAGES: Dictionary = {
 	# (docs/18 section 6) -- so the results screen never claims Cores were
 	# saved when they were not.
 	"RUN_END_NOT_SAVED": "Not saved -- this profile could not be written to.",
+	# D118 (achievements). `%s` is the unlocked achievement's own
+	# display_name -- run_end.gd's own String % formats it, same convention
+	# as SKILL_TREE_RESPEC_REFUND's "%d Cores" above.
+	"RUN_END_ACHIEVEMENT_UNLOCKED": "Achievement unlocked: %s",
 
 	# --- Meta layer core: Hub (War Camp) -----------------------------------
 	"HUB_TITLE": "War Camp",
 	"HUB_START_RUN": "Start Run",
 	"HUB_SKILL_TREE": "Skill Tree",
 	"HUB_RECORDS": "Records",
+	"HUB_ACHIEVEMENTS": "Achievements",
 	"HUB_BACK_TO_TITLE": "Back to Title",
 	# docs/18_Permanent_Skill_Tree.md section 2: "the first time the Hub
 	# opens ... a one-line hint," quoted verbatim.
@@ -157,6 +146,12 @@ const MESSAGES: Dictionary = {
 	"RECORDS_LIFETIME_CORES": "Lifetime Cores earned",
 	"RECORDS_BACK": "Back",
 
+	# --- D118: Achievements panel -------------------------------------------
+	"ACHIEVEMENTS_TITLE": "Achievements",
+	"ACHIEVEMENTS_BACK": "Back",
+	"ACHIEVEMENTS_UNLOCKED": "Unlocked",
+	"ACHIEVEMENTS_LOCKED": "Locked",
+
 	"TITLE_GAME_NAME": "HORDE CONTROL",
 	"TITLE_TAGLINE": "Defend the Tower. Survive the horde.",
 	"TITLE_PLAY": "Play",
@@ -171,17 +166,10 @@ const MESSAGES: Dictionary = {
 	"TITLE_CONTROLS_DRAFT_SELECT": "Draft: select card",
 	"TITLE_CONTROLS_CONFIRM": "Confirm",
 	"TITLE_CONTROLS_REROLL": "Reroll",
-	# CHANGE 1 (D107, 2026-09-23): new key for the title screen's Controls
-	# panel, added per this task's own scope ("just the strings"). No
-	# corresponding row exists yet in src/ui/title_screen.gd's own
-	# CONTROLS_ROWS-shape array (that file is outside this task's write
-	# scope) -- named as a required seam for that file's owner, exactly
-	# like src/ui/dev/ui_capture.gd's own HANDOFF H-01 precedent for a
-	# string with nothing yet wired to display it.
-	"TITLE_CONTROLS_CONSOLE_OPEN": "Console: open",
-	"TITLE_CONTROLS_CONSOLE_CYCLE": "Console: cycle entry",
-	"TITLE_CONTROLS_CONSOLE_SELECT": "Console: select entry",
-	"TITLE_CONTROLS_CONSOLE_CANCEL": "Console: cancel",
+	# D115 (no in-run shop): the four TITLE_CONTROLS_CONSOLE_* keys (Console
+	# open/cycle/select/cancel control hints) are removed along with the
+	# Console itself and the three rows in src/ui/title_screen.gd that
+	# displayed them.
 	"TITLE_CONTROLS_PAUSE": "Pause",
 	"TITLE_CONTROLS_DEBUG_OVERLAY": "Debug overlay (dev)",
 	"TITLE_CONTROLS_DEBUG_PSEUDOLOC": "Pseudo-localization (dev)",

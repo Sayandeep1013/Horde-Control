@@ -71,4 +71,3 @@ excluded_encounter_tags = Array[String](["PLACEHOLDER_tag_siege_active"])
 reward = SubResource("Resource_cu8l2")
 failure_resolution = 1
 partial_reward_rules = SubResource("Resource_3l3t8")
-pause_and_deferral_behavior = 1

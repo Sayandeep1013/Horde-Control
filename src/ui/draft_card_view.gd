@@ -122,6 +122,24 @@ const BORDER_WIDTH_HIGHLIGHTED: int = 5
 const BORDER_COLOR_NORMAL: Color = UiPalette.WOOD_BORDER
 const BORDER_COLOR_HIGHLIGHTED: Color = UiPalette.ACCENT
 
+## D117 (card rarity). Register > "Draft rarity": "the draft card UI shows
+## rarity with colour (Common parchment/grey, Rare blue, Epic purple/gold)".
+## A per-rarity border tint REPLACES BORDER_COLOR_NORMAL while the card is
+## NOT highlighted (_apply_highlight_style() below); the highlighted state
+## keeps its own distinct BORDER_COLOR_HIGHLIGHTED/width/shadow untouched.
+## Plain Color literals, not UiPalette tokens: no existing token names
+## "grey"/"blue"/"purple-gold", and a rarity tint is this file's own
+## single-widget concept, matching this class's own established pattern for
+## constants nothing else needs (see class header, CORNER_ROUNDED_PX etc.).
+const RARITY_BORDER_TINT_COMMON: Color = Color(0.62, 0.60, 0.56) # parchment/grey
+const RARITY_BORDER_TINT_RARE: Color = Color(0.30, 0.55, 0.95) # blue
+const RARITY_BORDER_TINT_EPIC: Color = Color(0.70, 0.35, 0.90) # purple/gold
+const RARITY_LABEL_TEXT: Dictionary = {
+	ContractEnums.Rarity.Common: "COMMON",
+	ContractEnums.Rarity.Rare: "RARE",
+	ContractEnums.Rarity.Epic: "EPIC",
+}
+
 ## Round 2 (review): a shadow, present only while highlighted, is a
 ## silhouette difference (visible with colour desaturated, unlike a colour
 ## swap alone) layered on top of the border-width/lift cues, not a
@@ -200,6 +218,10 @@ var _upgrade_id: String = ""
 var _highlighted: bool = false
 var _lift_tween: Tween = null # killed before a new one starts -- see _animate_highlight_lift()
 
+## D117 (card rarity).
+var _rarity: int = ContractEnums.Rarity.Common
+var _rarity_label: Label
+
 
 func _init() -> void:
 	# Built in _init(), not _ready(): DraftController constructs this node
@@ -273,6 +295,18 @@ func _init() -> void:
 	_header_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(_header_label)
 
+	# D117 (card rarity): a small badge at the header row's far right
+	# (SIZE_EXPAND_FILL on _header_label above pushes this to the end),
+	# coloured per rarity in setup() -- the colour is a REDUNDANT cue
+	# alongside the text itself ("COMMON"/"RARE"/"EPIC"), never the only
+	# signal, matching this project's own Colour-only-distinctions rule.
+	_rarity_label = Label.new()
+	_rarity_label.name = "Rarity"
+	_rarity_label.theme_type_variation = UiTheme.SMALL
+	_rarity_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_rarity_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	header_row.add_child(_rarity_label)
+
 	# Clear hierarchy: name in VALUE weight (display font, larger than body).
 	_name_label = Label.new()
 	_name_label.name = "Name"
@@ -323,10 +357,15 @@ func _init() -> void:
 
 ## Typed command. Populates every Readability field and the Differentiation
 ## signals (frame corner radius, glyph, header word) for `def`, an upgrade
-## currently at shared rank `current_rank` (0 if never taken).
-func setup(def: UpgradeDefinition, current_rank: int) -> void:
+## currently at shared rank `current_rank` (0 if never taken). `rarity`
+## (D117) is the card's own ROLLED rarity for THIS draft -- never read off
+## `def.rarity` (a shared Resource's own unrolled default) -- defaulted to
+## Common so every pre-D117 caller (none left in this codebase, but any
+## future direct test construction) keeps working unchanged.
+func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnums.Rarity.Common) -> void:
 	_pool_ownership = def.pool_ownership
 	_upgrade_id = def.unique_id
+	_rarity = rarity
 	var is_player: bool = def.pool_ownership == ContractEnums.PoolOwnership.Player
 	var radius: int = CORNER_ROUNDED_PX if is_player else CORNER_SQUARED_PX
 	_style.set_corner_radius_all(radius)
@@ -339,6 +378,8 @@ func setup(def: UpgradeDefinition, current_rank: int) -> void:
 	shape_glyph.glyph_color = UiPalette.PLAYER if is_player else UiPalette.TOWER
 	_header_label.text = HEADER_PLAYER if is_player else HEADER_TOWER
 	_accent_strip.color = UiPalette.PLAYER if is_player else UiPalette.TOWER
+	_rarity_label.text = String(RARITY_LABEL_TEXT.get(_rarity, "COMMON"))
+	_rarity_label.add_theme_color_override("font_color", _rarity_border_tint())
 
 	var parts: PackedStringArray = def.effect_description.split(":", true, 1)
 	var card_name: String = def.unique_id
@@ -381,11 +422,17 @@ func set_highlighted(value: bool) -> void:
 	_animate_highlight_lift()
 
 
+## D117: the NORMAL (non-highlighted) border colour is the card's own
+## rarity tint rather than the fixed BORDER_COLOR_NORMAL wood -- the
+## highlighted state keeps its own distinct ACCENT colour/width/shadow
+## (already a strong, rarity-independent selection cue), and the rarity
+## LABEL beside the header word (setup()) stays visible and correctly
+## coloured either way, so rarity is never lost while a card is selected.
 func _apply_highlight_style() -> void:
 	if _style == null:
 		return
 	var width: int = BORDER_WIDTH_HIGHLIGHTED if _highlighted else BORDER_WIDTH_NORMAL
-	var color: Color = BORDER_COLOR_HIGHLIGHTED if _highlighted else BORDER_COLOR_NORMAL
+	var color: Color = BORDER_COLOR_HIGHLIGHTED if _highlighted else _rarity_border_tint()
 	_style.set_border_width_all(width)
 	_style.border_color = color
 	# Round 2 (review): a shadow, present only while highlighted, so the
@@ -490,3 +537,21 @@ func get_rank_label() -> Label:
 
 func get_frame_style() -> StyleBoxFlat:
 	return _style
+
+
+func _rarity_border_tint() -> Color:
+	match _rarity:
+		ContractEnums.Rarity.Rare:
+			return RARITY_BORDER_TINT_RARE
+		ContractEnums.Rarity.Epic:
+			return RARITY_BORDER_TINT_EPIC
+		_:
+			return RARITY_BORDER_TINT_COMMON
+
+
+func get_rarity_for_test() -> int:
+	return _rarity
+
+
+func get_rarity_label_for_test() -> Label:
+	return _rarity_label

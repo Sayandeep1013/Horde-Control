@@ -69,6 +69,21 @@ func _credit_xp_crossing_two_levels() -> void:
 	_run_inventory.credit_xp(float(RegisterLevelOneCost + RegisterLevelTwoCost))
 
 
+## D116 (Author decision, 2026-09-23): "a Level-Up Draft opens the moment
+## the XP bar fills, mid-wave included ... The encounter deferral of Drafts
+## is removed." Proven directly against this suite's own fixture, which is
+## already a combat wave, not a teaching wave (`set_current_wave_id_for_test
+## ("wave_combat_1")` above): crediting XP opens the Draft on the SAME
+## physics_step() call that observed the level-up -- nothing here waits for
+## a recovery gap, an encounter to end, or any other Wave Director state
+## before opening.
+func test_a_level_up_during_an_active_combat_wave_opens_the_draft_immediately_with_no_encounter_deferral() -> void:
+	assert_bool(_controller.is_draft_showing_for_test()).append_failure_message("fixture setup: draft must start closed").is_false()
+	_run_inventory.credit_xp(float(RegisterLevelOneCost))
+	_controller.physics_step(0.016)
+	assert_bool(_controller.is_draft_showing_for_test()).append_failure_message("D116: the Draft must open on the SAME tick as the level-up, mid-wave, with no deferral to a recovery gap or encounter boundary").is_true()
+
+
 func test_two_simultaneous_level_ups_queue_two_drafts_not_one() -> void:
 	assert_int(_run_inventory.level).is_equal(0)
 	_credit_xp_crossing_two_levels()

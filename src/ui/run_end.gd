@@ -307,6 +307,15 @@ func set_settlement(breakdown: Dictionary) -> void:
 		ribbon_panels.append(_build_new_best_ribbon(tr("RUN_END_NEW_BEST_KILLS")))
 	if bool(breakdown.get("new_best_survival_seconds", false)):
 		ribbon_panels.append(_build_new_best_ribbon(tr("RUN_END_NEW_BEST_TIME")))
+	# D118 (achievements). `newly_unlocked_achievements` is
+	# MetaProgress.settle_run()'s own Array[Dictionary] of
+	# {"id": ..., "display_name": ...} -- one ribbon per achievement this
+	# settlement crossed the threshold for, reusing the exact same
+	# NEW-BEST ribbon shape/animation, never a second widget type.
+	for entry in breakdown.get("newly_unlocked_achievements", []):
+		var achievement_name: String = String((entry as Dictionary).get("display_name", ""))
+		if achievement_name != "":
+			ribbon_panels.append(_build_new_best_ribbon(tr("RUN_END_ACHIEVEMENT_UNLOCKED") % achievement_name))
 
 	if bool(breakdown.get("saved", true)):
 		_animate_settlement(entries, total_label, int(breakdown.get("total_cores", 0)), ribbon_panels)

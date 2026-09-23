@@ -34,7 +34,12 @@ var second_wind_enabled: bool = false ## Second Wind
 var tower_max_health_bonus: float = 0.0 ## fraction (Stone Walls)
 var tower_weapon_damage_bonus: float = 0.0 ## fraction (Arrow Slits)
 var tower_max_shield_bonus: float = 0.0 ## fraction of max_health, additive to the base shield fraction (Shield Runes)
-var repair_price_reduction: float = 0.0 ## fraction, e.g. 0.30 = -30% Scrap cost (Mason's Kit)
+## fraction, e.g. 0.10 = +10% Tower shield regen rate per rank (Mason's
+## Kit). D115 (no in-run shop) removed the Tower Console and its repair
+## price, which this field used to discount (`repair_price_reduction`) --
+## renamed and repurposed rather than deleted, since Mason's Kit stays a
+## real, purchasable node (a prerequisite for Watchtower).
+var tower_shield_regen_bonus: float = 0.0
 var tower_weapon_range_bonus: float = 0.0 ## fraction (Watchtower)
 var fortress_enabled: bool = false ## Fortress
 
@@ -45,3 +50,4 @@ var bonus_draft_rerolls: int = 0 ## flat, added to the Register's baseline 1 (Lu
 var settlement_cores_bonus: float = 0.0 ## fraction, applied by MetaProgress.settle_run() itself (Prospector) -- informational here; settle_run() re-reads the live rank rather than trusting a frozen copy, since ranks cannot change mid-run anyway (see meta_progress.gd)
 var scrap_cap_bonus: int = 0 ## flat, added to RunInventory.scrap_cap (Deep Pockets)
 var war_chest_enabled: bool = false ## War Chest
+var rarity_luck_points: int = 0 ## flat luck points, added to the Draft's own rarity roll (D117; Lucky Charm)

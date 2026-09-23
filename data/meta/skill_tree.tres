@@ -155,17 +155,22 @@ effect_kind = 8
 value_per_rank = 0.15
 prerequisite_ids = Array[String](["stone_walls"])
 
+; D115 (no in-run shop) removed the Tower Console and its repair price,
+; which this node used to discount. Repurposed rather than deleted (it
+; stays a real, purchasable prerequisite for Watchtower below): now a
+; Tower shield regen RATE bonus (EffectKind renamed, same integer value 9
+; -- see src/data/skill_node_definition.gd's own comment on that member).
 [sub_resource type="Resource" id="Resource_masons_kit"]
 script = ExtResource("2_node")
 id = "masons_kit"
 display_name = "Mason's Kit"
-description_template = "-{value}% Tower repair price per rank."
+description_template = "+{value}% Tower shield regen rate per rank."
 branch = 1
 grid_position = Vector2i(2, 1)
 tier = 2
 max_rank = 2
 effect_kind = 9
-value_per_rank = 0.15
+value_per_rank = 0.10
 prerequisite_ids = Array[String](["arrow_slits"])
 
 [sub_resource type="Resource" id="Resource_watchtower"]
@@ -248,6 +253,25 @@ effect_kind = 15
 value_per_rank = 0.15
 prerequisite_ids = Array[String](["scholar"])
 
+; D117 (author direction: "drafts won't be truly random"). A side node off
+; Scavenger -- NOT part of the Lucky Draw/Prospector convergence pair
+; Deep Pockets requires (its own prerequisite_ids stay exactly
+; ["lucky_draw", "prospector"], unchanged), so adding this seventh Fortune
+; node does not disturb the branch's existing two-tier-1/two-tier-2/one-
+; converging-tier-3 shape.
+[sub_resource type="Resource" id="Resource_lucky_charm"]
+script = ExtResource("2_node")
+id = "lucky_charm"
+display_name = "Lucky Charm"
+description_template = "+{value} rarity-luck points per rank, shifting Draft cards from Common toward Rare/Epic."
+branch = 2
+grid_position = Vector2i(-2, 3)
+tier = 2
+max_rank = 2
+effect_kind = 18
+value_per_rank = 3.0
+prerequisite_ids = Array[String](["scavenger"])
+
 [sub_resource type="Resource" id="Resource_deep_pockets"]
 script = ExtResource("2_node")
 id = "deep_pockets"
@@ -277,4 +301,4 @@ prerequisite_ids = Array[String](["deep_pockets"])
 [resource]
 script = ExtResource("1_tree")
 root_id = "root"
-nodes = Array[SkillNodeDefinition]([SubResource("Resource_root"), SubResource("Resource_vitality"), SubResource("Resource_swift_boots"), SubResource("Resource_sharpened_arrows"), SubResource("Resource_quick_draw"), SubResource("Resource_long_reach"), SubResource("Resource_second_wind"), SubResource("Resource_stone_walls"), SubResource("Resource_arrow_slits"), SubResource("Resource_shield_runes"), SubResource("Resource_masons_kit"), SubResource("Resource_watchtower"), SubResource("Resource_fortress"), SubResource("Resource_scavenger"), SubResource("Resource_scholar"), SubResource("Resource_lucky_draw"), SubResource("Resource_prospector"), SubResource("Resource_deep_pockets"), SubResource("Resource_war_chest")])
+nodes = Array[SkillNodeDefinition]([SubResource("Resource_root"), SubResource("Resource_vitality"), SubResource("Resource_swift_boots"), SubResource("Resource_sharpened_arrows"), SubResource("Resource_quick_draw"), SubResource("Resource_long_reach"), SubResource("Resource_second_wind"), SubResource("Resource_stone_walls"), SubResource("Resource_arrow_slits"), SubResource("Resource_shield_runes"), SubResource("Resource_masons_kit"), SubResource("Resource_watchtower"), SubResource("Resource_fortress"), SubResource("Resource_scavenger"), SubResource("Resource_scholar"), SubResource("Resource_lucky_draw"), SubResource("Resource_prospector"), SubResource("Resource_deep_pockets"), SubResource("Resource_war_chest"), SubResource("Resource_lucky_charm")])

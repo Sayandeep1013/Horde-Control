@@ -152,6 +152,16 @@ var _source: Variant = null
 var _deadline: float = 0.0
 var _active: bool = false
 
+## D115/D117 pool expansion: Piercing Arrows (+1 pierce/rank). Defaults to
+## 0 -- "no piercing: one target per shot" (this file's own long-standing
+## rule, header "Departure from tower_projectile.gd") is exactly the
+## pierce_count=0 case, unchanged for every caller that never passes it.
+## `_hit_hurtbox_rids` excludes already-hit hurtboxes from the SAME flight
+## (both the continuous sweep and the discrete area_entered fallback), so a
+## piercing shot never double-hits the same enemy it just passed through.
+var _pierce_remaining: int = 0
+var _hit_hurtbox_rids: Array[RID] = []
+
 ## Test-injectable SimClock reference, matching this project's convention.
 var _clock: Node = null
 
@@ -236,7 +246,7 @@ func _now() -> float:
 ## simulation time even if it never hits anything (out-of-range shots do
 ## not fly forever). `source` is a value (StringName), never a live Node
 ## reference -- see this file's header, "Projectile Orphans."
-func launch(origin: Vector2, velocity: Vector2, damage: float, source: Variant, lifetime_seconds: float) -> void:
+func launch(origin: Vector2, velocity: Vector2, damage: float, source: Variant, lifetime_seconds: float, pierce_count: int = 0) -> void:
 	global_position = origin
 	rotation = velocity.angle()
 	_velocity = velocity
@@ -244,6 +254,8 @@ func launch(origin: Vector2, velocity: Vector2, damage: float, source: Variant, 
 	_source = source
 	_deadline = _now() + lifetime_seconds
 	_active = true
+	_pierce_remaining = maxi(0, pierce_count)
+	_hit_hurtbox_rids.clear()
 	visible = true
 	set_deferred("monitoring", true)
 
@@ -284,30 +296,47 @@ func physics_step(delta: float) -> void:
 ## the projectile (a hit landed, or it struck terrain) and the caller must
 ## not also apply `next_position` uncontested -- false if the sweep found
 ## nothing along the segment and normal movement should proceed.
+## D115/D117 pool expansion (Piercing Arrows): loops the sweep forward from
+## each hit point when pierce budget remains, excluding every hurtbox
+## already hit this flight so the same enemy is never hit twice by one
+## shot. Bounded by `_pierce_remaining` (itself bounded by the upgrade's
+## own rank cap), so this cannot loop unboundedly.
 func _sweep_and_resolve(from: Vector2, to: Vector2) -> bool:
 	var space_state: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
-	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(from, to)
-	query.collide_with_areas = true
-	query.collide_with_bodies = true
-	query.collision_mask = collision_mask
-	var excluded: Array[RID] = [get_rid()]
-	query.exclude = excluded
+	var segment_from: Vector2 = from
+	while true:
+		var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(segment_from, to)
+		query.collide_with_areas = true
+		query.collide_with_bodies = true
+		query.collision_mask = collision_mask
+		var excluded: Array[RID] = [get_rid()]
+		excluded.append_array(_hit_hurtbox_rids)
+		query.exclude = excluded
 
-	var result: Dictionary = space_state.intersect_ray(query)
-	if result.is_empty():
-		return false
+		var result: Dictionary = space_state.intersect_ray(query)
+		if result.is_empty():
+			return false
 
-	var collider: Object = result.get("collider")
-	var hit_position: Variant = result.get("position", to)
-	global_position = hit_position as Vector2
+		var collider: Object = result.get("collider")
+		var hit_position: Variant = result.get("position", to)
+		global_position = hit_position as Vector2
 
-	if collider is Hurtbox:
-		_deliver_hit(collider as Hurtbox)
-	# Either a Hurtbox hit (no piercing -- one target per shot) or terrain
-	# (World/ArenaBounds -- both static PhysicsBody2D layers in this mask,
-	# same reasoning as _on_body_entered() below): either way the shot ends.
-	_expire()
-	return true
+		if collider is Hurtbox:
+			var hurtbox: Hurtbox = collider as Hurtbox
+			_deliver_hit(hurtbox)
+			_hit_hurtbox_rids.append(hurtbox.get_rid())
+			if _pierce_remaining > 0:
+				_pierce_remaining -= 1
+				segment_from = hit_position as Vector2
+				continue # keep sweeping toward `to`, excluding every hurtbox already hit
+			_expire()
+			return true
+		# Terrain (World/ArenaBounds -- both static PhysicsBody2D layers in
+		# this mask, same reasoning as _on_body_entered() below) always ends
+		# the shot, piercing or not.
+		_expire()
+		return true
+	return false # unreachable (every branch above returns or continues) -- GDScript's static analyzer does not special-case `while true` as unconditionally looping, so this satisfies "not all code paths return a value" without changing behaviour
 
 
 ## F03-22: routes through SimLoop.enqueue_hit() when a real SimLoop is
@@ -335,9 +364,14 @@ func _on_area_entered(area: Area2D) -> void:
 	if not (area is Hurtbox):
 		return
 	var hurtbox: Hurtbox = area as Hurtbox
+	if _hit_hurtbox_rids.has(hurtbox.get_rid()):
+		return # already hit this one during the sweep this same tick
 	_deliver_hit(hurtbox)
-	_expire() # no piercing: one target per shot
-	_expire() # no piercing: one target per shot
+	_hit_hurtbox_rids.append(hurtbox.get_rid())
+	if _pierce_remaining > 0:
+		_pierce_remaining -= 1
+		return # Piercing Arrows: keep flying rather than expiring
+	_expire()
 
 
 ## World (4) and ArenaBounds (15) are both in MASK_PLAYER_PROJECTILE, but
@@ -370,3 +404,5 @@ func reset_for_reuse() -> void:
 	_active = false
 	monitoring = false
 	visible = false
+	_pierce_remaining = 0
+	_hit_hurtbox_rids.clear()

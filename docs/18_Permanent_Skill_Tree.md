@@ -38,7 +38,8 @@ The master's settlement pays per biome cleared, per boss killed and per minute. 
 | Waves cleared | 2 Cores per combat or teaching wave fully cleared |
 | Kills | 1 Core per 25 enemies killed (floor) |
 | Victory | 5 Cores for clearing the final wave, the master's "per biome cleared" rate, since the prototype arena is one biome |
-| Prospector bonus | the Fortune node's percentage, applied to the sum, rounded down |
+| Scrap (D115) | floor(Scrap carried / 10) Cores. D115 (no in-run shop) removed the Tower Console, so Scrap has no other sink; this converts whatever reaches settlement (the Scrap cap and loss-on-death rules still apply to what reaches this line) into permanent progression instead of discarding it |
+| Prospector bonus | the Fortune node's percentage, applied to the sum (including the Scrap line above), rounded down |
 
 A typical first failed run (about 4 minutes, 4 waves, 100 kills) pays 4 + 8 + 4 = 16 Cores, enough for two or three root-adjacent nodes. That is the pacing target: the player buys something after every run for the first several runs.
 
@@ -68,13 +69,14 @@ Tier drives the price formula (section 4.3) and is authored per node in `data/me
 | Tower | Stone Walls | 1 | 3 | +10% Tower max health |
 | Tower | Arrow Slits | 1 | 3 | +10% Tower weapon damage |
 | Tower | Shield Runes | 2 | 2 | +15% Tower max shield |
-| Tower | Mason's Kit | 2 | 2 | -15% Tower Console repair price |
+| Tower | Mason's Kit | 2 | 2 | +10% Tower shield regen rate per rank (D115: repurposed from its former -15% Tower Console repair price now that the Console is removed) |
 | Tower | Watchtower | 3 | 2 | +10% Tower weapon range |
 | Tower | Fortress (capstone) | 4 | 1 | the Tower starts the run one evolution stage up, with +20% max health and +20% weapon damage (D114) |
 | Fortune | Scavenger | 1 | 3 | start each run with 15 Scrap |
 | Fortune | Scholar | 1 | 3 | +10% XP from shards |
 | Fortune | Lucky Draw | 2 | 2 | +1 Level-Up Draft reroll per run |
 | Fortune | Prospector | 2 | 2 | +15% Run-End Settlement Cores |
+| Fortune | Lucky Charm | 2 | 2 | +3 rarity-luck points per rank, shifting Draft card rarity odds from Common toward Rare/Epic (D117); a side node off Scavenger, not part of the Lucky Draw/Prospector pair Deep Pockets requires |
 | Fortune | Deep Pockets | 3 | 1 | +50 Scrap carry cap |
 | Fortune | War Chest (capstone) | 4 | 1 | start the run at level 1 with one free Level-Up Draft when the first wave begins |
 
@@ -125,4 +127,10 @@ Every row's own headless test is listed above; none of these rows were found to 
 
 ## 7. What is deliberately not here yet
 
-Field Core drops from Elites and bosses (none exist in the prototype); the overflow-hopper conversion (the prototype has no hopper); new-content unlocks; prestige; quests and achievements. Booster Pack Heroes uses quests to gate tree regions and a prestige reset. Both are candidates for the vertical slice, recorded in docs/30_Future_Ideas.md.
+Field Core drops from Elites and bosses (none exist in the prototype); the overflow-hopper conversion (the prototype has no hopper); prestige; quests. Booster Pack Heroes uses quests to gate tree regions and a prestige reset; both are candidates for the vertical slice, recorded in docs/30_Future_Ideas.md. Achievements (decision D118, section 8 below) and the small set of Draft-card unlocks they gate are no longer on this "not yet" list -- they exist in the prototype now, gating specific cards rather than whole tree regions.
+
+## 8. Achievements (decision D118)
+
+A small, data-driven list (`data/meta/achievements.tres`, `src/data/achievement_definition.gd`/`achievement_list.gd`) of lifetime and per-run goals tracked in the save profile (schema_version 2; document 24's migration chain) and evaluated once per run, at Run-End Settlement (`MetaProgress.settle_run()`'s own `_evaluate_achievements()`) -- kills/Scrap-collected lifetime counters are updated by that same call, from the run's own final tallies, rather than polled live mid-run. Each achievement names an `id`, a display `name`/`description`, a `metric` (a String key `_evaluate_achievements()` interprets: `lifetime_kills`/`lifetime_scrap_collected` are cumulative profile counters; `run_waves_cleared`/`run_victory`/`run_tower_health_fraction` read the CURRENT run's own settlement summary, never cumulative), a `threshold`, and exactly one of `unlocks_card_id` (a Draft card's `unique_id`) or `perk_id` (a small fixed permanent effect `MetaLoadoutApplier` applies at run start, no card involved). `src/upgrade/upgrade_system.gd`'s `get_offerable_upgrades()`/`get_fallback_card()` never return a card flagged `is_unlock` (`UpgradeDefinition.is_unlock`) until `MetaProgress.get_unlocked_card_ids()` names it -- so an UNLOCK card simply never appears in a fresh profile's Draft pool, no separate gating mechanism required. Of the ten cards the pool expansion (Register > "Progression & Upgrades") adds, exactly three are `is_unlock` (Piercing Arrows, Multishot, Tower Volley); the other seven are offerable from a profile's first run, same as the original eight.
+
+The six prototype achievements: Goblin Slayer (300 lifetime kills -> unlocks Piercing Arrows), Veteran (reach wave 5 in one run -> unlocks Multishot), Keeper of the Keep (end a run with the Tower above 50% health -> unlocks Tower Volley), Hoarder (500 lifetime Scrap collected -> perk `bonus_reroll`, +1 Level-Up Draft reroll per run, composing additively with Lucky Draw's own ranks), Founder (win a run -> perk `settlement_cores_bonus`, +5% Run-End Settlement Cores, composing additively with Prospector), and Marksman (1000 lifetime kills -> perk `weapon_damage_bonus`, +5% player weapon damage, composing additively with Sharpened Arrows). The three card-unlock achievements were chosen to match exactly the three `is_unlock` cards the pool authors; the three perk achievements were chosen instead of a fourth-through-sixth card unlock specifically to avoid an achievement claiming to "unlock" a card the pool already offers from the start (Regeneration, for one, is NOT `is_unlock` -- an achievement cannot meaningfully gate it). A newly unlocked achievement is listed on the run-end results screen ("Achievement unlocked: <name>") and shown, with every other achievement's progress, in the Hub's Achievements panel (reusing `records_panel.gd`'s read-only-rows-from-a-MetaProgress-query pattern).

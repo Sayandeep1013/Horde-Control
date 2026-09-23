@@ -44,7 +44,14 @@ enum EffectKind {
 	TOWER_MAX_HEALTH_PERCENT,
 	TOWER_WEAPON_DAMAGE_PERCENT,
 	TOWER_MAX_SHIELD_PERCENT,
-	TOWER_REPAIR_PRICE_REDUCTION_PERCENT,
+	## D115 (no in-run shop) removed the Tower Console and its repair price,
+	## which this member (formerly TOWER_REPAIR_PRICE_REDUCTION_PERCENT) used
+	## to discount for Mason's Kit -- see that node's own comment in
+	## data/meta/skill_tree.tres. Renamed rather than removed: its integer
+	## VALUE (9) is what data/meta/skill_tree.tres's `effect_kind = 9` stores
+	## on disk, so the member stays at the same enum position and only its
+	## meaning/name changes, repurposed to Mason's Kit's new effect.
+	TOWER_SHIELD_REGEN_RATE_PERCENT,
 	TOWER_WEAPON_RANGE_PERCENT,
 	TOWER_FORTRESS_START,
 	ECONOMY_STARTING_SCRAP_FLAT,
@@ -53,6 +60,9 @@ enum EffectKind {
 	ECONOMY_SETTLEMENT_CORES_PERCENT,
 	ECONOMY_SCRAP_CAP_FLAT,
 	ECONOMY_WAR_CHEST_START,
+	## D117: Lucky Charm's rarity-luck points, shifting Draft card odds from
+	## Common toward Rare/Epic (src/ui/draft_controller.gd's rarity roll).
+	ECONOMY_DRAFT_RARITY_LUCK_FLAT,
 }
 
 ## Register > "Meta: Skill Tree costs": "base 5 / 10 / 18 / 30 Cores for

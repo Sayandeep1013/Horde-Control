@@ -123,6 +123,26 @@ var _projectile_lifetime_seconds: float = 0.0
 var _damage_multiplier: float = 1.0
 var _fire_rate_multiplier: float = 1.0
 
+## D115/D117 pool expansion, both UNLOCK cards. `_pierce_bonus` (Piercing
+## Arrows, +1 pierce/rank) is handed to every projectile via `launch()`'s
+## new `pierce_count` parameter. `_multishot_extra` (Multishot, +1 arrow/
+## rank at 70% damage, spread) fires that many EXTRA projectiles per shot,
+## each at `MULTISHOT_DAMAGE_FRACTION` of the effective damage, fanned
+## symmetrically around the primary target direction -- the primary shot
+## (the existing behaviour) is unaffected and still fires at full damage
+## straight at the target.
+var _pierce_bonus: int = 0
+var _multishot_extra: int = 0
+## Fixed by the card's own spec ("at 70% damage"), not a Register row of
+## its own -- named here beside the field it scales rather than invented as
+## a second exported tunable no design document asks for.
+const MULTISHOT_DAMAGE_FRACTION: float = 0.7
+## Angular spread between adjacent multishot projectiles, degrees. A
+## framework/feel constant (not a Register number), chosen so the fan reads
+## as a spread rather than an overlapping stack at this weapon's 260 px
+## range.
+const MULTISHOT_SPREAD_DEGREES: float = 8.0
+
 var _origin: Node2D = null
 var _current_target: Node2D = null # write-only-at-fire-time; see header
 var _next_fire_allowed_at: float = 0.0
@@ -267,6 +287,28 @@ func get_fire_rate_multiplier_for_test() -> float:
 	return _fire_rate_multiplier
 
 
+## Typed command (Piercing Arrows). `bonus` is the upgrade's own already-
+## summed total across every rank held (0 = the unranked default: no
+## piercing, matching PlayerProjectile's own "no piercing: one target per
+## shot" default).
+func set_pierce_bonus(bonus: int) -> void:
+	_pierce_bonus = maxi(0, bonus)
+
+
+func get_pierce_bonus_for_test() -> int:
+	return _pierce_bonus
+
+
+## Typed command (Multishot). `extra_count` is the number of ADDITIONAL
+## projectiles fired per shot, beyond the primary one.
+func set_multishot_extra_count(extra_count: int) -> void:
+	_multishot_extra = maxi(0, extra_count)
+
+
+func get_multishot_extra_count_for_test() -> int:
+	return _multishot_extra
+
+
 ## Integration task (P2.9's own capacity seam; evidence/p29_report.md,
 ## "The capacity seam the orchestrator must wire to the upgrade system").
 ## Live, upgrade-aware sheet DPS -- CombatStats.sheet_dps_from_weapon()'s
@@ -343,16 +385,34 @@ func _fire_at(target: Node2D) -> void:
 	var origin_pos: Vector2 = _origin.global_position
 	var to_target: Vector2 = target.global_position - origin_pos
 	var direction: Vector2 = to_target.normalized() if to_target.length_squared() > 0.0001 else Vector2.RIGHT
+	_launch_one(origin_pos, direction, get_effective_damage_per_shot())
+	# Multishot (D117): extra projectiles fanned symmetrically around the
+	# primary direction, each at MULTISHOT_DAMAGE_FRACTION -- the primary
+	# shot above is unaffected. Fan order (for N extra shots): alternating
+	# +/- (i+1) half-steps so the set is symmetric around the primary
+	# direction for both even and odd counts.
+	var multishot_damage: float = get_effective_damage_per_shot() * MULTISHOT_DAMAGE_FRACTION
+	for i in _multishot_extra:
+		var side: float = 1.0 if i % 2 == 0 else -1.0
+		var step: float = float(i / 2 + 1)
+		var angle_offset: float = deg_to_rad(MULTISHOT_SPREAD_DEGREES * step * side)
+		_launch_one(origin_pos, direction.rotated(angle_offset), multishot_damage)
+	if _audio_pool != null and fire_sfx != null and _audio_pool.has_method("play"):
+		_audio_pool.play(fire_sfx, origin_pos, 0, false, "SFX")
+	fired.emit(_now())
+
+
+## D115/D117 pool expansion: factored out of `_fire_at()` so the primary
+## shot and every Multishot extra go through the identical pool-acquire/
+## launch/pierce path.
+func _launch_one(origin_pos: Vector2, direction: Vector2, damage: float) -> void:
 	var projectile: PlayerProjectile = _pool.acquire() as PlayerProjectile
 	if projectile == null:
 		return # pool at cap under THROTTLE-equivalent conditions -- RECYCLE_OLDEST means this should not happen, but never crash if it does
 	# Projectile Orphans (docs/20): source resolved BY VALUE, never a live
 	# Node reference to this weapon's owner -- see player_projectile.gd's
 	# header.
-	projectile.launch(origin_pos, direction * _projectile_speed, get_effective_damage_per_shot(), &"player", _projectile_lifetime_seconds)
-	if _audio_pool != null and fire_sfx != null and _audio_pool.has_method("play"):
-		_audio_pool.play(fire_sfx, origin_pos, 0, false, "SFX")
-	fired.emit(_now())
+	projectile.launch(origin_pos, direction * _projectile_speed, damage, &"player", _projectile_lifetime_seconds, _pierce_bonus)
 
 
 ## Read-only consistency check against F03-09's other half (data/player/

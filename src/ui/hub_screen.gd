@@ -122,7 +122,8 @@ const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 68.0)
 const START_RUN_MIN_SIZE: Vector2 = Vector2(360.0, 84.0) # the primary action, visibly larger
 
 ## Harness-only flag (title_screen.gd's own `--debug-panel=` precedent):
-## `--debug-panel=skill_tree` / `--debug-panel=records` opens that overlay
+## `--debug-panel=skill_tree` / `--debug-panel=records` / `--debug-panel=
+## achievements` opens that overlay
 ## immediately in `_ready()`, since the capture harness cannot simulate a
 ## button click.
 const DEBUG_PANEL_FLAG_PREFIX: String = "--debug-panel="
@@ -133,6 +134,7 @@ var _cores_icon: UiShapeGlyph
 var _start_run_button: Button
 var _skill_tree_button: Button
 var _records_button: Button
+var _achievements_button: Button
 var _back_to_title_button: Button
 var _hint_banner: PanelContainer
 var _warning_banner: PanelContainer
@@ -141,6 +143,7 @@ var _music_player: AudioStreamPlayer
 
 var _skill_tree_screen: SkillTreeScreen
 var _records_panel: RecordsPanel
+var _achievements_panel: AchievementsPanel
 
 
 func _ready() -> void:
@@ -173,6 +176,8 @@ func _apply_debug_panel_flag() -> void:
 		_on_skill_tree_pressed()
 	elif requested == "records":
 		_on_records_pressed()
+	elif requested == "achievements":
+		_on_achievements_pressed()
 
 
 func _on_cores_changed(_new_total: int) -> void:
@@ -238,6 +243,16 @@ func _on_records_back_requested() -> void:
 	_start_run_button.grab_focus()
 
 
+func _on_achievements_pressed() -> void:
+	_hint_banner.visible = false
+	_achievements_panel.set_active(true)
+
+
+func _on_achievements_back_requested() -> void:
+	_achievements_panel.set_active(false)
+	_start_run_button.grab_focus()
+
+
 func _on_hint_dismiss_pressed() -> void:
 	_hint_banner.visible = false
 
@@ -270,6 +285,10 @@ func _build_ui() -> void:
 	_records_panel = (preload("res://scenes/ui/records_panel.tscn") as PackedScene).instantiate() as RecordsPanel
 	add_child(_records_panel)
 	_records_panel.back_requested.connect(_on_records_back_requested)
+
+	_achievements_panel = (preload("res://scenes/ui/achievements_panel.tscn") as PackedScene).instantiate() as AchievementsPanel
+	add_child(_achievements_panel)
+	_achievements_panel.back_requested.connect(_on_achievements_back_requested)
 
 
 func _build_background() -> void:
@@ -481,6 +500,10 @@ func _build_menu_card(parent: Control) -> void:
 	_records_button.pressed.connect(_on_records_pressed)
 	column.add_child(_records_button)
 
+	_achievements_button = _make_menu_button(tr("HUB_ACHIEVEMENTS"))
+	_achievements_button.pressed.connect(_on_achievements_pressed)
+	column.add_child(_achievements_button)
+
 	_back_to_title_button = _make_menu_button(tr("HUB_BACK_TO_TITLE"))
 	_back_to_title_button.pressed.connect(_on_back_to_title_pressed)
 	column.add_child(_back_to_title_button)
@@ -622,6 +645,10 @@ func get_records_button_for_test() -> Button:
 	return _records_button
 
 
+func get_achievements_button_for_test() -> Button:
+	return _achievements_button
+
+
 func get_back_to_title_button_for_test() -> Button:
 	return _back_to_title_button
 
@@ -640,6 +667,10 @@ func get_skill_tree_screen_for_test() -> SkillTreeScreen:
 
 func get_records_panel_for_test() -> RecordsPanel:
 	return _records_panel
+
+
+func get_achievements_panel_for_test() -> AchievementsPanel:
+	return _achievements_panel
 
 
 func get_music_player_for_test() -> AudioStreamPlayer:

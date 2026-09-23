@@ -349,9 +349,8 @@ func _controls_rows() -> Array:
 		[tr("TITLE_CONTROLS_DRAFT_SELECT"), "1 / 2 / 3"],
 		[tr("TITLE_CONTROLS_CONFIRM"), "Space, Enter, Left Click, A / Cross"],
 		[tr("TITLE_CONTROLS_REROLL"), "R, X / Square"],
-		[tr("TITLE_CONTROLS_CONSOLE_CYCLE"), "Tab, Shift+Tab, Mouse Wheel, D-Pad, Right Stick"],
-		[tr("TITLE_CONTROLS_CONSOLE_SELECT"), "1-7"],
-		[tr("TITLE_CONTROLS_CONSOLE_CANCEL"), "Q, B / Circle"],
+		# D115 (no in-run shop): the three Console control rows (cycle/
+		# select/cancel) are removed along with the Console itself.
 		[tr("TITLE_CONTROLS_PAUSE"), "Escape, Start"],
 		[tr("TITLE_CONTROLS_DEBUG_OVERLAY"), "F1"],
 		[tr("TITLE_CONTROLS_DEBUG_PSEUDOLOC"), "F2"],

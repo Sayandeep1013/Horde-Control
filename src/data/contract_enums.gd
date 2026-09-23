@@ -41,9 +41,6 @@ enum ContactBehaviour { None, Damage, Explode, Block }
 ## Entity cap behaviour (shared table): Encounter.entity_cap_behavior.
 enum EntityCapBehaviour { Throttle, Defer, Skip }
 
-## Pause and deferral behaviour (shared table): Encounter.pause_and_deferral_behavior.
-enum PauseAndDeferralBehaviour { DeferUntilDraftCloses, Cancel }
-
 ## Pool ownership (shared table): Upgrade.pool_ownership (and inherited by
 ## TowerUpgradeDefinition).
 enum PoolOwnership { Player, Tower, Weapon, Utility }

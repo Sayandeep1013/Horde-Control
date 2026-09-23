@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="TowerUpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/tower_upgrade_definition.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+evolution_stage_contribution = 0
+draft_weight = 1
+unique_id = "repair_kit"
+pool_ownership = 1
+rarity = 0
+max_rank = 10
+has_max_rank = true
+prerequisites = Array[String]([])
+exclusions = Array[String]([])
+effect_description = "Repair Kit: instantly heal the Tower 25% of its max health, repeatable"
+effect_target = 1
+effect_per_rank = 0.25
+console_price_per_rank = 30
+recursive_interaction_guard = ""
+has_recursive_interaction_guard = false
+visual_readability_impact = 0
+performance_cost_category = 0
+is_unlock = false

@@ -186,7 +186,6 @@ const REQUIRED_FIELD_MANIFEST := {
 		{"master": "Reward.", "exports": ["reward"]},
 		{"master": "Failure resolution.", "exports": ["failure_resolution"]},
 		{"master": "Partial reward rules.", "exports": ["partial_reward_rules"]},
-		{"master": "Pause and deferral behavior.", "exports": ["pause_and_deferral_behavior"]},
 	],
 	"Upgrade Definition": UPGRADE_DEFINITION_REQUIRED_FIELDS,
 	"Wave Definition": [

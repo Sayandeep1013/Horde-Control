@@ -12,8 +12,9 @@ extends GdUnitTestSuite
 ## unset (F04-12); the upgrade system's four NodePaths unset (F05-07); the
 ## Draft scene never instantiated, so nothing could open a Draft in the
 ## running game (F05-15); the Console's run-inventory call never made, after
-## which it dwell-detects, builds itself, and silently never opens (F05-20);
-## and wave-spawned enemies never given a Tower reference, so no Seeker could
+## which it dwell-detects, builds itself, and silently never opens (F05-20;
+## historical -- D115 later removed the Console from runs entirely); and
+## wave-spawned enemies never given a Tower reference, so no Seeker could
 ## seek (F05-23). Component suites cannot see any of this by construction:
 ## each component was correct and each of its own tests passed.
 ##
@@ -125,23 +126,17 @@ func test_every_nodepath_export_on_every_wired_node_resolves() -> void:
 
 
 func test_one_run_inventory_instance_reaches_every_system_that_reads_it() -> void:
-	# F05-20 and F05-27, the two seams with no symptom: set_run_inventory() is
-	# a required CODE call on both the Console and the run-flow controller,
-	# because RunInventory is a RefCounted and cannot be a NodePath. Unwired,
-	# the Console reads zero Scrap and never opens, and the run-end screen
+	# F05-27, the seam with no symptom: set_run_inventory() is a required
+	# CODE call on the run-flow controller, because RunInventory is a
+	# RefCounted and cannot be a NodePath. Unwired, the run-end screen
 	# always shows zero Scrap - which looks exactly like correct behaviour
-	# after a player death.
+	# after a player death. D115 (no in-run shop) removed the Console and
+	# its own identical seam (F05-20).
 	var pickup_system: Node = _node("Main/PickupSystem")
 	assert_object(pickup_system).append_failure_message("Main/PickupSystem is not in the assembled scene").is_not_null()
 
 	var inventory: RunInventory = pickup_system.run_inventory
 	assert_object(inventory).append_failure_message("PickupSystem has no RunInventory").is_not_null()
-
-	var console: Node = _node("Console")
-	assert_object(console).append_failure_message("the Console is not instantiated in the assembled scene (F05-20)").is_not_null()
-	assert_object(console._run_inventory).append_failure_message(
-		"Console.set_run_inventory() was never called. Every entry then reads zero Scrap, so the Console dwell-detects, builds itself and NEVER OPENS, with no error anywhere (F05-20)."
-	).is_same(inventory)
 
 	var run_flow: Node = _node("RunFlowController")
 	assert_object(run_flow).append_failure_message("RunFlowController is not instantiated in the assembled scene (F05-27)").is_not_null()

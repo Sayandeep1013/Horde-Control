@@ -58,4 +58,3 @@ excluded_encounter_tags = Array[String]([])
 reward = null
 failure_resolution = 0
 partial_reward_rules = null
-pause_and_deferral_behavior = 0

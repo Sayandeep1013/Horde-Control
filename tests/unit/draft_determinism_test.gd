@@ -90,3 +90,55 @@ func test_a_different_run_seed_changes_at_least_one_offer() -> void:
 	assert_array(other).append_failure_message(
 		"a different run_seed produced byte-identical offers -- the draft roll is not actually keyed off DraftController.run_seed (a hardcoded seed root would produce exactly this symptom)"
 	).is_not_equal(baseline)
+
+
+# --- D117: rarity is a keyed, deterministic roll, same as the card pick ---
+
+## Same scripted sequence as _run_scripted_sequence() above, but reports
+## rarity instead of card ids -- proves the rarity roll (a SEPARATE
+## KeyedRng purpose key, "draft_rarity") is deterministic per run_seed
+## exactly like the card-pick roll already proven above.
+func _run_scripted_sequence_rarities(seed_value: int) -> Array[int]:
+	var upgrade_system: UpgradeSystem = auto_free(DraftTestHelpers.build_upgrade_system())
+	add_child(upgrade_system)
+	var run_inventory: RunInventory = DraftTestHelpers.build_run_inventory()
+
+	var controller: DraftController = auto_free(DraftTestHelpers.build_draft_controller())
+	add_child(controller)
+	controller.run_seed = seed_value
+	controller.set_run_inventory_for_test(run_inventory)
+	controller.set_upgrade_system_for_test(upgrade_system)
+	controller.set_pause_authority_for_test(_pause)
+	controller.set_sim_clock_for_test(_clock)
+	controller.skip_lockout_for_test()
+
+	controller.force_open_for_test(false)
+	var first_rarities: Array[int] = controller.get_current_card_rarities_for_test()
+	controller.confirm_choice_for_test(0)
+
+	run_inventory.credit_xp(8.0)
+	controller.physics_step(0.016)
+	var second_rarities: Array[int] = controller.get_current_card_rarities_for_test()
+	controller.confirm_choice_for_test(0)
+
+	var out: Array[int] = first_rarities.duplicate()
+	out.append(-1) # separator, never a valid ContractEnums.Rarity value
+	out.append_array(second_rarities)
+	return out
+
+
+func test_same_run_seed_reproduces_identical_rarities_10_of_10() -> void:
+	var baseline: Array[int] = _run_scripted_sequence_rarities(RUN_SEED_A)
+	for rep in REPETITIONS:
+		var repeat: Array[int] = _run_scripted_sequence_rarities(RUN_SEED_A)
+		assert_array(repeat).append_failure_message(
+			"repetition %d of %d's rarity roll diverged from the baseline for the same run seed" % [rep + 1, REPETITIONS]
+		).is_equal(baseline)
+
+
+func test_a_different_run_seed_can_change_the_rarity_roll() -> void:
+	var baseline: Array[int] = _run_scripted_sequence_rarities(RUN_SEED_A)
+	var other: Array[int] = _run_scripted_sequence_rarities(RUN_SEED_B)
+	assert_array(other).append_failure_message(
+		"a different run_seed produced byte-identical rarities across two whole drafts -- the rarity roll is not actually keyed off DraftController.run_seed"
+	).is_not_equal(baseline)

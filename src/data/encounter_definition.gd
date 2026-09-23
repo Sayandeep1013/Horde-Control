@@ -33,4 +33,3 @@ class_name EncounterDefinition
 @export var reward: Reward = null ## zero for the four prototype encounters (MASTER)
 @export var failure_resolution: ContractEnums.FailureResolution = ContractEnums.FailureResolution.RewardForfeited
 @export var partial_reward_rules: Reward = null ## nullable; null if the encounter defines none
-@export var pause_and_deferral_behavior: ContractEnums.PauseAndDeferralBehaviour = ContractEnums.PauseAndDeferralBehaviour.DeferUntilDraftCloses

@@ -12,22 +12,19 @@ extends GdUnitTestSuite
 
 const PrototypeScene: PackedScene = preload("res://scenes/prototype.tscn")
 
+## D115 (no in-run shop): the Tower Console node/script is removed from
+## scenes/prototype.tscn and from src/ui/dev/ui_capture.gd's own capture
+## sequence -- CONSOLE_PROPERTIES/CONSOLE_METHODS and the "Console" node
+## path below are removed with it, not merely left unused.
 const NODE_PATHS: Array[String] = [
 	"DraftInstance",
 	"RunFlowController",
-	"Console",
 	"Main/Tower",
 	"Main/Player",
 	"Main/Player/GameCamera",
 	"ThreatFeedbackLayer/Overlay",
 ]
 
-const CONSOLE_PROPERTIES: Array[String] = ["_tower", "_run_inventory", "_interaction_radius", "_player_is_dead", "driven_externally"]
-const CONSOLE_METHODS: Array[String] = [
-	"_has_any_affordable_entry", "is_open", "request_open", "set_tower_for_test", "set_player_for_test",
-	"set_player_weapon_for_test", "set_upgrade_system_for_test", "set_camera_for_test",
-	"get_paused_for_test", "get_requires_reentry_for_test", "get_scrap_current_for_test",
-]
 const FLOW_METHODS: Array[String] = ["_end_run", "_on_pause_action_pressed"]
 const FLOW_PROPERTIES: Array[String] = ["pause_menu", "settings_menu"]
 const DRAFT_METHODS: Array[String] = ["force_open_for_test", "simulate_hover_for_test", "skip_lockout_for_test", "confirm_choice_for_test"]
@@ -57,12 +54,6 @@ func test_every_node_the_capture_tool_fetches_exists() -> void:
 
 
 func test_every_member_the_capture_tool_reaches_into_exists() -> void:
-	var console: Node = _proto.get_node("Console")
-	for property: String in CONSOLE_PROPERTIES:
-		assert_bool(_has_property(console, property)).append_failure_message("Console no longer has '%s'; update src/ui/dev/ui_capture.gd" % property).is_true()
-	for method: String in CONSOLE_METHODS:
-		assert_bool(console.has_method(method)).append_failure_message("Console no longer has %s(); update src/ui/dev/ui_capture.gd" % method).is_true()
-
 	var flow: Node = _proto.get_node("RunFlowController")
 	for method: String in FLOW_METHODS:
 		assert_bool(flow.has_method(method)).append_failure_message("RunFlowController no longer has %s(); update src/ui/dev/ui_capture.gd" % method).is_true()

@@ -83,6 +83,14 @@ class_name MetaLoadoutApplier
 const FORTRESS_TOWER_MAX_HEALTH_BONUS: float = 0.20
 const FORTRESS_TOWER_WEAPON_DAMAGE_BONUS: float = 0.20
 
+## D118 (achievements). Register > "Meta: Achievements": "Marksman perk
+## (weapon_damage_bonus): +5% player weapon damage." Composes additively
+## with Sharpened Arrows' own `player_weapon_damage_bonus`, exactly like
+## Fortress composes with Stone Walls/Arrow Slits above -- ONE combined
+## fraction, applied once, never a second `configure()` call layering a
+## second multiplier on top of the first.
+const ACHIEVEMENT_WEAPON_DAMAGE_BONUS: float = 0.05
+
 
 ## Typed command: applies every field on `loadout` to the given live run.
 ## Every parameter after `loadout` may be null (a system not present in a
@@ -117,10 +125,16 @@ static func _apply_player(loadout: MetaLoadout, player: Player, player_weapon: A
 
 	if player_weapon != null and player_weapon.definition != null:
 		var weapon_def: WeaponDefinition = player_weapon.definition
-		if (loadout.player_weapon_damage_bonus != 0.0 or loadout.player_fire_rate_bonus != 0.0) and weapon_def.damage_band != null and weapon_def.engagement_rhythm != null:
+		# D118: Marksman's fixed perk folds into the SAME combined fraction
+		# Sharpened Arrows contributes -- see this file's header, "Fortress
+		# ALSO carries a scalar gameplay effect," for the identical pattern.
+		var weapon_damage_bonus: float = loadout.player_weapon_damage_bonus
+		if MetaProgress.has_perk("weapon_damage_bonus"):
+			weapon_damage_bonus += ACHIEVEMENT_WEAPON_DAMAGE_BONUS
+		if (weapon_damage_bonus != 0.0 or loadout.player_fire_rate_bonus != 0.0) and weapon_def.damage_band != null and weapon_def.engagement_rhythm != null:
 			var dup_weapon: WeaponDefinition = weapon_def.duplicate(true) as WeaponDefinition
-			if loadout.player_weapon_damage_bonus != 0.0:
-				dup_weapon.damage_band.value = int(round(float(dup_weapon.damage_band.value) * (1.0 + loadout.player_weapon_damage_bonus))) # BandedValue.value is int -- a bare `*=` truncates the float product back through the int setter instead of rounding it
+			if weapon_damage_bonus != 0.0:
+				dup_weapon.damage_band.value = int(round(float(dup_weapon.damage_band.value) * (1.0 + weapon_damage_bonus))) # BandedValue.value is int -- a bare `*=` truncates the float product back through the int setter instead of rounding it
 			if loadout.player_fire_rate_bonus != 0.0:
 				dup_weapon.engagement_rhythm.fire_rate_per_second *= (1.0 + loadout.player_fire_rate_bonus)
 			player_weapon.definition = dup_weapon
@@ -144,7 +158,7 @@ static func _apply_tower(loadout: MetaLoadout, tower: Tower) -> void:
 		tower_max_health_bonus += FORTRESS_TOWER_MAX_HEALTH_BONUS
 		tower_weapon_damage_bonus += FORTRESS_TOWER_WEAPON_DAMAGE_BONUS
 
-	var needs_tower_dup: bool = tower_max_health_bonus != 0.0 or loadout.tower_max_shield_bonus != 0.0 or loadout.repair_price_reduction != 0.0 or loadout.tower_weapon_range_bonus != 0.0
+	var needs_tower_dup: bool = tower_max_health_bonus != 0.0 or loadout.tower_max_shield_bonus != 0.0 or loadout.tower_shield_regen_bonus != 0.0 or loadout.tower_weapon_range_bonus != 0.0
 	var needs_weapon_dup: bool = tower_weapon_damage_bonus != 0.0
 
 	var dup_tower: TowerDefinition = tower.definition
@@ -160,8 +174,12 @@ static func _apply_tower(loadout: MetaLoadout, tower: Tower) -> void:
 			# layer that would otherwise silently discard this bonus the
 			# first time a real Shield Matrix rank is taken in-run).
 			dup_tower.max_health_and_shield_fraction.base_shield_fraction += loadout.tower_max_shield_bonus
-		if loadout.repair_price_reduction != 0.0 and dup_tower.repair_price != null:
-			dup_tower.repair_price.scrap_cost = int(round(float(dup_tower.repair_price.scrap_cost) * (1.0 - loadout.repair_price_reduction)))
+		# D115 (no in-run shop) removed the Tower Console and its repair
+		# price -- Mason's Kit (formerly a repair-price discount) is
+		# repurposed to a Tower shield regen RATE bonus instead, folded into
+		# the base the same way as every other Tower percentage bonus here.
+		if loadout.tower_shield_regen_bonus != 0.0 and dup_tower.shield_regeneration != null:
+			dup_tower.shield_regeneration.rate_percent_per_second *= (1.0 + loadout.tower_shield_regen_bonus)
 		if loadout.tower_weapon_range_bonus != 0.0 and dup_tower.targeting_rule_parameters != null:
 			dup_tower.targeting_rule_parameters.range_px = int(round(float(dup_tower.targeting_rule_parameters.range_px) * (1.0 + loadout.tower_weapon_range_bonus)))
 
@@ -191,8 +209,19 @@ static func _apply_economy(loadout: MetaLoadout, run_inventory: RunInventory) ->
 
 
 static func _apply_draft(loadout: MetaLoadout, draft_controller: DraftController) -> void:
-	if draft_controller != null and loadout.bonus_draft_rerolls > 0:
-		draft_controller.add_bonus_rerolls(loadout.bonus_draft_rerolls)
+	if draft_controller == null:
+		return
+	# D118: Hoarder's own perk composes additively with Lucky Draw's ranks,
+	# exactly like every other perk in this file composes with its Skill
+	# Tree counterpart -- one combined count, one call.
+	var bonus_rerolls: int = loadout.bonus_draft_rerolls
+	if MetaProgress.has_perk("bonus_reroll"):
+		bonus_rerolls += 1
+	if bonus_rerolls > 0:
+		draft_controller.add_bonus_rerolls(bonus_rerolls)
+	# D117; Lucky Charm.
+	if loadout.rarity_luck_points > 0:
+		draft_controller.add_rarity_luck_points(loadout.rarity_luck_points)
 
 
 ## War Chest: "start at level 1 with one free Draft when the first wave

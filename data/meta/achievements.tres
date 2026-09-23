@@ -1,0 +1,77 @@
+[gd_resource type="Resource" script_class="AchievementList" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://src/data/achievement_list.gd" id="1_list"]
+[ext_resource type="Script" path="res://src/data/achievement_definition.gd" id="2_def"]
+
+; Achievements (D118). MASTER_SDLC.md > Provisional Values Register >
+; "Meta: Achievements" is the authoritative source for every threshold/
+; metric/unlock below; this file authors them as data. Evaluated once per
+; run at Run-End Settlement (src/meta/meta_progress.gd::settle_run()).
+; `metric` values: "lifetime_kills"/"lifetime_scrap_collected" (cumulative
+; profile counters); "run_waves_cleared"/"run_victory"/
+; "run_tower_health_fraction" (this run's own run_summary, never
+; cumulative). Exactly one of `unlocks_card_id`/`perk_id` is set per row.
+
+[sub_resource type="Resource" id="Resource_goblin_slayer"]
+script = ExtResource("2_def")
+id = "goblin_slayer"
+display_name = "Goblin Slayer"
+description = "Defeat 300 enemies over your lifetime."
+metric = "lifetime_kills"
+threshold = 300.0
+unlocks_card_id = "piercing_arrows"
+perk_id = ""
+
+[sub_resource type="Resource" id="Resource_veteran"]
+script = ExtResource("2_def")
+id = "veteran"
+display_name = "Veteran"
+description = "Reach wave 5 in a single run."
+metric = "run_waves_cleared"
+threshold = 5.0
+unlocks_card_id = "multishot"
+perk_id = ""
+
+[sub_resource type="Resource" id="Resource_keeper_of_the_keep"]
+script = ExtResource("2_def")
+id = "keeper_of_the_keep"
+display_name = "Keeper of the Keep"
+description = "End a run with the Tower above 50% health."
+metric = "run_tower_health_fraction"
+threshold = 0.5
+unlocks_card_id = "tower_volley"
+perk_id = ""
+
+[sub_resource type="Resource" id="Resource_hoarder"]
+script = ExtResource("2_def")
+id = "hoarder"
+display_name = "Hoarder"
+description = "Collect 500 Scrap over your lifetime."
+metric = "lifetime_scrap_collected"
+threshold = 500.0
+unlocks_card_id = ""
+perk_id = "bonus_reroll"
+
+[sub_resource type="Resource" id="Resource_founder"]
+script = ExtResource("2_def")
+id = "founder"
+display_name = "Founder"
+description = "Win a run."
+metric = "run_victory"
+threshold = 1.0
+unlocks_card_id = ""
+perk_id = "settlement_cores_bonus"
+
+[sub_resource type="Resource" id="Resource_marksman"]
+script = ExtResource("2_def")
+id = "marksman"
+display_name = "Marksman"
+description = "Defeat 1000 enemies over your lifetime."
+metric = "lifetime_kills"
+threshold = 1000.0
+unlocks_card_id = ""
+perk_id = "weapon_damage_bonus"
+
+[resource]
+script = ExtResource("1_list")
+achievements = Array[AchievementDefinition]([SubResource("Resource_goblin_slayer"), SubResource("Resource_veteran"), SubResource("Resource_keeper_of_the_keep"), SubResource("Resource_hoarder"), SubResource("Resource_founder"), SubResource("Resource_marksman")])
