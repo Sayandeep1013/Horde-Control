@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://src/enemy/enemy_controller.gd" id="1_body"]
 [ext_resource type="Script" path="res://src/combat/hurtbox.gd" id="2_hurtbox"]
@@ -10,6 +10,7 @@
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_hit.ogg" id="8_hit"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_death.ogg" id="9_death_sfx"]
 [ext_resource type="Script" path="res://src/enemy/enemy_animator.gd" id="11_animator"]
+[ext_resource type="SpriteFrames" path="res://assets/sprite_frames/tower_seeker.tres" id="30_seeker_frames"]
 [ext_resource type="SpriteFrames" path="res://assets/sprite_frames/player_hunter.tres" id="12_frames"]
 [ext_resource type="Texture2D" path="res://assets/sprites/soft_shadow.png" id="13_shadow"]
 [ext_resource type="Script" path="res://src/enemy/enemy_health_bar.gd" id="14_health_bar"]
@@ -74,6 +75,9 @@ texture = ExtResource("7_diamond")
 ; (docs/20 > Scene Tree; Register > Readability).
 [node name="Visuals" type="Node2D" parent="."]
 script = ExtResource("11_animator")
+converted_sprite_frames = ExtResource("30_seeker_frames")
+converted_directional_strike = true
+converted_sprite_offset = Vector2(0, -37)
 
 [node name="Shadow" type="Sprite2D" parent="Visuals"]
 position = Vector2(0, 2)

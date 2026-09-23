@@ -69,6 +69,18 @@ class_name EnemyAnimator
 
 @export var death_fx_scene: PackedScene = preload("res://scenes/fx/death_fx.tscn")
 
+## Leash conversion (docs/09; enemy_controller.gd `_convert_to_tower_seeker`)
+## turns a Player Hunter into a Tower Seeker in place. Without these the
+## converted enemy kept the Hunter's art while acting as a Seeker. Empty on
+## scenes that never convert. The original art is restored on pool reuse.
+@export var converted_sprite_frames: SpriteFrames = null
+@export var converted_directional_strike: bool = true
+@export var converted_sprite_offset: Vector2 = Vector2(0, -37)
+
+var _original_sprite_frames: SpriteFrames = null
+var _original_directional_strike: bool = false
+var _original_sprite_offset: Vector2 = Vector2.ZERO
+
 const HIT_FLASH_DURATION_SECONDS: float = 0.08
 const HIT_FLASH_COLOUR: Color = Color(2.4, 2.4, 2.4, 1.0)
 const MOVING_EPSILON_PX_PER_SEC: float = 4.0
@@ -115,9 +127,15 @@ func _ready() -> void:
 		if _sprite.sprite_frames != null and _sprite.sprite_frames.has_animation(&"idle"):
 			_sprite.play(&"idle")
 
+	if _sprite != null:
+		_original_sprite_frames = _sprite.sprite_frames
+		_original_sprite_offset = _sprite.offset
+	_original_directional_strike = directional_strike
+
 	if _controller != null:
 		_controller.windup_started.connect(_on_windup_started)
 		_controller.attack_resolved.connect(_on_attack_resolved)
+		_controller.converted_to_tower_seeker.connect(_on_converted_to_tower_seeker)
 
 	if _death_state != null:
 		_death_state.logical_death.connect(_on_logical_death)
@@ -291,7 +309,26 @@ func _on_death_visuals() -> void:
 		_shadow.visible = false
 
 
+func _on_converted_to_tower_seeker() -> void:
+	if _sprite == null or converted_sprite_frames == null:
+		return
+	_striking = false
+	_sprite.sprite_frames = converted_sprite_frames
+	_sprite.offset = converted_sprite_offset
+	directional_strike = converted_directional_strike
+	_play_looping(&"run")
+
+
+func _restore_original_art() -> void:
+	if _sprite == null or _original_sprite_frames == null or _sprite.sprite_frames == _original_sprite_frames:
+		return
+	_sprite.sprite_frames = _original_sprite_frames
+	_sprite.offset = _original_sprite_offset
+	directional_strike = _original_directional_strike
+
+
 func _restore_alive_visuals() -> void:
+	_restore_original_art()
 	_striking = false
 	scale = Vector2.ONE # defensive: _on_death_visuals() already does this, but a reused instance must never start life mid-squash
 	if _squash_tween != null and _squash_tween.is_valid():
