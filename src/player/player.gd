@@ -20,11 +20,21 @@ class_name Player
 ##     future pickup system, docs 16/P2.8, to read -- this controller does
 ##     not implement magnet behaviour itself, out of this task's scope).
 ##   - "Input buffer": definition.input_buffer (duration_ms=100, ticks=6).
-## z_index (50) is a separate Register row (> Readability: "draw order
-## z_index: ... player 50 ..."), not a PlayerDefinition Contract field, so
-## it is set directly on this scene's root node rather than read from the
-## resource -- named here since it is a Register number with no contract
-## field to carry it.
+## z_index (20) is a separate Register row (> Readability: "draw order
+## z_index: ... the play layer 20 (player, Tower, and enemies, Y-sorted
+## together) ..." -- Author decision D119, 2026-09-23, replacing the
+## player's own earlier fixed band of 50), not a PlayerDefinition Contract
+## field, so it is set directly on this scene's root node rather than read
+## from the resource -- named here since it is a Register number with no
+## contract field to carry it. `z_as_relative` is left at its Node2D
+## default (true), deliberately: it must ACCUMULATE through whatever
+## y_sort-enabled ancestor the player is nested under at runtime
+## (scenes/main.tscn's own `Main` root sets `y_sort_enabled = true`), so the
+## player lands at the SAME effective z_index as the Tower and every enemy
+## and is reordered against them by Y-sort instead of by a fixed hierarchy
+## -- see scenes/player.tscn's own `OverheadBar` node for the always-
+## visible health/XP bars that now occupy the freed z_index 50 band
+## instead.
 ##
 ## ## SimLoop / scenes/main.tscn wiring gap (named, not silently resolved)
 ## docs/20 > "SimLoop order" assigns step 1 (input) and step 2 (player
@@ -126,7 +136,7 @@ var _audio_pool: Node = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
-	z_index = 50 # Register > Readability: "draw order z_index: ... player 50 ..."
+	z_index = 20 # Register > Readability: the shared play-layer band, Y-sorted with the Tower and enemies (Author decision D119)
 	# No src/core/pool.gd `pool_body` group membership: unlike enemies,
 	# pickups, projectiles, and effects (src/core/entity_spawner.gd's six
 	# pools), the player is never acquired through Pool.acquire() -- there

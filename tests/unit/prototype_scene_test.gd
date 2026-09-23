@@ -8,7 +8,11 @@ extends GdUnitTestSuite
 ##   - every required node is present;
 ##   - the container layout docs/20 > Scene Tree requires (via
 ##     scenes/main.tscn, instanced unmodified) is intact;
-##   - the player sits outside `Entities` with the Register's z_index;
+##   - the player lives outside `Entities` (a sibling of it, per docs/20 >
+##     Scene Tree) while sharing its Y-sorted play-layer z_index (Author
+##     decision D119, 2026-09-23) so the player, the Tower, and every enemy
+##     draw in front of or behind one another by Y position instead of a
+##     fixed hierarchy;
 ##   - every z_index matches the Register's draw-order row, measured as the
 ##     EFFECTIVE (accumulated) z_index Godot actually renders with, not the
 ##     bare per-node property -- see `_effective_z_index()` below for why
@@ -152,7 +156,7 @@ func test_the_process_mode_always_nodes_this_scene_needs_exist_outside_main() ->
 	assert_object(_ui_sfx.get_parent()).is_same(_proto)
 
 
-# --- Player outside Entities, with the Register's z_index -------------------
+# --- Player outside Entities, sharing its Y-sorted play-layer z_index -------
 
 func test_player_is_not_a_child_of_entities_and_not_in_its_y_sort_group() -> void:
 	var entities: Node = _main.get_node("Entities")
@@ -160,8 +164,26 @@ func test_player_is_not_a_child_of_entities_and_not_in_its_y_sort_group() -> voi
 	assert_object(_player.get_parent()).append_failure_message("Player is expected to be a direct child of Main, a sibling of Entities").is_same(_main)
 
 
-func test_player_effective_z_index_is_50() -> void:
-	assert_int(_effective_z_index(_player)).append_failure_message("Player's rendered z_index does not match the Register's Readability row (player 50)").is_equal(50)
+## Author decision D119 (2026-09-23): the player no longer sits in a fixed
+## band above every enemy (the old z_index 50) -- it shares the play
+## layer's z_index (20) with the Tower and every enemy so Y-sort, not a
+## fixed hierarchy, decides who draws in front.
+func test_player_effective_z_index_is_20() -> void:
+	assert_int(_effective_z_index(_player)).append_failure_message("Player's rendered z_index does not match the Register's Readability row (the shared play layer, 20 -- Author decision D119)").is_equal(20)
+
+
+## Godot 4 nests Y-sort through Y-sort-enabled descendants (docs/20 > Scene
+## Tree; MASTER_SDLC.md Review Decision Log D119): `Main` and `Entities` are
+## BOTH `y_sort_enabled`, so enemies inside `Entities` sort in the same
+## space as `Main`'s other direct y_sort-participating children (the Player,
+## the Tower) rather than only against each other. `z_as_relative` must stay
+## true on the Player/Tower for this to hold -- see player.gd's/tower.gd's
+## own headers for why.
+func test_main_and_entities_are_both_y_sorted_so_the_play_layer_nests_together() -> void:
+	assert_bool((_main as Node2D).y_sort_enabled).append_failure_message("Main must be y_sort_enabled so the Player/Tower/Entities nested Y-sort actually applies (Author decision D119)").is_true()
+	assert_bool((_main.get_node("Entities") as Node2D).y_sort_enabled).is_true()
+	assert_bool((_player as CanvasItem).z_as_relative).append_failure_message("Player.z_as_relative must stay true so its z_index accumulates into the shared play layer instead of escaping it").is_true()
+	assert_bool((_tower as CanvasItem).z_as_relative).append_failure_message("Tower.z_as_relative must stay true so its z_index accumulates into the shared play layer instead of escaping it").is_true()
 
 
 # --- Every z_index matches the Register's draw-order row (effective, not bare) ---
@@ -177,8 +199,11 @@ func test_enemies_effective_z_index_is_20() -> void:
 		assert_int(_effective_z_index(enemy)).append_failure_message("%s does not render at the Register's enemy z-band (20)" % enemy.name).is_equal(20)
 
 
-func test_tower_effective_z_index_is_25() -> void:
-	assert_int(_effective_z_index(_tower)).is_equal(25)
+## Author decision D119 (2026-09-23): the Tower moved from its own fixed
+## band (25) into the shared play layer (20) alongside the player and every
+## enemy.
+func test_tower_effective_z_index_is_20() -> void:
+	assert_int(_effective_z_index(_tower)).append_failure_message("Tower's rendered z_index does not match the Register's Readability row (the shared play layer, 20 -- Author decision D119)").is_equal(20)
 
 
 func test_telegraph_visual_effective_z_index_is_40() -> void:

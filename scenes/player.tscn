@@ -12,6 +12,7 @@
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/player_damage.ogg" id="11_playerdamage"]
 [ext_resource type="SpriteFrames" path="res://assets/sprite_frames/player_archer.tres" id="12_spriteframes"]
 [ext_resource type="Texture2D" path="res://assets/sprites/soft_shadow.png" id="13_shadow"]
+[ext_resource type="Script" path="res://src/player/player_overhead_bar.gd" id="14_overheadbar"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 14.0
@@ -88,3 +89,13 @@ fire_sfx = ExtResource("10_playerfire")
 
 [node name="Projectiles" type="Node2D" parent="."]
 z_as_relative = false
+
+; Author request (2026-09-23): "show player healthbar ... right above them
+; just like enemies but in different colours ... the exp bar too".
+; src/player/player_overhead_bar.gd's own header explains the z_index
+; 50/z_as_relative=false choice (Author decision D119) and where it reads
+; HP (this scene's own sibling DeathState) and XP (economy_state, wired by
+; src/integration/prototype_integration.gd -- null in every standalone test
+; that instances this scene directly, which simply skips the XP segment).
+[node name="OverheadBar" type="Node2D" parent="."]
+script = ExtResource("14_overheadbar")

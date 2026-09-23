@@ -7,16 +7,27 @@ extends GdUnitTestSuite
 ## from the full tester-probe silhouette-distinguishability check the
 ## Acceptance Test Matrix runs later with human testers (P2.16)).
 ##
-## Two things checked here:
-##  1. The render-order claim itself (docs/20 > Scene Tree: "a fixed
-##     z_index keeps the player drawn above every enemy regardless of foot
-##     position"), simulated concretely: enemies placed both above and
-##     below the player's Y position inside a Y-sort-enabled container (the
-##     literal "surrounded" case), the player kept OUTSIDE that container as
-##     a sibling (matching "the player is not a child of Entities and is
-##     not part of that Y-sort group"), and z_index compared numerically --
-##     Godot's canvas draw order is z_index-primary, so this numeric
-##     relationship is what actually guarantees the visual claim.
+## ## Render-order contract superseded (Author decision D119, 2026-09-23)
+## The render-order claim this suite originally checked -- "a fixed z_index
+## keeps the player drawn above every enemy regardless of foot position" --
+## is the exact behaviour the author asked removed: "when the player moves
+## north over the tower it should go behind the tower ... create a depth
+## effect," which only works if the player is no longer fixed above
+## everything. The player now shares the SAME Y-sorted play-layer z_index
+## (20) as the Tower and every enemy (scenes/main.tscn's `Main` root and
+## `Entities` are both `y_sort_enabled`, and Godot 4 nests Y-sort through
+## y_sort-enabled descendants), so draw order is decided by Y position, not
+## by which kind of entity it is. The two tests below now assert the
+## STRUCTURAL contract that makes that Y-sort comparison possible (same
+## effective z_index band, both ancestors y_sort_enabled, `z_as_relative`
+## left true so the player's z_index accumulates instead of escaping) --
+## the actual on-screen depth effect (player hidden north of the Tower,
+## in front of it south of it) is verified with the project's scene-capture
+## tool, not a numeric unit test, since Godot exposes no cheap query for
+## "which of these two same-z_index CanvasItems actually drew on top."
+##
+## Two things checked in this file overall:
+##  1. The structural Y-sort contract above.
 ##  2. assets/sprites/player_silhouette.png (decision D99;
 ##     tools/art/generate_sprites.py --silhouette) exists, is not blank, and
 ##     is shape-distinct from the three enemy silhouettes the generator's
@@ -58,9 +69,10 @@ const ENEMY_SILHOUETTES: Dictionary = {
 	"opportunist": {"path": "res://assets/third_party/tiny_swords/Factions/Goblins/Troops/Barrel/Purple/Barrel_Purple.png", "region": Rect2i(0, 0, 128, 128)},
 }
 
-# Register > Readability row: "draw order z_index: environment 0, pickups
-# 10, enemies 20 (Y-sorted among themselves), Tower 25, player projectiles
-# 30 ..., effects 35, telegraphs 40, player 50, damage numbers 60."
+# Register > Readability row (Author decision D119, 2026-09-23): "draw
+# order z_index: environment 0, pickups 10, the play layer 20 (player,
+# Tower, and enemies, Y-sorted together), player projectiles 30 ..., effects
+# 35, telegraphs 40, overhead bars 50, damage numbers 60."
 const ENEMY_Z_INDEX: int = 20
 
 
@@ -135,23 +147,37 @@ func test_player_silhouette_is_shape_distinct_from_each_enemy_silhouette() -> vo
 		assert_float(distance).append_failure_message("player silhouette's coarse alpha shape is nearly identical to %s's (distance=%f) -- readability hierarchy requires these stay distinguishable at a glance" % [enemy_name, distance]).is_greater(1.0)
 
 
-# --- Render order (this task's PLAN.md-scoped assertion) -------------------
+# --- Render order (Author decision D119: Y-sorted, not a fixed hierarchy) --
 
-func test_player_z_index_is_above_the_register_enemy_z_index() -> void:
+## Author decision D119: the player's z_index now MATCHES the Register's
+## play-layer band, the same one Entities/enemies render at -- it no longer
+## exceeds it. Equality is the load-bearing assertion: it is the
+## precondition for Godot to compare the player and an enemy by Y position
+## at all (two CanvasItems in DIFFERENT z_index bands never reach a Y-sort
+## comparison, regardless of either one's y_sort_enabled state).
+func test_player_z_index_matches_the_shared_play_layer_z_index() -> void:
 	var player: Player = auto_free(PlayerScene.instantiate()) as Player
 	add_child(player)
-	assert_int(player.z_index).is_greater(ENEMY_Z_INDEX)
+	assert_int(player.z_index).append_failure_message("player.z_index (%d) must equal the Register's shared play-layer band (%d, Author decision D119) so Y-sort -- not a fixed hierarchy -- decides draw order against the Tower and enemies" % [player.z_index, ENEMY_Z_INDEX]).is_equal(ENEMY_Z_INDEX)
 
 
-func test_player_draws_above_enemies_surrounding_it_on_both_sides_of_its_y_position() -> void:
-	# Simulates docs/20's own scenario: enemies both above and below the
-	# player's foot position, inside a Y-sort-enabled container (mirroring
-	# scenes/main.tscn's real "Entities" container -- see
-	# tests/unit/main_scene_structure_test.gd), with the player kept as a
-	# SEPARATE SIBLING outside it, exactly as docs/20 > Scene Tree requires:
-	# "The player is not a child of Entities and is not part of that Y-sort
-	# group."
+## Structural precondition for the nested nested-Y-sort depth effect
+## (Author decision D119; see this file's own header, "Render-order
+## contract superseded"): mirrors scenes/main.tscn's real shape (`Main`
+## y_sort_enabled with z_index 0, its child `Entities` ALSO y_sort_enabled
+## with z_index 20) and scenes/player.tscn's own Player (z_index 20,
+## `z_as_relative` left at its true default) kept as Entities' SIBLING, not
+## its child -- exactly as docs/20 > Scene Tree still requires ("The player
+## is not a child of Entities and is not part of that Y-sort group," now
+## true for a different reason: it is a sibling that shares the SAME
+## Y-sort SPACE via nesting, not a permanently-on-top escapee from it).
+## Godot exposes no cheap query for "which same-z_index CanvasItem actually
+## drew on top" from GDScript, so the real depth effect (an enemy/the player
+## hidden north of the Tower, drawn in front south of it) is verified with
+## the project's scene-capture tool instead of here.
+func test_player_and_entities_share_one_nested_y_sort_space() -> void:
 	var root: Node2D = auto_free(Node2D.new())
+	root.y_sort_enabled = true # mirrors scenes/main.tscn's own "Main" root
 	add_child(root)
 
 	var entities: Node2D = Node2D.new()
@@ -164,13 +190,7 @@ func test_player_draws_above_enemies_surrounding_it_on_both_sides_of_its_y_posit
 	root.add_child(player) # sibling of Entities, NOT a child of it
 	player.global_position = Vector2(0, 0)
 
-	var enemy_above: Node2D = Node2D.new()
-	enemy_above.global_position = Vector2(-20, -50) # smaller Y -- would draw "behind" under pure Y-sort
-	entities.add_child(enemy_above)
-
-	var enemy_below: Node2D = Node2D.new()
-	enemy_below.global_position = Vector2(20, 50) # larger Y -- would draw "in front" under pure Y-sort
-	entities.add_child(enemy_below)
-
 	assert_object(player.get_parent()).append_failure_message("player must not be parented under the Y-sort Entities container").is_not_same(entities)
-	assert_int(player.z_index).append_failure_message("player z_index (%d) must exceed the Entities/enemy z_index (%d) regardless of relative Y position, since Godot's canvas draw order is z_index-primary" % [player.z_index, entities.z_index]).is_greater(entities.z_index)
+	assert_int(player.z_index).append_failure_message("player z_index (%d) must equal the Entities/enemy z_index (%d) so the two can be compared by Y position at all" % [player.z_index, entities.z_index]).is_equal(entities.z_index)
+	assert_bool(player.z_as_relative).append_failure_message("Player.z_as_relative must stay true so its z_index accumulates into whatever y_sort-enabled root it is nested under, instead of escaping it").is_true()
+	assert_bool(root.y_sort_enabled and entities.y_sort_enabled).append_failure_message("both the outer root and Entities must be y_sort_enabled for Godot's nested-Y-sort rule to place the player and enemies in the same sort space").is_true()

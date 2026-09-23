@@ -20,12 +20,40 @@ class_name SkillNodeView
 ## a bare number. `NODE_SIZE` grew 84 -> 112 (1.33x, the requested 1.3-1.6x)
 ## to fit the extra rows of content legibly.
 ##
-## ## Runtime StyleBoxFlat, not a UiTheme variation
-## A node's fill/border colour changes per state and per branch -- a shared
-## Theme variation cannot express that (the same seam UiTheme's own header
-## names for `draft_card_view.gd`'s card frame and `console.gd`'s per-row
-## panel: "a real corner-radius/colour toggle a texture cannot express").
-## `UiTheme.make_box()` builds the box; this file only mutates its fields.
+## ## Runtime StyleBoxTexture, not a UiTheme variation
+## A node's frame changes per state and per branch -- a shared Theme
+## variation cannot express that (the same seam UiTheme's own header names
+## for `draft_card_view.gd`'s card frame and `console.gd`'s per-row panel:
+## "a real corner-radius/colour toggle a texture cannot express"; here it is
+## a real TEXTURE toggle). `UiTheme.make_texture_box()` builds the box; this
+## file only mutates its `texture`/`modulate_color` fields, the identical
+## "one persistent StyleBox, mutated in place" convention this file already
+## used for its own former StyleBoxFlat.
+##
+## ## Skill Tree art pass (author request, 2026-09-23: "the skill tree
+## graphics needs to be more detailed ... framed medallions ... carved
+## border from the pack's 9-slices")
+## The flat, hand-tinted `StyleBoxFlat` frame is replaced by the Tiny Swords
+## pack's own carved stone-tablet 9-slices (`UiPalette.TEX_BUTTON_*`) --
+## real "framed" art with a bevelled border baked in, rather than a flat
+## rounded rectangle -- picked per STATE, inline in `set_state()`'s own
+## `match`: dim stone for SILHOUETTE/LOCKED, a red-rimmed tablet for
+## UNAFFORDABLE, a
+## plain blue tablet for BUYABLE ("available, not yet yours"), and the
+## pack's own gold-rimmed "hover" tablet for MAX/OWNED_MAX ("owned nodes
+## with a gold rim," task instruction) -- MAX/OWNED_MAX also gets a subtle
+## static glow drawn just outside the frame's own edge (`_draw()` below).
+## The root (Command Tent) keeps its own distinct round rosette frame
+## (`UiPalette.TEX_PANEL_CARVED_SWATCH`) instead of a square tablet, per the
+## earlier polish pass's "keep the root visibly special" instruction, now a
+## real framed medallion rather than a flat tinted circle-less square.
+## Branch identity, since the tablet art itself is not per-branch, is
+## carried by three OTHER cues that already existed before this pass and
+## still do: the icon's own `glyph_color`, the rank pips' colour, and the
+## connecting lines' colour -- a light branch-coloured `modulate_color`
+## tint is layered on top of the tablet art ONLY once a node is owned
+## (`rank > 0`), so a freshly-revealed, never-bought node reads as neutral
+## stone and an owned one warms toward its branch's own colour.
 ##
 ## ## Selection is a sibling concern
 ## This node emits `node_hovered(id)` on mouse hover (hover selects, matching
@@ -52,17 +80,40 @@ enum State { SILHOUETTE, LOCKED, UNAFFORDABLE, BUYABLE, MAX, OWNED_MAX }
 
 signal node_hovered(id: String)
 
-const NODE_SIZE: float = 112.0
-const RADIUS: float = 20.0
-const ICON_SIDE: int = 26
-const NAME_FONT_SIZE: int = 15
-const PRICE_FONT_SIZE: int = 14
-const PIP_SIZE: int = 11
-const PIP_GAP: int = 3
-const PRICE_ICON_SIDE: int = 15
+## Skill Tree art pass: shrunk from 112 (unchanged since the earlier polish
+## pass) to make room for the new branch-header-ribbon row and legend row
+## ABOVE/BELOW the board (SkillTreeScreen._build_branch_header_row()/
+## _build_legend_row()) inside the SAME 1080-px vertical budget -- a real
+## capture at 1920x1080 with those two rows added, taken during this pass,
+## showed the board's own last row clipped past the screen's bottom edge at
+## the old NODE_SIZE/CELL_H. 92 (down from 112, matching CELL_H's own
+## proportional shrink in skill_tree_screen.gd) keeps the same node/cell gap
+## ratio while freeing roughly 18px x 7 rows = 126px of vertical room.
+const NODE_SIZE: float = 92.0
+const ICON_SIDE: int = 24
+const NAME_FONT_SIZE: int = 13
+const PRICE_FONT_SIZE: int = 12
+const PIP_SIZE: int = 10
+const PIP_GAP: int = 2
+const PRICE_ICON_SIDE: int = 13
+
+## Skill Tree art pass: how far the glow drawn in `_draw()` extends past the
+## frame's own edge, and its two layered alphas (outer, fainter; inner,
+## stronger) -- a cheap two-ring halo, matching this project's own "a couple
+## of overlapping semi-transparent rects" convention for a soft glow rather
+## than a blur shader (no other Control in this codebase uses one).
+const GLOW_OUTER_GROW: float = 10.0
+const GLOW_INNER_GROW: float = 4.0
+const GLOW_OUTER_ALPHA: float = 0.12
+const GLOW_INNER_ALPHA: float = 0.22
 
 var node_id: String = ""
 var _last_rank: int = 0
+
+## The branch-appropriate icon `configure()` was given -- restored by
+## `set_state()` for every state except LOCKED, which temporarily swaps
+## `_icon.shape` to `UiShapeGlyph.Shape.LOCK` instead (see that method).
+var _true_shape: int = UiShapeGlyph.Shape.SQUARE
 
 var _icon: UiShapeGlyph
 var _name_label: Label
@@ -71,7 +122,13 @@ var _pips_row: HBoxContainer
 var _price_row: HBoxContainer
 var _price_icon: UiShapeGlyph
 var _price_label: Label
-var _style: StyleBoxFlat
+var _style: StyleBoxTexture
+
+## Skill Tree art pass: true while this node should draw the owned/MAX gold
+## halo in `_draw()` below -- set by `set_state()`/`set_silhouette()`, never
+## computed inside `_draw()` itself (which only reads it), matching this
+## file's existing "state pushed in, view only renders it" convention.
+var _glow_enabled: bool = false
 
 
 func _ready() -> void:
@@ -81,7 +138,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE # keyboard nav is driven by SkillTreeScreen's own cursor, not Godot focus traversal
 	mouse_entered.connect(func() -> void: node_hovered.emit(node_id))
-	_style = UiTheme.make_box(UiPalette.SURFACE, UiPalette.LINE, RADIUS, UiPalette.BORDER_THIN, 6)
+	_style = UiTheme.make_texture_box(UiPalette.TEX_BUTTON_DISABLED, UiPalette.NODE_TEXTURE_MARGIN, 10)
 	add_theme_stylebox_override("panel", _style)
 	_build_children()
 
@@ -153,6 +210,7 @@ func _build_children() -> void:
 ## this exact widget.
 func configure(id: String, shape: int, branch_color: Color, display_name: String) -> void:
 	node_id = id
+	_true_shape = shape
 	_icon.shape = shape
 	_icon.glyph_color = branch_color
 	_name_label.text = display_name
@@ -172,9 +230,10 @@ func set_silhouette() -> void:
 	# invisible because its parent is hidden."
 	_price_label.visible = false
 	_price_icon.visible = false
-	_style.bg_color = UiPalette.INK
-	_style.border_color = UiPalette.LINE
-	_style.set_border_width_all(UiPalette.BORDER_THIN)
+	_style.texture = load(UiPalette.TEX_BUTTON_DISABLED) as Texture2D
+	_style.modulate_color = Color(1, 1, 1, 1)
+	_glow_enabled = false
+	queue_redraw()
 	modulate = Color(1, 1, 1, 1)
 
 
@@ -188,21 +247,27 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 	_last_rank = rank
 	var owned: bool = rank > 0
 	_icon.glyph_color = branch_color if owned else UiPalette.TEXT_DIM
+	_icon.shape = _true_shape # undoes the LOCKED-state swap below, for a node this call finds NOT locked
 
 	if is_root:
 		# Polish pass (coordinator review): "keep the root visibly special
 		# ... not a plain green square." A bright TEXT icon (not
-		# `branch_color` again) reads against the root's own tinted fill --
-		# using the same colour for both made the tent icon nearly
-		# invisible against its own background. Border is ACCENT gold, not
-		# the ordinary LINE_STRONG every other owned-node border can reach,
-		# so the root is never confusable with a merely-maxed node.
+		# `branch_color` again) reads against the root's own frame -- using
+		# the same colour for both made the tent icon nearly invisible
+		# against its own background.
+		#
+		# Skill Tree art pass: the root gets its OWN round rosette frame
+		# (`TEX_PANEL_CARVED_SWATCH`), not one of the square stone tablets
+		# every real node uses below -- a real framed MEDALLION, distinct at
+		# a glance from a merely-maxed branch node, and a persistent glow
+		# (it is always owned).
 		_icon.glyph_color = UiPalette.TEXT
 		_pips_row.visible = false
 		_price_row.visible = false
-		_style.bg_color = UiPalette.with_alpha(branch_color, 0.55)
-		_style.border_color = UiPalette.ACCENT
-		_style.set_border_width_all(UiPalette.BORDER_THICK)
+		_style.texture = load(UiPalette.TEX_PANEL_CARVED_SWATCH) as Texture2D
+		_style.modulate_color = Color(1, 1, 1, 1)
+		_glow_enabled = true
+		queue_redraw()
 		return
 
 	_rebuild_pips(max_rank, rank, branch_color)
@@ -211,35 +276,70 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 	_price_icon.visible = true
 	_price_label.visible = true # undoes set_silhouette()'s own explicit hide, for a node transitioning silhouette -> revealed
 	_price_label.remove_theme_color_override("font_color")
+	# Skill Tree art pass: branch identity, since the frame TEXTURE below is
+	# not per-branch, is carried instead by the icon/pips/line colours
+	# (unchanged) plus a light branch-coloured tint layered on the frame
+	# ITSELF once the node is owned -- a freshly-revealed, never-bought node
+	# reads as neutral stone regardless of branch.
+	var branch_tint: Color = Color(1, 1, 1, 1).lerp(branch_color, 0.30) if owned else Color(1, 1, 1, 1)
+	_glow_enabled = false
 	match state:
 		State.LOCKED:
 			_price_label.text = str(price)
 			_price_label.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
 			_price_icon.glyph_color = UiPalette.TEXT_DIM
-			_style.bg_color = UiPalette.SURFACE
-			_style.border_color = UiPalette.LINE
-			_style.set_border_width_all(UiPalette.BORDER_THIN)
+			_style.texture = load(UiPalette.TEX_BUTTON_DISABLED) as Texture2D
+			_style.modulate_color = Color(1, 1, 1, 1)
+			# Task instruction: "locked fog nodes as dim silhouettes with a
+			# lock" -- LOCKED (prerequisites not met) shows a padlock where
+			# its own branch icon normally sits; SILHOUETTE (not yet
+			# revealed at all) keeps the "???" text instead (set_silhouette()
+			# never reaches this match arm).
+			_icon.shape = UiShapeGlyph.Shape.LOCK
+			_icon.glyph_color = UiPalette.TEXT_DIM
 		State.UNAFFORDABLE:
 			_price_label.text = str(price)
 			_price_label.add_theme_color_override("font_color", UiPalette.DANGER)
 			_price_icon.glyph_color = UiPalette.DANGER
-			_style.bg_color = UiPalette.with_alpha(branch_color, 0.18) if owned else UiPalette.SURFACE
-			_style.border_color = UiPalette.DANGER
-			_style.set_border_width_all(UiPalette.BORDER_THIN)
+			_style.texture = load(UiPalette.TEX_BUTTON_DANGER) as Texture2D
+			_style.modulate_color = branch_tint
 		State.BUYABLE:
 			_price_label.text = str(price)
 			_price_label.add_theme_color_override("font_color", UiPalette.SUCCESS)
 			_price_icon.glyph_color = UiPalette.CORES
-			_style.bg_color = UiPalette.with_alpha(branch_color, 0.18) if owned else UiPalette.SURFACE
-			_style.border_color = UiPalette.ACCENT
-			_style.set_border_width_all(UiPalette.BORDER_THICK)
+			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D
+			_style.modulate_color = branch_tint
 		State.MAX, State.OWNED_MAX:
 			_price_icon.visible = false
 			_price_label.text = tr("SKILL_TREE_MAX")
 			_price_label.add_theme_color_override("font_color", UiPalette.ACCENT)
-			_style.bg_color = UiPalette.with_alpha(branch_color, 0.45)
-			_style.border_color = UiPalette.ACCENT
-			_style.set_border_width_all(UiPalette.BORDER_THICK)
+			# Task instruction: "owned nodes with a gold rim and subtle
+			# glow" -- the pack's own gold-rimmed "hover" tablet, plus the
+			# static halo `_draw()` paints just outside the frame's edge.
+			_style.texture = load(UiPalette.TEX_BUTTON_HOVER) as Texture2D
+			_style.modulate_color = branch_tint
+			_glow_enabled = true
+	queue_redraw()
+
+
+## Skill Tree art pass: the owned/MAX gold halo -- two overlapping,
+## semi-transparent outlined rects drawn just OUTSIDE this Control's own
+## rect. Godot does not clip a CanvasItem's own `_draw()` calls to its rect
+## by default, and the engine draws this PanelContainer's own `panel`
+## StyleBox (the carved-stone frame) BEFORE calling into this script's
+## `_draw()` override, so the halo -- confined to the region beyond the
+## frame's own edge -- reads as a glow AROUND the medallion rather than a
+## wash painted over its face. Cheap and static (no per-frame tween): the
+## task asks for "a subtle glow," not an animated one, and every other
+## per-frame cosmetic effect in this project's UI (HudBar's shake/flash,
+## the level emblem's burst) exists to react to a CHANGE, which an
+## always-on owned/MAX state has none of to react to.
+func _draw() -> void:
+	if not _glow_enabled:
+		return
+	var rect := Rect2(Vector2.ZERO, size)
+	draw_rect(rect.grow(GLOW_OUTER_GROW), UiPalette.with_alpha(UiPalette.ACCENT, GLOW_OUTER_ALPHA), false, GLOW_OUTER_GROW, true)
+	draw_rect(rect.grow(GLOW_INNER_GROW), UiPalette.with_alpha(UiPalette.ACCENT, GLOW_INNER_ALPHA), false, GLOW_INNER_GROW, true)
 
 
 ## One dot per rank -- filled (`branch_color`) for an achieved rank, dim

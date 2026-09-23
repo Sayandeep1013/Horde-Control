@@ -7,7 +7,17 @@ class_name Tower
 ## Health Recovery Rules) in full; Provisional Values Register > Tower for
 ## every number this scene and its children read (cited, never restated,
 ## in each child component's own header). docs/20_Technical_Architecture.md
-## > "Scene Tree": "Tower 25" (z_index) in the gameplay root's draw order.
+## > "Scene Tree": the Tower shares the play layer's z_index (20) with the
+## player and every enemy, Y-sorted together against them by footprint
+## (Author decision D119, 2026-09-23, replacing the Tower's own earlier
+## fixed band of 25) -- see src/player/player.gd's own header for why this
+## ACCUMULATES (z_as_relative left at its Node2D default of true) rather
+## than escaping to an absolute value the way telegraph_visual.gd/
+## blood_fx.gd deliberately do. This node's own origin is already the
+## footprint/collision-circle centre both `Body` and `Hurtbox` below use
+## (radius 106, no offset), which is also where the player physically
+## collides -- so no separate "sort point" adjustment is needed here even
+## though `Visuals/Sprite` is drawn offset from it.
 ##
 ## Root controller: wires the six components built for this task (a
 ## StaticBody2D footprint, a Hurtbox, a DeathState, TowerHealth,
@@ -91,7 +101,7 @@ var _registry: Node = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
-	z_index = 25 # docs/20 > Scene Tree draw order: "Tower 25"
+	z_index = 20 # Register > Readability: the shared play-layer band, Y-sorted with the player and enemies (Author decision D119)
 	body = get_node_or_null(body_path) as StaticBody2D
 	hurtbox = get_node_or_null(hurtbox_path) as Hurtbox
 	death_state = get_node_or_null(death_state_path) as DeathState

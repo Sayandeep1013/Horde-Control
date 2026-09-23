@@ -31,7 +31,20 @@ class_name UiShapeGlyph
 ## the root visibly special ... tent/banner icon, not a plain green
 ## square") -- added at the END, same convention as HEART/TOWER/RECYCLE's
 ## own addition note above (never renumbered).
-enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE, COIN, CRYSTAL, TENT }
+##
+## ## Skill Tree art pass (author request, 2026-09-23: "the skill tree
+## graphics needs to be more detailed ... real pictorial icons instead of
+## plain triangles/squares where possible: arrow for damage, boots for
+## speed, heart for vitality, tower for tower nodes, gold for fortune")
+## ARROW replaces the Archer branch's own former plain TRIANGLE (never
+## renumbered -- TRIANGLE keeps its ordinal, ARROW is new); BOOT is Swift
+## Boots' own per-node icon override (src/ui/skill_tree_screen.gd's
+## `_build_nodes()`); LOCK is the LOCKED-state icon `SkillNodeView` swaps in
+## for a node whose prerequisites are not yet met (task instruction:
+## "locked fog nodes as dim silhouettes with a lock"). Vitality already
+## reuses the existing HEART shape and every Tower/Fortune node already uses
+## TOWER/COIN -- no new shape needed for those three.
+enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE, COIN, CRYSTAL, TENT, ARROW, BOOT, LOCK }
 
 ## Fraction of the shorter side left empty around the shape.
 const INSET_FRACTION: float = 0.12
@@ -96,6 +109,12 @@ static func draw_shape(canvas: CanvasItem, which: Shape, rect: Rect2, color: Col
 			_draw_crystal(canvas, rect, color)
 		Shape.TENT:
 			_draw_tent(canvas, rect, color)
+		Shape.ARROW:
+			_draw_arrow(canvas, rect, color)
+		Shape.BOOT:
+			_draw_boot(canvas, rect, color)
+		Shape.LOCK:
+			_draw_lock(canvas, rect, color)
 
 
 ## A classic double-lobe heart, sampled from the standard parametric heart
@@ -231,3 +250,98 @@ static func _draw_tent(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
 		pole_top, pole_top + Vector2(w * 0.32, h * 0.07), pole_top + Vector2(0.0, h * 0.16),
 	])
 	canvas.draw_colored_polygon(flag, color)
+
+
+## Skill Tree art pass: a classic archery arrow (a diamond head, a thin
+## shaft, and a small V-notch fletching) pointing up-right -- the Archer
+## branch's own icon (task instruction: "arrow for damage"), replacing the
+## generic TRIANGLE that branch used before. Authored in a 0..1 unit square
+## and mapped into `rect`, matching TOWER's/CRYSTAL's own approach; the
+## shaft is drawn as a thin filled quad (not `draw_line`, which this file's
+## shared one-colour `draw_shape()` contract has no width/colour parameter
+## for) so it stays one `draw_colored_polygon` call per part, like every
+## other shape here.
+static func _draw_arrow(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
+	var w: float = rect.size.x
+	var h: float = rect.size.y
+	var o: Vector2 = rect.position
+
+	# Head: a diamond at the top-right end of the shaft.
+	var head := PackedVector2Array([
+		o + Vector2(w * 1.00, h * 0.00), o + Vector2(w * 0.68, h * 0.10),
+		o + Vector2(w * 0.78, h * 0.22), o + Vector2(w * 1.00, h * 0.00),
+	])
+	canvas.draw_colored_polygon(head, color)
+
+	# Shaft: a thin quad from the head down to the fletching, angled the
+	# same 45 degrees as the head.
+	var shaft_w: float = w * 0.09
+	var dir: Vector2 = Vector2(1.0, -1.0).normalized()
+	var normal: Vector2 = Vector2(-dir.y, dir.x) * shaft_w * 0.5
+	var shaft_start: Vector2 = o + Vector2(w * 0.74, h * 0.16)
+	var shaft_end: Vector2 = o + Vector2(w * 0.12, h * 0.78)
+	canvas.draw_colored_polygon(PackedVector2Array([
+		shaft_start + normal, shaft_end + normal, shaft_end - normal, shaft_start - normal,
+	]), color)
+
+	# Fletching: a small V-notch at the tail end.
+	var fletch := PackedVector2Array([
+		o + Vector2(w * 0.00, h * 1.00), o + Vector2(w * 0.26, h * 0.70),
+		o + Vector2(w * 0.20, h * 1.00), o + Vector2(w * 0.00, h * 1.00),
+	])
+	canvas.draw_colored_polygon(fletch, color)
+	var fletch2 := PackedVector2Array([
+		o + Vector2(w * 0.00, h * 1.00), o + Vector2(w * 0.30, h * 0.74),
+		o + Vector2(w * 0.00, h * 0.80), o + Vector2(w * 0.00, h * 1.00),
+	])
+	canvas.draw_colored_polygon(fletch2, color)
+
+
+## Skill Tree art pass: a simple ankle boot silhouette -- Swift Boots' own
+## icon (task instruction: "boots for speed"). Authored the same way as
+## every other unit-square shape above.
+static func _draw_boot(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
+	var w: float = rect.size.x
+	var h: float = rect.size.y
+	var o: Vector2 = rect.position
+	var boot := PackedVector2Array([
+		o + Vector2(w * 0.32, h * 0.00), o + Vector2(w * 0.62, h * 0.00),
+		o + Vector2(w * 0.62, h * 0.52), o + Vector2(w * 0.88, h * 0.62),
+		o + Vector2(w * 1.00, h * 0.80), o + Vector2(w * 1.00, h * 1.00),
+		o + Vector2(w * 0.06, h * 1.00), o + Vector2(w * 0.06, h * 0.86),
+		o + Vector2(w * 0.20, h * 0.86), o + Vector2(w * 0.32, h * 0.72),
+	])
+	canvas.draw_colored_polygon(boot, color)
+	# Heel notch and sole line read as a boot, not a sock, at small sizes.
+	canvas.draw_line(o + Vector2(w * 0.06, h * 0.94), o + Vector2(w * 1.00, h * 0.94), color, maxf(1.0, w * 0.04), true)
+
+
+## Skill Tree art pass: a padlock silhouette (a round shackle over a
+## rounded body with a keyhole) -- the LOCKED-state icon `SkillNodeView`
+## swaps in for a node whose prerequisites are not yet met (task
+## instruction: "locked fog nodes as dim silhouettes with a lock").
+static func _draw_lock(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
+	var w: float = rect.size.x
+	var h: float = rect.size.y
+	var o: Vector2 = rect.position
+
+	# Shackle: an arc drawn as a thick stroke, matching RECYCLE's own
+	# "draw_arc with a stroke width" technique.
+	var shackle_center: Vector2 = o + Vector2(w * 0.5, h * 0.38)
+	var shackle_radius: float = w * 0.26
+	canvas.draw_arc(shackle_center, shackle_radius, PI, TAU, 16, color, maxf(2.0, w * 0.12), true)
+
+	# Body: a rounded rectangle (approximated with a plain rect -- this
+	# file's shared one-colour contract has no rounded-rect primitive of its
+	# own, and a lock body reads clearly even square at this size).
+	var body := Rect2(o + Vector2(w * 0.16, h * 0.42), Vector2(w * 0.68, h * 0.52))
+	canvas.draw_rect(body, color, true)
+
+	# Keyhole: a small circle over a short slot, cut out in the BACKGROUND
+	# colour is not available to this shared one-colour contract, so instead
+	# it is drawn as a small light accent -- callers needing a true cutout
+	# use a different shape; here a subtle darker dot reads as a keyhole
+	# highlight without a second required colour.
+	var keyhole_center: Vector2 = o + Vector2(w * 0.5, h * 0.60)
+	canvas.draw_circle(keyhole_center, w * 0.05, color.lightened(0.5), true, -1.0, true)
+	canvas.draw_rect(Rect2(keyhole_center + Vector2(-w * 0.02, 0.0), Vector2(w * 0.04, h * 0.10)), color.lightened(0.5), true)
