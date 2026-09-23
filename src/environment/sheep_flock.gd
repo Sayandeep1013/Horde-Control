@@ -40,6 +40,20 @@ const MAX_RETARGET_SECONDS: float = 5.0
 @export var sheep_count: int = 5
 @export var seed_key: String = "arena_biome"
 
+## Grazing flocks (biome brief: "sheep flocks grazing", plural): if
+## `flock_anchors` is non-empty, each entry spawns `sheep_per_flock` sheep
+## clustered tightly around it (each still wandering independently once
+## placed, exactly like the single-flock path below) instead of
+## `sheep_count` sheep scattered independently across the whole edge band.
+## Hand-placed, like every other landmark anchor in scenes/arena.tscn, so
+## a flock sits somewhere that reads as a grazing spot (open grass, clear
+## of a pond/plateau/building) rather than wherever uniform RNG lands.
+## Left empty, `_spawn_flock()` falls back to the original single-flock
+## behaviour so existing callers/tests are unaffected.
+@export var flock_anchors: Array[Vector2] = []
+@export var sheep_per_flock: int = 4
+@export var flock_radius_px: float = 100.0
+
 var _frames: SpriteFrames = null
 var _sheep: Array[Dictionary] = [] # {node, anchor, heading, retarget_in}
 
@@ -68,6 +82,14 @@ func _build_frames() -> void:
 
 
 func _spawn_flock() -> void:
+	if not flock_anchors.is_empty():
+		for i in flock_anchors.size():
+			var flock_rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "sheep_flock", i])
+			for j in sheep_per_flock:
+				var offset: Vector2 = Vector2(flock_rng.randf_range(-1.0, 1.0), flock_rng.randf_range(-1.0, 1.0)) * flock_radius_px
+				_place_sheep(flock_anchors[i] + offset, flock_rng)
+		return
+
 	var half: Vector2 = arena_size / 2.0
 	var min_x: float = -half.x + edge_inset_px
 	var max_x: float = half.x - edge_inset_px
@@ -82,21 +104,25 @@ func _spawn_flock() -> void:
 		var anchor: Vector2 = Vector2(rng.randf_range(min_x, max_x), rng.randf_range(min_y, max_y))
 		if anchor.distance_to(tower_center) < tower_clear_radius_px:
 			continue
-		var sheep: AnimatedSprite2D = AnimatedSprite2D.new()
-		sheep.sprite_frames = _frames
-		sheep.animation = ANIMATION_NAME
-		sheep.position = anchor
-		sheep.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		sheep.frame = rng.randi_range(0, FRAME_COUNT - 1)
-		add_child(sheep)
-		sheep.play(ANIMATION_NAME)
-		_sheep.append({
-			"node": sheep,
-			"anchor": anchor,
-			"heading": Vector2.RIGHT.rotated(rng.randf_range(0.0, TAU)),
-			"retarget_in": rng.randf_range(MIN_RETARGET_SECONDS, MAX_RETARGET_SECONDS),
-		})
+		_place_sheep(anchor, rng)
 		placed += 1
+
+
+func _place_sheep(anchor: Vector2, rng: RandomNumberGenerator) -> void:
+	var sheep: AnimatedSprite2D = AnimatedSprite2D.new()
+	sheep.sprite_frames = _frames
+	sheep.animation = ANIMATION_NAME
+	sheep.position = anchor
+	sheep.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sheep.frame = rng.randi_range(0, FRAME_COUNT - 1)
+	add_child(sheep)
+	sheep.play(ANIMATION_NAME)
+	_sheep.append({
+		"node": sheep,
+		"anchor": anchor,
+		"heading": Vector2.RIGHT.rotated(rng.randf_range(0.0, TAU)),
+		"retarget_in": rng.randf_range(MIN_RETARGET_SECONDS, MAX_RETARGET_SECONDS),
+	})
 
 
 func _process(delta: float) -> void:

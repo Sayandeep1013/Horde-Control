@@ -73,6 +73,28 @@ class_name SceneryScatter
 ## band and degrades first).
 @export var tint: Color = Color(1.0, 1.0, 1.0, 0.85)
 
+## Clustered clutter (biome brief: "flowers/mushrooms/bushes clustered
+## naturally, Poisson/noise-based, not uniform scatter"). This is a SECOND
+## pass, additional to the uniform ambient scatter above: `cluster_count`
+## cluster anchors are placed with a minimum-spacing rejection loop (a
+## cheap approximation of Poisson-disc sampling -- exact Poisson-disc is
+## not needed here, only "clusters do not stack on top of each other"),
+## then `props_per_cluster` props are scattered around each anchor with a
+## tight gaussian-ish radius. The uniform pass still runs underneath it for
+## sparse ambient coverage between clusters (both read together as
+## "mostly bare ground with the occasional flower/mushroom patch", which a
+## single uniform pass at any density cannot produce).
+@export var cluster_count: int = 14
+@export var cluster_radius_px: float = 90.0
+@export var props_per_cluster: int = 5
+@export var cluster_min_spacing_px: float = 260.0
+
+## Circles other biome features occupy (plateaus, ponds, landmarks) --
+## clutter must not spawn inside a pond or on a building's doorstep. See
+## tree_grove.gd's own `avoid_centers`/`avoid_radii` for the same pattern.
+@export var avoid_centers: Array[Vector2] = []
+@export var avoid_radii: Array[float] = []
+
 var _placed: Array[Sprite2D] = []
 
 
@@ -132,17 +154,82 @@ func _build() -> void:
 		)
 		if p.distance_squared_to(tower_center) < clear_sq:
 			continue # inside the Tower's working area; reject and retry
-		var s: Sprite2D = Sprite2D.new()
-		s.texture = textures[rng.randi_range(0, textures.size() - 1)]
-		s.position = p
-		s.scale = Vector2.ONE * rng.randf_range(min_scale, max_scale)
-		s.rotation = rng.randf_range(0.0, TAU)
-		s.modulate = tint
-		s.z_index = 0
-		s.z_as_relative = true # relative to this node, which is already absolute
-		# Art pass (D102): pixel-art scenery must stay crisp regardless of
-		# the project's own default canvas-item filter.
-		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		add_child(s)
-		_placed.append(s)
+		if _blocked(p):
+			continue
+		_spawn_prop(p, rng)
 		placed += 1
+
+	_build_clusters()
+
+
+func _blocked(p: Vector2) -> bool:
+	for i in avoid_centers.size():
+		var r: float = avoid_radii[i] if i < avoid_radii.size() else 0.0
+		if p.distance_squared_to(avoid_centers[i]) < r * r:
+			return true
+	return false
+
+
+func _spawn_prop(p: Vector2, rng: RandomNumberGenerator) -> void:
+	var s: Sprite2D = Sprite2D.new()
+	s.texture = textures[rng.randi_range(0, textures.size() - 1)]
+	s.position = p
+	s.scale = Vector2.ONE * rng.randf_range(min_scale, max_scale)
+	s.rotation = rng.randf_range(0.0, TAU)
+	s.modulate = tint
+	s.z_index = 0
+	s.z_as_relative = true # relative to this node, which is already absolute
+	# Art pass (D102): pixel-art scenery must stay crisp regardless of
+	# the project's own default canvas-item filter.
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(s)
+	_placed.append(s)
+
+
+## Clustered flower/mushroom/bush patches (see the class header). Cluster
+## anchors use a minimum-spacing rejection loop, a cheap Poisson-disc
+## approximation -- exact blue-noise sampling is not needed for a dozen
+## anchors across a 4800x3200 arena, only that clusters read as separate
+## patches instead of overlapping into one blob.
+func _build_clusters() -> void:
+	var half: Vector2 = arena_size * 0.5
+	var min_x: float = -half.x + edge_inset_px + cluster_radius_px
+	var max_x: float = half.x - edge_inset_px - cluster_radius_px
+	var min_y: float = -half.y + edge_inset_px + cluster_radius_px
+	var max_y: float = half.y - edge_inset_px - cluster_radius_px
+	var clear_sq: float = tower_clear_radius_px * tower_clear_radius_px
+	var spacing_sq: float = cluster_min_spacing_px * cluster_min_spacing_px
+
+	var anchor_rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "scatter_clusters", cluster_count])
+	var anchors: Array[Vector2] = []
+	var attempts: int = 0
+	while anchors.size() < cluster_count and attempts < cluster_count * 30:
+		attempts += 1
+		var p: Vector2 = Vector2(anchor_rng.randf_range(min_x, max_x), anchor_rng.randf_range(min_y, max_y))
+		if p.distance_squared_to(tower_center) < clear_sq:
+			continue
+		if _blocked(p):
+			continue
+		var too_close: bool = false
+		for existing in anchors:
+			if existing.distance_squared_to(p) < spacing_sq:
+				too_close = true
+				break
+		if too_close:
+			continue
+		anchors.append(p)
+
+	for i in anchors.size():
+		var cluster_rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "scatter_cluster", i])
+		for j in props_per_cluster:
+			# Sum-of-two-uniforms jitter approximates a gaussian falloff
+			# (more props near the anchor, fewer at the cluster's rim) far
+			# more cheaply than an actual Gaussian sampler.
+			var jitter: Vector2 = Vector2(
+				(cluster_rng.randf() + cluster_rng.randf() - 1.0),
+				(cluster_rng.randf() + cluster_rng.randf() - 1.0)
+			) * cluster_radius_px
+			var p: Vector2 = anchors[i] + jitter
+			if p.distance_squared_to(tower_center) < clear_sq or _blocked(p):
+				continue
+			_spawn_prop(p, cluster_rng)
