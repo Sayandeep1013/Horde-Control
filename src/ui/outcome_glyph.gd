@@ -42,6 +42,13 @@ func set_defeat(is_defeat: bool) -> void:
 	queue_redraw()
 
 
+## Skill Tree screen (polish pass): this glyph is reused there for a
+## prerequisite's tick/cross, whose test suite needs to read back which one
+## `set_defeat()` last selected.
+func is_defeat_for_test() -> bool:
+	return _defeat
+
+
 func _draw() -> void:
 	var stroke: float = float(UiPalette.BORDER_THICK) + 1.0
 	var pad: float = minf(size.x, size.y) * 0.22

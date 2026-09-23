@@ -59,6 +59,15 @@ const CASTLE_TEXTURE: String = TS_ROOT + "Factions/Knights/Buildings/Castle/Cast
 const HOUSE_TEXTURE: String = TS_ROOT + "Factions/Knights/Buildings/House/House_Blue.png"
 const ARCHER_SHEET: String = TS_ROOT + "Factions/Knights/Troops/Archer/Blue/Archer_Blue.png"
 const FIRE_SHEET: String = TS_ROOT + "Effects/Fire/Fire.png"
+## Polish pass (coordinator review): "fill the empty middle a bit (the
+## campfire and a banner/flag near the castle, a few sheep)." Both textures
+## are already-provenanced Tiny Swords assets (PROVENANCE.md); the banner is
+## a static cloth pennant (a `UI/Banners/` sheet, used here as a plain world
+## decoration hanging by the castle gate, not as a themed panel), and the
+## sheep reuses `HappySheep_All.png` row 0 (idle, 8 frames) via the same
+## `TitleSprite` frame-strip helper the archers already use.
+const BANNER_TEXTURE: String = TS_ROOT + "UI/Banners/Banner_Vertical.png"
+const SHEEP_SHEET: String = TS_ROOT + "Resources/Sheep/HappySheep_All.png"
 const MUSIC_STREAM_PATH: String = "res://assets/third_party/opengameart/music/battle_theme_a.ogg"
 
 const CASTLE_SIZE: Vector2 = Vector2(480.0, 384.0) # 1.5x Castle_Blue.png's native 320x256
@@ -81,6 +90,14 @@ const FIRE_FRAME: Vector2i = Vector2i(128, 128)
 const FIRE_COUNT: int = 7
 const FIRE_SIZE: Vector2 = Vector2(96.0, 96.0)
 const FIRE_TOP_LEFT: Vector2 = Vector2(905.0, 330.0) # open grass between the title and the menu card -- the card itself sits lower (see _build_menu_card()) and would otherwise hide the fire entirely
+
+const BANNER_SIZE: Vector2 = Vector2(120.0, 120.0)
+const BANNER_TOP_LEFT: Vector2 = Vector2(1130.0, 220.0) # hangs just left of the castle gate, clear of both the title block above and the castle texture's own footprint
+
+const SHEEP_FRAME: Vector2i = Vector2i(128, 128)
+const SHEEP_IDLE_COUNT: int = 8
+const SHEEP_SIZE: Vector2 = Vector2(80.0, 80.0)
+const SHEEP_SPOTS: Array = [Vector2(560.0, 470.0), Vector2(650.0, 520.0), Vector2(1400.0, 760.0)]
 
 const MUSIC_VOLUME_DB: float = -22.0 # quieter than the title's own -14 dB -- see class header, "Music"
 
@@ -250,8 +267,11 @@ func _build_background() -> void:
 	for spot in HOUSE_SPOTS:
 		_add_house(background, spot)
 	_add_castle(background)
+	_add_banner(background)
 	for spot in ARCHER_SPOTS:
 		_add_archer(background, spot[0], spot[1])
+	for spot in SHEEP_SPOTS:
+		_add_sheep(background, spot)
 	_add_campfire(background)
 
 
@@ -300,6 +320,29 @@ func _add_house(parent: Control, top_left: Vector2) -> void:
 	rect.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	_place(rect, top_left, HOUSE_SIZE)
 	parent.add_child(rect)
+
+
+func _add_banner(parent: Control) -> void:
+	var rect := TextureRect.new()
+	rect.name = "Banner"
+	rect.texture = load(BANNER_TEXTURE)
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_place(rect, BANNER_TOP_LEFT, BANNER_SIZE)
+	parent.add_child(rect)
+
+
+func _add_sheep(parent: Control, top_left: Vector2) -> void:
+	var sprite := TitleSprite.new()
+	sprite.name = "Sheep"
+	sprite.fps = 4.0
+	sprite.stretch_mode = TextureRect.STRETCH_SCALE
+	sprite.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_place(sprite, top_left, SHEEP_SIZE)
+	parent.add_child(sprite)
+	sprite.configure(load(SHEEP_SHEET), SHEEP_FRAME, 0, SHEEP_IDLE_COUNT)
 
 
 func _add_archer(parent: Control, top_left: Vector2, flip: bool) -> void:
@@ -387,6 +430,22 @@ func _build_menu_card(parent: Control) -> void:
 	column.name = "MenuColumn"
 	column.theme_type_variation = UiTheme.vbox("M")
 	card.add_child(column)
+
+	# Polish pass (coordinator review): "give the menu card a ribbon
+	# header." UiTheme.RIBBON is the same carved-cloth 3-slice the HUD's own
+	# Wave banner already uses (ui_theme.gd's own header) -- reused here
+	# rather than inventing a second banner style.
+	var ribbon := PanelContainer.new()
+	ribbon.name = "MenuRibbon"
+	ribbon.theme_type_variation = UiTheme.RIBBON
+	column.add_child(ribbon)
+
+	var ribbon_label := Label.new()
+	ribbon_label.name = "RibbonLabel"
+	ribbon_label.text = tr("HUB_TITLE")
+	ribbon_label.theme_type_variation = UiTheme.VALUE
+	ribbon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ribbon.add_child(ribbon_label)
 
 	_start_run_button = Button.new()
 	_start_run_button.name = "StartRunButton"

@@ -124,15 +124,18 @@ const MESSAGES: Dictionary = {
 	"SKILL_TREE_RESPEC_NONE": "Nothing to refund",
 	"SKILL_TREE_MAX": "MAX",
 	"SKILL_TREE_RANK_OF": "Rank %d of %d",
-	"SKILL_TREE_CURRENT": "Current",
-	"SKILL_TREE_NEXT": "Next rank",
-	"SKILL_TREE_STILL_NEEDS": "Still needs: %s",
 	"SKILL_TREE_SILHOUETTE_NAME": "???",
 	"SKILL_TREE_SILHOUETTE_HINT": "Unlocks a neighbouring node to reveal this one.",
-	"SKILL_TREE_SELECT_HINT": "Select a node to see what it does.",
 	"SKILL_TREE_ALWAYS_OWNED": "The heart of the War Camp. Always yours.",
-	"SKILL_TREE_HOLD_TO_BUY": "Hold to buy",
-	"SKILL_TREE_HOLD_TO_RESET": "Hold to reset",
+	# Polish pass (coordinator review): the root's own explanation, shown in
+	# the detail panel when nothing else is selected.
+	"SKILL_TREE_ROOT_EXPLANATION": "Earn Cores by playing runs. Select a node and hold Space / click / A to buy it -- buying reveals its neighbours. Reset Tree refunds every Core spent, any time, in the Hub only.",
+	# Polish pass: names the actual keys/buttons the hold gesture accepts.
+	"SKILL_TREE_HOLD_TO_BUY": "Hold Space / Click / A to buy",
+	"SKILL_TREE_HOLD_TO_RESET": "Hold Space / Click / A to reset",
+	"SKILL_TREE_BRANCH_ARCHER": "Archer",
+	"SKILL_TREE_BRANCH_TOWER": "Tower",
+	"SKILL_TREE_BRANCH_FORTUNE": "Fortune",
 
 	# --- Meta layer core: Records panel -------------------------------------
 	"RECORDS_TITLE": "Records",
