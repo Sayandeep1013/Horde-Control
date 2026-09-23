@@ -1,0 +1,280 @@
+[gd_resource type="Resource" script_class="SkillTreeDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/skill_tree_definition.gd" id="1_tree"]
+[ext_resource type="Script" path="res://src/data/skill_node_definition.gd" id="2_node"]
+
+; Permanent Skill Tree (Meta layer core). docs/18_Permanent_Skill_Tree.md
+; section 4 (tree shape, node table, prices) is the authoritative design
+; this file authors as data; MASTER_SDLC.md > Provisional Values Register >
+; "Meta: Skill Tree effects" for every effect/value/rank count, > "Meta:
+; Skill Tree costs" for the tier base prices (read live from
+; SkillNodeDefinition.price_for_rank(), never restated as a literal here).
+;
+; Layout (docs/18 4.1/4.2): three branches of 6 nodes each (Archer/Tower/
+; Fortune) fan out from the root ("Command Tent", id "root", tier 0, always
+; owned, free) -- Archer west (negative x), Tower east (positive x),
+; Fortune south (positive y). Each branch: two tier-1 siblings adjacent to
+; the root -> each continues to its own tier-2 node -> BOTH tier-2 nodes
+; are required (docs/18: "each name BOTH of their tier-2 siblings") to
+; unlock a single converging tier-3 node -> which unlocks the tier-4
+; capstone (Second Wind / Fortress / War Chest). `prerequisite_ids` is the
+; REAL unlock graph (docs/18 4.1); `grid_position` is cosmetic only, for the
+; Hub/Skill Tree screen's own canvas layout.
+
+[sub_resource type="Resource" id="Resource_root"]
+script = ExtResource("2_node")
+id = "root"
+display_name = "Command Tent"
+description_template = "The heart of the War Camp. Always yours."
+branch = 0
+grid_position = Vector2i(0, 0)
+tier = 0
+max_rank = 1
+effect_kind = 0
+value_per_rank = 0.0
+prerequisite_ids = Array[String]([])
+
+; --- Archer branch (west) ----------------------------------------------------
+
+[sub_resource type="Resource" id="Resource_vitality"]
+script = ExtResource("2_node")
+id = "vitality"
+display_name = "Vitality"
+description_template = "+{value}% player max health per rank."
+branch = 0
+grid_position = Vector2i(-1, -1)
+tier = 1
+max_rank = 3
+effect_kind = 0
+value_per_rank = 0.10
+prerequisite_ids = Array[String](["root"])
+
+[sub_resource type="Resource" id="Resource_swift_boots"]
+script = ExtResource("2_node")
+id = "swift_boots"
+display_name = "Swift Boots"
+description_template = "+{value}% player move speed per rank."
+branch = 0
+grid_position = Vector2i(-1, 1)
+tier = 1
+max_rank = 3
+effect_kind = 1
+value_per_rank = 0.04
+prerequisite_ids = Array[String](["root"])
+
+[sub_resource type="Resource" id="Resource_sharpened_arrows"]
+script = ExtResource("2_node")
+id = "sharpened_arrows"
+display_name = "Sharpened Arrows"
+description_template = "+{value}% player weapon damage per rank."
+branch = 0
+grid_position = Vector2i(-2, -1)
+tier = 2
+max_rank = 3
+effect_kind = 2
+value_per_rank = 0.08
+prerequisite_ids = Array[String](["vitality"])
+
+[sub_resource type="Resource" id="Resource_quick_draw"]
+script = ExtResource("2_node")
+id = "quick_draw"
+display_name = "Quick Draw"
+description_template = "+{value}% player fire rate per rank."
+branch = 0
+grid_position = Vector2i(-2, 1)
+tier = 2
+max_rank = 3
+effect_kind = 3
+value_per_rank = 0.05
+prerequisite_ids = Array[String](["swift_boots"])
+
+[sub_resource type="Resource" id="Resource_long_reach"]
+script = ExtResource("2_node")
+id = "long_reach"
+display_name = "Long Reach"
+description_template = "+{value}% pickup magnet radius per rank."
+branch = 0
+grid_position = Vector2i(-3, 0)
+tier = 3
+max_rank = 2
+effect_kind = 4
+value_per_rank = 0.20
+prerequisite_ids = Array[String](["sharpened_arrows", "quick_draw"])
+
+[sub_resource type="Resource" id="Resource_second_wind"]
+script = ExtResource("2_node")
+id = "second_wind"
+display_name = "Second Wind"
+description_template = "Once per run, a lethal hit leaves you at 30% health instead."
+branch = 0
+grid_position = Vector2i(-4, 0)
+tier = 4
+max_rank = 1
+effect_kind = 5
+value_per_rank = 1.0
+prerequisite_ids = Array[String](["long_reach"])
+
+; --- Tower branch (east) -----------------------------------------------------
+
+[sub_resource type="Resource" id="Resource_stone_walls"]
+script = ExtResource("2_node")
+id = "stone_walls"
+display_name = "Stone Walls"
+description_template = "+{value}% Tower max health per rank."
+branch = 1
+grid_position = Vector2i(1, -1)
+tier = 1
+max_rank = 3
+effect_kind = 6
+value_per_rank = 0.10
+prerequisite_ids = Array[String](["root"])
+
+[sub_resource type="Resource" id="Resource_arrow_slits"]
+script = ExtResource("2_node")
+id = "arrow_slits"
+display_name = "Arrow Slits"
+description_template = "+{value}% Tower weapon damage per rank."
+branch = 1
+grid_position = Vector2i(1, 1)
+tier = 1
+max_rank = 3
+effect_kind = 7
+value_per_rank = 0.10
+prerequisite_ids = Array[String](["root"])
+
+[sub_resource type="Resource" id="Resource_shield_runes"]
+script = ExtResource("2_node")
+id = "shield_runes"
+display_name = "Shield Runes"
+description_template = "+{value}% Tower max shield per rank."
+branch = 1
+grid_position = Vector2i(2, -1)
+tier = 2
+max_rank = 2
+effect_kind = 8
+value_per_rank = 0.15
+prerequisite_ids = Array[String](["stone_walls"])
+
+[sub_resource type="Resource" id="Resource_masons_kit"]
+script = ExtResource("2_node")
+id = "masons_kit"
+display_name = "Mason's Kit"
+description_template = "-{value}% Tower repair price per rank."
+branch = 1
+grid_position = Vector2i(2, 1)
+tier = 2
+max_rank = 2
+effect_kind = 9
+value_per_rank = 0.15
+prerequisite_ids = Array[String](["arrow_slits"])
+
+[sub_resource type="Resource" id="Resource_watchtower"]
+script = ExtResource("2_node")
+id = "watchtower"
+display_name = "Watchtower"
+description_template = "+{value}% Tower weapon range per rank."
+branch = 1
+grid_position = Vector2i(3, 0)
+tier = 3
+max_rank = 2
+effect_kind = 10
+value_per_rank = 0.10
+prerequisite_ids = Array[String](["shield_runes", "masons_kit"])
+
+[sub_resource type="Resource" id="Resource_fortress"]
+script = ExtResource("2_node")
+id = "fortress"
+display_name = "Fortress"
+description_template = "The Tower starts one evolution stage further along."
+branch = 1
+grid_position = Vector2i(4, 0)
+tier = 4
+max_rank = 1
+effect_kind = 11
+value_per_rank = 1.0
+prerequisite_ids = Array[String](["watchtower"])
+
+; --- Fortune branch (south) --------------------------------------------------
+
+[sub_resource type="Resource" id="Resource_scavenger"]
+script = ExtResource("2_node")
+id = "scavenger"
+display_name = "Scavenger"
+description_template = "Start each run with {value} extra Scrap per rank."
+branch = 2
+grid_position = Vector2i(-1, 2)
+tier = 1
+max_rank = 3
+effect_kind = 12
+value_per_rank = 15.0
+prerequisite_ids = Array[String](["root"])
+
+[sub_resource type="Resource" id="Resource_scholar"]
+script = ExtResource("2_node")
+id = "scholar"
+display_name = "Scholar"
+description_template = "+{value}% XP from shards per rank."
+branch = 2
+grid_position = Vector2i(1, 2)
+tier = 1
+max_rank = 3
+effect_kind = 13
+value_per_rank = 0.10
+prerequisite_ids = Array[String](["root"])
+
+[sub_resource type="Resource" id="Resource_lucky_draw"]
+script = ExtResource("2_node")
+id = "lucky_draw"
+display_name = "Lucky Draw"
+description_template = "+{value} Level-Up Draft reroll per run, per rank."
+branch = 2
+grid_position = Vector2i(-1, 3)
+tier = 2
+max_rank = 2
+effect_kind = 14
+value_per_rank = 1.0
+prerequisite_ids = Array[String](["scavenger"])
+
+[sub_resource type="Resource" id="Resource_prospector"]
+script = ExtResource("2_node")
+id = "prospector"
+display_name = "Prospector"
+description_template = "+{value}% Cores from Run-End Settlement per rank."
+branch = 2
+grid_position = Vector2i(1, 3)
+tier = 2
+max_rank = 2
+effect_kind = 15
+value_per_rank = 0.15
+prerequisite_ids = Array[String](["scholar"])
+
+[sub_resource type="Resource" id="Resource_deep_pockets"]
+script = ExtResource("2_node")
+id = "deep_pockets"
+display_name = "Deep Pockets"
+description_template = "+{value} Scrap carry cap."
+branch = 2
+grid_position = Vector2i(0, 4)
+tier = 3
+max_rank = 1
+effect_kind = 16
+value_per_rank = 50.0
+prerequisite_ids = Array[String](["lucky_draw", "prospector"])
+
+[sub_resource type="Resource" id="Resource_war_chest"]
+script = ExtResource("2_node")
+id = "war_chest"
+display_name = "War Chest"
+description_template = "Start each run at level 1, with one free Level-Up Draft when the first wave begins."
+branch = 2
+grid_position = Vector2i(0, 5)
+tier = 4
+max_rank = 1
+effect_kind = 17
+value_per_rank = 1.0
+prerequisite_ids = Array[String](["deep_pockets"])
+
+[resource]
+script = ExtResource("1_tree")
+root_id = "root"
+nodes = Array[SkillNodeDefinition]([SubResource("Resource_root"), SubResource("Resource_vitality"), SubResource("Resource_swift_boots"), SubResource("Resource_sharpened_arrows"), SubResource("Resource_quick_draw"), SubResource("Resource_long_reach"), SubResource("Resource_second_wind"), SubResource("Resource_stone_walls"), SubResource("Resource_arrow_slits"), SubResource("Resource_shield_runes"), SubResource("Resource_masons_kit"), SubResource("Resource_watchtower"), SubResource("Resource_fortress"), SubResource("Resource_scavenger"), SubResource("Resource_scholar"), SubResource("Resource_lucky_draw"), SubResource("Resource_prospector"), SubResource("Resource_deep_pockets"), SubResource("Resource_war_chest")])

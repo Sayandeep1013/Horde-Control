@@ -121,7 +121,12 @@ class_name RunFlowController
 ##   deliverable.
 
 enum State { RUNNING, PAUSED, ENDED }
-enum EndCause { NONE, PLAYER_DEFEATED, TOWER_DESTROYED, SEQUENCE_COMPLETED }
+## ABANDONED (Meta layer core; decision D113): the pause menu's Main Menu
+## choice, or the window closing, while the run is still live -- see
+## `_on_main_menu_requested()` / `_on_close_requested()` below. Settles as a
+## failure (MetaProgress.settle_run()'s own `victory` field is false), same
+## as PLAYER_DEFEATED/TOWER_DESTROYED.
+enum EndCause { NONE, PLAYER_DEFEATED, TOWER_DESTROYED, SEQUENCE_COMPLETED, ABANDONED }
 enum UiMode { NONE, PAUSE, SETTINGS_FROM_PAUSE, SETTINGS_FROM_RUN_END, RUN_END }
 
 ## Not one of PauseAuthority's five canonical reasons -- see class header.
@@ -166,10 +171,43 @@ var _final_wave_total: int = 0
 
 var _focus_pause_disabled: bool = false
 
+## Test-only: suppresses the real `get_tree().quit()` call inside
+## `_on_close_requested()` so a test can drive
+## `simulate_close_requested_for_test()` (which exercises the SAME method a
+## real NOTIFICATION_WM_CLOSE_REQUEST would) without killing the test
+## runner's own process. Never true in real play.
+var _suppress_quit_for_test: bool = false
+
+## Meta layer core (Register > "Meta: Run-End Settlement (prototype)": "one
+## real run id" + "settled once per run id"). Generated once per run, from
+## wall-clock time + a random int -- this is a de-duplication KEY for
+## MetaProgress.settle_run(), never a gameplay/determinism seed, so wall
+## clock is fine here (contrast SimClock.now, used for every actual
+## gameplay timestamp in this file).
+var _run_id: String = ""
+
+## Meta layer core: incremented on every EventBus.enemy_died this run, for
+## the Run-End Settlement's "1 Core per 25 enemies killed" term.
+var _kill_count: int = 0
+## Meta layer core: incremented on every WaveDirector.wave_ended this run,
+## for the Settlement's "2 Cores per wave fully cleared" term. Deliberately
+## a count of ENDED waves, not `_final_wave_index` ("wave reached") -- a wave
+## still in progress when the run ends has not been cleared.
+var _waves_cleared: int = 0
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_focus_pause_disabled = _flag_present(OS.get_cmdline_user_args()) or _flag_present(OS.get_cmdline_args())
+	_run_id = "run_%d_%d" % [Time.get_unix_time_from_system(), randi()]
+	# Meta layer core (build brief item 4): "Window close during a run ...
+	# = settle as abandon, save, quit." The engine's default (true) would
+	# close the window immediately, before `_on_close_requested()` below
+	# ever runs. Reset to true the instant the run ends (`_end_run()`) or
+	# this scene is left (`_on_main_menu_requested()`/
+	# `_on_continue_requested()`), so a close from the run-end screen, the
+	# Hub, or the title uses the engine's ordinary immediate-quit behaviour.
+	get_tree().auto_accept_quit = false
 	_resolve_dependencies()
 	_build_ui()
 	_connect_signals()
@@ -204,6 +242,7 @@ func _build_ui() -> void:
 	if run_end_screen != null:
 		run_end_screen.settings_requested.connect(_on_open_settings_from_run_end)
 		run_end_screen.main_menu_requested.connect(_on_main_menu_requested)
+		run_end_screen.continue_requested.connect(_on_continue_requested)
 	_refresh_ui_visibility()
 
 
@@ -214,6 +253,8 @@ func _connect_signals() -> void:
 	_connect_player_died()
 	_connect_tower_destroyed()
 	_connect_sequence_completed()
+	_connect_enemy_died_for_meta()
+	_connect_wave_ended_for_meta()
 	if not Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
 		Input.joy_connection_changed.connect(_on_joy_connection_changed)
 
@@ -224,6 +265,30 @@ func _connect_player_died() -> void:
 	var callable: Callable = Callable(self, "_on_player_died")
 	if not _event_bus.is_connected("player_died", callable):
 		_event_bus.connect("player_died", callable)
+
+
+## Meta layer core: see `_kill_count`'s own field comment.
+func _connect_enemy_died_for_meta() -> void:
+	if _event_bus == null or not _event_bus.has_signal("enemy_died"):
+		return
+	var callable: Callable = Callable(self, "_on_enemy_died_for_meta")
+	if not _event_bus.is_connected("enemy_died", callable):
+		_event_bus.connect("enemy_died", callable)
+
+
+func _on_enemy_died_for_meta(_entity: Variant = null, _position: Variant = null, _timestamp: Variant = null) -> void:
+	_kill_count += 1
+
+
+## Meta layer core: see `_waves_cleared`'s own field comment.
+func _connect_wave_ended_for_meta() -> void:
+	if _wave_director != null and _wave_director.has_signal(&"wave_ended"):
+		if not _wave_director.wave_ended.is_connected(_on_wave_ended_for_meta):
+			_wave_director.wave_ended.connect(_on_wave_ended_for_meta)
+
+
+func _on_wave_ended_for_meta(_wave_id: String, _wave_index: int) -> void:
+	_waves_cleared += 1
 
 
 func _connect_tower_destroyed() -> void:
@@ -250,8 +315,11 @@ func set_tower_for_test(tower: Tower) -> void:
 func set_wave_director_for_test(wd: Object) -> void:
 	if _wave_director != null and _wave_director.has_signal(&"sequence_completed") and _wave_director.sequence_completed.is_connected(_on_sequence_completed):
 		_wave_director.sequence_completed.disconnect(_on_sequence_completed)
+	if _wave_director != null and _wave_director.has_signal(&"wave_ended") and _wave_director.wave_ended.is_connected(_on_wave_ended_for_meta):
+		_wave_director.wave_ended.disconnect(_on_wave_ended_for_meta)
 	_wave_director = wd
 	_connect_sequence_completed()
+	_connect_wave_ended_for_meta()
 
 
 func set_run_inventory(inventory: RunInventory) -> void:
@@ -276,6 +344,7 @@ func set_pause_authority_for_test(pa: Node) -> void:
 func set_event_bus_for_test(bus: Object) -> void:
 	_event_bus = bus
 	_connect_player_died()
+	_connect_enemy_died_for_meta()
 
 
 func set_sim_clock_for_test(clock: Node) -> void:
@@ -290,6 +359,10 @@ func is_focus_pause_disabled_for_test() -> bool:
 	return _focus_pause_disabled
 
 
+func set_suppress_quit_for_test(suppress: bool) -> void:
+	_suppress_quit_for_test = suppress
+
+
 func get_state_for_test() -> int:
 	return _state
 
@@ -300,6 +373,22 @@ func get_ui_mode_for_test() -> int:
 
 func get_end_cause_for_test() -> int:
 	return _end_cause
+
+
+func get_run_id_for_test() -> String:
+	return _run_id
+
+
+func get_kill_count_for_test() -> int:
+	return _kill_count
+
+
+func get_waves_cleared_for_test() -> int:
+	return _waves_cleared
+
+
+func is_auto_accept_quit_disabled_for_test() -> bool:
+	return not get_tree().auto_accept_quit
 
 
 ## Pure function, tested directly against constructed argument arrays --
@@ -338,6 +427,18 @@ func simulate_sequence_completed_for_test() -> void:
 	_on_sequence_completed()
 
 
+func simulate_close_requested_for_test() -> void:
+	_on_close_requested()
+
+
+func simulate_main_menu_requested_for_test() -> void:
+	_on_main_menu_requested()
+
+
+func simulate_continue_requested_for_test() -> void:
+	_on_continue_requested()
+
+
 # --- Input ("pause" action, docs/19 > Input Map: "Pause Escape / Start") ---
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -364,6 +465,26 @@ func _on_pause_action_pressed() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		_on_focus_out()
+	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_on_close_requested()
+
+
+## Meta layer core (build brief item 4): "Window close during a run
+## ... = settle as abandon, save, quit." `MetaProgress.settle_run()` is
+## synchronous (a blocking `FileAccess` write, per that Autoload's own
+## header) and "commits before returning" per the Register, so the save is
+## guaranteed complete before `get_tree().quit()` runs below. A close AFTER
+## the run has already ended (`_state == State.ENDED`) needs no settlement
+## of its own -- the real end (death/tower/sequence/abandon-via-pause) has
+## already settled through `_end_run()`, and re-settling would be a no-op
+## anyway (MetaProgress.settle_run() is idempotent by run id) but is skipped
+## here to avoid a redundant disk write on every ordinary quit from the
+## run-end screen.
+func _on_close_requested() -> void:
+	if _state != State.ENDED:
+		MetaProgress.settle_run(_build_run_summary(false, true))
+	if not _suppress_quit_for_test:
+		get_tree().quit()
 
 
 func _on_focus_out() -> void:
@@ -455,10 +576,36 @@ func _on_settings_closed() -> void:
 ## "restart" path anywhere in this codebase to mirror (grepped; none
 ## exists) -- this is the first flow that ever returns to a scene capable
 ## of starting a second run in the same process.
+## Meta layer core (decision D109/D113): "Abandon via the pause menu's Main
+## Menu = failure settlement, then show the run-end screen (not straight to
+## the title)." The run-end screen's OWN "Main Menu" choice (see
+## `_on_continue_requested()`'s sibling below) reaches this SAME handler
+## too (class header, "the same handler" -- both `PauseMenu.main_menu_
+## requested` and `RunEndScreen.main_menu_requested` connect here) but by
+## then `_state == State.ENDED` already, so the branch below tells the two
+## apart: a live run (RUNNING/PAUSED) means this call came from the PAUSE
+## menu and is an abandon; an already-ended run means it came from the
+## RUN-END screen itself, after settlement has already happened once, and
+## proceeds straight to the title exactly as before.
 func _on_main_menu_requested() -> void:
+	if _state != State.ENDED:
+		_end_run(EndCause.ABANDONED)
+		return
 	for reason in _pause_authority.get_active_reasons():
 		_pause_authority.pop_reason_immediate(reason)
 	get_tree().change_scene_to_file("res://scenes/title.tscn")
+
+
+## Meta layer core (build brief item 4): the run-end screen's new
+## "Continue" choice -> the Hub. Only reachable once `_state == State.ENDED`
+## (the run-end screen is not visible otherwise), so settlement has always
+## already happened by the time this fires -- mirrors `_on_main_menu_
+## requested()`'s own pause-reason-clearing shape exactly, targeting
+## `scenes/hub.tscn` instead of `scenes/title.tscn`.
+func _on_continue_requested() -> void:
+	for reason in _pause_authority.get_active_reasons():
+		_pause_authority.pop_reason_immediate(reason)
+	get_tree().change_scene_to_file("res://scenes/hub.tscn")
 
 
 func _refresh_ui_visibility() -> void:
@@ -495,11 +642,42 @@ func _end_run(cause: int) -> void:
 	_end_cause = cause
 	_end_sim_time = _now()
 	_capture_final_wave()
+	# Meta layer core: the run is over one way or another from here on --
+	# see the field comment on `_suppress_quit_for_test`'s sibling,
+	# `_run_id`'s block, and `_ready()`'s own comment on this same line.
+	get_tree().auto_accept_quit = true
 	_pause_authority.push_reason_immediate(REASON_RUN_ENDED)
 	_ui_mode = UiMode.RUN_END
 	_refresh_ui_visibility()
+
+	# Meta layer core (build brief item 4): settle BEFORE the run-end screen
+	# shows, per the Register's own "committed to disk before the run-end
+	# screen shows" (Meta: Run-End Settlement (prototype)). `victory` is
+	# true only for the one END path that means the player actually won
+	# (the full wave sequence completed with nobody dead); every other
+	# cause, ABANDONED included, settles as a failure (no final-wave bonus),
+	# per D110/D113.
+	var victory: bool = cause == EndCause.SEQUENCE_COMPLETED
+	var abandoned: bool = cause == EndCause.ABANDONED
+	var breakdown: Dictionary = MetaProgress.settle_run(_build_run_summary(victory, abandoned))
+
 	if run_end_screen != null:
 		run_end_screen.show_summary(_build_summary())
+		run_end_screen.set_settlement(breakdown)
+
+
+## Meta layer core. `run_summary` keys match `MetaProgress.settle_run()`'s
+## own documented contract exactly (that file's header): `run_id`,
+## `sim_time_seconds`, `waves_cleared`, `kills`, `victory`, `abandoned`.
+func _build_run_summary(victory: bool, abandoned: bool) -> Dictionary:
+	return {
+		"run_id": _run_id,
+		"sim_time_seconds": maxf(0.0, _now() - _run_start_sim_time),
+		"waves_cleared": _waves_cleared,
+		"kills": _kill_count,
+		"victory": victory,
+		"abandoned": abandoned,
+	}
 
 
 ## `WaveDirector._current_wave_index` (read through the only available
@@ -526,6 +704,15 @@ func _build_summary() -> Dictionary:
 		cause_text = tr("RUN_END_CAUSE_PLAYER")
 	elif _end_cause == EndCause.TOWER_DESTROYED:
 		cause_text = tr("RUN_END_CAUSE_TOWER")
+	elif _end_cause == EndCause.ABANDONED:
+		# Meta layer core (D113). No UiStrings/tr() key exists for this cause
+		# (src/ui/theme/* -- where every OTHER cause's key is registered --
+		# is off limits this session; see this file's own header for the
+		# HUD-visuals agent's exclusive scope). A literal English string,
+		# named here as a follow-up seam for whoever next owns
+		# src/ui/theme/ui_strings.gd to promote to a real
+		# RUN_END_CAUSE_ABANDONED key, exactly like every other cause line.
+		cause_text = "Run abandoned"
 	# EndCause.SEQUENCE_COMPLETED intentionally leaves cause_text empty --
 	# see class header, "The death cause or the final wave reached."
 

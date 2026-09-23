@@ -51,30 +51,30 @@ A typical first failed run (about 4 minutes, 4 waves, 100 kills) pays 4 + 8 + 4 
 
 ### 4.1 Shape
 
-A grid of nodes around a free root, the **Command Tent**, which every profile owns. Three branches leave the root: **Archer** (the player), **Tower**, and **Fortune** (economy). A node can be bought when at least one grid-adjacent node owns at least one rank. Nodes adjacent to owned nodes are shown with name, effect and price; nodes further out are shown as locked silhouettes with a "?" (the Booster Pack Heroes fog), so the tree reveals itself as the player invests.
+A grid of nodes around a free root, the **Command Tent**, which every profile owns. Three branches leave the root: **Archer** (the player), **Tower**, and **Fortune** (economy). `grid_position` (the layout the Hub/Skill Tree screen draws) is cosmetic only; the real unlock graph is each node's explicit `prerequisite_ids` list (`src/data/skill_node_definition.gd`, `data/meta/skill_tree.tres`). **A node can be bought once EVERY node in its `prerequisite_ids` is owned at rank >= 1** — most nodes name exactly one parent, but the three tier-3 nodes (Long Reach, Watchtower, Deep Pockets) each name BOTH of their tier-2 siblings, so reaching one requires a rank in each of that branch's two tier-2 nodes first, not just one. A node is **revealed** (shown with name, effect and price rather than a locked silhouette) once it is owned or any one of its `prerequisite_ids` is owned — this is the Booster Pack Heroes fog, and it reveals strictly faster than a node becomes buyable for the two convergence nodes.
 
 ### 4.2 Nodes
 
-Tier is the node's grid distance from the root. Effects are applied at run start to runtime copies of the relevant definitions, never to the authored `.tres` files.
+Tier drives the price formula (section 4.3) and is authored per node in `data/meta/skill_tree.tres`, not derived from grid distance. Effects are applied at run start to runtime copies of the relevant definitions, never to the authored `.tres` files (`src/meta/meta_loadout_applier.gd`).
 
 | Branch | Node | Tier | Max rank | Effect per rank |
 | --- | --- | --- | --- | --- |
 | Archer | Vitality | 1 | 3 | +10% player max health |
-| Archer | Swift Boots | 2 | 3 | +4% player move speed |
+| Archer | Swift Boots | 1 | 3 | +4% player move speed |
 | Archer | Sharpened Arrows | 2 | 3 | +8% player weapon damage |
-| Archer | Quick Draw | 3 | 3 | +5% player fire rate |
+| Archer | Quick Draw | 2 | 3 | +5% player fire rate |
 | Archer | Long Reach | 3 | 2 | +20% pickup magnet radius |
 | Archer | Second Wind (capstone) | 4 | 1 | once per run, a lethal hit leaves the player at 30% health instead |
 | Tower | Stone Walls | 1 | 3 | +10% Tower max health |
-| Tower | Arrow Slits | 2 | 3 | +10% Tower weapon damage |
+| Tower | Arrow Slits | 1 | 3 | +10% Tower weapon damage |
 | Tower | Shield Runes | 2 | 2 | +15% Tower max shield |
-| Tower | Mason's Kit | 3 | 2 | -15% Tower Console repair price |
+| Tower | Mason's Kit | 2 | 2 | -15% Tower Console repair price |
 | Tower | Watchtower | 3 | 2 | +10% Tower weapon range |
 | Tower | Fortress (capstone) | 4 | 1 | the Tower starts the run one evolution stage up |
 | Fortune | Scavenger | 1 | 3 | start each run with 15 Scrap |
-| Fortune | Scholar | 2 | 3 | +10% XP from shards |
+| Fortune | Scholar | 1 | 3 | +10% XP from shards |
 | Fortune | Lucky Draw | 2 | 2 | +1 Level-Up Draft reroll per run |
-| Fortune | Prospector | 3 | 2 | +15% Run-End Settlement Cores |
+| Fortune | Prospector | 2 | 2 | +15% Run-End Settlement Cores |
 | Fortune | Deep Pockets | 3 | 1 | +50 Scrap carry cap |
 | Fortune | War Chest (capstone) | 4 | 1 | start the run at level 1 with one free Level-Up Draft when the first wave begins |
 
@@ -117,6 +117,7 @@ The profile keeps each player's best wave reached, longest time survived, most k
 | Second Wind and Tower death | Second Wind protects only the player; the Tower's death still ends the run |
 | War Chest and teaching waves | The free draft opens when the first wave begins, not during the title-to-run transition |
 | Starting a run with the Console open or a Draft queued from the previous run | Impossible: a run always starts from a fresh prototype scene |
+| A percentage-bonus node and the matching in-run upgrade both apply to the same stat (e.g. Sharpened Arrows and Rapid Fire, both weapon damage) | They compose as `base x (1 + meta) x (1 + upgrade)`, not `base x (1 + meta + upgrade)`. The meta bonus is folded into the BASE value a runtime-copied definition carries (`src/meta/meta_loadout_applier.gd`) before the run's own upgrade multiplier (a separate, replace-not-compound field on the same weapon/Tower component) ever reads it, so the two never collide or overwrite each other. This is a deliberate interpretation, not C-STACK's literal reading (C-STACK governs bonuses to the same stat within ONE channel): meta progression and one run's own upgrades are different systems on different timescales, and folding the meta bonus into the base is the only route available that touches neither `src/upgrade/upgrade_system.gd` nor the upgrade multiplier's own contract |
 
 ## 7. What is deliberately not here yet
 

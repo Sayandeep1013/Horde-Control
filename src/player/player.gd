@@ -341,7 +341,24 @@ func clear_input_buffer() -> void:
 	_buffer_expires_at_sim_time = -INF
 
 
-func _on_hurtbox_damage_received(_amount: float, _source: Variant, _hitbox: Node) -> void:
+## Meta layer core (Second Wind seam). Was previously cosmetic-only
+## (hit-flash/blood/SFX): actual damage application was auto-wired by
+## DeathState itself, via scenes/player.tscn's `DeathState.hurtbox_paths =
+## [../Hurtbox]`, connecting DIRECTLY to `death_state.apply_damage()` with
+## no interception point -- exactly the "double-damage problem"
+## src/tower/tower_health.gd's own header already documents and solves for
+## the Tower. Second Wind needs to intercept a LETHAL hit before it reaches
+## death_state.apply_damage() (see this file's own `apply_damage()` header),
+## so scenes/player.tscn's `hurtbox_paths` is now EMPTY (mirroring
+## tower.tscn's Hurtbox) and this handler -- already connected to the real
+## Hurtbox's `damage_received` signal in `_ready()` -- now ALSO calls this
+## file's own `apply_damage()`, once, after the cosmetic feedback below.
+## Every existing caller/test observes the exact same end state
+## (death_state.current_hp decreases by the same amount) since
+## `apply_damage()` falls through to `death_state.apply_damage(amount,
+## source)` unchanged whenever Second Wind is not both available and the
+## hit lethal.
+func _on_hurtbox_damage_received(amount: float, source: Variant, _hitbox: Node) -> void:
 	if _animator != null:
 		_animator.play_hit_flash()
 	# Hit-feedback pass (restrained per brief -- a small burst only, no
@@ -352,12 +369,13 @@ func _on_hurtbox_damage_received(_amount: float, _source: Variant, _hitbox: Node
 	# root -- is the container to spawn into, matching every other cosmetic
 	# FX spawn in this project (enemy_animator.gd's `_spawn_death_fx()`
 	# uses the exact same "spawn into my own parent" convention).
-	var dir: Vector2 = BloodFx.direction_away_from(_source, global_position)
+	var dir: Vector2 = BloodFx.direction_away_from(source, global_position)
 	BloodFx.spawn_hit(get_parent(), global_position, dir, BloodFx.Tier.PLAYER)
 	if _audio_pool != null and damage_sfx != null and _audio_pool.has_method("play"):
 		# docs/20 > Audio Mixing & Dynamic Ducking: "Player damage ... routed
 		# to SFX_Priority" -- a priority voice, not the ordinary SFX default.
 		_audio_pool.play(damage_sfx, global_position, 10, true, "SFX_Priority")
+	apply_damage(amount, source)
 
 
 ## Art session: AutoWeapon.fired only carries a timestamp (auto_weapon.gd's
@@ -385,16 +403,75 @@ func _on_weapon_fired(_timestamp: float) -> void:
 ## Logical/Visual Death timing entirely -- this only hands the animator the
 ## SAME visual_death_duration death_state already timed its own window to,
 ## so the visual finishes exactly when the logical window does.
+##
+## Meta layer core (Second Wind seam): `scenes/player.tscn`'s
+## `DeathState.hurtbox_paths` is now EMPTY (see this file's own
+## `_on_hurtbox_damage_received()` header for why), so DeathState's own
+## `_enter_logical_death()` loop over `_hurtboxes` has nothing to iterate --
+## `hurtbox.mark_dead()` / `apply_logical_death_layers()` are never called
+## from there for the player's own Hurtbox. This replicates those two calls
+## here, from the SAME `logical_death` signal, mirroring
+## `src/tower/tower_health.gd`'s own `_on_death_state_logical_death()` --
+## that file's header names this exact pattern ("the double-damage
+## problem") for the identical reason (a component that intercepts damage
+## before DeathState's auto-wiring must also replicate DeathState's own
+## Logical Death cleanup by hand).
 func _on_logical_death(_entity: Node2D, _position: Vector2) -> void:
+	if hurtbox != null:
+		hurtbox.mark_dead()
+		hurtbox.apply_logical_death_layers()
 	if _animator != null and death_state != null:
 		_animator.play_death(death_state.visual_death_duration)
+
+
+## Meta layer core (D109-D112). MASTER_SDLC.md > Provisional Values Register
+## > "Meta: Skill Tree effects": "Second Wind: once per run a lethal hit
+## leaves the player at 30% health (1)." The "30%" figure has no dedicated
+## SkillNodeDefinition field to carry it (data/meta/skill_tree.tres'
+## `second_wind` node uses `value_per_rank` only as a presence flag -- see
+## that file's own header), so it is cited here as a named constant instead
+## of a bare literal, matching this project's own precedent (e.g.
+## src/ui/console.gd's REPAIR_MAX_HEAL).
+const SECOND_WIND_SURVIVE_FRACTION: float = 0.30
+
+## Set once at run start by `MetaLoadoutApplier` (src/meta/
+## meta_loadout_applier.gd) when the Second Wind node is owned; consumed at
+## most once per run by `apply_damage()` below, then cleared so a second
+## lethal hit the same run kills normally ("once per run").
+var _second_wind_available: bool = false
+
+
+## Typed command (Meta layer core). Never called by gameplay code other than
+## `MetaLoadoutApplier` at run start; also usable directly from a test.
+func set_second_wind_available(available: bool) -> void:
+	_second_wind_available = available
+
+
+func is_second_wind_available_for_test() -> bool:
+	return _second_wind_available
 
 
 ## Typed command forwarding to death_state.gd, mirroring placeholder_
 ## enemy.gd's own apply_damage() convenience wrapper -- kept here so a
 ## caller holding only a Player reference need not reach into a child node.
+##
+## Meta layer core: intercepts a hit that would be LETHAL (current_hp -
+## amount <= 0) while Second Wind is available -- instead of forwarding the
+## full amount to death_state.apply_damage() (which would enter Logical
+## Death), this clamps current_hp to SECOND_WIND_SURVIVE_FRACTION of max_hp
+## and consumes the flag, without death_state ever seeing the lethal amount
+## at all. death_state.gd itself (src/combat/, a file this task does not own)
+## is untouched -- this mirrors this file's own established pattern of
+## writing to death_state's public fields directly (see `heal()` and
+## `_apply_definition()` above) rather than adding a new command there.
 func apply_damage(amount: float, source: Variant = null) -> bool:
-	return death_state.apply_damage(amount, source) if death_state != null else false
+	if death_state == null:
+		return false
+	if _second_wind_available and not death_state.is_dead and amount > 0.0 and (death_state.current_hp - amount) <= 0.0:
+		_second_wind_available = false
+		death_state.current_hp = death_state.max_hp * SECOND_WIND_SURVIVE_FRACTION
+		return true
+	return death_state.apply_damage(amount, source)
 
 
 ## Minimal heal seam for P2.11's Patch Kit (src/upgrade/upgrade_system.gd):

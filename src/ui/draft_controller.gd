@@ -209,7 +209,14 @@ var _event_bus: Object = EventBus
 var _pending_draft_requests: Array[Dictionary] = []
 var _last_observed_level: int = 0
 var _draft_card_serial: int = 0
-var _reroll_used: bool = false # Register: "Reroll 1 per run (prototype)"
+
+## Register > "Level-Up Draft": "Reroll 1 per run (prototype)". Meta layer
+## core (Lucky Draw node; MASTER_SDLC.md > Provisional Values Register >
+## "Meta: Skill Tree effects": "Lucky Draw +1 Draft reroll per run (2)")
+## widens this from a bool to a counter -- `add_bonus_rerolls()` is called at
+## most once, at run start, by `MetaLoadoutApplier`, adding Lucky Draw's
+## ranks on top of this baseline 1.
+var _rerolls_remaining: int = 1
 
 var _draft_session_active: bool = false # true across a whole back-to-back queue, false once fully closed
 var _draft_showing: bool = false # true while one card set is on screen awaiting a decision
@@ -429,16 +436,43 @@ func is_hold_up_armed_for_test() -> bool:
 	return _hold_up_armed
 
 
+## Kept for backward compatibility with anything that asked "has the
+## baseline reroll been spent" -- true once the counter reaches zero,
+## regardless of how many bonus rerolls Lucky Draw ever added.
 func get_reroll_used_for_test() -> bool:
-	return _reroll_used
+	return _rerolls_remaining <= 0
 
 
 ## Integration task (F05-15: "the HUD's rerolls_remaining field is never
 ## populated by anything"). Not a `_for_test()` seam -- a genuine production
 ## query the HUD wiring reads every frame. Register: "Reroll 1 per run
-## (prototype)", so this is exactly `1 - int(_reroll_used)`.
+## (prototype)" plus any Lucky Draw bonus already added by
+## `add_bonus_rerolls()`.
 func get_rerolls_remaining() -> int:
-	return 0 if _reroll_used else 1
+	return maxi(0, _rerolls_remaining)
+
+
+## Typed command (Meta layer core, Lucky Draw node). Called once, at run
+## start, by `MetaLoadoutApplier`. Adds to the baseline reroll count rather
+## than replacing it, since this is the one Skill Tree effect that is itself
+## additive to a per-run counter rather than a percentage/flat bonus folded
+## into a definition Resource.
+func add_bonus_rerolls(count: int) -> void:
+	if count > 0:
+		_rerolls_remaining += count
+
+
+## Typed command (Meta layer core, War Chest node). MASTER_SDLC.md >
+## Provisional Values Register > "Meta: Skill Tree effects": "War Chest: ...
+## one free Draft when the first wave begins." Called by `MetaLoadoutApplier`
+## from a one-shot `WaveDirector.wave_opened` connection for the first wave
+## (wave_index == 0) -- enqueues a Draft request exactly the way a real
+## level-up does, so it queues behind/ahead of a simultaneous real level-up
+## by the same first-come-first-served rule (`_try_open_next_draft()` no-ops
+## if a Draft is already showing, matching every other enqueue call site).
+func queue_forced_draft_for_meta() -> void:
+	_enqueue_draft_request(false)
+	_try_open_next_draft()
 
 
 func get_draft_card_serial_for_test() -> int:
@@ -672,9 +706,9 @@ func _on_card_confirmed(upgrade_id: String) -> void:
 ## a hold already in progress cannot suddenly confirm a card that just
 ## changed under it (an interpretation, named in the P2.12 evidence report).
 func _try_reroll() -> void:
-	if _reroll_used or _cards.is_empty():
+	if _rerolls_remaining <= 0 or _cards.is_empty():
 		return
-	_reroll_used = true
+	_rerolls_remaining -= 1
 	_roll_three_cards(_last_shown_ids.duplicate())
 	_highlighted_index = 0
 	_hold_up_progress = 0.0

@@ -133,6 +133,7 @@ func _ready() -> void:
 		if enemy != null:
 			_enemies.append(enemy)
 
+	_apply_meta_loadout()
 	_wire_hud()
 	_wire_threat_feedback()
 	_wire_audio_ducking()
@@ -144,6 +145,27 @@ func _ready() -> void:
 	_wire_console()
 	_wire_run_flow_controller()
 	_wire_wave_director_capacity_and_overlay()
+
+
+## Meta layer core (build brief item 3: "add ONE application seam"). The
+## single call site in the whole run: applies the frozen per-run
+## `MetaLoadout` (`MetaProgress.build_run_loadout()`, reading whatever Skill
+## Tree ranks the Hub already committed) to this scene's live Player/Tower/
+## AutoWeapon/RunInventory/DraftController/WaveDirector, through
+## `MetaLoadoutApplier` (src/meta/meta_loadout_applier.gd) -- see that file's
+## own header for exactly which definitions get duplicated and re-applied.
+## Runs BEFORE every other `_wire_*()` call below so nothing else in this
+## file's own wiring (HUD text, the capacity-provider Callables, etc.) ever
+## observes a pre-loadout value. Safe to call with any argument null (every
+## existing test/harness scene that omits a system simply skips that
+## system's bonuses); safe to call with an all-zero loadout (the case for
+## every scene instantiated without a Hub purchase ever having happened,
+## which is every existing test) -- see that file's own header, "Idempotence."
+func _apply_meta_loadout() -> void:
+	var loadout: MetaLoadout = MetaProgress.build_run_loadout()
+	var pickup_system: PickupSystem = _pickup_system as PickupSystem
+	var run_inventory: RunInventory = pickup_system.run_inventory if pickup_system != null else null
+	MetaLoadoutApplier.apply(loadout, _player, _tower, _auto_weapon as AutoWeapon, run_inventory, _draft_controller as DraftController, _wave_director)
 
 
 ## F05-13. Single source of truth: `run_seed` above. Both consumers are
