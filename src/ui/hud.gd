@@ -785,7 +785,13 @@ func _build_scrap_field() -> Control:
 	# is exactly a coin-pouch icon already.
 	_scrap_icon = TextureRect.new()
 	_scrap_icon.name = "ScrapIcon"
-	_scrap_icon.texture = load(UiPalette.TEX_SCRAP_ICON)
+	# Cropped to the pouch's own alpha bounds (48,51)-(91,96) of the 128 px
+	# frame: uncropped, the pouch is a third of the texture and shrinks to a
+	# dot at the HUD's icon size.
+	var scrap_atlas: AtlasTexture = AtlasTexture.new()
+	scrap_atlas.atlas = load(UiPalette.TEX_SCRAP_ICON)
+	scrap_atlas.region = Rect2(47, 50, 45, 47)
+	_scrap_icon.texture = scrap_atlas
 	_scrap_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	# TextureRect's default expand_mode (EXPAND_KEEP_SIZE) reports the
 	# TEXTURE's own native pixel size (128x128, G_Idle_NoShadow.png) as its
