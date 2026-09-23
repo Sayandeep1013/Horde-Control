@@ -81,23 +81,11 @@ signal tower_damaged(amount: float, new_health: float, new_shield: float, timest
 ## anyone's behalf; announcing and causing are different things.
 signal draft_opened(timestamp: float)
 
-## Integration task. Register > Technical Caps & Performance > "Run
-## Recorder" (C-TELEMETRY): `events.csv` names "Console open/close,
-## purchase with channel" among its event types, and P2.13's own evidence
-## report named this as a real gap ("`src/ui/console.gd` never touches
-## `EventBus` -- `src/core/` was reserved to a single writer this
-## session"). `console.gd` is the one emitter for all three, at the exact
-## points its own `_open_console()`/`_close_console()`/`_apply_purchase()`
-## already change state -- this bus only re-broadcasts, per this file's own
-## header rule.
-signal console_opened(timestamp: float)
-signal console_closed(timestamp: float)
-
-## `entry_id` is the catalogue/sector entry's own id (an UpgradeDefinition's
-## `unique_id`, or `"repair"`); `channel_seconds` is the channel duration
-## that just completed (0.5 s catalogue, 1.0 s sector, per docs/19); `cost`
-## is the Scrap actually charged.
-signal console_purchase(entry_id: String, channel_seconds: float, cost: int, timestamp: float)
+## D115 (no in-run shop): `console_opened`/`console_closed`/`console_purchase`
+## and their `emit_console_*()` wrappers (Register > Technical Caps &
+## Performance > "Run Recorder", C-TELEMETRY) are REMOVED along with the
+## Tower Console itself -- nothing emits them and nothing in this codebase
+## ever subscribed to them (verified by grep before removal).
 
 
 func _ready() -> void:
@@ -126,18 +114,3 @@ func emit_tower_damaged(amount: float, new_health: float, new_shield: float) -> 
 ## Typed emit wrapper.
 func emit_draft_opened() -> void:
 	draft_opened.emit(SimClock.now)
-
-
-## Typed emit wrapper. Integration task (C-TELEMETRY).
-func emit_console_opened() -> void:
-	console_opened.emit(SimClock.now)
-
-
-## Typed emit wrapper. Integration task (C-TELEMETRY).
-func emit_console_closed() -> void:
-	console_closed.emit(SimClock.now)
-
-
-## Typed emit wrapper. Integration task (C-TELEMETRY).
-func emit_console_purchase(entry_id: String, channel_seconds: float, cost: int) -> void:
-	console_purchase.emit(entry_id, channel_seconds, cost, SimClock.now)

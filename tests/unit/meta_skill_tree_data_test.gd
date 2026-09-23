@@ -5,8 +5,13 @@ extends GdUnitTestSuite
 ## "Rank r of a tier-t node costs base(t) x (1 + 0.5 x (r - 1)), rounded;
 ## base 5 / 10 / 18 / 30 Cores for tiers 1-4; the root ... is free and always
 ## owned." Proves the price formula as a pure static function, independent of
-## MetaProgress, and proves data/meta/skill_tree.tres's own shape (18 nodes +
+## MetaProgress, and proves data/meta/skill_tree.tres's own shape (19 nodes +
 ## the root, unique ids, every prerequisite resolves) -- docs/18 section 4.2.
+## D117 added a nineteenth non-root node, Lucky Charm, as a side node off
+## Scavenger (not part of the Lucky Draw/Prospector convergence pair Deep
+## Pockets requires), so the Fortune branch now has seven non-root nodes
+## against Archer/Tower's six each -- docs/18 section 4.2's own note on
+## this node names the asymmetry as deliberate.
 
 var _tree: SkillTreeDefinition
 
@@ -49,8 +54,8 @@ func test_tier_0_and_out_of_range_tiers_are_free_not_erroring() -> void:
 
 # --- Authored tree shape (docs/18 section 4.2) -------------------------------
 
-func test_tree_has_the_root_plus_eighteen_nodes() -> void:
-	assert_int(_tree.nodes.size()).append_failure_message("docs/18 section 4.2: three branches of six nodes each, plus the root").is_equal(19)
+func test_tree_has_the_root_plus_nineteen_nodes() -> void:
+	assert_int(_tree.nodes.size()).append_failure_message("docs/18 section 4.2: Archer/Tower six nodes each, Fortune seven (Lucky Charm, D117), plus the root").is_equal(20)
 
 
 func test_every_node_id_is_unique() -> void:
@@ -84,7 +89,8 @@ func test_tier_3_convergence_nodes_require_two_prerequisites() -> void:
 
 func test_get_all_node_ids_includes_root_and_every_node() -> void:
 	var ids: Array[String] = _tree.get_all_node_ids()
-	assert_int(ids.size()).is_equal(19)
+	assert_int(ids.size()).is_equal(20)
 	assert_bool(ids.has("root")).is_true()
 	assert_bool(ids.has("second_wind")).is_true()
 	assert_bool(ids.has("war_chest")).is_true()
+	assert_bool(ids.has("lucky_charm")).append_failure_message("D117's new Lucky Charm node is missing from the authored tree").is_true()

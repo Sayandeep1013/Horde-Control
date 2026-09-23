@@ -173,6 +173,32 @@ const REASON_DRAFT: StringName = &"draft"
 
 const MAX_DISTINCT_REROLL_ATTEMPTS: int = 6
 
+## D117 (card rarity). Register > "Draft rarity": value multipliers
+## Common/Rare/Epic 1.0/1.5/2.2, applied to a rolled card's own
+## effect_per_rank via UpgradeSystem.apply_rank()'s own rarity_multiplier
+## parameter.
+const RARITY_VALUE_MULTIPLIER: Dictionary = {
+	ContractEnums.Rarity.Common: 1.0,
+	ContractEnums.Rarity.Rare: 1.5,
+	ContractEnums.Rarity.Epic: 2.2,
+}
+
+## Register > "Draft rarity": "Starting odds 75/21/4 [percent, Common/Rare/
+## Epic]; each player level in the run moves 1.5 points from Common to Rare
+## and 0.5 to Epic, capped at 45/40/15." Rare/Epic are computed directly
+## (each capped independently) and Common is the REMAINDER (100 - rare -
+## epic), which is self-consistent: at every level below both caps this
+## equals the literal 75 - 2*level formula, and once both caps are reached
+## it equals exactly 45 (100 - 40 - 15) -- the Register's own stated floor
+## -- with no separate clamp needed for Common.
+const RARITY_COMMON_BASE_PERCENT: float = 75.0
+const RARITY_RARE_BASE_PERCENT: float = 21.0
+const RARITY_EPIC_BASE_PERCENT: float = 4.0
+const RARITY_RARE_PER_LEVEL: float = 1.5
+const RARITY_EPIC_PER_LEVEL: float = 0.5
+const RARITY_RARE_CAP_PERCENT: float = 40.0
+const RARITY_EPIC_CAP_PERCENT: float = 15.0
+
 @export var pickup_system_path: NodePath
 @export var upgrade_system_path: NodePath
 @export var wave_director_path: NodePath
@@ -209,6 +235,10 @@ var _event_bus: Object = EventBus
 var _pending_draft_requests: Array[Dictionary] = []
 var _last_observed_level: int = 0
 var _draft_card_serial: int = 0
+## D117: a SEPARATE monotonic counter from `_draft_card_serial` above, so a
+## rarity roll's own "draft_rarity" Keyed RNG stream never shares a serial
+## with the "draft" card-pick stream (see `_roll_rarity_for_card()`).
+var _rarity_roll_serial: int = 0
 
 ## Register > "Level-Up Draft": "Reroll 1 per run (prototype)". Meta layer
 ## core (Lucky Draw node; MASTER_SDLC.md > Provisional Values Register >
@@ -218,12 +248,32 @@ var _draft_card_serial: int = 0
 ## ranks on top of this baseline 1.
 var _rerolls_remaining: int = 1
 
+## D117; Lucky Charm skill node. Flat luck points, added directly to the
+## player's current level in the rarity roll (`_rarity_odds_for_level()`)
+## -- a named simplification: a "luck point" and a "level" shift the odds
+## by the identical amount (RARITY_RARE_PER_LEVEL/RARITY_EPIC_PER_LEVEL per
+## unit), so reusing one formula for both avoids inventing a second,
+## parallel odds curve no design document specifies. Added at most once, at
+## run start, by `MetaLoadoutApplier` (mirrors `add_bonus_rerolls()`'s own
+## shape exactly).
+var _rarity_luck_points: int = 0
+
 var _draft_session_active: bool = false # true across a whole back-to-back queue, false once fully closed
 var _draft_showing: bool = false # true while one card set is on screen awaiting a decision
 
+## D117 (card rarity). Pairs a rolled UpgradeDefinition with the rarity and
+## value multiplier THIS DRAFT rolled for it -- never stored on the shared
+## UpgradeDefinition resource itself (resource-pattern skill's own
+## anti-pattern: the same .tres can be rolled again, at a different
+## rarity, in a later draft or a different card slot).
+class RolledCard extends RefCounted:
+	var definition: UpgradeDefinition
+	var rarity: int = ContractEnums.Rarity.Common
+	var value_multiplier: float = 1.0
+
 # --- Current cards ------------------------------------------------------------
 
-var _cards: Array[UpgradeDefinition] = []
+var _cards: Array[RolledCard] = []
 var _last_shown_ids: Array[String] = []
 var _highlighted_index: int = 0
 
@@ -404,6 +454,19 @@ func get_current_card_ids_for_test() -> Array[String]:
 	return _ids_of(_cards)
 
 
+## D117: the ROLLED rarity (ContractEnums.Rarity) for each current card, in
+## the same order get_current_card_ids_for_test() reports.
+func get_current_card_rarities_for_test() -> Array[int]:
+	var out: Array[int] = []
+	for c in _cards:
+		out.append(c.rarity)
+	return out
+
+
+func get_current_card_value_multiplier_for_test(index: int) -> float:
+	return _cards[index].value_multiplier if index >= 0 and index < _cards.size() else 1.0
+
+
 func get_card_view_for_test(i: int) -> DraftCardView:
 	return _card_views[i] if i >= 0 and i < _card_views.size() else null
 
@@ -460,6 +523,17 @@ func get_rerolls_remaining() -> int:
 func add_bonus_rerolls(count: int) -> void:
 	if count > 0:
 		_rerolls_remaining += count
+
+
+## Typed command (Meta layer core, Lucky Charm node; D117). Same
+## additive-not-replace shape as add_bonus_rerolls() above.
+func add_rarity_luck_points(points: int) -> void:
+	if points > 0:
+		_rarity_luck_points += points
+
+
+func get_rarity_luck_points_for_test() -> int:
+	return _rarity_luck_points
 
 
 ## Typed command (Meta layer core, War Chest node). MASTER_SDLC.md >
@@ -582,7 +656,7 @@ func _roll_three_cards(avoid_ids: Array[String]) -> void:
 		_last_shown_ids = []
 		return
 	var attempts: int = 0
-	var result: Array[UpgradeDefinition] = []
+	var result: Array[RolledCard] = []
 	while attempts < MAX_DISTINCT_REROLL_ATTEMPTS:
 		result = _roll_three_once()
 		attempts += 1
@@ -592,7 +666,7 @@ func _roll_three_cards(avoid_ids: Array[String]) -> void:
 	_last_shown_ids = _ids_of(result)
 
 
-func _roll_three_once() -> Array[UpgradeDefinition]:
+func _roll_three_once() -> Array[RolledCard]:
 	var player_pool: Array[UpgradeDefinition] = _upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Player)
 	var tower_pool: Array[UpgradeDefinition] = _upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Tower)
 
@@ -609,14 +683,54 @@ func _roll_three_once() -> Array[UpgradeDefinition]:
 
 	var card_wild: UpgradeDefinition = _pick_wildcard(remaining)
 
-	var out: Array[UpgradeDefinition] = []
+	var out: Array[RolledCard] = []
 	if card_player != null:
-		out.append(card_player)
+		out.append(_make_rolled_card(card_player))
 	if card_tower != null:
-		out.append(card_tower)
+		out.append(_make_rolled_card(card_tower))
 	if card_wild != null:
-		out.append(card_wild)
+		out.append(_make_rolled_card(card_wild))
 	return out
+
+
+## D117: wraps `def` with a freshly-rolled rarity and its value multiplier.
+## Never mutates `def` itself (a shared UpgradeDefinition Resource -- the
+## SAME card can roll a different rarity next time it is offered).
+func _make_rolled_card(def: UpgradeDefinition) -> RolledCard:
+	var card: RolledCard = RolledCard.new()
+	card.definition = def
+	card.rarity = _roll_rarity_for_card()
+	card.value_multiplier = float(RARITY_VALUE_MULTIPLIER.get(card.rarity, 1.0))
+	return card
+
+
+## Register > "Draft rarity" (see the RARITY_* constants above for the full
+## formula). Uses the player's CURRENT level (0 at run start) plus any
+## Lucky Charm luck points as the one shared "effective level" the odds
+## curve reads.
+func _rarity_odds_for_level(level: int) -> Dictionary:
+	var effective_level: float = float(maxi(0, level) + _rarity_luck_points)
+	var rare_percent: float = minf(RARITY_RARE_CAP_PERCENT, RARITY_RARE_BASE_PERCENT + RARITY_RARE_PER_LEVEL * effective_level)
+	var epic_percent: float = minf(RARITY_EPIC_CAP_PERCENT, RARITY_EPIC_BASE_PERCENT + RARITY_EPIC_PER_LEVEL * effective_level)
+	var common_percent: float = 100.0 - rare_percent - epic_percent
+	return {"common": common_percent, "rare": rare_percent, "epic": epic_percent}
+
+
+## Register > "Keyed RNG" convention, extended with a new purpose key
+## ("draft_rarity") per this file's own `_next_rng()` precedent -- a
+## SEPARATE monotonic roll from the card-pick rolls (`_next_rng()`'s own
+## "draft" key), so adding/removing a rarity roll never shifts which card
+## a given card-pick roll selects, and vice versa.
+func _roll_rarity_for_card() -> int:
+	var odds: Dictionary = _rarity_odds_for_level(_run_inventory.level if _run_inventory != null else 0)
+	var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "draft_rarity", _rarity_roll_serial])
+	_rarity_roll_serial += 1
+	var roll: float = rng.randf() * 100.0
+	if roll < float(odds["epic"]):
+		return ContractEnums.Rarity.Epic
+	if roll < float(odds["epic"]) + float(odds["rare"]):
+		return ContractEnums.Rarity.Rare
+	return ContractEnums.Rarity.Common
 
 
 func _pick_guaranteed(pool: Array[UpgradeDefinition], pool_ownership: int) -> UpgradeDefinition:
@@ -660,7 +774,7 @@ func _next_rng() -> RandomNumberGenerator:
 	return rng
 
 
-func _same_id_set(cards: Array[UpgradeDefinition], ids: Array[String]) -> bool:
+func _same_id_set(cards: Array[RolledCard], ids: Array[String]) -> bool:
 	if cards.size() != ids.size():
 		return false
 	var a: Array = _ids_of(cards)
@@ -670,10 +784,10 @@ func _same_id_set(cards: Array[UpgradeDefinition], ids: Array[String]) -> bool:
 	return a == b
 
 
-func _ids_of(cards: Array[UpgradeDefinition]) -> Array[String]:
+func _ids_of(cards: Array[RolledCard]) -> Array[String]:
 	var out: Array[String] = []
-	for d in cards:
-		out.append(d.unique_id)
+	for c in cards:
+		out.append(c.definition.unique_id)
 	return out
 
 
@@ -682,15 +796,19 @@ func _ids_of(cards: Array[UpgradeDefinition]) -> Array[String]:
 func _confirm_highlighted_card() -> void:
 	if _cards.is_empty() or _highlighted_index < 0 or _highlighted_index >= _cards.size():
 		return
-	var chosen: UpgradeDefinition = _cards[_highlighted_index]
+	var chosen: RolledCard = _cards[_highlighted_index]
 	if _ui_sfx != null:
 		_ui_sfx.play_confirm()
-	_on_card_confirmed(chosen.unique_id)
+	_on_card_confirmed(chosen.definition.unique_id, chosen.value_multiplier)
 
 
-func _on_card_confirmed(upgrade_id: String) -> void:
+## D117: `rarity_multiplier` is the rolled card's own value multiplier
+## (Common 1.0 / Rare 1.5 / Epic 2.2) -- threaded through to
+## UpgradeSystem.apply_rank() so the chosen rarity is what actually applies
+## live, not just what the card displayed.
+func _on_card_confirmed(upgrade_id: String, rarity_multiplier: float = 1.0) -> void:
 	if _upgrade_system != null:
-		_upgrade_system.apply_rank(upgrade_id)
+		_upgrade_system.apply_rank(upgrade_id, rarity_multiplier)
 	_hide_ui()
 	if not _pending_draft_requests.is_empty():
 		_try_open_next_draft() # stays paused -- next queued draft opens immediately (Draft queue test)
@@ -1000,7 +1118,8 @@ func _build_card_views() -> void:
 		child.queue_free()
 	_card_views.clear()
 	for i in _cards.size():
-		var def: UpgradeDefinition = _cards[i]
+		var card: RolledCard = _cards[i]
+		var def: UpgradeDefinition = card.definition
 		var view: DraftCardView = DraftCardView.new()
 		view.name = "Card%d" % i
 		view.custom_minimum_size = CARD_MIN_SIZE
@@ -1009,7 +1128,7 @@ func _build_card_views() -> void:
 		var current_rank: int = 0
 		if _upgrade_system != null:
 			current_rank = _upgrade_system.get_current_rank(def.unique_id)
-		view.setup(def, current_rank)
+		view.setup(def, current_rank, card.rarity) # D117: the ROLLED rarity, never def.rarity (a shared Resource's own unrolled default)
 		view.mouse_entered.connect(_on_card_hovered.bind(i))
 		# Card-row entrance (PLAN.md direction): a short staggered fade/rise,
 		# purely cosmetic (see DraftCardView.play_entrance()'s own header) --

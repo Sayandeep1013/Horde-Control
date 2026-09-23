@@ -84,7 +84,7 @@ The Wave Director does not rely on static timers. It uses a "Pressure Metric" to
 
 - **Pressure Calculation (Provisional Default formulas; document 11 owns the final form):**
   - `threat_i = current_hp_i × intent_weight_i × (dps_i / 10)` for every living, non-dying enemy, where `dps_i` is the enemy's sheet damage per second from its Attack profile and 10 damage per second is the reference, so `threat_i` is measured in health points. `intent_weight` is 1.0 for Player Hunters, 1.25 for Tower Seekers, and 1.1 for Opportunists. `Threat = Σ threat_i`.
-  - `Capacity` is the sheet damage per second of the player and the Tower with their current upgrades (the player term is not zeroed while the Console is open).
+  - `Capacity` is the sheet damage per second of the player and the Tower with their current upgrades. (This term was historically not zeroed while the Tower Console was open; the Console is removed from runs by D115, 2026-09-23, so that caveat no longer applies to anything live.)
   - `Pressure = Threat ÷ (Capacity × 20 s)`, dimensionless: 1.0 means the weighted field would take about 20 seconds to clear at current output, 0.6 about 12 seconds, and 1.8 about 36 seconds. With no enemies alive, Pressure is 0. Pressure is evaluated every 0.5 seconds, only while a combat wave (not a teaching wave) is open and outside the grace period.
   - Every constant above is a field on the Wave Definition resource.
 - **Escalation Trigger:** if Pressure stays below 0.6 for 3 consecutive seconds, the current encounter's next spawn group starts. At least 4 seconds must pass between escalations. If no spawn group remains, escalation does nothing.

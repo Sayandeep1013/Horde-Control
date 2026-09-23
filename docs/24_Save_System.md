@@ -10,7 +10,7 @@
 ## 1. One profile, one file
 
 - The path is `user://profile.json` (on Windows, `%APPDATA%/Godot/app_userdata/Horde Control/profile.json`). JSON, UTF-8, human-readable.
-- The top level holds `schema_version` (int, currently 1), `cores` (int), `lifetime_cores`, `tree_ranks` ({node_id: rank}), `records` ({best_wave, best_time_s, best_kills, runs, victories}), `settled_run_ids` (the last 16, for idempotent settlement), `first_hub_seen` (bool), and `saved_at_unix`.
+- The top level holds `schema_version` (int, currently 2 — D118, 2026-09-23), `cores` (int), `lifetime_cores`, `tree_ranks` ({node_id: rank}), `records` ({best_wave, best_time_s, best_kills, runs, victories}), `settled_run_ids` (the last 16, for idempotent settlement), `first_hub_seen` (bool), `saved_at_unix`, and, since schema_version 2, `lifetime_kills` (int), `lifetime_scrap_collected` (int), and `unlocked_achievement_ids` (Array[String]) for the achievements list (document 18 section 8; `data/meta/achievements.tres`).
 - Unknown keys are preserved on rewrite, for forward compatibility inside a version.
 
 ## 2. Atomic write
@@ -42,6 +42,8 @@ A write interrupted at any step leaves either the old `profile.json` or the new 
 ## 5. Migration
 
 `schema_version` starts at 1. Each future version adds one function `migrate_N_to_N_plus_1(dict) -> dict` to an ordered table, and load applies them in sequence. A profile from a newer version than the game understands is not overwritten: the game loads it read-only and warns the player.
+
+**Version 2 (D118, 2026-09-23):** adds `lifetime_kills` (int), `lifetime_scrap_collected` (int), and `unlocked_achievement_ids` (Array[String]). `migrate_1_to_2()` adds all three at zero/empty on a v1 profile — the correct historical value, since a profile that predates achievements has, by definition, unlocked none and has no lifetime counters to backfill from.
 
 ## 6. Tests (Acceptance Test Matrix rows Save atomicity test, Meta persistence test)
 

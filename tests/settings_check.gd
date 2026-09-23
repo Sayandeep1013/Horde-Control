@@ -40,16 +40,15 @@ const LAYERS := [
 	"Pickup", "Hazard", "InteractionRadius", "ArenaBounds", "PlayerCollector",
 ]
 
+## D115 (no in-run shop): the eleven console_* actions (console_open,
+## console_cycle_next/prev, console_select_1-7, console_cancel) are removed
+## from project.godot along with the Tower Console itself -- there is no
+## in-run interface left to read them.
 const ACTIONS := [
 	"move_up", "move_down", "move_left", "move_right",
 	"draft_cycle_left", "draft_cycle_right",
 	"draft_select_1", "draft_select_2", "draft_select_3",
-	"confirm", "reroll",
-	"console_open",
-	"console_cycle_next", "console_cycle_prev",
-	"console_select_1", "console_select_2", "console_select_3", "console_select_4",
-	"console_select_5", "console_select_6", "console_select_7",
-	"console_cancel", "pause",
+	"confirm", "reroll", "pause",
 	"debug_overlay_toggle", "debug_pseudoloc_toggle",
 ]
 
@@ -164,18 +163,6 @@ const ACTION_EVENTS := {
 	"draft_select_3": ["key:51:0:0:0:0"],
 	"confirm": ["key:32:0:0:0:0", "key:4194309:0:0:0:0", "mouse:1:0:0:0:0", "joybutton:0"],
 	"reroll": ["key:82:0:0:0:0", "joybutton:2"],
-	# Author decision D107, 2026-09-23: keyboard E, gamepad Y / button index 3.
-	"console_open": ["key:69:0:0:0:0", "joybutton:3"],
-	"console_cycle_next": ["key:4194306:0:0:0:0", "mouse:5:0:0:0:0", "joybutton:12", "joyaxis:3:1.00"],
-	"console_cycle_prev": ["key:4194306:1:0:0:0", "mouse:4:0:0:0:0", "joybutton:11", "joyaxis:3:-1.00"],
-	"console_select_1": ["key:49:0:0:0:0"],
-	"console_select_2": ["key:50:0:0:0:0"],
-	"console_select_3": ["key:51:0:0:0:0"],
-	"console_select_4": ["key:52:0:0:0:0"],
-	"console_select_5": ["key:53:0:0:0:0"],
-	"console_select_6": ["key:54:0:0:0:0"],
-	"console_select_7": ["key:55:0:0:0:0"],
-	"console_cancel": ["key:81:0:0:0:0", "joybutton:1"],
 	"pause": ["key:4194305:0:0:0:0", "joybutton:6"],
 	"debug_overlay_toggle": ["key:4194332:0:0:0:0"],
 	"debug_pseudoloc_toggle": ["key:4194333:0:0:0:0"],

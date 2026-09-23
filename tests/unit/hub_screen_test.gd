@@ -144,6 +144,23 @@ func test_records_button_opens_the_records_overlay() -> void:
 	assert_bool(hub.get_records_panel_for_test().is_active_for_test()).is_true()
 
 
+## D118. Mirrors the Records overlay test above exactly.
+func test_achievements_button_opens_the_achievements_overlay() -> void:
+	var hub: HubScreen = auto_free(HubScreen.new())
+	add_child(hub)
+	assert_bool(hub.get_achievements_panel_for_test().is_active_for_test()).is_false()
+	hub.get_achievements_button_for_test().pressed.emit()
+	assert_bool(hub.get_achievements_panel_for_test().is_active_for_test()).is_true()
+
+
+func test_achievements_back_requested_closes_the_overlay() -> void:
+	var hub: HubScreen = auto_free(HubScreen.new())
+	add_child(hub)
+	hub.get_achievements_button_for_test().pressed.emit()
+	hub.get_achievements_panel_for_test().back_requested.emit()
+	assert_bool(hub.get_achievements_panel_for_test().is_active_for_test()).is_false()
+
+
 func test_skill_tree_back_requested_closes_the_overlay() -> void:
 	var hub: HubScreen = auto_free(HubScreen.new())
 	add_child(hub)

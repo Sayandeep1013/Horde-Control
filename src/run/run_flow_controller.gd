@@ -109,11 +109,13 @@ class_name RunFlowController
 ##   src/ui/hud.gd `_refresh_tower_health()`) is never actually driven by
 ##   the real WaveDirector by anything in this codebase as of this task --
 ##   also named there.
-## - `Console.movement_only_controls_enabled` is a plain exported bool with
-##   no setter command; `SettingsMenu.set_console_ref()` writes it directly,
-##   matching the Console's own header, which already documents this exact
-##   call shape as the pause/settings menu's intended seam.
-## - Wiring `tower_path`/`wave_director_path`/the Console reference/the
+## - D115 (no in-run shop, 2026-09-23): the Tower Console is removed from
+##   runs. `_console`/`set_console_ref()` (this file's own former mirror of
+##   `SettingsMenu`'s toggle onto the Console's `movement_only_controls_
+##   enabled` field) are removed with it -- `SettingsMenu`'s own static
+##   `get_movement_only_controls_enabled()` is the one surviving source of
+##   truth (src/ui/settings_menu.gd's own header).
+## - Wiring `tower_path`/`wave_director_path`/the
 ##   RunInventory instance into the assembled run scene is the
 ##   orchestrator's job (`scenes/prototype.tscn` is outside this task's
 ##   write scope) -- named as a required seam in the P2.14 evidence report,
@@ -153,7 +155,6 @@ var run_end_screen: RunEndScreen = null
 var _tower: Tower = null
 var _wave_director: Object = null
 var _run_inventory: RunInventory = null
-var _console: Console = null
 
 var _pause_authority: Node = PauseAuthority
 var _event_bus: Object = EventBus
@@ -237,8 +238,6 @@ func _build_ui() -> void:
 		pause_menu.main_menu_requested.connect(_on_main_menu_requested)
 	if settings_menu != null:
 		settings_menu.closed.connect(_on_settings_closed)
-		if _console != null:
-			settings_menu.set_console_ref(_console)
 	if run_end_screen != null:
 		run_end_screen.settings_requested.connect(_on_open_settings_from_run_end)
 		run_end_screen.main_menu_requested.connect(_on_main_menu_requested)
@@ -324,12 +323,6 @@ func set_wave_director_for_test(wd: Object) -> void:
 
 func set_run_inventory(inventory: RunInventory) -> void:
 	_run_inventory = inventory
-
-
-func set_console_ref(console: Console) -> void:
-	_console = console
-	if settings_menu != null:
-		settings_menu.set_console_ref(console)
 
 
 func set_pause_authority_for_test(pa: Node) -> void:
@@ -669,7 +662,19 @@ func _end_run(cause: int) -> void:
 ## Meta layer core. `run_summary` keys match `MetaProgress.settle_run()`'s
 ## own documented contract exactly (that file's header): `run_id`,
 ## `sim_time_seconds`, `waves_cleared`, `kills`, `victory`, `abandoned`.
+## D115 (no in-run shop): `scrap_carried` is added -- Scrap has no in-run
+## sink any more, so `settle_run()` converts whatever reaches this point
+## (already zeroed on player death by RunInventory's own listener; see
+## class header, "Reading Scrap only after it is truly final") into Cores.
+## D118 (achievements): `tower_health_fraction` is added -- the Tower's
+## current-health/max-health ratio at the moment the run ends, read
+## directly (never cached), for the "Keeper of the Keep" achievement's own
+## per-run condition.
 func _build_run_summary(victory: bool, abandoned: bool) -> Dictionary:
+	var scrap_carried: int = _run_inventory.scrap_current if _run_inventory != null else 0
+	var tower_health_fraction: float = 1.0
+	if _tower != null and _tower.health != null and _tower.health.max_health > 0.0:
+		tower_health_fraction = _tower.health.get_current_health() / _tower.health.max_health
 	return {
 		"run_id": _run_id,
 		"sim_time_seconds": maxf(0.0, _now() - _run_start_sim_time),
@@ -677,6 +682,8 @@ func _build_run_summary(victory: bool, abandoned: bool) -> Dictionary:
 		"kills": _kill_count,
 		"victory": victory,
 		"abandoned": abandoned,
+		"scrap_carried": scrap_carried,
+		"tower_health_fraction": tower_health_fraction,
 	}
 
 

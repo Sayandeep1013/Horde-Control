@@ -64,20 +64,31 @@ extends Node
 ## itemisation to hand back).
 ##
 ## ## Schema version / migration table
-## `schema_version` is 1; there is no history to migrate FROM yet. A file
-## whose `schema_version` is HIGHER than this code's own `SCHEMA_VERSION`
-## (this build is older than the one that wrote it) is loaded read-only:
-## `flags.read_only_newer_version` is set, and `_save()` refuses to write
-## at all, so a downgrade never clobbers a newer save format. `_migrate()`
-## is the one seam a future schema bump extends (a `match` over
-## `schema_version` applying each step forward in turn, per the
-## save-load skill's own "Version Migration" guidance).
+## `schema_version` is 2 (D118 added lifetime achievement counters -- see
+## below). A file whose `schema_version` is HIGHER than this code's own
+## `SCHEMA_VERSION` (this build is older than the one that wrote it) is
+## loaded read-only: `flags.read_only_newer_version` is set, and `_save()`
+## refuses to write at all, so a downgrade never clobbers a newer save
+## format. `_migrate()` is the one seam a future schema bump extends (a
+## `match` over `schema_version` applying each step forward in turn, per
+## the save-load skill's own "Version Migration" guidance and docs/24
+## section 5's own naming convention, `migrate_N_to_N_plus_1`).
+##
+## ## Schema version 2 (D118, 2026-09-23): lifetime achievement counters
+## Adds three top-level fields: `lifetime_kills` (int), `lifetime_scrap_
+## collected` (int), and `unlocked_achievement_ids` (Array[String]). A v1
+## profile has none of the three; `_migrate_1_to_2()` adds them at zero/
+## empty, which is the correct historical value (a profile that predates
+## achievements has, by definition, unlocked none and has no lifetime
+## counters to backfill from -- the six authored achievements all gate on
+## FUTURE play, never retroactively on past runs this profile already
+## banked Cores for).
 
 signal cores_changed(new_total: int)
 signal rank_changed(node_id: String, new_rank: int)
 signal profile_saved(ok: bool)
 
-const SCHEMA_VERSION: int = 1
+const SCHEMA_VERSION: int = 2
 const PROFILE_FILENAME: String = "profile.json"
 const BACKUP_FILENAME: String = "profile.json.bak"
 const TMP_FILENAME: String = "profile.json.tmp"
@@ -101,6 +112,24 @@ const SETTLEMENT_PER_WAVE_CLEARED_CORES: int = 2
 const SETTLEMENT_KILLS_PER_CORE: int = 25
 const SETTLEMENT_FINAL_WAVE_BONUS_CORES: int = 5
 
+## D115 (no in-run shop): Scrap has no in-run sink any more -- Register >
+## "Meta: Run-End Settlement (prototype)": "Scrap line: floor(scrap_carried
+## / 10) Cores". Floor, matching every other settlement term's own rounding.
+const SETTLEMENT_SCRAP_PER_CORE: int = 10
+
+## D118 (achievements). Register > "Meta: Achievements": "Founder perk
+## (settlement_cores_bonus): +5% Run-End Settlement Cores". Applied here,
+## alongside Prospector's own identical-shape bonus, since settle_run() is
+## already the one place that re-reads live percentage bonuses at
+## settlement time rather than trusting a frozen MetaLoadout snapshot (see
+## this file's own `prospector_fraction` local a few lines below). The
+## "Marksman" perk (`weapon_damage_bonus`, +5% player weapon damage) is a
+## RUN-START bonus instead, applied by `MetaLoadoutApplier` beside Fortress's
+## own identical-shape fixed addition -- its own constant lives there, not
+## here. `hoarder`'s own perk (`bonus_reroll`) needs no constant at all: a
+## flat +1, read directly by `MetaLoadoutApplier`.
+const ACHIEVEMENT_SETTLEMENT_CORES_BONUS: float = 0.05
+
 ## Harness/test-only cmdline flag (mirrors RunFlowController's
 ## `--no-focus-pause` precedent): redirects the save directory away from the
 ## real `user://` for a scripted verification run of the real game (e.g. the
@@ -109,6 +138,7 @@ const SETTLEMENT_FINAL_WAVE_BONUS_CORES: int = 5
 const META_PROFILE_DIR_FLAG_PREFIX: String = "--meta-profile-dir="
 
 var skill_tree: SkillTreeDefinition = preload("res://data/meta/skill_tree.tres")
+var achievement_list: AchievementList = preload("res://data/meta/achievements.tres")
 
 var _base_path: String = "user://"
 var _profile: Dictionary = {}
@@ -177,6 +207,31 @@ func set_fail_after_bak_write_for_test(fail: bool) -> void:
 
 func set_skill_tree_for_test(tree: SkillTreeDefinition) -> void:
 	skill_tree = tree
+
+
+func set_achievement_list_for_test(list: AchievementList) -> void:
+	achievement_list = list
+
+
+## D118. Sets a lifetime counter directly, bypassing settle_run()'s own
+## increment-by-this-run's-contribution arithmetic -- for a test that wants
+## a specific counter value going INTO settlement (e.g. "299 lifetime kills,
+## then settle a 5-kill run to prove the 300th kill crosses the Goblin
+## Slayer threshold") without replaying every prior run that would have
+## produced it.
+func set_lifetime_counter_for_test(key: String, value: int) -> void:
+	if key == "lifetime_kills" or key == "lifetime_scrap_collected":
+		_profile[key] = maxi(0, value)
+
+
+## Grants an achievement directly, bypassing settle_run()'s own metric
+## check -- for a test that needs a specific unlocked-achievement state
+## (e.g. an UNLOCK-gated card's own offerability) without replaying the
+## run that would have earned it. Never called by gameplay code.
+func set_achievement_unlocked_for_test(id: String) -> void:
+	var unlocked: Array = _profile["unlocked_achievement_ids"]
+	if not unlocked.has(id):
+		unlocked.append(id)
 
 
 ## Grants `rank` on `id` directly, bypassing cost/prerequisite checks --
@@ -284,20 +339,43 @@ func _try_parse_file(path: String) -> Variant:
 	return json.data
 
 
-## See class header, "Schema version / migration table." No structural
-## migration exists yet -- `schema_version` has only ever been 1 -- so the
-## only branch that does anything is the "newer than this code" guard.
+## See class header, "Schema version / migration table." Applies each step
+## forward in turn (docs/24 section 5's own `migrate_N_to_N_plus_1` naming),
+## then falls through to the "newer than this code" guard, which stays
+## correct regardless of how many steps ran first (a profile two versions
+## newer than this build is still marked read-only after migrating as far
+## as this code understands).
 func _migrate(data: Dictionary) -> Dictionary:
 	var version: int = int(data.get("schema_version", 0))
+	var d: Dictionary = data
+	if version < 2:
+		d = _migrate_1_to_2(d)
+		version = 2
 	if version > SCHEMA_VERSION:
-		var d: Dictionary = data.duplicate(true)
+		d = d.duplicate(true)
 		var flags: Dictionary = d.get("flags", {})
 		if not (flags is Dictionary):
 			flags = {}
 		flags["read_only_newer_version"] = true
 		d["flags"] = flags
 		return d
-	return data
+	return d
+
+
+## Schema version 2 (D118, 2026-09-23): see class header. A v1 profile
+## (schema_version 0 or 1 -- 0 covers a profile hand-edited to strip the key
+## entirely) gains the three lifetime-achievement fields at their correct
+## historical value: zero/empty, since achievements did not exist yet.
+func _migrate_1_to_2(data: Dictionary) -> Dictionary:
+	var d: Dictionary = data.duplicate(true)
+	if not d.has("lifetime_kills"):
+		d["lifetime_kills"] = 0
+	if not d.has("lifetime_scrap_collected"):
+		d["lifetime_scrap_collected"] = 0
+	if not d.has("unlocked_achievement_ids"):
+		d["unlocked_achievement_ids"] = []
+	d["schema_version"] = 2
+	return d
 
 
 ## See class header, "Reconciliation." Always returns a COMPLETE, freshly
@@ -310,6 +388,22 @@ func _reconcile(data: Dictionary) -> Dictionary:
 	profile["cores"] = clampi(int(data.get("cores", 0)), 0, CORE_WALLET_CAP)
 	profile["lifetime_cores"] = maxi(0, int(data.get("lifetime_cores", 0)))
 	profile["first_hub_seen"] = bool(data.get("first_hub_seen", false))
+	profile["lifetime_kills"] = maxi(0, int(data.get("lifetime_kills", 0)))
+	profile["lifetime_scrap_collected"] = maxi(0, int(data.get("lifetime_scrap_collected", 0)))
+
+	var raw_unlocked: Variant = data.get("unlocked_achievement_ids", [])
+	if raw_unlocked is Array:
+		var unlocked: Array[String] = []
+		for v in (raw_unlocked as Array):
+			var achievement_id: String = String(v)
+			# An id no longer authored (achievements.tres content changed
+			# since this profile was saved) is dropped silently -- unlike a
+			# Skill Tree rank, an unlocked achievement carries no Cores to
+			# refund, so there is nothing here for reconciliation to restore.
+			if achievement_list == null or achievement_list.get_achievement(achievement_id) != null:
+				if not unlocked.has(achievement_id):
+					unlocked.append(achievement_id)
+		profile["unlocked_achievement_ids"] = unlocked
 
 	var records: Variant = data.get("records", {})
 	if records is Dictionary:
@@ -389,6 +483,9 @@ func _fresh_profile() -> Dictionary:
 			"recovered_from_corruption": false,
 			"read_only_newer_version": false,
 		},
+		"lifetime_kills": 0,
+		"lifetime_scrap_collected": 0,
+		"unlocked_achievement_ids": [],
 	}
 
 
@@ -542,6 +639,57 @@ func get_records() -> Dictionary:
 ## already-asserted-on shape.
 func get_lifetime_cores() -> int:
 	return int(_profile.get("lifetime_cores", 0))
+
+
+## D118 (achievements). Read-only queries (Achievements panel, Hub).
+func get_lifetime_kills() -> int:
+	return int(_profile.get("lifetime_kills", 0))
+
+
+func get_lifetime_scrap_collected() -> int:
+	return int(_profile.get("lifetime_scrap_collected", 0))
+
+
+func is_achievement_unlocked(id: String) -> bool:
+	return (_profile.get("unlocked_achievement_ids", []) as Array).has(id)
+
+
+func get_unlocked_achievement_ids() -> Array[String]:
+	var out: Array[String] = []
+	for v in (_profile.get("unlocked_achievement_ids", []) as Array):
+		out.append(String(v))
+	return out
+
+
+## Typed query (UpgradeSystem's own run-start seam:
+## `set_unlocked_card_ids()`, read by `src/integration/prototype_
+## integration.gd` once at run start). Every `unlocks_card_id` named by an
+## unlocked achievement, in authoring order -- an UNLOCK-gated
+## `UpgradeDefinition` (`is_unlock == true`) never offers itself in the
+## Draft unless its `unique_id` appears here.
+func get_unlocked_card_ids() -> Array[String]:
+	var out: Array[String] = []
+	if achievement_list == null:
+		return out
+	for id in get_unlocked_achievement_ids():
+		var achievement: AchievementDefinition = achievement_list.get_achievement(id)
+		if achievement != null and achievement.unlocks_card_id != "":
+			out.append(achievement.unlocks_card_id)
+	return out
+
+
+## Typed query (MetaLoadoutApplier's own run-start seam). True once the
+## achievement naming `perk_id` as its OWN `perk_id` field is unlocked --
+## the reverse lookup of `get_unlocked_card_ids()`, for the three
+## non-card-unlock achievements (Hoarder/Founder/Marksman).
+func has_perk(perk_id: String) -> bool:
+	if achievement_list == null or perk_id == "":
+		return false
+	for id in get_unlocked_achievement_ids():
+		var achievement: AchievementDefinition = achievement_list.get_achievement(id)
+		if achievement != null and achievement.perk_id == perk_id:
+			return true
+	return false
 
 
 func get_flags() -> Dictionary:
@@ -726,11 +874,13 @@ func respec() -> int:
 	return credited
 
 
-## Register > "Meta: Run-End Settlement (prototype)"; D110. Idempotent by
-## `run_summary.run_id` -- see class header, "Idempotent settlement".
-## `run_summary` keys: `run_id: String`, `sim_time_seconds: float`,
-## `waves_cleared: int`, `kills: int`, `victory: bool`, `abandoned: bool`.
-## Commits to disk (via `_save()`) before returning, per the build brief.
+## Register > "Meta: Run-End Settlement (prototype)"; D110/D115/D118.
+## Idempotent by `run_summary.run_id` -- see class header, "Idempotent
+## settlement". `run_summary` keys: `run_id: String`, `sim_time_seconds:
+## float`, `waves_cleared: int`, `kills: int`, `victory: bool`, `abandoned:
+## bool`, `scrap_carried: int` (D115), `tower_health_fraction: float`
+## (D118). Commits to disk (via `_save()`) before returning, per the build
+## brief.
 func settle_run(run_summary: Dictionary) -> Dictionary:
 	var run_id: String = String(run_summary.get("run_id", ""))
 	if run_id != "" and (_profile.get("settled_run_ids", []) as Array).has(run_id):
@@ -752,6 +902,8 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 	var kills: int = maxi(0, int(run_summary.get("kills", 0)))
 	var victory: bool = bool(run_summary.get("victory", false))
 	var abandoned: bool = bool(run_summary.get("abandoned", false))
+	var scrap_carried: int = maxi(0, int(run_summary.get("scrap_carried", 0)))
+	var tower_health_fraction: float = float(run_summary.get("tower_health_fraction", 1.0))
 
 	var minutes: int = int(floor(sim_time / 60.0))
 	var lines: Array = []
@@ -769,16 +921,32 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 	lines.append({"label": "Enemies defeated (%d)" % kills, "amount": kill_cores})
 	subtotal += kill_cores
 
+	# D115 (no in-run shop): Scrap converts to Cores here, its only
+	# remaining sink -- floor(scrap_carried / 10), the same rounding every
+	# other settlement term above uses. `scrap_carried` already reflects the
+	# Scrap cap and loss-on-death rules (RunFlowController reads
+	# RunInventory.scrap_current, which RunInventory itself zeroes on
+	# player death -- see run_flow_controller.gd's own class header,
+	# "Reading Scrap only after it is truly final").
+	var scrap_cores: int = int(floor(float(scrap_carried) / float(SETTLEMENT_SCRAP_PER_CORE)))
+	lines.append({"label": "Scrap (%d)" % scrap_carried, "amount": scrap_cores})
+	subtotal += scrap_cores
+
 	if victory:
 		lines.append({"label": "Wave sequence cleared", "amount": SETTLEMENT_FINAL_WAVE_BONUS_CORES})
 		subtotal += SETTLEMENT_FINAL_WAVE_BONUS_CORES
 
 	var prospector_rank: int = get_rank("prospector")
-	var prospector_fraction: float = float(prospector_rank) * PROSPECTOR_BONUS_PER_RANK
+	var bonus_fraction: float = float(prospector_rank) * PROSPECTOR_BONUS_PER_RANK
+	# D118: Founder's own perk composes additively with Prospector, exactly
+	# like Fortress composes with Stone Walls/Arrow Slits in
+	# MetaLoadoutApplier -- ONE combined fraction, applied once.
+	if has_perk("settlement_cores_bonus"):
+		bonus_fraction += ACHIEVEMENT_SETTLEMENT_CORES_BONUS
 	var total: int = subtotal
-	if prospector_fraction > 0.0:
-		total = int(floor(float(subtotal) * (1.0 + prospector_fraction)))
-		lines.append({"label": "Prospector bonus (+%d%%)" % int(round(prospector_fraction * 100.0)), "amount": total - subtotal})
+	if bonus_fraction > 0.0:
+		total = int(floor(float(subtotal) * (1.0 + bonus_fraction)))
+		lines.append({"label": "Settlement bonus (+%d%%)" % int(round(bonus_fraction * 100.0)), "amount": total - subtotal})
 
 	var cores_before: int = get_cores()
 	var cores_after: int = clampi(cores_before + total, 0, CORE_WALLET_CAP)
@@ -797,6 +965,15 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 
 	_profile["cores"] = cores_after
 	_profile["lifetime_cores"] = int(_profile.get("lifetime_cores", 0)) + maxi(0, total)
+
+	# D118: lifetime counters, updated BEFORE evaluating achievements below,
+	# so a threshold crossed exactly on this run's own contribution unlocks
+	# on the same settlement that crossed it (e.g. 299 lifetime kills + a
+	# 1-kill run reads 300 when Goblin Slayer's own check runs).
+	_profile["lifetime_kills"] = int(_profile.get("lifetime_kills", 0)) + kills
+	_profile["lifetime_scrap_collected"] = int(_profile.get("lifetime_scrap_collected", 0)) + scrap_carried
+
+	var newly_unlocked: Array[Dictionary] = _evaluate_achievements(waves_cleared, victory, tower_health_fraction)
 
 	if run_id != "":
 		var ids: Array = _profile["settled_run_ids"]
@@ -828,6 +1005,7 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 		"new_best_waves": new_best_waves,
 		"new_best_kills": new_best_kills,
 		"new_best_survival_seconds": new_best_survival,
+		"newly_unlocked_achievements": newly_unlocked,
 	}
 	if run_id != "":
 		_settled_breakdown_cache[run_id] = breakdown
@@ -842,7 +1020,45 @@ func _already_settled_breakdown(run_id: String) -> Dictionary:
 		"cores_before": get_cores(), "cores_after": get_cores(),
 		"victory": false, "abandoned": false,
 		"new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
+		"newly_unlocked_achievements": [],
 	}
+
+
+## D118. Checks every authored achievement not already unlocked against
+## this run's own metric (docs: `AchievementDefinition.metric`'s own
+## header). Mutates `unlocked_achievement_ids` for every one newly met and
+## returns each as `{"id": ..., "display_name": ...}`, in authoring order,
+## for the run-end screen's "Achievement unlocked: ..." lines and the
+## breakdown this settlement returns. Lifetime counters (`lifetime_kills`/
+## `lifetime_scrap_collected`) must already reflect THIS run's own
+## contribution before this runs -- see settle_run()'s own call site.
+func _evaluate_achievements(waves_cleared: int, victory: bool, tower_health_fraction: float) -> Array[Dictionary]:
+	var newly_unlocked: Array[Dictionary] = []
+	if achievement_list == null:
+		return newly_unlocked
+	var unlocked: Array = _profile["unlocked_achievement_ids"]
+	for achievement in achievement_list.achievements:
+		if achievement == null or achievement.id == "" or unlocked.has(achievement.id):
+			continue
+		var current_value: float = 0.0
+		match achievement.metric:
+			"lifetime_kills":
+				current_value = float(_profile.get("lifetime_kills", 0))
+			"lifetime_scrap_collected":
+				current_value = float(_profile.get("lifetime_scrap_collected", 0))
+			"run_waves_cleared":
+				current_value = float(waves_cleared)
+			"run_victory":
+				current_value = 1.0 if victory else 0.0
+			"run_tower_health_fraction":
+				current_value = tower_health_fraction
+			_:
+				push_warning("MetaProgress._evaluate_achievements(): unknown metric '%s' on achievement '%s'" % [achievement.metric, achievement.id])
+				continue
+		if current_value >= achievement.threshold:
+			unlocked.append(achievement.id)
+			newly_unlocked.append({"id": achievement.id, "display_name": achievement.display_name})
+	return newly_unlocked
 
 
 ## Build brief item 3. Reads every OWNED node's effect into a fresh
@@ -879,8 +1095,8 @@ func build_run_loadout() -> MetaLoadout:
 				loadout.tower_weapon_damage_bonus = total_value
 			SkillNodeDefinition.EffectKind.TOWER_MAX_SHIELD_PERCENT:
 				loadout.tower_max_shield_bonus = total_value
-			SkillNodeDefinition.EffectKind.TOWER_REPAIR_PRICE_REDUCTION_PERCENT:
-				loadout.repair_price_reduction = total_value
+			SkillNodeDefinition.EffectKind.TOWER_SHIELD_REGEN_RATE_PERCENT:
+				loadout.tower_shield_regen_bonus = total_value
 			SkillNodeDefinition.EffectKind.TOWER_WEAPON_RANGE_PERCENT:
 				loadout.tower_weapon_range_bonus = total_value
 			SkillNodeDefinition.EffectKind.TOWER_FORTRESS_START:
@@ -897,4 +1113,6 @@ func build_run_loadout() -> MetaLoadout:
 				loadout.scrap_cap_bonus = int(round(total_value))
 			SkillNodeDefinition.EffectKind.ECONOMY_WAR_CHEST_START:
 				loadout.war_chest_enabled = true
+			SkillNodeDefinition.EffectKind.ECONOMY_DRAFT_RARITY_LUCK_FLAT:
+				loadout.rarity_luck_points = int(round(total_value))
 	return loadout

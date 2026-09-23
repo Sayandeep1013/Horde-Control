@@ -50,3 +50,13 @@ class_name UpgradeDefinition
 @export var has_recursive_interaction_guard: bool = false ## false = null (no guard defined / not yet filled in); true = recursive_interaction_guard holds the guard rule
 @export var visual_readability_impact: ContractEnums.VisualReadabilityImpact = ContractEnums.VisualReadabilityImpact.None
 @export var performance_cost_category: ContractEnums.PerformanceCostCategory = ContractEnums.PerformanceCostCategory.Light
+
+## D118: true for a card gated behind a lifetime achievement (Piercing
+## Arrows, Multishot, Tower Volley) -- `false` (the default) for every
+## card available in a fresh profile's Draft pool from the first run.
+## `UpgradeSystem.get_offerable_upgrades()`/`get_fallback_card()` never
+## return an `is_unlock` card until `MetaProgress.is_achievement_unlocked()`
+## says so; WHICH achievement unlocks which card is authored once, on the
+## achievement itself (`AchievementDefinition.unlocks_card_id`,
+## data/meta/achievements.tres), not duplicated here.
+@export var is_unlock: bool = false

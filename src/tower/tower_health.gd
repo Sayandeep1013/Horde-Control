@@ -84,6 +84,16 @@ var _base_max_shield: float = 0.0
 ## fraction() below REPLACES this value, it never adds to it.
 var _bonus_max_shield_fraction: float = 0.0
 
+## D115/D117 pool expansion: Reinforced Plating (+15% Tower max health and
+## heal that amount; renamed from the task's own "Reinforce" to avoid
+## colliding with the existing Tower damage fallback card of that name --
+## see data/upgrades/reinforced_plating.tres's own header). Same
+## replace-not-compound contract as `_bonus_max_shield_fraction` above,
+## recomputed from `_base_max_health` (the definition-derived value
+## `configure()` set, untouched by this bonus) every time.
+var _base_max_health: float = 0.0
+var _bonus_max_health_fraction: float = 0.0
+
 var _hurtbox: Hurtbox = null
 var _death_state: DeathState = null
 var _last_damage_sim_time: float = -INF
@@ -138,6 +148,7 @@ func configure(definition: TowerDefinition) -> void:
 	assert(definition.max_health_and_shield_fraction != null, "TowerDefinition.max_health_and_shield_fraction is required")
 	assert(definition.shield_regeneration != null, "TowerDefinition.shield_regeneration is required")
 	max_health = float(definition.max_health_and_shield_fraction.maximum_health)
+	_base_max_health = max_health
 	_base_max_shield = max_health * definition.max_health_and_shield_fraction.base_shield_fraction
 	max_shield = _base_max_shield
 	current_shield = max_shield
@@ -183,6 +194,39 @@ func set_bonus_max_shield_fraction(fraction: float) -> void:
 
 func get_bonus_max_shield_fraction_for_test() -> float:
 	return _bonus_max_shield_fraction
+
+
+## Typed command (D115/D117 pool expansion; Reinforced Plating). Raises
+## max_health by `fraction` over the definition-derived base and heals the
+## Tower by exactly the increase (never beyond the new max) -- the
+## "and heal that amount" half of the card, mirroring Player.heal()'s own
+## overheal-is-discarded rule.
+func set_bonus_max_health_fraction(fraction: float) -> void:
+	if not _configured:
+		return
+	var new_max_health: float = _base_max_health * (1.0 + fraction)
+	var delta: float = new_max_health - max_health
+	_bonus_max_health_fraction = fraction
+	max_health = new_max_health
+	if _death_state != null:
+		_death_state.max_hp = max_health
+		if delta > 0.0:
+			_death_state.current_hp = minf(max_health, _death_state.current_hp + delta)
+	health_changed.emit(get_current_health(), max_health)
+
+
+func get_bonus_max_health_fraction_for_test() -> float:
+	return _bonus_max_health_fraction
+
+
+## Typed command (D115/D117 pool expansion; Repair Kit -- "instantly heal
+## the Tower 25%, repeatable"). Heals a flat amount, clamped to max_health,
+## same overheal-discarded convention as Player.heal().
+func heal(amount: float) -> void:
+	if not _configured or _death_state == null or _death_state.is_dead or amount <= 0.0:
+		return
+	_death_state.current_hp = minf(max_health, _death_state.current_hp + amount)
+	health_changed.emit(get_current_health(), max_health)
 
 
 func is_destroyed() -> bool:

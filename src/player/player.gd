@@ -97,6 +97,34 @@ var _local_velocity: Vector2 = Vector2.ZERO
 var _acceleration_rate_px_per_s2: float = 0.0
 var _deceleration_rate_px_per_s2: float = 0.0
 
+## D115/D117 pool expansion modifier layer (src/upgrade/upgrade_system.gd),
+## mirroring AutoWeapon's own `_damage_multiplier` field comment exactly:
+## `definition.base_speed_px_per_second` is never rewritten by an upgrade;
+## only this multiplier changes, applied fresh every `_movement_step()`
+## call (Swift Feet). REPLACES the previous value, never compounds.
+var _speed_multiplier: float = 1.0
+
+## Vitality (+15% max health and heal that amount). `_base_max_health` is
+## the definition-derived value `_apply_definition()` set, untouched by
+## this bonus, so the bonus recomputes fresh from an unmoving base every
+## time (same shape as TowerHealth.set_bonus_max_health_fraction()).
+var _base_max_health: float = 0.0
+var _max_health_bonus_fraction: float = 0.0
+
+## Magnet (+25% pickup radius/rank). PickupSystem._resolve_magnet_radius_px()
+## reads get_effective_magnet_radius_px() below rather than
+## `definition.magnet_radius_px` directly, so this upgrade never mutates
+## the (possibly SHARED) PlayerDefinition resource -- resource-pattern
+## skill's own anti-pattern warning.
+var _magnet_radius_multiplier: float = 1.0
+
+## Regeneration (heal 1% max health per second per rank, stacks). A plain
+## fraction-per-second, ticked in physics_step() below -- the one upgrade
+## in this pool with genuine per-tick behaviour, which is why it lives on
+## Player (a Node) rather than in UpgradeSystem itself (that file's own
+## header: "No per-tick work of any kind lives in this file").
+var _regen_fraction_per_second: float = 0.0
+
 ## Input buffer state (Register > "Input buffer": 100 ms / 6 ticks, cleared
 ## on pause). See "Input buffer scope" below for why this does NOT feed back
 ## into `_local_velocity`.
@@ -221,7 +249,8 @@ func _apply_definition() -> void:
 		_buffer_duration_seconds = definition.input_buffer.duration_ms / 1000.0
 
 	if death_state != null:
-		death_state.max_hp = float(definition.max_health)
+		_base_max_health = float(definition.max_health)
+		death_state.max_hp = _base_max_health
 		# death_state._ready() already ran (children ready before their
 		# parent) and set current_hp from its own framework default (30.0)
 		# before the line above overwrote max_hp -- reset_for_reuse() is the
@@ -253,8 +282,18 @@ func physics_step(delta: float) -> void:
 	var raw_direction: Vector2 = _raw_input_direction()
 	_update_input_buffer(raw_direction)
 	_movement_step(delta, raw_direction)
+	_regen_step(delta)
 	if _animator != null:
 		_animator.update_visuals(delta, _local_velocity, definition.base_speed_px_per_second if definition != null else 0.0)
+
+
+## D115/D117 pool expansion: Regeneration (heal 1% max health per second per
+## rank, stacks). A no-op at the default 0.0 fraction, matching every other
+## upgrade field's "never taken changes nothing" convention.
+func _regen_step(delta: float) -> void:
+	if _regen_fraction_per_second <= 0.0 or death_state == null or death_state.is_dead:
+		return
+	heal(death_state.max_hp * _regen_fraction_per_second * delta)
 
 
 func _raw_input_direction() -> Vector2:
@@ -295,7 +334,7 @@ func _raw_input_direction() -> Vector2:
 func _movement_step(delta: float, raw_direction: Vector2) -> void:
 	if definition == null:
 		return
-	var target_velocity: Vector2 = raw_direction * definition.base_speed_px_per_second
+	var target_velocity: Vector2 = raw_direction * definition.base_speed_px_per_second * _speed_multiplier
 	var rate: float = _acceleration_rate_px_per_s2 if target_velocity != Vector2.ZERO else _deceleration_rate_px_per_s2
 	_local_velocity = _local_velocity.move_toward(target_velocity, rate * delta)
 
@@ -501,6 +540,62 @@ func heal(amount: float) -> void:
 
 func is_dead() -> bool:
 	return death_state != null and death_state.is_dead
+
+
+# --- D115/D117 pool expansion modifier layer (src/upgrade/upgrade_system.gd) --
+
+## Typed command (Swift Feet). REPLACES the previous multiplier, never
+## compounds -- same contract as AutoWeapon.set_damage_multiplier().
+func set_speed_multiplier(multiplier: float) -> void:
+	_speed_multiplier = multiplier
+
+
+func get_speed_multiplier_for_test() -> float:
+	return _speed_multiplier
+
+
+## Typed command (Vitality). Raises max health by `fraction` over the
+## definition-derived base and heals by exactly the increase -- mirrors
+## TowerHealth.set_bonus_max_health_fraction() exactly.
+func set_max_health_bonus_fraction(fraction: float) -> void:
+	if death_state == null or _base_max_health <= 0.0:
+		return
+	var new_max: float = _base_max_health * (1.0 + fraction)
+	var delta: float = new_max - death_state.max_hp
+	_max_health_bonus_fraction = fraction
+	death_state.max_hp = new_max
+	if delta > 0.0:
+		death_state.current_hp = minf(new_max, death_state.current_hp + delta)
+
+
+func get_max_health_bonus_fraction_for_test() -> float:
+	return _max_health_bonus_fraction
+
+
+## Typed command (Magnet). See `_magnet_radius_multiplier`'s own field
+## comment for why this is a multiplier query, not a resource mutation.
+func set_pickup_radius_multiplier(multiplier: float) -> void:
+	_magnet_radius_multiplier = multiplier
+
+
+## Typed query: PickupSystem._resolve_magnet_radius_px() reads this instead
+## of `definition.magnet_radius_px` directly whenever it is available.
+func get_effective_magnet_radius_px() -> float:
+	if definition == null:
+		return 0.0
+	return float(definition.magnet_radius_px) * _magnet_radius_multiplier
+
+
+## Typed command (Regeneration). A flat fraction of max health healed per
+## second, ticked in `_regen_step()`. Stacks additively across ranks
+## (UpgradeSystem sums `effect_per_rank * rank` before calling this, same
+## C-STACK convention as every other percentage upgrade).
+func set_regen_fraction_per_second(fraction: float) -> void:
+	_regen_fraction_per_second = fraction
+
+
+func get_regen_fraction_per_second_for_test() -> float:
+	return _regen_fraction_per_second
 
 
 # --- Test-only seams (never called by gameplay code) ----------------------

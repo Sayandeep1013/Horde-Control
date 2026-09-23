@@ -134,20 +134,22 @@ func test_tower_max_health_bonus_applies_and_leaves_the_tres_untouched() -> void
 	assert_int(TowerDefinitionResource.max_health_and_shield_fraction.maximum_health).append_failure_message("the shared base.tres must never be mutated").is_equal(original_max_health)
 
 
-func test_masons_kit_reduces_the_repair_price_read_live_by_the_console() -> void:
-	var original_cost: int = TowerDefinitionResource.repair_price.scrap_cost
+## D115 (no in-run shop) removed the Tower Console and its repair price --
+## Mason's Kit is repurposed (MetaLoadout.tower_shield_regen_bonus) to a
+## Tower shield regen RATE bonus instead, folded into a runtime copy of
+## ShieldRegeneration.rate_percent_per_second exactly like every other
+## Tower percentage bonus this file proves (never the shared base.tres).
+func test_masons_kit_raises_the_tower_shield_regen_rate() -> void:
+	var original_rate: float = TowerDefinitionResource.shield_regeneration.rate_percent_per_second
 	var tower: Tower = _make_tower()
 
 	var loadout: MetaLoadout = _loadout()
-	loadout.repair_price_reduction = 0.15
+	loadout.tower_shield_regen_bonus = 0.20 # Mason's Kit, 2 ranks at +10% each
 	MetaLoadoutApplier.apply(loadout, null, tower, null, null, null, null)
 
-	var expected: int = int(round(float(original_cost) * 0.85))
-	# Console.gd reads tower.definition.repair_price.scrap_cost LIVE every
-	# tick (no caching) -- this is the exact same read path, proving the
-	# reassigned `tower.definition` is what a real Console would see.
-	assert_int(tower.definition.repair_price.scrap_cost).is_equal(expected)
-	assert_int(TowerDefinitionResource.repair_price.scrap_cost).is_equal(original_cost)
+	var expected: float = original_rate * 1.20
+	assert_float(tower.health.regen_rate_percent_per_second).is_equal_approx(expected, 0.01)
+	assert_float(TowerDefinitionResource.shield_regeneration.rate_percent_per_second).append_failure_message("the shared base.tres must never be mutated").is_equal_approx(original_rate, 0.001)
 
 
 # --- Fortress (non-scalar head start + D114's own scalar gameplay effect) ----

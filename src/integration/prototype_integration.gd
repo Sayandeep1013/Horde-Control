@@ -61,7 +61,7 @@ class_name PrototypeIntegration
 @export var auto_weapon_path: NodePath = NodePath("Main/Player/AutoWeapon")
 @export var wave_director_path: NodePath = NodePath("Main/WaveDirector")
 
-## Integration task (this pass). PickupSystem/UpgradeSystem/Console's
+## Integration task (this pass). PickupSystem/UpgradeSystem's
 ## NodePath exports are authored directly on their own nodes in
 ## scenes/prototype.tscn (they are plain static paths within the scene,
 ## same convention as WaveDirector's own entity_spawner_path/tower_path/
@@ -69,10 +69,12 @@ class_name PrototypeIntegration
 ## cannot express -- object references (RunInventory is a RefCounted, not
 ## a node), Callables (the capacity providers), per-spawn signal
 ## connections, and the one true run_seed.
+##
+## D115 (no in-run shop): the Tower Console node/path is removed. The only
+## in-run power growth is the Level-Up Draft (`draft_controller_path`).
 @export var pickup_system_path: NodePath = NodePath("Main/PickupSystem")
 @export var upgrade_system_path: NodePath = NodePath("Main/UpgradeSystem")
 @export var draft_controller_path: NodePath = NodePath("DraftInstance")
-@export var console_path: NodePath = NodePath("Console") # see scenes/prototype.tscn's own comment on the Console node: a sibling of Main, not nested inside it -- PROCESS_MODE_ALWAYS under Main is banned
 @export var run_flow_controller_path: NodePath = NodePath("RunFlowController")
 @export var debug_overlay_path: NodePath = NodePath("DebugOverlay")
 
@@ -103,7 +105,6 @@ var _wave_director: Node = null
 var _pickup_system: Node = null
 var _upgrade_system: Node = null
 var _draft_controller: Node = null
-var _console: Node = null
 var _run_flow_controller: Node = null
 var _debug_overlay: Node = null
 
@@ -124,7 +125,6 @@ func _ready() -> void:
 	_pickup_system = get_node_or_null(pickup_system_path)
 	_upgrade_system = get_node_or_null(upgrade_system_path)
 	_draft_controller = get_node_or_null(draft_controller_path)
-	_console = get_node_or_null(console_path)
 	_run_flow_controller = get_node_or_null(run_flow_controller_path)
 	_debug_overlay = get_node_or_null(debug_overlay_path)
 
@@ -142,7 +142,6 @@ func _ready() -> void:
 	_wire_sim_loop()
 	_wire_run_seed()
 	_wire_pickup_system()
-	_wire_console()
 	_wire_run_flow_controller()
 	_wire_wave_director_capacity_and_overlay()
 
@@ -166,6 +165,13 @@ func _apply_meta_loadout() -> void:
 	var pickup_system: PickupSystem = _pickup_system as PickupSystem
 	var run_inventory: RunInventory = pickup_system.run_inventory if pickup_system != null else null
 	MetaLoadoutApplier.apply(loadout, _player, _tower, _auto_weapon as AutoWeapon, run_inventory, _draft_controller as DraftController, _wave_director)
+	# D118: an UNLOCK-gated card (Piercing Arrows, Multishot, Tower Volley)
+	# never appears in this run's Draft pool unless the achievement that
+	# names it is already unlocked -- read once, at run start, same timing
+	# as every other meta-layer application above.
+	var upgrade_system: UpgradeSystem = _upgrade_system as UpgradeSystem
+	if upgrade_system != null:
+		upgrade_system.set_unlocked_card_ids(MetaProgress.get_unlocked_card_ids())
 
 
 ## F05-13. Single source of truth: `run_seed` above. Both consumers are
@@ -202,39 +208,28 @@ func _connect_removed_while_stuck(enemy: EnemyController) -> void:
 		enemy.removed_while_stuck.connect(_pickup_system.handle_enemy_removed_while_stuck)
 
 
-## F05-20: `set_run_inventory()` is a required CODE CALL (RunInventory is a
-## RefCounted, no NodePath can find it) -- without it every Console entry
-## reads 0 Scrap and the Console dwell-detects, builds, and never opens,
-## with no error anywhere. `tower_path`/`player_path`/`upgrade_system_path`/
-## `camera_path` are authored directly on the Console node in the .tscn.
-## SimLoop registration (docs/20 SimLoop order, step 12
-## CONSOLE_CHANNEL_COMPLETION) is flipped here at runtime, matching every
-## other `driven_externally` node this file registers -- never baked into
-## scenes/ui/console.tscn itself (F03-47).
-func _wire_console() -> void:
-	if _console == null:
-		return
-	if _pickup_system != null:
-		_console.set_run_inventory(_pickup_system.run_inventory)
-	if _sim_loop != null:
-		_console.driven_externally = true
-		_sim_loop.register(SimLoop.Step.CONSOLE_CHANNEL_COMPLETION, _console)
+## D115 (no in-run shop): `_wire_console()` (the Tower Console's
+## set_run_inventory()/driven_externally/SimLoop step 12
+## CONSOLE_CHANNEL_COMPLETION wiring) is REMOVED along with the Console
+## itself -- see the class doc addition above. `SimLoop.Step.CONSOLE_
+## CHANNEL_COMPLETION` is left as a named step (docs/20 SimLoop order) in
+## case a future in-run interface reuses the slot; nothing registers
+## against it any more.
 
 
 ## F05-27: `RunFlowController` is instantiated in scenes/prototype.tscn
 ## with `tower_path`/`wave_director_path` already authored (its own
 ## defaults are empty NodePaths with no fallback, unlike this script's
 ## Main/Tower-style defaults, so the .tscn instance sets them explicitly).
-## `set_run_inventory()`/`set_console_ref()` are both required code calls
-## for the same RefCounted/cross-reference reasons `_wire_console()`'s own
-## comment names.
+## `set_run_inventory()` is the required code call for the same
+## RefCounted-cross-reference reason named elsewhere in this file.
+## D115 (no in-run shop): `set_console_ref()` no longer exists -- removed
+## with the Console.
 func _wire_run_flow_controller() -> void:
 	if _run_flow_controller == null:
 		return
 	if _pickup_system != null:
 		_run_flow_controller.set_run_inventory(_pickup_system.run_inventory)
-	if _console != null:
-		_run_flow_controller.set_console_ref(_console)
 
 
 ## F04-04 (debug overlay) + the P2.9 evidence report's capacity seam ("the

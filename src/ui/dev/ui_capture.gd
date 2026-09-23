@@ -94,9 +94,6 @@ func _run() -> void:
 	flow.pause_menu.resume_requested.emit()
 	await _frames(20)
 
-	await _stage_console()
-	await _shot("05_console")
-
 	await _stage_threat_feedback()
 
 	flow._end_run(flow.EndCause.TOWER_DESTROYED)
@@ -104,50 +101,6 @@ func _run() -> void:
 	await _shot("06_run_end")
 
 	get_tree().quit()
-
-
-## Parks the player just outside the Tower's footprint, standing still, with
-## Scrap to spend, and opens the Console via `request_open()` -- CHANGE 1
-## (D107, 2026-09-23) replaced the old automatic dwell-open for the default
-## control scheme with the `console_open` action; see src/ui/console.gd's
-## own class doc, "CHANGE 1."
-func _stage_console() -> void:
-	var console: Console = _proto.get_node("Console") as Console
-	var tower: Node2D = _proto.get_node("Main/Tower") as Node2D
-	var player: Player = _proto.get_node("Main/Player") as Player
-	# phases/UI_PASS/HANDOFF.md, H-01: scenes/prototype.tscn authors the
-	# Console's four NodePaths relative to the scene root, but the Console
-	# resolves them relative to itself, so all four come back null and the
-	# Console can never open in the assembled scene. Until that file is
-	# fixed by its owner, the references are injected here so the Console
-	# can be photographed at all. Said loudly, so nobody reads a Console
-	# screenshot as proof that it opens in the real game.
-	if console._tower == null:
-		print("ui_capture: WARNING Console had no Tower reference in the assembled scene (HANDOFF H-01); injecting references for the screenshot only")
-		console.set_tower_for_test(tower as Tower)
-		console.set_player_for_test(player)
-		console.set_player_weapon_for_test(player.get_node_or_null("AutoWeapon") as AutoWeapon)
-		console.set_upgrade_system_for_test(_proto.get_node_or_null("Main/UpgradeSystem") as UpgradeSystem)
-		console.set_camera_for_test(_proto.get_node_or_null("Main/Player/GameCamera") as GameCamera)
-	if console._run_inventory != null:
-		console._run_inventory.scrap_current = 150
-	player.global_position = tower.global_position + Vector2(130, 40)
-	player.velocity = Vector2.ZERO
-	await get_tree().physics_frame # let the Console's own _physics_process see the player inside the radius at least once
-	if not console.is_open():
-		var opened: bool = console.request_open()
-		if not opened:
-			print("ui_capture: WARNING request_open() failed for the screenshot -- inside=%s affordable=%s" % [
-				console._interaction_radius.is_player_inside() if console._interaction_radius != null else "no-radius",
-				console._has_any_affordable_entry()])
-	await _frames(15)
-	print("ui_capture: console open=%s paused=%s requires_reentry=%s scrap=%d pause_reasons=%s" % [
-		console.is_open(), console.get_paused_for_test(), console.get_requires_reentry_for_test(),
-		console.get_scrap_current_for_test(), str(PauseAuthority.get_active_reasons())])
-	print("ui_capture: console inside=%s velocity=%s affordable=%s driven_externally=%s dead=%s dist=%.0f" % [
-		console._interaction_radius.is_player_inside() if console._interaction_radius != null else "no-radius",
-		player.velocity, console._has_any_affordable_entry(), console.driven_externally,
-		console._player_is_dead, player.global_position.distance_to(tower.global_position)])
 
 
 ## Threat feedback is drawn only while the Tower is taking damage, so it is

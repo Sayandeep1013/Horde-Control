@@ -96,6 +96,11 @@ var _projectile_lifetime_seconds: float = 0.0
 ## again).
 var _damage_multiplier: float = 1.0
 var _range_multiplier: float = 1.0
+## D115/D117 pool expansion: Tower Volley (+10% Tower fire rate/rank; an
+## UNLOCK card). Same replace-not-compound contract as the other two
+## multipliers above; this file's own header note ("no Tower upgrade
+## changes fire rate") predates this card and is superseded by it.
+var _fire_rate_multiplier: float = 1.0
 
 var _origin: Node2D = null
 var _current_target: Node2D = null
@@ -212,6 +217,12 @@ func set_range_multiplier(multiplier: float) -> void:
 	_range_multiplier = multiplier
 
 
+## Typed command (D115/D117 pool expansion; Tower Volley). Same
+## replace-not-compound contract, applied to fire rate.
+func set_fire_rate_multiplier(multiplier: float) -> void:
+	_fire_rate_multiplier = multiplier
+
+
 ## Typed query: the base per-shot damage (from `weapon`) times the
 ## currently-applied upgrade multiplier.
 func get_effective_damage_per_shot() -> float:
@@ -234,16 +245,29 @@ func get_range_multiplier_for_test() -> float:
 	return _range_multiplier
 
 
+func get_fire_rate_multiplier_for_test() -> float:
+	return _fire_rate_multiplier
+
+
+## Typed query: the base fire interval divided by the currently-applied
+## fire-rate multiplier -- a HIGHER multiplier means a SHORTER interval,
+## matching AutoWeapon.get_effective_fire_interval_seconds()'s identical
+## convention.
+func get_effective_fire_interval_seconds() -> float:
+	return (_fire_interval_seconds / _fire_rate_multiplier) if _fire_rate_multiplier > 0.0 else INF
+
+
 ## Integration task -- mirrors src/combat/auto_weapon.gd's own
 ## `get_effective_sheet_dps()` exactly (see that file's comment for the
 ## full reasoning: CombatStats never learns about a Caliber rank once
 ## reported at configure() time, since `set_damage_multiplier()` does not
 ## re-report). No fire-rate multiplier exists on this weapon (Optics
 ## affects range, Caliber affects damage; "no Tower upgrade changes fire
-## rate," per `_fire_interval_seconds`'s own comment a few lines above), so
-## this reads the unmodified base interval directly.
+## rate," per `_fire_interval_seconds`'s own comment a few lines above) --
+## superseded by Tower Volley (D117); reads the fire-rate-adjusted interval.
 func get_effective_sheet_dps() -> float:
-	return get_effective_damage_per_shot() / _fire_interval_seconds if _fire_interval_seconds > 0.0 else 0.0
+	var interval: float = get_effective_fire_interval_seconds()
+	return get_effective_damage_per_shot() / interval if interval > 0.0 else 0.0
 
 
 func _physics_process(_delta: float) -> void:
@@ -255,7 +279,7 @@ func _physics_process(_delta: float) -> void:
 	if _now() < _next_fire_allowed_at:
 		return
 	_fire_at(_current_target)
-	_next_fire_allowed_at = _now() + _fire_interval_seconds # Register/prototype pool: no Tower upgrade changes fire rate; only damage (Caliber) and range (Optics) do
+	_next_fire_allowed_at = _now() + get_effective_fire_interval_seconds() # D117: Tower Volley now also changes fire rate, alongside Caliber (damage) and Optics/Watchtower (range)
 
 
 ## C-TOWERTARGET, transcribed in full in this file's header. Order-

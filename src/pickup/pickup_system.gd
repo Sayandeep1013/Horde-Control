@@ -441,9 +441,15 @@ func step_pickup_movement_and_collection(delta: float) -> void:
 			_despawn_pickup(pickup)
 
 
+## D115/D117 pool expansion (Magnet, +25% pickup radius/rank): reads
+## `Player.get_effective_magnet_radius_px()` (definition value x the live
+## upgrade multiplier) rather than `definition.magnet_radius_px` directly,
+## so a Magnet rank taken mid-run is reflected here on the very next tick
+## without this system ever touching the (possibly shared) PlayerDefinition
+## resource itself.
 func _resolve_magnet_radius_px() -> float:
 	if _player != null and is_instance_valid(_player) and _player.definition != null:
-		return float(_player.definition.magnet_radius_px)
+		return _player.get_effective_magnet_radius_px()
 	return magnet_radius_px_default
 
 

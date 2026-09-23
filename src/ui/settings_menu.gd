@@ -9,13 +9,14 @@ class_name SettingsMenu
 ## the Movement-only controls toggle.
 ##
 ## ## The one thing this file actually controls
-## `Console.movement_only_controls_enabled` (src/ui/console.gd) "already
-## exposes [it] as a plain exported bool, default off" (task brief) -- this
-## file's `_apply_to_console()` sets that field directly, a legitimate
-## typed-property write on a public `@export`ed field the Console's own
-## header already documents as the pause/settings menu's seam
-## (`console.movement_only_controls_enabled = true`), not a new command
-## invented here.
+## `movement_only_controls_enabled` below is the ONE source of truth for the
+## Movement-only controls setting. D115 (no in-run shop) removed the Tower
+## Console, which used to mirror this value onto its own field
+## (`set_console_ref()`, since removed) -- the setting itself survives,
+## since `SkillTreeScreen`'s own movement-only stand-still-buy path
+## (docs/18 > "Buying, and respec") reads it through the static
+## `get_movement_only_controls_enabled()` query below, independent of any
+## Console reference.
 ##
 ## ## "Temporary debug persistence" (task brief, P2.14 inputs), named as an
 ## interpretation
@@ -25,8 +26,8 @@ class_name SettingsMenu
 ## this setting to persist ACROSS. Rather than invent a save file this
 ## task's own hard constraints forbid, the toggle's value is kept on this
 ## script's own field for as long as ONE `SettingsMenu` instance lives
-## (surviving a Console being freed and re-wired, or a run ending and a
-## fresh RunEndScreen/PauseMenu opening this same instance again), and
+## (surviving a run ending and a fresh RunEndScreen/PauseMenu opening this
+## same instance again), and
 ## `_STATIC_LAST_VALUE` additionally remembers it at the CLASS level so a
 ## brand-new `SettingsMenu` instance (e.g. one built by a fresh
 ## RunFlowController for a new run, in-process) starts from whatever the
@@ -77,8 +78,6 @@ static var _static_last_value: bool = false # see class header, "Temporary debug
 
 var movement_only_controls_enabled: bool = false
 
-var _console: Console = null
-
 var _root: Control
 var _bar: PausedChoiceBar
 var _fill_ring: DraftFillRing
@@ -101,27 +100,6 @@ func _ready() -> void:
 	movement_only_controls_enabled = _static_last_value
 	_build_ui()
 	_refresh_toggle_label()
-
-
-## Typed command. The orchestrator (whoever assembles the run scene) calls
-## this once with the real Console instance so this menu's toggle can
-## actually reach it; a test calls the same seam under its usual
-## `_for_test` name for symmetry with the rest of this codebase's
-## convention, but this is production wiring, not merely a test double --
-## matching src/ui/console.gd's own `set_run_inventory()` (a "typed
-## COMMAND, not merely a test seam").
-func set_console_ref(console: Console) -> void:
-	_console = console
-	if _console != null:
-		_console.movement_only_controls_enabled = movement_only_controls_enabled
-
-
-func set_console_ref_for_test(console: Console) -> void:
-	set_console_ref(console)
-
-
-func get_console_ref_for_test() -> Console:
-	return _console
 
 
 ## The card's own fade/scale-in (UI pass) is purely cosmetic and runs
@@ -149,23 +127,23 @@ func get_movement_only_controls_enabled_for_test() -> bool:
 
 
 ## Public static read of the process-lifetime setting (see class header,
-## "Temporary debug persistence") -- the SAME source `Console.
-## movement_only_controls_enabled` is itself seeded from in `_ready()`
-## above. Exposed here so a screen with no Console reference of its own
-## (e.g. the Hub's Skill Tree screen: there is no run in progress, hence no
-## Console, while the player is in the Hub) can still read the player's
-## last choice instead of inventing a second copy of it (blind review of
-## the meta layer, finding #1: the Skill Tree's own movement-only
-## stand-still purchase path must read the SAME setting Console reads, not
-## always be on).
+## "Temporary debug persistence"). Exposed here so a screen with no
+## SettingsMenu instance of its own (e.g. the Hub's Skill Tree screen:
+## there is no run in progress while the player is in the Hub) can still
+## read the player's last choice instead of inventing a second copy of it
+## (blind review of the meta layer, finding #1: the Skill Tree's own
+## movement-only stand-still purchase path must read the SAME setting this
+## menu's toggle writes, not always be on). D115 (no in-run shop) removed
+## the Tower Console, which used to be a second mirror of this value; this
+## static remains the one source of truth.
 static func get_movement_only_controls_enabled() -> bool:
 	return _static_last_value
 
 
 ## Test seam: sets the process-lifetime static directly, for a test that
 ## checks a movement-only-gated behaviour in ANOTHER screen (e.g.
-## SkillTreeScreen) without instantiating a whole SettingsMenu/Console
-## pair. This is a STATIC (class-level, process-lifetime) value shared by
+## SkillTreeScreen) without instantiating a whole SettingsMenu instance.
+## This is a STATIC (class-level, process-lifetime) value shared by
 ## every test file that runs in the same headless process -- any test that
 ## calls this MUST reset it to false in its own `after_test()`.
 static func set_movement_only_controls_enabled_for_test(enabled: bool) -> void:
@@ -182,8 +160,6 @@ func _on_option_confirmed(index: int) -> void:
 func _toggle_movement_only() -> void:
 	movement_only_controls_enabled = not movement_only_controls_enabled
 	_static_last_value = movement_only_controls_enabled
-	if _console != null:
-		_console.movement_only_controls_enabled = movement_only_controls_enabled
 	_refresh_toggle_label()
 
 
