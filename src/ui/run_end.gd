@@ -75,9 +75,16 @@ class_name RunEndScreen
 
 signal settings_requested()
 signal main_menu_requested()
+## Meta layer core (build brief item 4): "Add a run-end 'Continue' choice
+## that goes to the Hub scene." `RunFlowController._on_continue_requested()`
+## is the one caller, exactly like `settings_requested`/`main_menu_requested`
+## above -- this file only reports which option the player picked and owns
+## no scene-change logic of its own.
+signal continue_requested()
 
-const OPTION_SETTINGS: int = 0
-const OPTION_MAIN_MENU: int = 1
+const OPTION_CONTINUE: int = 0
+const OPTION_SETTINGS: int = 1
+const OPTION_MAIN_MENU: int = 2
 
 ## Above src/ui/hud.gd (10) / src/ui/threat_feedback.gd (11); same tier as
 ## src/ui/pause_menu.gd (18) since the two are mutually exclusive by
@@ -97,6 +104,12 @@ var _time_label: Label
 var _frame: MenuFrame.Parts
 var _outcome_glyph: OutcomeGlyph
 var _wave_cell: PanelContainer ## the Wave stat cell; kept in sync with _wave_label's own visibility (UI pass) -- see show_summary(). A cell with no visible child sizes to ~0 in the grid rather than leaving an empty panel.
+
+## Meta layer core (build brief item 4). Plain, unstyled data display for
+## now -- see class header note below and this task's own instruction
+## ("render it plainly for now ... the screen agent will style it"). Built
+## once in `_build_ui()`; populated/cleared by `set_settlement()`.
+var _settlement_box: VBoxContainer
 
 ## Round 2 (LEDGER UR-14): 220 was measured too tight for the widest cell.
 ## "Time survived: 0:03" (the shortest, most common time reading) alone
@@ -196,10 +209,58 @@ func get_time_label_for_test() -> Label:
 
 
 func _on_option_confirmed(index: int) -> void:
-	if index == OPTION_SETTINGS:
+	if index == OPTION_CONTINUE:
+		continue_requested.emit()
+	elif index == OPTION_SETTINGS:
 		settings_requested.emit()
 	elif index == OPTION_MAIN_MENU:
 		main_menu_requested.emit()
+
+
+## Meta layer core (build brief item 4): "pass the breakdown to the run-end
+## screen via a data setter ... render it plainly for now (a few labels:
+## each line and total, NEW BEST markers)." `breakdown` is exactly what
+## `MetaProgress.settle_run()` returns (that file's own header documents the
+## shape): `lines` (Array of {label, amount} Dictionaries), `total_cores`,
+## `new_best_waves`/`new_best_kills`/`new_best_survival_seconds` (bool), and
+## `already_settled` (true only for a cross-process idempotent replay with
+## no itemisation to show). Plain Labels, no theme work -- the screen agent
+## restyles this box; `get_settlement_box_for_test()` below is the seam it
+## can read to confirm this data landed before restyling it.
+func set_settlement(breakdown: Dictionary) -> void:
+	for child in _settlement_box.get_children():
+		child.queue_free()
+	var lines: Array = breakdown.get("lines", [])
+	if lines.is_empty():
+		_settlement_box.visible = false
+		return
+	_settlement_box.visible = true
+	for entry in lines:
+		var line: Dictionary = entry
+		var amount: int = int(line.get("amount", 0))
+		var label := Label.new()
+		label.text = "%s: %s%d" % [String(line.get("label", "")), "+" if amount >= 0 else "", amount]
+		_settlement_box.add_child(label)
+	var total_label := Label.new()
+	total_label.name = "SettlementTotal"
+	total_label.text = "Cores earned: %d" % int(breakdown.get("total_cores", 0))
+	_settlement_box.add_child(total_label)
+	if bool(breakdown.get("new_best_waves", false)):
+		_settlement_box.add_child(_make_settlement_label("NEW BEST -- waves cleared"))
+	if bool(breakdown.get("new_best_kills", false)):
+		_settlement_box.add_child(_make_settlement_label("NEW BEST -- enemies defeated"))
+	if bool(breakdown.get("new_best_survival_seconds", false)):
+		_settlement_box.add_child(_make_settlement_label("NEW BEST -- time survived"))
+
+
+func _make_settlement_label(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	return label
+
+
+func get_settlement_box_for_test() -> VBoxContainer:
+	return _settlement_box
 
 
 static func _format_time(total_seconds: float) -> String:
@@ -266,9 +327,25 @@ func _build_ui() -> void:
 	_time_label.theme_type_variation = UiTheme.VALUE
 	time_cell.add_child(_time_label)
 
+	# Meta layer core: plain, unstyled settlement display -- see
+	# set_settlement()'s own header. No UiTheme variation applied
+	# deliberately (this task's instruction: "the screen agent will style
+	# it"); hidden until set_settlement() has real lines to show.
+	_settlement_box = VBoxContainer.new()
+	_settlement_box.name = "SettlementBox"
+	_settlement_box.visible = false
+	_frame.column.add_child(_settlement_box)
+
 	_bar = PausedChoiceBar.new()
 	_bar.name = "ChoiceBar"
-	_bar.set_options([tr("RUN_END_SETTINGS"), tr("RUN_END_MAIN_MENU")])
+	# Meta layer core (build brief item 4): "Continue" is a new first choice
+	# -> the Hub (see `continue_requested`'s own header). No tr() key exists
+	# for it yet -- src/ui/theme/ui_strings.gd (where RUN_END_SETTINGS/
+	# RUN_END_MAIN_MENU are registered) is off limits this session (HUD
+	# visuals agent's exclusive scope, per this task's hard constraints) --
+	# a plain literal, exactly like ABANDONED's cause_text in
+	# run_flow_controller.gd, named as the same follow-up seam.
+	_bar.set_options(["Continue", tr("RUN_END_SETTINGS"), tr("RUN_END_MAIN_MENU")])
 	_bar.option_confirmed.connect(_on_option_confirmed)
 	_frame.column.add_child(_bar)
 	MenuFrame.style_choice_labels(_bar)

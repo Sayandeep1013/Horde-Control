@@ -46,6 +46,15 @@ var xp_required_for_next_level: float = 1.0 # placeholder until configure() runs
 var _xp_level_cost: XpLevelCost = null
 var _event_bus: Object = null
 
+## Meta layer core (Scholar node). MASTER_SDLC.md > Provisional Values
+## Register > "Meta: Skill Tree effects": "Scholar +10% XP from shards (3)".
+## Set once at run start by `MetaLoadoutApplier`; REPLACES (never compounds)
+## on a repeat call, matching this project's own C-STACK "one already-summed
+## multiplier" convention (src/combat/auto_weapon.gd's `set_damage_
+## multiplier()` header). Defaults to 1.0 (no bonus), so every existing
+## caller that never sets this is unaffected.
+var _xp_gain_multiplier: float = 1.0
+
 
 func configure(economy: EconomyConfiguration, event_bus: Object = EventBus) -> void:
 	assert(economy != null, "RunInventory.configure() requires a real EconomyConfiguration")
@@ -125,9 +134,31 @@ func is_scrap_full() -> bool:
 ## itself is out of this task's scope).
 var _level_up_requested: bool = false
 
+## Typed command (Meta layer core). Also usable directly from a test.
+func set_xp_gain_multiplier(multiplier: float) -> void:
+	_xp_gain_multiplier = multiplier
+
+
+## Typed command (Meta layer core, War Chest node). MASTER_SDLC.md >
+## Provisional Values Register > "Meta: Skill Tree effects": "War Chest:
+## start at level 1 ... when the first wave begins". Mirrors
+## src/ui/draft_controller.gd's own `_grant_forced_level()` shape (also
+## authored for the master's forced-first-level rule): raises `level` if it
+## has not already reached `level_value` from a real level-up, recomputes
+## `xp_required_for_next_level` from the new level, and leaves `xp_current`
+## untouched. Defensive against lowering a level a real level-up already
+## reached, exactly like the Draft's own version.
+func grant_meta_starting_level(level_value: int) -> void:
+	if level < level_value:
+		level = level_value
+	if _xp_level_cost != null:
+		xp_required_for_next_level = float(_xp_level_cost.compute_level_cost(level))
+
+
 func credit_xp(amount: float) -> void:
 	if amount <= 0.0:
 		return
+	amount *= _xp_gain_multiplier
 	xp_current += amount
 	if _xp_level_cost == null:
 		return # no curve configured yet (defensive; every real spawn calls configure() first)

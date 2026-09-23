@@ -477,8 +477,11 @@ func _make_panel_title(text: String) -> Label:
 
 # --- Button / panel handlers ---------------------------------------------
 
+## Meta layer core (decision D109: "Title Play now opens the Hub"). Prototype
+## runs are started from the Hub's own "Start Run" button
+## (src/ui/hub_screen.gd), not directly from here any more.
 func _on_play_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/prototype.tscn")
+	get_tree().change_scene_to_file("res://scenes/hub.tscn")
 
 
 func _on_controls_pressed() -> void:
