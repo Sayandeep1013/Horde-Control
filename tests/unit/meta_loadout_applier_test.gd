@@ -17,6 +17,7 @@ const EntityRegistryScript: GDScript = preload("res://src/core/entity_registry.g
 const PlayerDefinitionResource: PlayerDefinition = preload("res://data/player/prototype.tres")
 const HandgunResource: WeaponDefinition = preload("res://data/weapons/handgun.tres")
 const TowerDefinitionResource: TowerDefinition = preload("res://data/tower/base.tres")
+const TowerWeaponResource: WeaponDefinition = preload("res://data/tower/base_weapon.tres")
 
 var _registry: Node
 
@@ -94,6 +95,30 @@ func test_player_weapon_damage_bonus_applies_to_the_effective_damage_and_leaves_
 	assert_int(HandgunResource.damage_band.value).append_failure_message("the shared handgun.tres damage_band must never be mutated").is_equal(original_damage)
 
 
+## docs/18 section 6 edge case: a percentage-bonus meta node and the
+## matching in-run upgrade both apply to the same stat (Sharpened Arrows and
+## Rapid Fire, both weapon damage) compose as `base x (1 + meta) x (1 +
+## upgrade)`, not `base x (1 + meta + upgrade)`: the meta bonus is folded
+## into the weapon's BASE value (this file's own application seam) BEFORE
+## `AutoWeapon.set_damage_multiplier()` (the run's own, separate,
+## REPLACE-not-compound upgrade channel) ever reads it.
+func test_meta_weapon_damage_bonus_and_an_in_run_upgrade_multiplier_compose_multiplicatively_not_additively() -> void:
+	var original_damage: int = HandgunResource.damage_band.value
+	var player: Player = _make_player()
+	var weapon: AutoWeapon = player.get_node("AutoWeapon") as AutoWeapon
+	await get_tree().physics_frame
+
+	var loadout: MetaLoadout = _loadout()
+	loadout.player_weapon_damage_bonus = 0.08 # Sharpened Arrows, rank 1
+	MetaLoadoutApplier.apply(loadout, player, null, weapon, null, null, null)
+	var meta_base: int = int(round(float(original_damage) * 1.08)) # folded into the base, exactly as test_player_weapon_damage_bonus_... above already proves
+
+	weapon.set_damage_multiplier(1.25) # an in-run upgrade (e.g. Rapid Fire), applied AFTER the meta bonus already reshaped the base
+
+	var expected: float = float(meta_base) * 1.25 # base x (1+meta) x (1+upgrade), NOT base x (1 + 0.08 + 0.25)
+	assert_float(weapon.get_effective_damage_per_shot()).append_failure_message("meta and in-run upgrade bonuses to the same stat must MULTIPLY, not add (docs/18 section 6)").is_equal_approx(expected, 0.01)
+
+
 # --- Tower branch: max health, repair price ----------------------------------
 
 func test_tower_max_health_bonus_applies_and_leaves_the_tres_untouched() -> void:
@@ -125,7 +150,7 @@ func test_masons_kit_reduces_the_repair_price_read_live_by_the_console() -> void
 	assert_int(TowerDefinitionResource.repair_price.scrap_cost).is_equal(original_cost)
 
 
-# --- Fortress (non-scalar) ----------------------------------------------------
+# --- Fortress (non-scalar head start + D114's own scalar gameplay effect) ----
 
 func test_fortress_advances_the_tower_one_evolution_stage_at_run_start() -> void:
 	var tower: Tower = _make_tower()
@@ -136,6 +161,57 @@ func test_fortress_advances_the_tower_one_evolution_stage_at_run_start() -> void
 	MetaLoadoutApplier.apply(loadout, null, tower, null, null, null, null)
 
 	assert_int(tower.evolution_stage.get_current_stage()).append_failure_message("Fortress should start the Tower one stage up from Base").is_equal(1)
+
+
+## Blind review finding #2 / decision D114: the evolution-stage head start
+## alone changes only the Tower's art in the prototype, which reads as a bug
+## for a 30-Core capstone -- Fortress must ALSO raise Tower max health and
+## Tower weapon damage by +20% each, applied to a runtime copy exactly like
+## Stone Walls/Arrow Slits, leaving the authored .tres resources untouched.
+##
+## FALSIFICATION (named in the report): temporarily deleting the
+## `if loadout.fortress_enabled:` block that adds `FORTRESS_TOWER_MAX_
+## HEALTH_BONUS`/`FORTRESS_TOWER_WEAPON_DAMAGE_BONUS` in `MetaLoadoutApplier.
+## _apply_tower()` made this test fail (both assertions read the un-boosted
+## base values). Reverted after confirming the failure.
+func test_fortress_also_raises_tower_max_health_and_weapon_damage_by_20_percent() -> void:
+	var original_max_health: int = TowerDefinitionResource.max_health_and_shield_fraction.maximum_health
+	var original_damage: int = TowerWeaponResource.damage_band.value
+	var tower: Tower = _make_tower()
+	var weapon: TowerWeapon = tower.get_node("TowerWeapon") as TowerWeapon
+
+	var loadout: MetaLoadout = _loadout()
+	loadout.fortress_enabled = true
+	MetaLoadoutApplier.apply(loadout, null, tower, null, null, null, null)
+
+	var expected_health: float = float(original_max_health) * 1.20
+	var expected_damage: int = int(round(float(original_damage) * 1.20))
+	assert_float(tower.health.max_health).append_failure_message("Fortress (D114) should raise the runtime copy's max health by +20%%").is_equal_approx(expected_health, 1.0)
+	assert_float(weapon.get_effective_damage_per_shot()).append_failure_message("Fortress (D114) should raise the Tower's effective weapon damage by +20%%").is_equal_approx(float(expected_damage), 0.01)
+
+	assert_int(TowerDefinitionResource.max_health_and_shield_fraction.maximum_health).append_failure_message("the shared base.tres must never be mutated").is_equal(original_max_health)
+	assert_int(TowerWeaponResource.damage_band.value).append_failure_message("the shared base_weapon.tres must never be mutated").is_equal(original_damage)
+
+
+## Fortress' +20%%/+20%% must ADD to Stone Walls'/Arrow Slits' own bonuses to
+## the SAME stat (Register: "percentages add ... and multiply the base
+## once"), not silently overwrite or ignore them.
+func test_fortress_bonus_composes_additively_with_stone_walls_and_arrow_slits() -> void:
+	var original_max_health: int = TowerDefinitionResource.max_health_and_shield_fraction.maximum_health
+	var original_damage: int = TowerWeaponResource.damage_band.value
+	var tower: Tower = _make_tower()
+	var weapon: TowerWeapon = tower.get_node("TowerWeapon") as TowerWeapon
+
+	var loadout: MetaLoadout = _loadout()
+	loadout.fortress_enabled = true
+	loadout.tower_max_health_bonus = 0.10 # Stone Walls, rank 1
+	loadout.tower_weapon_damage_bonus = 0.10 # Arrow Slits, rank 1
+	MetaLoadoutApplier.apply(loadout, null, tower, null, null, null, null)
+
+	var expected_health: float = float(original_max_health) * 1.30 # 0.20 (Fortress) + 0.10 (Stone Walls), multiplied once
+	var expected_damage: int = int(round(float(original_damage) * 1.30))
+	assert_float(tower.health.max_health).append_failure_message("Fortress must ADD to Stone Walls, not replace or ignore it").is_equal_approx(expected_health, 1.0)
+	assert_float(weapon.get_effective_damage_per_shot()).append_failure_message("Fortress must ADD to Arrow Slits, not replace or ignore it").is_equal_approx(float(expected_damage), 0.01)
 
 
 # --- Economy branch: starting Scrap, scrap cap, XP gain -----------------------
@@ -262,6 +338,37 @@ func test_second_wind_saves_the_player_once_then_lets_a_second_lethal_hit_kill()
 
 	assert_bool(player.apply_damage(max_hp * 10.0)).is_true()
 	assert_bool(player.death_state.is_dead).append_failure_message("Second Wind is once per run -- the second lethal hit must kill normally").is_true()
+
+
+## docs/18 section 6 edge case: "Second Wind and Tower death: Second Wind
+## protects only the player; the Tower's death still ends the run." Proves
+## Second Wind grants the Tower no protection whatsoever -- a lethal hit on
+## the TOWER kills it exactly as normal, whether or not the player's own
+## (still-unused) Second Wind charge is active.
+##
+## FALSIFICATION (named in the report): temporarily making `Player.
+## set_second_wind_available()` also call a (nonexistent-in-production)
+## `tower.death_state.set_second_wind_available(true)` -- i.e. simulating
+## the bug this test guards against -- made `tower.death_state.is_dead`
+## read false after the lethal hit below. Reverted after confirming the
+## failure (no such call exists in `MetaLoadoutApplier._apply_player()`;
+## it only ever touches `player`).
+func test_second_wind_does_not_protect_the_tower_from_lethal_damage() -> void:
+	var player: Player = _make_player()
+	var tower: Tower = _make_tower()
+
+	var loadout: MetaLoadout = _loadout()
+	loadout.second_wind_enabled = true
+	MetaLoadoutApplier.apply(loadout, player, tower, null, null, null, null)
+
+	assert_bool(tower.death_state.is_dead).is_false()
+	tower.hurtbox.receive_hit(auto_free(Node.new()), tower.health.max_health * 10.0, "test_lethal")
+	assert_bool(tower.death_state.is_dead).append_failure_message("the Tower must die normally even while the player's own Second Wind charge is active and unused -- Second Wind protects the player only").is_true()
+
+	# The player's own Second Wind is untouched by the Tower's death.
+	var max_hp: float = player.death_state.max_hp
+	assert_bool(player.apply_damage(max_hp * 10.0)).is_true()
+	assert_bool(player.death_state.is_dead).append_failure_message("the Tower dying must not consume or disable the player's own Second Wind charge").is_false()
 
 
 # --- Idempotence for an all-zero loadout (every existing test's own scenario) -

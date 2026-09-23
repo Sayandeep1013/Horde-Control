@@ -177,6 +177,123 @@ func test_reconcile_refunds_a_rank_above_current_max_and_clamps_it() -> void:
 	assert_int(MetaProgress.get_cores()).append_failure_message("ranks 3-5 (no longer purchasable) must be refunded in Cores").is_equal(expected_refund)
 
 
+# --- last_save_failed lifecycle (finding #3) -----------------------------------
+
+## FALSIFICATION (named in the report): reverting `_save()` to set
+## `last_save_failed` only AFTER `_write_atomic()` (the pre-fix ordering)
+## made the LAST assertion below fail: a successful save persisted the
+## PREVIOUS attempt's failure flag to disk (`_write_atomic()` serialises
+## `_profile` verbatim, before the post-write update ever ran). Reverted
+## after confirming the failure.
+func test_a_failed_save_sets_last_save_failed_and_a_later_successful_save_clears_it_on_disk() -> void:
+	_settle("flag_1", 60.0, 1, 25) # a real, successful save
+	assert_bool(MetaProgress.get_flags()["last_save_failed"]).is_false()
+
+	MetaProgress.set_fail_after_tmp_write_for_test(true)
+	MetaProgress.buy("vitality") # in-memory purchase succeeds; the save attempt fails
+	assert_bool(MetaProgress.get_flags()["last_save_failed"]).append_failure_message("a failed save must set the warning flag").is_true()
+	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("the in-memory purchase must still apply even though the save failed").is_equal(1)
+
+	MetaProgress.set_fail_after_tmp_write_for_test(false)
+	assert_bool(MetaProgress.buy("swift_boots")).append_failure_message("the next save point (docs/18: retry succeeds at the next save point)").is_true()
+	assert_bool(MetaProgress.get_flags()["last_save_failed"]).append_failure_message("a successful save must clear the in-memory warning flag").is_false()
+
+	MetaProgress.reload_for_test() # re-reads from disk -- proves the clear was actually WRITTEN, not merely held in memory
+	assert_bool(MetaProgress.get_flags()["last_save_failed"]).append_failure_message("a successful save must persist last_save_failed=false to disk -- it must never carry the PREVIOUS attempt's failure into a successful write's own file").is_false()
+
+
+# --- Never back up a file that failed to parse (finding #4) --------------------
+
+## FALSIFICATION (named in the report): temporarily removing the
+## `_try_parse_file(real_path) is Dictionary` re-validation in
+## `_write_atomic()` (unconditionally copying `real_path` to `.bak` again,
+## the pre-fix behaviour) made the middle assertion below fail -- the good
+## `.bak` from `precorrupt_2` was overwritten with the corrupt content still
+## sitting in `profile.json` at the time of the next save. Reverted after
+## confirming the failure.
+func test_a_corrupt_profile_on_disk_is_never_copied_into_bak_by_a_later_save() -> void:
+	_settle("precorrupt_1", 120.0, 2, 50) # state A: profile.json only (no .bak yet)
+	_settle("precorrupt_2", 120.0, 2, 50) # state B: profile.json=B, profile.json.bak=A (the "good .bak")
+	var good_bak: Variant = _read_raw("profile.json.bak")
+	assert_bool(good_bak is Dictionary).append_failure_message("fixture setup: a real .bak must exist before profile.json is corrupted").is_true()
+
+	# Something corrupts profile.json OUTSIDE this process's own atomic-write
+	# path (disk corruption, a hand-edit, another process) -- the exact
+	# scenario `_load_from_disk()` already recovers from via `.bak`. The bug
+	# (finding #4): profile.json itself is NEVER touched by that recovery
+	# (only read), so it stays corrupt on disk until the NEXT save -- which
+	# used to copy it straight over the one good `.bak`, destroying it.
+	_corrupt_file("profile.json")
+	MetaProgress.reload_for_test() # recovers from .bak (state A); profile.json on disk is STILL corrupt
+	assert_bool(MetaProgress.get_flags()["recovered_from_corruption"]).is_true()
+
+	assert_bool(MetaProgress.buy("vitality")).append_failure_message("fixture setup: state A must afford at least one rank").is_true() # the next save point
+
+	var bak_after: Variant = _read_raw("profile.json.bak")
+	assert_bool(bak_after == good_bak).append_failure_message("a save must never back up a profile.json that failed to parse -- it must leave the last GOOD .bak untouched").is_true()
+	assert_bool(_read_raw("profile.json") is Dictionary).append_failure_message("the save itself must still succeed and produce a valid profile.json").is_true()
+
+
+# --- Missing profile.json with a surviving, parseable .tmp (finding #5) --------
+
+## FALSIFICATION (named in the report): temporarily removing the new
+## `FileAccess.file_exists(tmp_path)` fallback branch in `_load_from_disk()`
+## (falling straight through to `.bak`, the pre-fix behaviour) made the
+## final assertion fail -- the reload landed on stale pre-purchase Cores
+## from `.bak` instead of the newer, complete `.tmp` write. Reverted after
+## confirming the failure.
+func test_missing_profile_json_with_a_parseable_tmp_loads_from_the_tmp() -> void:
+	_settle("tmp_recovery_1", 300.0, 2, 60) # state A on disk (profile.json only)
+
+	MetaProgress.set_fail_after_tmp_write_for_test(true)
+	MetaProgress.buy("vitality") # writes profile.json.tmp fully (state A + purchase), then the injected failure fires before .bak/rename
+	var cores_with_purchase: int = MetaProgress.get_cores() # in-memory only so far
+
+	# Reproduces finding #5's exact scenario: `DirAccess.rename()` is not
+	# guaranteed atomic on every platform (Register > "Meta: Save profile";
+	# Windows in particular) -- profile.json is GONE (whatever a
+	# non-atomic rename left behind) while profile.json.tmp is still sitting
+	# there, fully written and parseable: the newest COMPLETE write.
+	var dir: DirAccess = DirAccess.open(_dir)
+	assert_object(dir).is_not_null()
+	assert_int(dir.remove(MetaProgress.PROFILE_FILENAME)).append_failure_message("fixture setup: profile.json must exist to remove").is_equal(OK)
+	MetaProgress.set_fail_after_tmp_write_for_test(false)
+
+	MetaProgress.reload_for_test()
+
+	assert_int(MetaProgress.get_cores()).append_failure_message("a missing profile.json with a fully-written, parseable .tmp must load from the .tmp -- it is the newest complete write, newer than .bak").is_equal(cores_with_purchase)
+	assert_int(MetaProgress.get_rank("vitality")).is_equal(1)
+
+
+# --- Newer-schema profile loads read-only and is never overwritten (finding #7) -
+
+func test_a_newer_schema_profile_loads_read_only_and_is_never_overwritten() -> void:
+	DirAccess.make_dir_recursive_absolute(_dir)
+	var f: FileAccess = FileAccess.open(_dir.path_join("profile.json"), FileAccess.WRITE)
+	f.store_string(JSON.stringify({
+		"schema_version": MetaProgress.SCHEMA_VERSION + 1, "cores": 777, "lifetime_cores": 777,
+		"tree_ranks": {}, "records": {}, "settled_run_ids": [], "first_hub_seen": false, "flags": {},
+	}))
+	f.close()
+
+	MetaProgress.reload_for_test()
+
+	assert_int(MetaProgress.get_cores()).append_failure_message("a newer-schema profile must still load its own values, read-only").is_equal(777)
+	assert_bool(MetaProgress.get_flags()["read_only_newer_version"]).is_true()
+
+	var raw_before: Variant = _read_raw("profile.json")
+	# settle_run() has no read_only_newer_version guard of its own (see
+	# meta_progress.gd) -- it always calls _save() unconditionally, making
+	# it the one production path that proves _save() ITSELF refuses to
+	# write, not merely buy()'s/respec()'s own early-outs.
+	var breakdown: Dictionary = MetaProgress.settle_run({"run_id": "newer_1", "sim_time_seconds": 600.0, "waves_cleared": 5, "kills": 200, "victory": true, "abandoned": false})
+	assert_bool(breakdown["saved"]).append_failure_message("settle_run()'s own breakdown must report that this settlement was NOT saved").is_false()
+	assert_bool(MetaProgress.buy("vitality")).append_failure_message("buy() must also refuse outright on a read-only newer-version profile").is_false()
+
+	var raw_after: Variant = _read_raw("profile.json")
+	assert_bool(raw_after == raw_before).append_failure_message("a newer-schema profile.json on disk must never be overwritten by an older build").is_true()
+
+
 func test_reconcile_refunds_and_drops_an_unknown_node_id() -> void:
 	MetaProgress.set_skill_tree_for_test(_fake_two_node_tree())
 	DirAccess.make_dir_recursive_absolute(_dir) # see the sibling test's identical comment above

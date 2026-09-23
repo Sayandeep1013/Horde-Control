@@ -83,6 +83,50 @@ func test_empty_lines_hides_the_settlement_box() -> void:
 	assert_bool(screen.get_settlement_box_for_test().visible).is_false()
 
 
+# --- Settlement that failed to save (blind review of the meta layer, finding #6) -
+
+## FALSIFICATION (named in the report): temporarily removing the
+## `if bool(breakdown.get("saved", true))` branch in `set_settlement()`
+## (always calling `_animate_settlement()`, the pre-fix behaviour) made this
+## test fail -- the total label started as "Cores earned: 0" (about to
+## count up to a real number) instead of the not-saved message. Reverted
+## after confirming the failure.
+func test_settlement_not_saved_shows_the_not_saved_message_instead_of_a_total() -> void:
+	var screen: RunEndScreen = _make_screen()
+	screen.set_settlement({
+		"lines": [{"label": "Time survived (4 min)", "amount": 4}],
+		"total_cores": 4, "saved": false,
+		"new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
+	})
+	var box: VBoxContainer = screen.get_settlement_box_for_test()
+	assert_bool(box.visible).append_failure_message("the earned-lines breakdown must still show even when the save failed").is_true()
+	var total_label: Label = box.get_node("SettlementTotal") as Label
+	assert_str(total_label.text).append_failure_message("a settlement that could not be saved must never claim a Cores total").is_equal(tr("RUN_END_NOT_SAVED"))
+
+
+func test_settlement_saved_still_shows_the_normal_total_prefix() -> void:
+	var screen: RunEndScreen = _make_screen()
+	screen.set_settlement({
+		"lines": [{"label": "Time survived (4 min)", "amount": 4}],
+		"total_cores": 4, "saved": true,
+		"new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
+	})
+	var box: VBoxContainer = screen.get_settlement_box_for_test()
+	var total_label: Label = box.get_node("SettlementTotal") as Label
+	assert_str(total_label.text).append_failure_message("a normally-saved settlement's total must start as the ordinary 'Cores earned: 0' before the count-up tween runs").is_equal("%s: 0" % tr("RUN_END_SETTLEMENT_TOTAL"))
+
+
+func test_settlement_with_no_saved_key_defaults_to_the_normal_saved_display() -> void:
+	var screen: RunEndScreen = _make_screen()
+	screen.set_settlement({
+		"lines": [{"label": "Waves cleared (3)", "amount": 6}],
+		"total_cores": 6, "new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
+	}) # no "saved" key at all -- backward compatible with any older caller
+	var box: VBoxContainer = screen.get_settlement_box_for_test()
+	var total_label: Label = box.get_node("SettlementTotal") as Label
+	assert_str(total_label.text).append_failure_message("a breakdown with no 'saved' key must default to the normal display, not the not-saved message").is_equal("%s: 0" % tr("RUN_END_SETTLEMENT_TOTAL"))
+
+
 func test_continue_is_the_first_and_default_highlighted_choice() -> void:
 	var screen: RunEndScreen = _make_screen()
 	screen.show_summary({"cause_text": "", "wave_reached": 8, "wave_total": 8, "scrap_held": 0, "time_survived_seconds": 1.0})

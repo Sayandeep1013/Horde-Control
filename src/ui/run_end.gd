@@ -234,6 +234,16 @@ func _on_option_confirmed(index: int) -> void:
 ## `already_settled` (true only for a cross-process idempotent replay with
 ## no itemisation to show).
 ##
+## BUGFIX (blind review of the meta layer, finding #6): `saved` (bool,
+## default true for a caller passing an older/hand-built dict with no such
+## key) reflects whether `MetaProgress.settle_run()` actually persisted this
+## settlement to disk -- most commonly false for a read-only-newer-version
+## profile (docs/18 section 6), but also any other save failure at that
+## exact moment. When false, the itemised lines still animate normally (an
+## honest record of what this run earned), but the total never counts up a
+## number: claiming "+N Cores" here would be a lie the very next Hub visit
+## disproves, since those Cores never reached the profile.
+##
 ## Hub/Skill Tree screen session: a proper settlement card -- each
 ## Core line as its own `UiTheme.ROW` (matching the stat grid's own cell
 ## treatment), the total prominent below, and a `UiTheme.RIBBON` per NEW
@@ -298,7 +308,10 @@ func set_settlement(breakdown: Dictionary) -> void:
 	if bool(breakdown.get("new_best_survival_seconds", false)):
 		ribbon_panels.append(_build_new_best_ribbon(tr("RUN_END_NEW_BEST_TIME")))
 
-	_animate_settlement(entries, total_label, int(breakdown.get("total_cores", 0)), ribbon_panels)
+	if bool(breakdown.get("saved", true)):
+		_animate_settlement(entries, total_label, int(breakdown.get("total_cores", 0)), ribbon_panels)
+	else:
+		_animate_settlement_not_saved(entries, total_label, ribbon_panels)
 
 
 func _build_new_best_ribbon(text: String) -> PanelContainer:
@@ -340,6 +353,26 @@ func _animate_settlement(entries: Array[Dictionary], total_label: Label, total_t
 	tween.tween_property(total_label, "modulate:a", 1.0, 0.12)
 	var total_prefix: String = tr("RUN_END_SETTLEMENT_TOTAL") # tr() needs an instance; resolved here, not inside the static callable below
 	tween.parallel().tween_method(_apply_total_text.bind(total_label, total_prefix), 0.0, float(total_target), 0.3)
+	for ribbon in ribbon_panels:
+		tween.tween_property(ribbon, "modulate:a", 1.0, 0.2)
+
+
+## Finding #6 (see `set_settlement()`'s own header): the itemised lines still
+## count up normally -- they are an honest record of what THIS run earned,
+## independent of whether the profile could accept it -- but the total is
+## set directly to the Register's own "could not be saved" wording rather
+## than being handed to `_apply_total_text()`'s numeric count-up at all.
+func _animate_settlement_not_saved(entries: Array[Dictionary], total_label: Label, ribbon_panels: Array[PanelContainer]) -> void:
+	total_label.text = tr("RUN_END_NOT_SAVED")
+	var tween: Tween = create_tween()
+	for entry in entries:
+		var row: PanelContainer = entry["row"]
+		var amount_label: Label = entry["label"]
+		var target: int = entry["target"]
+		tween.tween_property(row, "modulate:a", 1.0, 0.12)
+		tween.parallel().tween_method(_apply_amount_text.bind(amount_label), 0.0, float(target), 0.22)
+		tween.tween_interval(0.05)
+	tween.tween_property(total_label, "modulate:a", 1.0, 0.12)
 	for ribbon in ribbon_panels:
 		tween.tween_property(ribbon, "modulate:a", 1.0, 0.2)
 

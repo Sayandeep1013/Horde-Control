@@ -27,6 +27,30 @@ func before_test() -> void:
 
 func after_test() -> void:
 	MetaProgress.set_base_path_for_test("user://")
+	# SettingsMenu's own movement-only setting is a process-lifetime STATIC
+	# (see that file's header, "Temporary debug persistence") -- every test
+	# below that touches it must reset it, or it leaks into whichever OTHER
+	# test file happens to run next in this same headless process.
+	SettingsMenu.set_movement_only_controls_enabled_for_test(false)
+
+
+## Drives the stand-still (movement-only) hold path exactly the way a real
+## player would: one navigation move (edge-triggered -- arms `_movement_
+## only_armed` in `_poll_navigation()` regardless of where it actually
+## lands, see that function's own `moved_any` flag), then jumps selection
+## straight to `id` (matching `test_confirm_already_held_at_open_does_not_
+## auto_buy_on_arrival()`'s own established precedent for isolating "was
+## armed by real navigation" from "which node the test cares about"), then
+## stands still (every direction released) for `seconds`, with `confirm`
+## never touched at all -- so a purchase can only be attributed to standing
+## still, not to any discrete input.
+func _stand_still_on_node_after_arming(id: String, seconds: float) -> void:
+	_screen.press_action_once_for_test(&"move_down")
+	_screen.tick_for_test(STEP)
+	_screen.release_action_for_test(&"move_down")
+	_screen.tick_for_test(STEP)
+	_screen.select_for_test(id)
+	_tick_seconds(seconds)
 
 
 func _grant_cores(amount: int) -> void:
@@ -287,6 +311,57 @@ func test_confirm_already_held_at_open_does_not_auto_buy_on_arrival() -> void:
 	_screen.set_action_pressed_for_test(&"confirm", true)
 	_tick_seconds(HOLD + STEP)
 	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("a fresh hold after releasing once must still buy normally").is_equal(1)
+
+
+# --- Movement-only stand-still purchase (blind review of the meta layer, finding #1) --
+
+## FALSIFICATION (named in the report): temporarily removing the
+## `SettingsMenu.get_movement_only_controls_enabled()` guard from
+## `_poll_hold()` (so the stand-still path fired unconditionally, as it did
+## before this fix) made this test fail -- vitality was bought after 3s of
+## merely resting on it with the setting OFF. Reverted after confirming the
+## failure.
+func test_standing_still_on_a_buyable_node_buys_nothing_when_movement_only_is_off() -> void:
+	SettingsMenu.set_movement_only_controls_enabled_for_test(false)
+	_grant_cores(50)
+	_screen.set_active(true)
+	_stand_still_on_node_after_arming("vitality", 3.0)
+	assert_bool(_screen.is_movement_only_armed_for_test()).append_failure_message("fixture setup: navigating once must arm the movement-only flag").is_true()
+	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("resting on a buyable node with no key held must buy nothing when Movement-only controls is OFF").is_equal(0)
+	assert_float(_screen.get_hold_progress_for_test()).is_equal(0.0)
+
+
+func test_standing_still_on_a_buyable_node_buys_it_when_movement_only_is_on() -> void:
+	SettingsMenu.set_movement_only_controls_enabled_for_test(true)
+	_grant_cores(50)
+	_screen.set_active(true)
+	_stand_still_on_node_after_arming("vitality", HOLD + STEP)
+	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("standing still on a buyable node must still buy it when Movement-only controls is ON").is_equal(1)
+
+
+func test_standing_still_on_reset_tree_never_respecs_with_movement_only_off() -> void:
+	SettingsMenu.set_movement_only_controls_enabled_for_test(false)
+	_grant_cores(200)
+	assert_bool(MetaProgress.buy("vitality")).is_true()
+	_screen.set_active(true)
+	_screen.refresh()
+	_stand_still_on_node_after_arming(SkillTreeScreen.RESPEC_ID, 3.0)
+	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("standing still on Reset Tree must never respec, Movement-only OFF").is_equal(1)
+
+
+## The single most important test in this section: a MAJOR finding
+## specifically called out "resting on Reset Tree wipes every rank" as
+## unacceptable in EITHER mode -- respec always requires an explicit held
+## confirm, never the stand-still gesture.
+func test_standing_still_on_reset_tree_never_respecs_even_with_movement_only_on() -> void:
+	SettingsMenu.set_movement_only_controls_enabled_for_test(true)
+	_grant_cores(200)
+	assert_bool(MetaProgress.buy("vitality")).is_true()
+	_screen.set_active(true)
+	_screen.refresh()
+	_stand_still_on_node_after_arming(SkillTreeScreen.RESPEC_ID, 3.0)
+	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("standing still on Reset Tree must NEVER respec, even with Movement-only controls ON").is_equal(1)
+	assert_float(_screen.get_hold_progress_for_test()).append_failure_message("Reset Tree must never accumulate ANY hold progress from the stand-still path").is_equal(0.0)
 
 
 # --- Detail panel (polish pass, coordinator item 4) ----------------------------

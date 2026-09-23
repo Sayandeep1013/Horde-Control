@@ -51,6 +51,22 @@ class_name HubScreen
 ## disables Start Run/Skill Tree/Records/Back to Title; it sits above the
 ## top bar and can be dismissed once acknowledged, exactly like the
 ## first-visit hint.
+##
+## BUGFIX (blind review of the meta layer, finding #3): `recovered_from_
+## corruption` used to have no lifecycle at all -- once set, it showed this
+## banner on EVERY future Hub visit, forever. `_refresh_warning_banner()`
+## now calls `MetaProgress.acknowledge_recovered_from_corruption()` the
+## instant it reads a true value, mirroring `mark_hub_seen()`'s own
+## "capture the pre-clear value locally, THEN clear it" shape for the
+## first-visit hint above: `text` is built from the flags captured BEFORE
+## the acknowledge call, so THIS visit still shows the banner once, and the
+## clear is persisted (`acknowledge_recovered_from_corruption()` calls
+## `_save()`) so no LATER visit -- this session or a future one -- shows it
+## again. `read_only_newer_version` is deliberately NOT given the same
+## treatment: it reflects a condition that stays true (the file on disk
+## really is newer) until the player upgrades, so it must keep showing on
+## every visit; `last_save_failed` corrects itself the next time a save
+## actually succeeds (`_save()`'s own header).
 
 const TS_ROOT: String = "res://assets/third_party/tiny_swords/"
 const GRASS_SHEET: String = TS_ROOT + "Terrain/Ground/Tilemap_Flat.png"
@@ -184,6 +200,7 @@ func _refresh_warning_banner() -> void:
 	var text: String = ""
 	if bool(flags.get("recovered_from_corruption", false)):
 		text = tr("HUB_WARNING_RECOVERED")
+		MetaProgress.acknowledge_recovered_from_corruption() # one-time banner -- see class header, "BUGFIX" (finding #3)
 	elif bool(flags.get("read_only_newer_version", false)):
 		text = tr("HUB_WARNING_READ_ONLY")
 	elif bool(flags.get("last_save_failed", false)):

@@ -131,3 +131,44 @@ func test_core_wallet_is_clamped_at_the_register_cap() -> void:
 		"waves_cleared": 0, "kills": 0, "victory": false, "abandoned": false,
 	})
 	assert_int(MetaProgress.get_cores()).append_failure_message("a settlement requesting more Cores than the cap allows must clamp, not overflow").is_equal(999999)
+
+
+# --- Clamp reporting: refunds/settlements near the wallet cap (finding #6) -----
+
+## FALSIFICATION (named in the report): reverting `respec()` to `return
+## refund` (the raw, pre-clamp sum, the pre-fix behaviour) made the middle
+## assertion below fail (it reported 5, the full nominal refund, while the
+## wallet only actually gained 2). Reverted after confirming the failure.
+func test_respec_reports_the_clamped_amount_actually_credited_not_the_raw_refund() -> void:
+	MetaProgress.settle_run({
+		"run_id": "near_cap_respec", "sim_time_seconds": float(MetaProgress.CORE_WALLET_CAP - 2) * 60.0,
+		"waves_cleared": 0, "kills": 0, "victory": false, "abandoned": false,
+	})
+	var cores_before: int = MetaProgress.get_cores()
+	assert_int(cores_before).is_equal(MetaProgress.CORE_WALLET_CAP - 2)
+
+	MetaProgress.set_rank_for_test("vitality", 1) # grants the rank directly (test seam), without spending any of the near-cap wallet
+	var raw_refund: int = SkillNodeDefinition.price_for_rank(1, 1)
+	assert_int(cores_before + raw_refund).append_failure_message("fixture setup: the raw refund must actually overshoot the cap").is_greater(MetaProgress.CORE_WALLET_CAP)
+
+	var reported: int = MetaProgress.respec()
+
+	assert_int(reported).append_failure_message("respec() must report the amount ACTUALLY credited after the wallet-cap clamp, not the raw pre-clamp refund").is_equal(MetaProgress.CORE_WALLET_CAP - cores_before)
+	assert_int(MetaProgress.get_cores()).is_equal(MetaProgress.CORE_WALLET_CAP)
+
+
+func test_settle_run_reports_the_clamped_amount_actually_credited_near_the_wallet_cap() -> void:
+	MetaProgress.settle_run({
+		"run_id": "near_cap_1", "sim_time_seconds": float(MetaProgress.CORE_WALLET_CAP - 2) * 60.0,
+		"waves_cleared": 0, "kills": 0, "victory": false, "abandoned": false,
+	})
+	assert_int(MetaProgress.get_cores()).is_equal(MetaProgress.CORE_WALLET_CAP - 2)
+
+	# Would earn 5 (5 min) + 4 (2 waves) + 2 (60 kills / 25, floor) = 11
+	# Cores uncapped -- only 2 fit under the wallet cap.
+	var breakdown: Dictionary = MetaProgress.settle_run({
+		"run_id": "near_cap_2", "sim_time_seconds": 300.0, "waves_cleared": 2, "kills": 60, "victory": false, "abandoned": false,
+	})
+
+	assert_int(breakdown["total_cores"]).append_failure_message("the settlement breakdown must report the amount ACTUALLY credited after the wallet-cap clamp, not the raw uncapped total").is_equal(2)
+	assert_int(MetaProgress.get_cores()).is_equal(MetaProgress.CORE_WALLET_CAP)

@@ -223,6 +223,7 @@ func load_profile() -> void:
 func _load_from_disk() -> Dictionary:
 	var real_path: String = _path(PROFILE_FILENAME)
 	var bak_path: String = _path(BACKUP_FILENAME)
+	var tmp_path: String = _path(TMP_FILENAME)
 
 	if FileAccess.file_exists(real_path):
 		var parsed: Variant = _try_parse_file(real_path)
@@ -237,6 +238,22 @@ func _load_from_disk() -> Dictionary:
 		var fresh: Dictionary = _fresh_profile()
 		(fresh["flags"] as Dictionary)["recovered_from_corruption"] = true
 		return fresh
+
+	# BUGFIX (blind review of the meta layer, finding #5): docs/24 section 2
+	# itself already names the risk -- "DirAccess.rename, which replaces on
+	# Windows through Godot's implementation" is not guaranteed atomic on
+	# every platform. profile.json missing while profile.json.tmp is still
+	# sitting there, fully written and parseable, means a save's rename step
+	# never completed (or completed only partially): the .tmp IS the newest
+	# COMPLETE write -- newer than whatever `.bak` holds -- so it is loaded
+	# ahead of the backup rather than treated as leftover garbage from an
+	# interrupted write (which `_write_atomic()`'s own header already
+	# documents `.tmp` normally being, in the ALREADY-handled case where
+	# `profile.json` itself survived that same interruption untouched).
+	if FileAccess.file_exists(tmp_path):
+		var parsed_tmp: Variant = _try_parse_file(tmp_path)
+		if parsed_tmp is Dictionary:
+			return _reconcile(_migrate(parsed_tmp as Dictionary))
 
 	if FileAccess.file_exists(bak_path):
 		var from_bak2: Dictionary = _load_from_backup(bak_path)
@@ -404,6 +421,18 @@ func _save() -> bool:
 		return false
 	if bool((_profile.get("flags", {}) as Dictionary).get("read_only_newer_version", false)):
 		return false # never clobber a newer-schema file with this older build's understanding of it
+	# BUGFIX (blind review of the meta layer, finding #3): the flag must be
+	# cleared BEFORE `_write_atomic()` serialises `_profile`, not after --
+	# `_write_atomic()` writes THIS dictionary verbatim, so setting the flag
+	# only afterward meant a SUCCESSFUL save still wrote the PREVIOUS
+	# attempt's "last_save_failed: true" into the new profile.json, and only
+	# corrected the in-memory copy too late to matter. Set optimistically
+	# false first (this write, if it succeeds, has no failure to report);
+	# if the write itself then fails, it never touched the real file at all
+	# (see `_write_atomic()`'s own header), so correcting it back to true
+	# afterward is purely an in-memory signal for the Hub's warning banner,
+	# picked up correctly by whichever save succeeds next.
+	(_profile["flags"] as Dictionary)["last_save_failed"] = false
 	var ok: bool = _write_atomic(_profile)
 	(_profile["flags"] as Dictionary)["last_save_failed"] = not ok
 	profile_saved.emit(ok)
@@ -431,10 +460,28 @@ func _write_atomic(profile: Dictionary) -> bool:
 	if _test_fail_after_tmp_write:
 		return false
 
+	# BUGFIX (blind review of the meta layer, finding #4): a `profile.json`
+	# that failed to parse at the LAST load (e.g. this session recovered via
+	# `.bak` after a corruption -- see `_load_from_disk()`) is never deleted
+	# or rewritten by the load itself; it just sits there until the NEXT
+	# save. Backing THAT file up unconditionally would overwrite the one
+	# good `.bak` a corruption recovery depends on with more garbage, the
+	# very next time anything saves. Re-validating here (rather than trusting
+	# a "did the last load parse OK" flag, which could go stale across a
+	# process restart) means a save NEVER backs up a file that cannot
+	# actually be read back -- this write's own successful rename below
+	# simply replaces the broken file with fresh, valid data either way.
 	if FileAccess.file_exists(real_path):
-		if not _copy_file(real_path, bak_path):
-			push_error("MetaProgress: could not write backup '%s'" % bak_path)
-			return false
+		if _try_parse_file(real_path) is Dictionary:
+			if not _copy_file(real_path, bak_path):
+				push_error("MetaProgress: could not write backup '%s'" % bak_path)
+				return false
+		# else: real_path failed to parse -- this is the expected, already-
+		# handled corruption-recovery case (see `_load_from_disk()`, which
+		# already copied it to `profile.corrupt.json` and set
+		# `recovered_from_corruption`), not a new failure to log here. The
+		# backup step is skipped silently; this write's own rename below
+		# still replaces the broken file with fresh, valid data.
 
 	if _test_fail_after_bak_write:
 		return false
@@ -499,6 +546,27 @@ func get_lifetime_cores() -> int:
 
 func get_flags() -> Dictionary:
 	return (_profile.get("flags", {}) as Dictionary).duplicate()
+
+
+## Production command (Hub scene: `HubScreen._refresh_warning_banner()`).
+## BUGFIX (blind review of the meta layer, finding #3): `recovered_from_
+## corruption` used to never be cleared, so the Hub's one-time warning
+## banner showed on EVERY future visit, forever, once a profile had ever
+## been recovered once. `read_only_newer_version` is a different shape of
+## flag -- it reflects a condition that is STILL true (the file on disk
+## really is newer, every single visit, until the player upgrades) -- so it
+## deliberately has no equivalent "acknowledge" call and is left alone here.
+## `first_hub_seen` (`mark_hub_seen()` above) is this exact same "one-time,
+## clear it once shown" shape and is this method's own precedent -- the
+## Hub's own `_ready()` captures the PRE-clear value locally (`first_visit`)
+## before marking it seen, and does the identical thing here (captures the
+## flags dict's value for THIS display before calling this).
+func acknowledge_recovered_from_corruption() -> void:
+	var flags: Dictionary = _profile.get("flags", {})
+	if not bool(flags.get("recovered_from_corruption", false)):
+		return
+	flags["recovered_from_corruption"] = false
+	_save()
 
 
 func is_first_hub_seen() -> bool:
@@ -623,26 +691,39 @@ func buy(id: String) -> bool:
 ## Register > "Meta: Skill Tree costs": "respec is free and full, Hub only"
 ## (D111). Refunds every Core ever spent across every owned node and clears
 ## every rank; the root is untouched (it is never a `tree_ranks` entry --
-## always owned, never purchased). Returns the refund amount.
+## always owned, never purchased). Returns the amount ACTUALLY credited to
+## the wallet, after the Register's own 999,999 cap clamp.
+##
+## BUGFIX (blind review of the meta layer, finding #6): this used to return
+## the raw, pre-clamp refund total even when the wallet cap silently
+## absorbed part of it -- a player a few Cores under the cap could respec a
+## tree worth hundreds of Cores, see "refunded 200" (or whatever the Hub/
+## Skill Tree screen showed from this return value), and have the wallet
+## actually gain only a handful, with the rest silently discarded. Mirrors
+## `settle_run()`'s own identical `cores_after - cores_before` fix.
 func respec() -> int:
 	if bool((_profile.get("flags", {}) as Dictionary).get("read_only_newer_version", false)):
 		return 0
 	var ranks: Dictionary = _profile["tree_ranks"]
 	if ranks.is_empty():
 		return 0
-	var refund: int = 0
+	var raw_refund: int = 0
 	for id in ranks.keys().duplicate():
 		var node: SkillNodeDefinition = skill_tree.get_node_definition(String(id)) if skill_tree != null else null
 		var rank: int = int(ranks[id])
 		if node != null:
-			refund += _cost_of_ranks(node.tier, 1, rank)
+			raw_refund += _cost_of_ranks(node.tier, 1, rank)
 		ranks.erase(id)
 		rank_changed.emit(String(id), 0)
-	if refund > 0:
-		_profile["cores"] = clampi(get_cores() + refund, 0, CORE_WALLET_CAP)
+	var credited: int = 0
+	if raw_refund > 0:
+		var cores_before: int = get_cores()
+		var cores_after: int = clampi(cores_before + raw_refund, 0, CORE_WALLET_CAP)
+		credited = cores_after - cores_before # the amount ACTUALLY credited, after the wallet-cap clamp
+		_profile["cores"] = cores_after
 	_save()
 	cores_changed.emit(get_cores())
-	return refund
+	return credited
 
 
 ## Register > "Meta: Run-End Settlement (prototype)"; D110. Idempotent by
@@ -723,9 +804,21 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 		while ids.size() > MAX_SETTLED_RUN_IDS:
 			ids.pop_front()
 
+	# `_save()` runs BEFORE the breakdown dict is built (not merely before
+	# `return`, as the class header's "commits to disk before returning"
+	# already required) so `saved` below reflects what actually reached
+	# disk this call, not an assumption. Finding #6 (blind review of the
+	# meta layer): a read-only-newer-version profile (or any other save
+	# failure at this exact moment -- disk full, a permissions error) means
+	# these Cores exist only in THIS process's memory; the run-end screen
+	# must not claim "+N Cores" were saved when they were not (see
+	# src/ui/run_end.gd's own `set_settlement()`).
+	var saved: bool = _save()
+
 	var breakdown: Dictionary = {
 		"run_id": run_id,
 		"already_settled": false,
+		"saved": saved,
 		"lines": lines,
 		"total_cores": total,
 		"cores_before": cores_before,
@@ -739,14 +832,13 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 	if run_id != "":
 		_settled_breakdown_cache[run_id] = breakdown
 
-	_save()
 	cores_changed.emit(get_cores())
 	return breakdown
 
 
 func _already_settled_breakdown(run_id: String) -> Dictionary:
 	return {
-		"run_id": run_id, "already_settled": true, "lines": [], "total_cores": 0,
+		"run_id": run_id, "already_settled": true, "saved": true, "lines": [], "total_cores": 0,
 		"cores_before": get_cores(), "cores_after": get_cores(),
 		"victory": false, "abandoned": false,
 		"new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
