@@ -186,7 +186,7 @@ func test_reconcile_refunds_a_rank_above_current_max_and_clamps_it() -> void:
 ## `_profile` verbatim, before the post-write update ever ran). Reverted
 ## after confirming the failure.
 func test_a_failed_save_sets_last_save_failed_and_a_later_successful_save_clears_it_on_disk() -> void:
-	_settle("flag_1", 60.0, 1, 25) # a real, successful save
+	_settle("flag_1", 600.0, 4, 100) # a real, successful save paying enough Cores (10 + 8 + 4 = 22) for the two tier-1 buys below
 	assert_bool(MetaProgress.get_flags()["last_save_failed"]).is_false()
 
 	MetaProgress.set_fail_after_tmp_write_for_test(true)
