@@ -34,6 +34,17 @@ class_name TelegraphVisual
 ## actually nesting entities the way the prototype scene requires.
 const TELEGRAPH_Z_INDEX: int = 40
 
+## Art session follow-up (cosmetic only): the wind-up reads as a pulsing
+## warning marker above the head plus a ground ring under the feet that
+## fills as the strike approaches, instead of a bare diamond on the body
+## (which, drawn over the Tower, looked like red boxes stuck to it).
+const MARKER_HEIGHT_PX: float = 104.0
+const MARKER_SCALE: float = 0.55
+const MARKER_PULSE_HZ: float = 6.0
+const MARKER_PULSE_AMOUNT: float = 0.18
+const GROUND_RING_RADIUS_PX: float = 26.0
+const GROUND_RING_SQUASH: float = 0.5
+
 ## Integration task, docs/25_Asset_Pipeline.md: assigned in each of
 ## scenes/entities/{tower_seeker,player_hunter,opportunist}.tscn -- never a
 ## hardcoded path in this script's logic (D99).
@@ -59,13 +70,28 @@ func _ready() -> void:
 	_sprite.texture = texture
 	if _controller != null and _controller.definition != null and _controller.definition.telegraph_data != null:
 		_sprite.modulate = _controller.definition.telegraph_data.telegraph_colour
+	_sprite.position = Vector2(0.0, -MARKER_HEIGHT_PX)
+	_sprite.scale = Vector2.ONE * MARKER_SCALE
 	add_child(_sprite)
 
 	visible = false
 
 
 func _process(_delta: float) -> void:
-	visible = _controller != null and _controller.is_windup_active()
+	var active: bool = _controller != null and _controller.is_windup_active()
+	visible = active
+	if active:
+		var pulse: float = 1.0 + MARKER_PULSE_AMOUNT * sin(SimClock.now * TAU * MARKER_PULSE_HZ)
+		_sprite.scale = Vector2.ONE * MARKER_SCALE * pulse
+		queue_redraw()
+
+
+func _draw() -> void:
+	var colour: Color = _sprite.modulate if _sprite != null else Color(1, 0.2, 0.2)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, GROUND_RING_SQUASH))
+	draw_circle(Vector2.ZERO, GROUND_RING_RADIUS_PX, Color(colour, 0.28))
+	draw_arc(Vector2.ZERO, GROUND_RING_RADIUS_PX, 0.0, TAU, 32, Color(colour, 0.9), 3.0)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func get_sprite_for_test() -> Sprite2D:
