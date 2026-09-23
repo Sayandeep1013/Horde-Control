@@ -117,7 +117,9 @@ func test_a_maxed_node_shows_max_and_refuses_further_purchase() -> void:
 func test_an_unrevealed_node_shows_as_a_silhouette() -> void:
 	_screen.set_active(true) # nothing bought yet
 	var view: SkillNodeView = _screen.get_node_view_for_test("sharpened_arrows")
-	assert_str(view.get_rank_label_for_test().text).append_failure_message("an unrevealed node's grid badge must read the silhouette placeholder, never its rank").is_equal(tr("SKILL_TREE_SILHOUETTE_NAME"))
+	assert_bool(view.get_silhouette_label_for_test().visible).append_failure_message("an unrevealed node must show the silhouette placeholder").is_true()
+	assert_str(view.get_silhouette_label_for_test().text).is_equal(tr("SKILL_TREE_SILHOUETTE_NAME"))
+	assert_bool(view.get_name_label_for_test().visible).append_failure_message("a silhouette must never show its real name").is_false()
 	assert_bool(view.get_price_label_for_test().visible).append_failure_message("a silhouette must never show a price").is_false()
 
 
@@ -128,7 +130,8 @@ func test_a_revealed_but_not_yet_owned_node_shows_its_price_not_a_silhouette() -
 	_screen.refresh()
 
 	var view: SkillNodeView = _screen.get_node_view_for_test("sharpened_arrows")
-	assert_str(view.get_rank_label_for_test().text).append_failure_message("a revealed node must show its real rank badge, not the silhouette").is_not_equal(tr("SKILL_TREE_SILHOUETTE_NAME"))
+	assert_bool(view.get_silhouette_label_for_test().visible).append_failure_message("a revealed node must not show the silhouette placeholder").is_false()
+	assert_bool(view.get_name_label_for_test().visible).append_failure_message("a revealed node must show its real name").is_true()
 	assert_bool(view.get_price_label_for_test().visible).is_true()
 
 
@@ -154,7 +157,9 @@ func test_an_owned_node_is_never_shown_as_a_silhouette() -> void:
 	_screen.set_active(true)
 	_screen.refresh()
 	var view: SkillNodeView = _screen.get_node_view_for_test("vitality")
-	assert_str(view.get_rank_label_for_test().text).is_equal("1/3")
+	assert_bool(view.get_silhouette_label_for_test().visible).is_false()
+	assert_int(view.get_displayed_rank_for_test()).is_equal(1)
+	assert_int(view.get_pip_count_for_test()).is_equal(3) # vitality's own authored max_rank
 
 
 # --- Respec hold refunds --------------------------------------------------------
@@ -282,6 +287,68 @@ func test_confirm_already_held_at_open_does_not_auto_buy_on_arrival() -> void:
 	_screen.set_action_pressed_for_test(&"confirm", true)
 	_tick_seconds(HOLD + STEP)
 	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("a fresh hold after releasing once must still buy normally").is_equal(1)
+
+
+# --- Detail panel (polish pass, coordinator item 4) ----------------------------
+
+func test_detail_panel_shows_branch_and_arrow_effect_for_an_owned_node() -> void:
+	_grant_cores(50)
+	assert_bool(MetaProgress.buy("vitality")).is_true() # rank 1 of 3, value_per_rank 0.10
+	_screen.set_active(true)
+	_screen.select_for_test("vitality")
+
+	assert_str(_screen.get_detail_branch_label_for_test().text).is_equal(tr("SKILL_TREE_BRANCH_ARCHER"))
+	assert_str(_screen.get_detail_effect_label_for_test().text).append_failure_message("expected a current -> next arrow line (e.g. '+10% -> +20%')").is_equal("+10% -> +20%")
+	assert_str(_screen.get_detail_rank_label_for_test().text).is_equal(tr("SKILL_TREE_RANK_OF") % [1, 3])
+
+
+func test_detail_panel_price_icon_is_hidden_at_max_and_shown_otherwise() -> void:
+	_grant_cores(200)
+	_screen.set_active(true)
+	_screen.select_for_test("vitality")
+	var price_icon: UiShapeGlyph = _screen.get_detail_price_label_for_test().get_parent().get_node("PriceIcon") as UiShapeGlyph
+	assert_bool(price_icon.visible).append_failure_message("a buyable node's price row must show the crystal icon").is_true()
+
+	for i in 3: # Vitality's authored max_rank is 3
+		MetaProgress.buy("vitality")
+	_screen.refresh()
+	_screen.select_for_test("vitality")
+	assert_bool(price_icon.visible).append_failure_message("a maxed node has no price -- the crystal icon must be hidden, only the MAX text shown").is_false()
+
+
+func test_detail_panel_requirements_list_shows_a_tick_per_owned_prerequisite() -> void:
+	_grant_cores(200)
+	assert_bool(MetaProgress.buy("vitality")).is_true()
+	assert_bool(MetaProgress.buy("sharpened_arrows")).is_true() # reveals long_reach with ONE of its two prerequisites owned
+	_screen.set_active(true)
+	_screen.select_for_test("long_reach")
+
+	var box: VBoxContainer = _screen.get_detail_requirements_box_for_test()
+	assert_int(box.get_child_count()).append_failure_message("long_reach names exactly two prerequisites").is_equal(2)
+	var glyphs: Array[OutcomeGlyph] = []
+	for row in box.get_children():
+		glyphs.append(row.get_child(0) as OutcomeGlyph)
+	var owned_count: int = 0
+	for g in glyphs:
+		if not g.is_defeat_for_test():
+			owned_count += 1
+	assert_int(owned_count).append_failure_message("exactly one of long_reach's two prerequisites (sharpened_arrows) is owned -- exactly one row must tick").is_equal(1)
+
+
+func test_root_detail_panel_shows_the_explanation_not_a_price() -> void:
+	_screen.set_active(true) # default selection is the root
+	assert_str(_screen.get_detail_name_label_for_test().text).is_equal("Command Tent")
+	assert_str(_screen.get_detail_effect_label_for_test().text).is_equal(tr("SKILL_TREE_ROOT_EXPLANATION"))
+	assert_str(_screen.get_detail_price_label_for_test().text).is_equal("")
+
+
+func test_hold_ring_lives_in_the_detail_panel_and_only_shows_when_buyable() -> void:
+	_screen.set_active(true) # root selected, never buyable
+	assert_bool(_screen.get_hold_ring_for_test().visible).is_false()
+	_grant_cores(50)
+	_screen.select_for_test("vitality")
+	assert_bool(_screen.get_hold_ring_for_test().visible).append_failure_message("a buyable node must show the hold ring").is_true()
+	assert_bool(_screen.get_hold_ring_for_test().get_parent().get_parent() == _screen.get_detail_name_label_for_test().get_parent()).append_failure_message("the hold ring must live in the SAME detail-panel column, not floating over the grid").is_true()
 
 
 func test_navigating_away_and_back_resets_hold_progress() -> void:

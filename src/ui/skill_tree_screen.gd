@@ -6,6 +6,35 @@ class_name SkillTreeScreen
 ## `RunFlowController`'s own "instantiate once, toggle with set_active()"
 ## pattern for PauseMenu/SettingsMenu/RunEndScreen.
 ##
+## ## Polish pass (coordinator review of skill_tree_1920b_150.png)
+## Five fixes, all visual/layout -- no change to the state machine
+## (`_state_for()`, `_poll_hold()`, `_find_adjacent()`) underneath:
+## 1. `SkillNodeView` itself now shows name/pips/price+icon (that file's own
+##    header covers this one).
+## 2. The grid no longer reserves a row for Respec (`MAX_Y` shrank from the
+##    old `RESPEC_ROW` to the real tree's own `y=5`); Respec moved to a
+##    compact header widget (`_respec_view`, sibling of `_board`, not a
+##    child of it) so `_board`'s own size matches the tree's real bounding
+##    box instead of a rectangle with an extra empty row. `NODE_SIZE` (see
+##    SkillNodeView) grew, and `CELL_W`/`CELL_H` grew to match, so the
+##    board reads as intentionally large rather than small-and-adrift.
+##    `RESPEC_ID` keeps its OWN `_nav_positions` entry one step below the
+##    lowest real node (docs/18's own "reachable by the same graph" design)
+##    even though its WIDGET now lives outside `_board` -- navigation math
+##    and widget placement are decoupled on purpose.
+## 3. `Dim` is now fully opaque (alpha 1.0, was 0.92): at 92% the Hub's own
+##    Title/Cores pill still read through faintly behind this screen's own
+##    header, which a full-screen takeover (unlike the Draft's intentional
+##    60% see-through) never wants.
+## 4. The detail panel gained a branch line, a combined current-arrow-next
+##    effect line, a requirements list with tick/cross glyphs (every
+##    prerequisite, not just missing ones), a rank/price row, and the
+##    hold-to-confirm fill ring moved HERE (`_detail_hold_ring`) instead of
+##    floating over the grid node -- one ring, in the one place the player
+##    is already reading price/requirements text.
+## 5. Hub's own polish (banner/sheep/ribbon menu header) lives in
+##    hub_screen.gd, not here.
+##
 ## ## Layout: a diagram, not container-flowed text (named exception)
 ## `docs/19_UI_UX.md` > "UI Layout & Dynamic Container Rules" governs TEXT
 ## containers (labels, tooltips, cards, rows); this screen's grid is a node
@@ -14,9 +43,9 @@ class_name SkillTreeScreen
 ## exactly like a minimap or a graph editor -- there is no Container type
 ## that lays out nodes by arbitrary integer coordinates. `_board` (a plain
 ## `Control`, not a `Container`) positions each `SkillNodeView` by an offset
-## computed from `grid_position`; every node WITHIN a node (its icon/rank/
-## price column) still goes through ordinary `VBoxContainer` flow, and the
-## whole screen is authored at the project's 1920x1080 design canvas
+## computed from `grid_position`; every node WITHIN a node (its icon/name/
+## pips/price column) still goes through ordinary `VBoxContainer` flow, and
+## the whole screen is authored at the project's 1920x1080 design canvas
 ## (`canvas_items` stretch mode; project.godot), so it scales uniformly to
 ## 1280x720 with no separate layout pass.
 ##
@@ -30,10 +59,9 @@ class_name SkillTreeScreen
 ## of `move_up` -- `move_up` is not free here the way it is on the Draft's
 ## 1D card row, since all four directions drive 2D grid navigation. A node
 ## is SELECTED by mouse hover, a mouse click, or arrow/WASD/d-pad navigation
-## (`_find_adjacent()`); the shared `HOLD_CONFIRM_SECONDS` fill ring is drawn
-## as a single ring that repositions onto whichever node is selected
-## (`_hold_ring`), matching Console's own single shared `DraftFillRing`
-## rather than one ring per row/node (console.gd's `_build_ui()`).
+## (`_find_adjacent()`); the shared `HOLD_CONFIRM_SECONDS` fill ring lives in
+## the detail panel (polish pass item 4), matching Console's own single
+## shared `DraftFillRing` rather than one ring per row/node.
 ##
 ## ## Movement-only path (docs/19 "the game is playable with movement input
 ## alone, and every menu has a movement-only path"), named as an
@@ -59,12 +87,14 @@ class_name SkillTreeScreen
 ## reopens.
 ##
 ## ## Respec is a node in the same graph, not a second input system
-## `RESPEC_ID` is a synthetic entry in `_nav_positions` one row below the
-## Fortune branch's own capstone (War Chest) -- reachable by the SAME
-## keyboard/gamepad/mouse selection and the SAME hold-to-confirm gesture as
-## every real node, so no second timing/selection system is invented for
-## one button. Its "price" badge shows the refund preview
-## (`MetaProgress.get_respec_refund_preview()`) instead of a cost.
+## `RESPEC_ID` is a synthetic entry in `_nav_positions`, one row below the
+## Fortune branch's own capstone (War Chest) for NAVIGATION purposes only
+## (see polish-pass item 2 above for why its WIDGET lives elsewhere) --
+## reachable by the SAME keyboard/gamepad/mouse selection and the SAME
+## hold-to-confirm gesture as every real node, so no second timing/
+## selection system is invented for one button. Its "price" badge shows the
+## refund preview (`MetaProgress.get_respec_refund_preview()`) instead of a
+## cost.
 
 signal back_requested()
 
@@ -79,16 +109,23 @@ const SKILL_TREE_CANVAS_LAYER: int = 5
 
 ## Grid bounding box (data/meta/skill_tree.tres' own authored grid_position
 ## values, see that file's own layout comment): x in [-4, 4], y in [-1, 5].
-## RESPEC_ROW sits one row below the lowest real node (War Chest, y=5).
+## Respec is NOT part of this box any more (polish pass item 2) -- its own
+## `_nav_positions` entry sits one step past MAX_Y, for navigation only.
 const MIN_X: int = -4
 const MAX_X: int = 4
 const MIN_Y: int = -1
-const RESPEC_ROW: int = 6
+const MAX_Y: int = 5
 
-const CELL_W: float = 120.0
-const CELL_H: float = 104.0
-const RING_PADDING: float = 24.0
-const DETAIL_PANEL_WIDTH: float = 440.0
+## Polish pass item 2: bigger cells for the bigger `SkillNodeView.NODE_SIZE`
+## (84 -> 112). Padding (CELL - NODE_SIZE) stays roomy enough for the
+## prerequisite lines to read clearly between nodes.
+const CELL_W: float = 150.0
+const CELL_H: float = 132.0
+const DETAIL_PANEL_WIDTH: float = 420.0
+## The root's own footprint (polish pass item 2: "keep the root visibly
+## special ... larger").
+const ROOT_SIZE: float = 172.0 # a clearly bigger footprint than any real node's own NODE_SIZE (112) -- see coordinator review, "keep the root visibly special ... larger"
+const RESPEC_WIDGET_SIZE: float = 92.0
 
 var _tree: SkillTreeDefinition = null
 var _content_root: Control = null # the root Control _build_ui() creates -- see set_active()'s own header on why the fade targets this, not `self`
@@ -99,15 +136,18 @@ var _selected_id: String = ""
 var _respec_view: SkillNodeView = null
 
 var _board: Control = null # SkillTreeBoard instance
-var _hold_ring: DraftFillRing = null
 var _selection_caret: UiShapeGlyph = null
 var _cores_label: Label = null
 var _back_button: Button = null
 var _detail_name: Label = null
-var _detail_desc: Label = null
-var _detail_requires: Label = null
+var _detail_branch: Label = null
+var _detail_effect: Label = null
+var _detail_requirements_box: VBoxContainer = null
+var _detail_rank: Label = null
+var _detail_price_icon: UiShapeGlyph = null
 var _detail_price: Label = null
 var _detail_hint: Label = null
+var _detail_hold_ring: DraftFillRing = null
 
 var _hold_progress: float = 0.0
 var _movement_only_armed: bool = false
@@ -288,7 +328,7 @@ func _rebuild_lines() -> void:
 
 
 func _node_center(view: Control) -> Vector2:
-	return view.position + Vector2(SkillNodeView.NODE_SIZE, SkillNodeView.NODE_SIZE) * 0.5
+	return view.position + view.size * 0.5
 
 
 static func _branch_color(branch: int) -> Color:
@@ -300,6 +340,20 @@ static func _branch_color(branch: int) -> Color:
 		SkillNodeDefinition.Branch.FORTUNE:
 			return UiPalette.GOLD
 	return UiPalette.ACCENT
+
+
+## Not `static`, unlike its siblings above: `tr()` needs an instance (the
+## SAME "static func can't call tr()" constraint run_end.gd's own
+## `_apply_total_text()` already worked around once this session).
+func _branch_name(branch: int) -> String:
+	match branch:
+		SkillNodeDefinition.Branch.ARCHER:
+			return tr("SKILL_TREE_BRANCH_ARCHER")
+		SkillNodeDefinition.Branch.TOWER:
+			return tr("SKILL_TREE_BRANCH_TOWER")
+		SkillNodeDefinition.Branch.FORTUNE:
+			return tr("SKILL_TREE_BRANCH_FORTUNE")
+	return ""
 
 
 static func _shape_for(def: SkillNodeDefinition) -> int:
@@ -314,19 +368,28 @@ static func _shape_for(def: SkillNodeDefinition) -> int:
 
 
 ## `def.value_per_rank * ranks` is the TOTAL effect at that many ranks
-## (docs/18 section 4.1: "Percentages add within a node"), substituted into
-## `description_template`'s own "{value}" placeholder. Whether the template
-## is a percentage or a flat number is read off the template text itself
-## ("%" present or not) rather than a second effect-kind switch duplicating
-## `MetaLoadoutApplier`'s own one.
-static func _format_effect(def: SkillNodeDefinition, ranks: int) -> String:
+## (docs/18 section 4.1: "Percentages add within a node"). Whether the
+## template is a percentage or a flat number is read off the template text
+## itself ("%" present or not) rather than a second effect-kind switch
+## duplicating `MetaLoadoutApplier`'s own one.
+static func _value_text(def: SkillNodeDefinition, ranks: int) -> String:
 	var total: float = def.value_per_rank * float(ranks)
-	var value_text: String
 	if def.description_template.contains("%"):
-		value_text = str(int(round(total * 100.0)))
-	else:
-		value_text = str(int(round(total)))
-	return def.description_template.format({"value": value_text})
+		return "+%d%%" % int(round(total * 100.0))
+	return "+%d" % int(round(total))
+
+
+static func _format_effect(def: SkillNodeDefinition, ranks: int) -> String:
+	return def.description_template.format({"value": _value_text(def, ranks).trim_prefix("+")})
+
+
+## docs/18's own three "mechanic" one-rank nodes (Second Wind, Fortress, War
+## Chest) have no numeric progression to arrow between -- their template
+## carries no "{value}"/"%" placeholder at all, so `description_template`
+## alone (rather than the "current → next" line below) already says
+## everything there is to say.
+static func _is_mechanic_node(def: SkillNodeDefinition) -> bool:
+	return not def.description_template.contains("{value}")
 
 
 # --- Selection ----------------------------------------------------------------
@@ -353,34 +416,50 @@ func _select(id: String) -> void:
 	_reposition_indicators()
 
 
+## The board caret only makes sense over a node actually inside `_board`
+## (polish pass item 2 moved Respec's own widget out of it); selecting
+## Respec instead brightens its own header widget.
 func _reposition_indicators() -> void:
-	var view: Control = _node_views.get(_selected_id)
-	if view == null or _hold_ring == null or _selection_caret == null:
+	if _respec_view != null:
+		_respec_view.modulate = Color(1.15, 1.15, 1.15) if _selected_id == RESPEC_ID else Color(1.0, 1.0, 1.0)
+	if _selection_caret == null:
 		return
+	if _selected_id == RESPEC_ID:
+		_selection_caret.visible = false
+		return
+	var view: Control = _node_views.get(_selected_id)
+	if view == null:
+		_selection_caret.visible = false
+		return
+	_selection_caret.visible = true
 	var center: Vector2 = _node_center(view)
-	_hold_ring.size = Vector2.ONE * (SkillNodeView.NODE_SIZE + RING_PADDING)
-	_hold_ring.position = center - _hold_ring.size * 0.5
 	_selection_caret.size = Vector2(24.0, 16.0)
-	_selection_caret.position = Vector2(view.position.x + (SkillNodeView.NODE_SIZE - 24.0) * 0.5, view.position.y + SkillNodeView.NODE_SIZE + 6.0)
+	_selection_caret.position = Vector2(center.x - 12.0, view.position.y + view.size.y + 6.0)
 
 
 func _refresh_hold_ring_visibility() -> void:
-	if _hold_ring == null:
+	if _detail_hold_ring == null:
 		return
-	_hold_ring.visible = _state_for(_selected_id) == SkillNodeView.State.BUYABLE
-	if not _hold_ring.visible:
-		_hold_ring.progress = 0.0
+	_detail_hold_ring.visible = _state_for(_selected_id) == SkillNodeView.State.BUYABLE
+	if not _detail_hold_ring.visible:
+		_detail_hold_ring.progress = 0.0
 
 
+## Polish pass item 4: name, branch, current->next effect, a full
+## requirements list (every prerequisite, ticked or crossed -- not just the
+## missing ones), rank/price, and the hold hint the ring sits beside.
 func _refresh_detail_panel() -> void:
 	if _detail_name == null:
 		return
 	var id: String = _selected_id
+	_clear_requirements_box()
 
 	if id == RESPEC_ID:
 		_detail_name.text = tr("SKILL_TREE_RESPEC")
-		_detail_desc.text = tr("SKILL_TREE_RESPEC_DESC")
-		_detail_requires.visible = false
+		_detail_branch.visible = false
+		_detail_effect.text = tr("SKILL_TREE_RESPEC_DESC")
+		_detail_rank.visible = false
+		_detail_price_icon.visible = false
 		_detail_price.remove_theme_color_override("font_color")
 		var refund: int = MetaProgress.get_respec_refund_preview()
 		if refund > 0:
@@ -396,8 +475,10 @@ func _refresh_detail_panel() -> void:
 
 	if not MetaProgress.is_visible(id):
 		_detail_name.text = tr("SKILL_TREE_SILHOUETTE_NAME")
-		_detail_desc.text = tr("SKILL_TREE_SILHOUETTE_HINT")
-		_detail_requires.visible = false
+		_detail_branch.visible = false
+		_detail_effect.text = tr("SKILL_TREE_SILHOUETTE_HINT")
+		_detail_rank.visible = false
+		_detail_price_icon.visible = false
 		_detail_price.text = ""
 		_detail_hint.visible = false
 		return
@@ -408,49 +489,84 @@ func _refresh_detail_panel() -> void:
 	_detail_name.text = def.display_name
 
 	if id == _tree.root_id:
-		_detail_desc.text = tr("SKILL_TREE_ALWAYS_OWNED")
-		_detail_requires.visible = false
+		_detail_branch.visible = false
+		_detail_effect.text = tr("SKILL_TREE_ROOT_EXPLANATION")
+		_detail_rank.visible = false
+		_detail_price_icon.visible = false
 		_detail_price.text = ""
 		_detail_hint.visible = false
 		return
 
+	_detail_branch.visible = true
+	_detail_branch.text = _branch_name(def.branch)
+
 	var rank: int = MetaProgress.get_rank(id)
-	var lines: Array[String] = []
-	if rank > 0:
-		lines.append("%s: %s" % [tr("SKILL_TREE_CURRENT"), _format_effect(def, rank)])
-	if rank < def.max_rank:
-		lines.append("%s: %s" % [tr("SKILL_TREE_NEXT"), _format_effect(def, rank + 1)])
-	_detail_desc.text = "\n".join(PackedStringArray(lines)) if not lines.is_empty() else def.description_template
+	if _is_mechanic_node(def):
+		_detail_effect.text = def.description_template
+	elif rank >= def.max_rank:
+		_detail_effect.text = "%s (%s)" % [_value_text(def, rank), tr("SKILL_TREE_MAX")]
+	else:
+		_detail_effect.text = "%s -> %s" % [_value_text(def, rank), _value_text(def, rank + 1)]
+
+	_build_requirements_box(def)
+
+	_detail_rank.visible = def.max_rank > 0
+	if def.max_rank > 0:
+		_detail_rank.text = tr("SKILL_TREE_RANK_OF") % [rank, def.max_rank]
 
 	var state: int = _state_for(id)
-	if state == SkillNodeView.State.LOCKED:
-		var missing: Array[String] = []
-		for prereq_id in def.prerequisite_ids:
-			if MetaProgress.get_rank(prereq_id) <= 0:
-				var pdef: SkillNodeDefinition = _tree.get_node_definition(prereq_id)
-				missing.append(pdef.display_name if pdef != null else prereq_id)
-		_detail_requires.text = tr("SKILL_TREE_STILL_NEEDS") % ", ".join(PackedStringArray(missing))
-		_detail_requires.visible = true
-	else:
-		_detail_requires.visible = false
-
 	_detail_price.remove_theme_color_override("font_color")
 	_detail_hint.visible = false
+	_detail_price_icon.visible = true
 	match state:
 		SkillNodeView.State.MAX:
+			_detail_price_icon.visible = false
 			_detail_price.text = tr("SKILL_TREE_MAX")
 			_detail_price.add_theme_color_override("font_color", UiPalette.ACCENT)
 		SkillNodeView.State.LOCKED:
 			_detail_price.text = str(MetaProgress.price_of_next_rank(id))
 			_detail_price.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
+			_detail_price_icon.glyph_color = UiPalette.TEXT_DIM
 		SkillNodeView.State.UNAFFORDABLE:
 			_detail_price.text = str(MetaProgress.price_of_next_rank(id))
 			_detail_price.add_theme_color_override("font_color", UiPalette.DANGER)
+			_detail_price_icon.glyph_color = UiPalette.DANGER
 		SkillNodeView.State.BUYABLE:
 			_detail_price.text = str(MetaProgress.price_of_next_rank(id))
 			_detail_price.add_theme_color_override("font_color", UiPalette.SUCCESS)
+			_detail_price_icon.glyph_color = UiPalette.CORES
 			_detail_hint.text = tr("SKILL_TREE_HOLD_TO_BUY")
 			_detail_hint.visible = true
+
+
+func _clear_requirements_box() -> void:
+	for child in _detail_requirements_box.get_children():
+		_detail_requirements_box.remove_child(child)
+		child.free()
+
+
+## One row per prerequisite -- a small check/cross glyph (reusing
+## `OutcomeGlyph`'s own drawn check-or-X, matching this project's "draw it,
+## don't rely on a font glyph" convention) plus that prerequisite's display
+## name. Shows EVERY prerequisite, ticked or crossed (polish pass item 4:
+## "requirements with ticks/crosses"), not only the ones still missing.
+func _build_requirements_box(def: SkillNodeDefinition) -> void:
+	for prereq_id in def.prerequisite_ids:
+		var pdef: SkillNodeDefinition = _tree.get_node_definition(prereq_id)
+		var owned: bool = MetaProgress.get_rank(prereq_id) > 0
+		var row := HBoxContainer.new()
+		row.theme_type_variation = UiTheme.hbox("XS")
+		_detail_requirements_box.add_child(row)
+
+		var glyph := OutcomeGlyph.new()
+		glyph.custom_minimum_size = Vector2(18.0, 18.0)
+		glyph.set_defeat(not owned)
+		row.add_child(glyph)
+
+		var label := Label.new()
+		label.text = pdef.display_name if pdef != null else prereq_id
+		label.theme_type_variation = UiTheme.DIM
+		row.add_child(label)
 
 
 func _refresh_cores_label() -> void:
@@ -572,8 +688,8 @@ func _poll_hold(delta: float) -> void:
 	else:
 		_hold_progress = 0.0
 
-	if _hold_ring != null and _hold_ring.visible:
-		_hold_ring.progress = clampf(_hold_progress / HOLD_CONFIRM_SECONDS, 0.0, 1.0)
+	if _detail_hold_ring != null and _detail_hold_ring.visible:
+		_detail_hold_ring.progress = clampf(_hold_progress / HOLD_CONFIRM_SECONDS, 0.0, 1.0)
 
 
 func _confirm_selected() -> void:
@@ -581,6 +697,8 @@ func _confirm_selected() -> void:
 	if id == RESPEC_ID:
 		MetaProgress.respec()
 		refresh()
+		if _respec_view != null:
+			_respec_view.play_purchase_pulse()
 	else:
 		if MetaProgress.buy(id):
 			refresh()
@@ -618,9 +736,13 @@ func _build_ui() -> void:
 	add_child(root)
 	_content_root = root
 
+	# Polish pass item 3: fully opaque -- this screen fully covers/dims the
+	# Hub underneath (unlike the Draft's own intentional 60% see-through
+	# over live gameplay), so nothing of the Hub's own Title/Cores pill
+	# reads through behind this screen's own header.
 	var dim := ColorRect.new()
 	dim.name = "Dim"
-	dim.color = UiPalette.with_alpha(UiPalette.DIM_TINT, 0.92)
+	dim.color = UiPalette.DIM_TINT
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(dim)
@@ -630,7 +752,7 @@ func _build_ui() -> void:
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.mouse_filter = Control.MOUSE_FILTER_PASS
 	for side in ["left", "top", "right", "bottom"]:
-		margin.add_theme_constant_override("margin_%s" % side, UiPalette.SPACE_XXL)
+		margin.add_theme_constant_override("margin_%s" % side, UiPalette.SPACE_XL)
 	root.add_child(margin)
 
 	var column := VBoxContainer.new()
@@ -664,24 +786,18 @@ func _build_ui() -> void:
 
 	var board_center := CenterContainer.new()
 	board_center.name = "BoardCenter"
+	board_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	board_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board_center.mouse_filter = Control.MOUSE_FILTER_PASS
 	board_panel.add_child(board_center)
 
 	_board = SkillTreeBoard.new()
 	_board.name = "Board"
-	_board.custom_minimum_size = Vector2((MAX_X - MIN_X + 1) * CELL_W, (RESPEC_ROW - MIN_Y + 1) * CELL_H)
+	_board.custom_minimum_size = Vector2((MAX_X - MIN_X + 1) * CELL_W, (MAX_Y - MIN_Y + 1) * CELL_H)
 	_board.mouse_filter = Control.MOUSE_FILTER_PASS
 	board_center.add_child(_board)
 
 	_build_nodes()
-
-	_hold_ring = DraftFillRing.new()
-	_hold_ring.name = "HoldRing"
-	_hold_ring.ring_color = UiPalette.ACCENT
-	_hold_ring.track_color = UiPalette.with_alpha(UiPalette.LINE, 0.5)
-	_hold_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hold_ring.visible = false
-	_board.add_child(_hold_ring)
 
 	_selection_caret = UiShapeGlyph.new()
 	_selection_caret.name = "SelectionCaret"
@@ -714,6 +830,21 @@ func _build_header(parent: Container) -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
 
+	# Polish pass item 2: Respec is a compact widget here now, not a grid
+	# row -- still the SAME SkillNodeView component (shake/pulse/state
+	# styling all reused as-is), just placed in the header instead of
+	# `_board`. `_nav_positions[RESPEC_ID]` (set in `_build_nodes()`) still
+	# lets keyboard/gamepad navigation reach it from the bottom of the tree.
+	_respec_view = SkillNodeView.new()
+	_respec_view.name = "RespecWidget"
+	row.add_child(_respec_view)
+	_respec_view.configure(RESPEC_ID, UiShapeGlyph.Shape.RECYCLE, UiPalette.DANGER, tr("SKILL_TREE_RESPEC"))
+	_respec_view.custom_minimum_size = Vector2(RESPEC_WIDGET_SIZE, RESPEC_WIDGET_SIZE)
+	_respec_view.size = Vector2(RESPEC_WIDGET_SIZE, RESPEC_WIDGET_SIZE)
+	_respec_view.node_hovered.connect(_on_node_hovered)
+	_node_views[RESPEC_ID] = _respec_view
+	_nav_positions[RESPEC_ID] = Vector2(0, MAX_Y + 1)
+
 	var cores_pill := PanelContainer.new()
 	cores_pill.name = "CoresPill"
 	cores_pill.theme_type_variation = UiTheme.PILL
@@ -743,7 +874,7 @@ func _build_header(parent: Container) -> void:
 
 
 ## `SkillNodeView.configure()` reaches into children `_ready()` builds
-## (`_icon`, `_rank_label`, `_price_label`) -- each view is therefore added
+## (`_icon`, `_name_label`, `_price_label`) -- each view is therefore added
 ## to `_board` (already inside the live tree at this point, so `_ready()`
 ## fires synchronously, same as `RunFlowController`'s own
 ## `pause_menu_scene.instantiate(); add_child(pause_menu)` pattern) BEFORE
@@ -753,32 +884,23 @@ func _build_nodes() -> void:
 		var view := SkillNodeView.new()
 		view.name = "Node_%s" % def.id
 		_board.add_child(view)
-		var shape: int = UiShapeGlyph.Shape.SQUARE if def.id == _tree.root_id else _shape_for(def)
-		view.configure(def.id, shape, _branch_color(def.branch))
+		var is_root: bool = def.id == _tree.root_id
+		var shape: int = UiShapeGlyph.Shape.TENT if is_root else _shape_for(def)
+		view.configure(def.id, shape, _branch_color(def.branch), def.display_name)
 		view.node_hovered.connect(_on_node_hovered)
-		_position_node(view, def.grid_position)
+		_position_node(view, def.grid_position, ROOT_SIZE if is_root else SkillNodeView.NODE_SIZE)
 		_node_views[def.id] = view
 		_nav_positions[def.id] = Vector2(def.grid_position)
 
-	_respec_view = SkillNodeView.new()
-	_respec_view.name = "Node_respec"
-	_board.add_child(_respec_view)
-	_respec_view.configure(RESPEC_ID, UiShapeGlyph.Shape.RECYCLE, UiPalette.DANGER)
-	_respec_view.node_hovered.connect(_on_node_hovered)
-	var respec_grid := Vector2i(0, RESPEC_ROW)
-	_position_node(_respec_view, respec_grid)
-	_node_views[RESPEC_ID] = _respec_view
-	_nav_positions[RESPEC_ID] = Vector2(respec_grid)
 
-
-func _position_node(view: Control, grid_pos: Vector2i) -> void:
+func _position_node(view: Control, grid_pos: Vector2i, size: float) -> void:
 	var col: int = grid_pos.x - MIN_X
 	var row: int = grid_pos.y - MIN_Y
 	view.position = Vector2(
-		col * CELL_W + (CELL_W - SkillNodeView.NODE_SIZE) * 0.5,
-		row * CELL_H + (CELL_H - SkillNodeView.NODE_SIZE) * 0.5,
+		col * CELL_W + (CELL_W - size) * 0.5,
+		row * CELL_H + (CELL_H - size) * 0.5,
 	)
-	view.size = Vector2(SkillNodeView.NODE_SIZE, SkillNodeView.NODE_SIZE)
+	view.size = Vector2(size, size)
 
 
 func _build_detail_panel(parent: Container) -> void:
@@ -791,7 +913,9 @@ func _build_detail_panel(parent: Container) -> void:
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
-	column.theme_type_variation = UiTheme.vbox("M")
+	# No theme_type_variation here: UiPalette.SPACE_S is the theme's own
+	# default VBoxContainer separation (UiTheme.BOX_STEPS's own header:
+	# "SPACE_S is the theme default and needs no variation").
 	panel.add_child(column)
 
 	_detail_name = Label.new()
@@ -800,41 +924,75 @@ func _build_detail_panel(parent: Container) -> void:
 	_detail_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(_detail_name)
+
+	_detail_branch = Label.new()
+	_detail_branch.name = "BranchLabel"
+	_detail_branch.theme_type_variation = UiTheme.DIM
+	column.add_child(_detail_branch)
 	column.add_child(HSeparator.new())
 
-	_detail_desc = Label.new()
-	_detail_desc.name = "DescLabel"
-	_detail_desc.theme_type_variation = UiTheme.VALUE
-	_detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_desc.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_detail_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(_detail_desc)
+	_detail_effect = Label.new()
+	_detail_effect.name = "EffectLabel"
+	_detail_effect.theme_type_variation = UiTheme.VALUE
+	_detail_effect.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail_effect.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_detail_effect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(_detail_effect)
 
-	_detail_requires = Label.new()
-	_detail_requires.name = "RequiresLabel"
-	_detail_requires.theme_type_variation = UiTheme.DIM
-	_detail_requires.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_requires.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(_detail_requires)
+	_detail_requirements_box = VBoxContainer.new()
+	_detail_requirements_box.name = "RequirementsBox"
+	_detail_requirements_box.theme_type_variation = UiTheme.vbox("XS")
+	column.add_child(_detail_requirements_box)
 
 	var spacer := Control.new()
 	spacer.name = "Spacer"
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(spacer)
 
+	_detail_rank = Label.new()
+	_detail_rank.name = "RankLabel"
+	_detail_rank.theme_type_variation = UiTheme.DIM
+	_detail_rank.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_detail_rank.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(_detail_rank)
+
+	var price_row := HBoxContainer.new()
+	price_row.name = "PriceRow"
+	price_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	price_row.theme_type_variation = UiTheme.hbox("XS")
+	column.add_child(price_row)
+
+	_detail_price_icon = UiShapeGlyph.new()
+	_detail_price_icon.name = "PriceIcon"
+	_detail_price_icon.shape = UiShapeGlyph.Shape.CRYSTAL
+	_detail_price_icon.glyph_color = UiPalette.CORES
+	_detail_price_icon.set_side(24)
+	price_row.add_child(_detail_price_icon)
+
 	_detail_price = Label.new()
 	_detail_price.name = "PriceLabel"
 	_detail_price.theme_type_variation = UiTheme.HEADING
-	_detail_price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_detail_price.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(_detail_price)
+	price_row.add_child(_detail_price)
+
+	var hold_row := HBoxContainer.new()
+	hold_row.name = "HoldRow"
+	hold_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	# No theme_type_variation here either -- same SPACE_S default as above.
+	column.add_child(hold_row)
 
 	_detail_hint = Label.new()
 	_detail_hint.name = "HintLabel"
 	_detail_hint.theme_type_variation = UiTheme.DIM
-	_detail_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_detail_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(_detail_hint)
+	hold_row.add_child(_detail_hint)
+
+	_detail_hold_ring = DraftFillRing.new()
+	_detail_hold_ring.name = "HoldRing"
+	_detail_hold_ring.custom_minimum_size = Vector2(40.0, 40.0)
+	_detail_hold_ring.ring_color = UiPalette.ACCENT
+	_detail_hold_ring.track_color = UiPalette.with_alpha(UiPalette.LINE, 0.5)
+	_detail_hold_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_detail_hold_ring.visible = false
+	hold_row.add_child(_detail_hold_ring)
 
 
 # --- Test seams (project convention: get_*_for_test() / set_*_for_test()) ----
@@ -875,16 +1033,36 @@ func get_detail_name_label_for_test() -> Label:
 	return _detail_name
 
 
+func get_detail_branch_label_for_test() -> Label:
+	return _detail_branch
+
+
+func get_detail_effect_label_for_test() -> Label:
+	return _detail_effect
+
+
+func get_detail_requirements_box_for_test() -> VBoxContainer:
+	return _detail_requirements_box
+
+
+func get_detail_rank_label_for_test() -> Label:
+	return _detail_rank
+
+
 func get_detail_price_label_for_test() -> Label:
 	return _detail_price
 
 
-func get_detail_requires_label_for_test() -> Label:
-	return _detail_requires
+## Superseded name kept as an alias so any existing caller (tests included)
+## reading "requires" text finds it under the requirements box instead --
+## see `get_detail_requirements_box_for_test()`, the real seam now that
+## requirements render as a list of rows rather than one summary Label.
+func get_detail_requires_label_for_test() -> VBoxContainer:
+	return _detail_requirements_box
 
 
 func get_hold_ring_for_test() -> DraftFillRing:
-	return _hold_ring
+	return _detail_hold_ring
 
 
 func get_board_for_test() -> Control:

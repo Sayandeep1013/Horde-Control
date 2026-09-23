@@ -25,11 +25,13 @@ class_name UiShapeGlyph
 ## (the shipped font has no heart/tower/refresh glyph either; adding one
 ## more case here costs nothing new to license or provenance).
 
-## Meta layer core (Hub/Skill Tree screen): two more shapes -- COIN (the
-## Fortune branch's icon) and CRYSTAL (the Cores currency's own icon,
-## UiPalette.CORES) -- added at the END, same convention as HEART/TOWER/
-## RECYCLE's own addition note above (never renumbered).
-enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE, COIN, CRYSTAL }
+## Meta layer core (Hub/Skill Tree screen): COIN (the Fortune branch's
+## icon), CRYSTAL (the Cores currency's own icon, UiPalette.CORES), and TENT
+## (the Skill Tree's root/Command Tent -- polish pass, coordinator: "keep
+## the root visibly special ... tent/banner icon, not a plain green
+## square") -- added at the END, same convention as HEART/TOWER/RECYCLE's
+## own addition note above (never renumbered).
+enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE, COIN, CRYSTAL, TENT }
 
 ## Fraction of the shorter side left empty around the shape.
 const INSET_FRACTION: float = 0.12
@@ -92,6 +94,8 @@ static func draw_shape(canvas: CanvasItem, which: Shape, rect: Rect2, color: Col
 			_draw_coin(canvas, rect, color)
 		Shape.CRYSTAL:
 			_draw_crystal(canvas, rect, color)
+		Shape.TENT:
+			_draw_tent(canvas, rect, color)
 
 
 ## A classic double-lobe heart, sampled from the standard parametric heart
@@ -204,3 +208,26 @@ static func _draw_crystal(canvas: CanvasItem, rect: Rect2, color: Color) -> void
 	for p in unit_points:
 		out.append(rect.position + Vector2(p.x * rect.size.x, p.y * rect.size.y))
 	canvas.draw_colored_polygon(out, color)
+
+
+## Skill Tree screen (polish pass): the root/Command Tent's own icon -- a
+## simple ridge tent (a wide triangle) with a pennant flag on a pole above
+## it, distinguishing it at a glance from the Archer branch's own plain
+## TRIANGLE. Authored in local space, mapped into `rect`, matching TOWER/
+## CRYSTAL's own approach; drawn as two polygons plus a line (still one
+## `color`, per this file's shared `draw_shape()` contract).
+static func _draw_tent(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
+	var w: float = rect.size.x
+	var h: float = rect.size.y
+	var o: Vector2 = rect.position
+	var body := PackedVector2Array([
+		o + Vector2(w * 0.5, h * 0.30), o + Vector2(w * 1.0, h * 1.0), o + Vector2(w * 0.0, h * 1.0),
+	])
+	canvas.draw_colored_polygon(body, color)
+	var pole_top: Vector2 = o + Vector2(w * 0.5, h * 0.0)
+	var pole_bottom: Vector2 = o + Vector2(w * 0.5, h * 0.30)
+	canvas.draw_line(pole_top, pole_bottom, color, maxf(2.0, w * 0.06), true)
+	var flag := PackedVector2Array([
+		pole_top, pole_top + Vector2(w * 0.32, h * 0.07), pole_top + Vector2(0.0, h * 0.16),
+	])
+	canvas.draw_colored_polygon(flag, color)
