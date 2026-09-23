@@ -144,11 +144,15 @@ const HUD_CANVAS_LAYER: int = 10
 ## below is fixed.
 ## Second UI pass (Tiny Swords restyle): bars grown noticeably ("bigger and
 ## bolder", task instruction) now that the carved-wood pill frame itself
-## reads as a proper wood-and-parchment widget rather than a slim flat pill
-## -- still comfortably inside ui_hud_render_test.gd's <=100px pill-height
-## bound (measured against a real capture during this pass).
-const PLAYER_BAR_MIN_SIZE: Vector2 = Vector2(300, 28)
-const TOWER_BAR_MIN_SIZE: Vector2 = Vector2(380, 32)
+## reads as a proper wood-and-parchment widget rather than a slim flat pill.
+## HUD polish (coordinator review, third pass): scaled back down again --
+## the coordinator's own capture called the corner pills "huge" once the
+## carved-wood frame, the bigger bars, and an icon were all stacked
+## together. `TOWER_BAR_MIN_SIZE` and `PLAYER_BAR_MIN_SIZE` now sit close in
+## height (26/24) per the coordinator's own instruction ("height matching
+## the Tower bar") rather than the earlier, more dramatic size gap.
+const PLAYER_BAR_MIN_SIZE: Vector2 = Vector2(200, 24)
+const TOWER_BAR_MIN_SIZE: Vector2 = Vector2(260, 26)
 ## Width is a floor, not the rendered size: the XP bar is now `SIZE_EXPAND_
 ## FILL` horizontally inside a full-width ribbon banner (task instruction:
 ## "full-width bottom ribbon") -- see _build_xp_field()/_build_bottom_row().
@@ -158,14 +162,22 @@ const XP_BAR_MIN_SIZE: Vector2 = Vector2(400, 22)
 ## character or a new binary asset) and the Scrap field's real gold-icon
 ## texture. Two tiers: LARGE for the two health fields (player heart, Tower
 ## turret), SMALL for the two lighter fields (Scrap coin, XP recycle).
-const ICON_SIZE_LARGE: int = 34
-const ICON_SIZE_SMALL: int = 26
+## HUD polish (third pass): scaled down alongside the bars above, for the
+## same "compact, not huge" reason.
+const ICON_SIZE_LARGE: int = 26
+const ICON_SIZE_SMALL: int = 20
 ## The XP bar's round level emblem (task instruction: "the level shown in a
 ## round emblem") -- see hud_level_emblem.gd.
 const LEVEL_EMBLEM_SIZE: float = 40.0
 const WAVE_VALUE_MIN_WIDTH: float = 90.0
 const LEVEL_VALUE_MIN_WIDTH: float = 60.0
 const REROLLS_VALUE_MIN_WIDTH: float = 60.0
+## HUD polish (coordinator review, third pass): "show the numeric value on
+## the HP bar ('84/100') like the Tower bar" -- the player field had none
+## before (only the glyph + the bar's own fill fraction). Sized for the
+## worst case a health value can print at (four digits before the slash is
+## generous headroom; real max HP values are far smaller).
+const PLAYER_HP_VALUE_MIN_WIDTH: float = 110.0
 ## UI-pass follow-up: was 70 -- too narrow for "n/200" at UiTheme.VALUE's
 ## 24px display-weight font, which silently truncated the Scrap value
 ## itself ("0/200" rendered as "0/20") because nothing else in the row
@@ -208,8 +220,14 @@ const HOPPER_MIN_WIDTH: float = 120.0
 ## FONT_SIZE_BODY): 90 was fine for "((TOWER))"/"((SCRAP))" at the
 ## smaller FONT_SIZE_SMALL, so DIM-variation (FONT_SIZE_BODY, larger)
 ## captions get more.
-const GLYPH_SHORT_MIN_WIDTH: float = 60.0 ## "HP", "XP" (2 letters)
-const GLYPH_LONG_MIN_WIDTH: float = 110.0 ## "TOWER", "SCRAP" (5 letters)
+## HUD polish (coordinator review, third pass): "HP and Scrap panels ...
+## their labels are tiny. ... The Tower bar's small 'TOWER' label likewise
+## needs to be larger and readable." All four glyph headers move from
+## UiTheme.SMALL (20px) to UiTheme.DIM (26px, see each _build_*_field()) --
+## these two widths grow with them, at the same measured ratio the
+## original author already used for this exact kind of change.
+const GLYPH_SHORT_MIN_WIDTH: float = 80.0 ## "HP", "XP" (2 letters) at UiTheme.DIM
+const GLYPH_LONG_MIN_WIDTH: float = 150.0 ## "TOWER", "SCRAP" (5 letters) at UiTheme.DIM
 const CAPTION_WAVE_MIN_WIDTH: float = 90.0 ## "Wave"
 const CAPTION_LEVEL_MIN_WIDTH: float = 130.0 ## "Level" -- was 80, confirmed too narrow: "[[Level]]" wrapped to 2 lines under F2 pseudo-localization
 const CAPTION_REROLLS_MIN_WIDTH: float = 150.0 ## "Rerolls"
@@ -217,6 +235,10 @@ const CAPTION_REROLLS_MIN_WIDTH: float = 150.0 ## "Rerolls"
 var economy_state: HudEconomyState = null
 
 var _player_health_bar: HudBar
+## HUD polish (coordinator review, third pass): "show the numeric value on
+## the HP bar ('84/100') like the Tower bar" -- new; every other HUD value
+## label already existed before this pass.
+var _player_hp_label: Label
 var _tower_health_bar: HudBar
 var _wave_label: Label
 var _wave_caption_label: Label
@@ -316,6 +338,10 @@ func get_player_health_bar() -> HudBar:
 	return _player_health_bar
 
 
+func get_player_hp_label() -> Label:
+	return _player_hp_label
+
+
 func get_tower_health_bar() -> HudBar:
 	return _tower_health_bar
 
@@ -363,6 +389,11 @@ func _refresh_player_health() -> void:
 		current = _player.death_state.current_hp
 		max_v = _player.death_state.max_hp
 	_player_health_bar.set_value(current, max_v)
+	# HUD polish (coordinator review, third pass): "show the numeric value
+	# on the HP bar ('84/100') like the Tower bar" -- rounded the same way
+	# the Console already rounds a health value for display (this project
+	# has no other precedent for formatting a float health value as text).
+	_player_hp_label.text = "%d/%d" % [int(round(current)), int(round(max_v))]
 
 
 func _refresh_tower_health() -> void:
@@ -606,7 +637,10 @@ func _build_player_health_field() -> Control:
 	_player_icon.set_side(ICON_SIZE_LARGE)
 	row.add_child(_player_icon)
 
-	_player_glyph_label = _new_hud_label("PlayerHealthGlyph", UiTheme.SMALL, GLYPH_SHORT_MIN_WIDTH)
+	# HUD polish (coordinator review, third pass): UiTheme.DIM (26px), not
+	# UiTheme.SMALL (20px) -- "labels are tiny" -- see GLYPH_SHORT_MIN_WIDTH's
+	# own updated header for the matching width bump.
+	_player_glyph_label = _new_hud_label("PlayerHealthGlyph", UiTheme.DIM, GLYPH_SHORT_MIN_WIDTH)
 	row.add_child(_player_glyph_label)
 
 	_player_health_bar = HudBar.new()
@@ -615,6 +649,18 @@ func _build_player_health_field() -> Control:
 	_player_health_bar.fill_color = UiPalette.PLAYER
 	_player_health_bar.custom_minimum_size = PLAYER_BAR_MIN_SIZE
 	row.add_child(_player_health_bar)
+
+	# HUD polish (coordinator review, third pass): the numeric HP value,
+	# matching the Tower/Scrap fields' own existing value labels -- see
+	# _refresh_player_health().
+	_player_hp_label = Label.new()
+	_player_hp_label.name = "PlayerHpLabel"
+	_player_hp_label.theme_type_variation = UiTheme.VALUE
+	_player_hp_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_player_hp_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_player_hp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_player_hp_label.custom_minimum_size = Vector2(PLAYER_HP_VALUE_MIN_WIDTH, 0)
+	row.add_child(_player_hp_label)
 
 	return field
 
@@ -651,7 +697,7 @@ func _build_tower_health_field() -> Control:
 	_tower_icon.set_side(ICON_SIZE_LARGE)
 	bar_row.add_child(_tower_icon)
 
-	_tower_glyph_label = _new_hud_label("TowerHealthGlyph", UiTheme.SMALL, GLYPH_LONG_MIN_WIDTH)
+	_tower_glyph_label = _new_hud_label("TowerHealthGlyph", UiTheme.DIM, GLYPH_LONG_MIN_WIDTH)
 	bar_row.add_child(_tower_glyph_label)
 
 	_tower_health_bar = HudBar.new()
@@ -758,7 +804,7 @@ func _build_scrap_field() -> Control:
 	_scrap_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(_scrap_icon)
 
-	_scrap_glyph_label = _new_hud_label("ScrapGlyph", UiTheme.SMALL, GLYPH_LONG_MIN_WIDTH)
+	_scrap_glyph_label = _new_hud_label("ScrapGlyph", UiTheme.DIM, GLYPH_LONG_MIN_WIDTH)
 	row.add_child(_scrap_glyph_label)
 
 	_scrap_label = HudTruncatableLabel.new()
@@ -850,7 +896,7 @@ func _build_xp_field() -> Control:
 	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 	inner.add_child(bar_row)
 
-	_xp_glyph_label = _new_hud_label("XpGlyph", UiTheme.SMALL, GLYPH_SHORT_MIN_WIDTH)
+	_xp_glyph_label = _new_hud_label("XpGlyph", UiTheme.DIM, GLYPH_SHORT_MIN_WIDTH)
 	# Second UI pass: _new_hud_label() always sets SIZE_EXPAND_FILL (every
 	# OTHER glyph label relies on that -- see that method's own header), but
 	# with _xp_bar ALSO now EXPAND_FILL (below) in a row that finally has
@@ -867,6 +913,13 @@ func _build_xp_field() -> Control:
 	_xp_bar = HudBar.new()
 	_xp_bar.name = "XpBar"
 	_xp_bar.fill_color = UiPalette.XP
+	# HUD polish (coordinator review, third pass): "the empty XP bar is a
+	# flat dark strip; give it a visible frame/fill contrast." HudBar always
+	# draws a border (hud_bar.gd's own _draw()), but the default
+	# UiPalette.LINE_STRONG (bronze) sat too close in value to the ribbon's
+	# own khaki fabric behind it to read as a frame when the bar is empty.
+	# A bright accent border reads as a frame regardless of fill state.
+	_xp_bar.border_color = UiPalette.ACCENT
 	_xp_bar.custom_minimum_size = XP_BAR_MIN_SIZE
 	# SIZE_EXPAND_FILL: the bar itself stretches across the ribbon's full
 	# width (task instruction: "full-width bottom ribbon") instead of staying
@@ -894,6 +947,12 @@ func _build_xp_field() -> Control:
 	# keeps the caption flush against its value instead of floating inside
 	# its own (pseudo-localization-sized) box.
 	_level_caption_label = _new_hud_label("LevelCaptionLabel", UiTheme.DIM, CAPTION_LEVEL_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
+	# HUD polish (coordinator review, third pass): "make 'Level 0' and
+	# 'Rerolls 1' readable (bigger, outlined), consistent with the rest" --
+	# bumped to match the VALUE beside it (FONT_SIZE_VALUE) rather than
+	# DIM's own smaller default; a genuine one-off override (UiTheme's own
+	# header: "per-node add_theme_*_override is for genuine one-offs only").
+	_level_caption_label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
 	level_group.add_child(_level_caption_label)
 
 	# Second UI pass: "the level shown in a round emblem" (task instruction)
@@ -938,6 +997,9 @@ func _build_xp_field() -> Control:
 	rerolls_group.add_child(_rerolls_icon)
 
 	_rerolls_caption_label = _new_hud_label("RerollsCaptionLabel", UiTheme.DIM, CAPTION_REROLLS_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
+	# HUD polish (coordinator review, third pass): same size bump as
+	# LevelCaptionLabel above, same reason.
+	_rerolls_caption_label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
 	rerolls_group.add_child(_rerolls_caption_label)
 
 	_rerolls_label = Label.new()

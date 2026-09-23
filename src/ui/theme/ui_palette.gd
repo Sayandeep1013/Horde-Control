@@ -37,8 +37,19 @@ const SURFACE: Color = Color("2a1d14")        ## raised panel / card fill (dark 
 const SURFACE_HOVER: Color = Color("3c2a19")  ## hovered / highlighted row fill (warm brown)
 const LINE: Color = Color("6b5335")           ## resting border (bronze/wood)
 const LINE_STRONG: Color = Color("a3763f")    ## emphasised resting border (bright bronze)
-const PANEL_ALPHA: float = 0.88               ## HUD pills and floating panels
+const PANEL_ALPHA: float = 0.88               ## floating panels (tooltips, the reroll pill's own surface before tint)
 const CARD_ALPHA: float = 0.96                ## modal cards over a dim
+
+## HUD polish (coordinator review, third pass): the HUD's own pills (Player/
+## Tower/Scrap fields, and the Draft's Reroll pill) sit directly over live
+## gameplay -- bright grass, light sand -- with nothing dimming the
+## background behind them, unlike a modal CARD. The light parchment texture
+## at PANEL_ALPHA read as "pale and see-through, washing out over grass/
+## sand" (coordinator's own words, from a real capture). `PILL_TINT`
+## multiplies over the SAME Carved_9Slides texture PANEL/CARD use (no new
+## asset) to darken it into a solid wood-brown, at near-full opacity, so it
+## reads as a solid frame regardless of what is moving underneath it.
+const PILL_TINT: Color = Color(0.55, 0.47, 0.37, 0.98)
 
 # --- Tiny Swords UI textures (assets/third_party/tiny_swords/UI/;
 # PROVENANCE.md; every file below is used verbatim, CC0) -------------------
@@ -86,6 +97,18 @@ const ROW_TEXTURE_MARGIN: int = 12
 ## and only the horizontal margins are used (a ribbon's height never
 ## stretches).
 const RIBBON_TEXTURE_MARGIN: int = 64
+
+## HUD polish (coordinator review, third pass): the Draft card's own
+## background was a TILED 64x64 swatch (Carved_Regular.png repeated), which
+## the coordinator's capture showed as a visible "waffle grid" of seams --
+## a real defect, not a matter of taste (a tiled texture at this scale has
+## no seamless edge). Replaced with a flat, calm parchment fill + a dark
+## wood border on the card's own StyleBoxFlat (draft_card_view.gd already
+## owns one for its runtime corner-radius mutation) -- no texture, so no
+## seam is possible. Colours sampled from the Carved sheets' own measured
+## fill/outline (PIL scan, first UI pass) rather than invented.
+const PARCHMENT: Color = Color("d9c7a0")      ## flat parchment card fill
+const WOOD_BORDER: Color = Color("4a3018")    ## dark wood-brown card frame
 
 # --- Text -----------------------------------------------------------------
 const TEXT: Color = Color("f5ecd8")           ## warm parchment-white (was a cooler cream)
