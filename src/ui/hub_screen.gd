@@ -67,6 +67,15 @@ class_name HubScreen
 ## really is newer) until the player upgrades, so it must keep showing on
 ## every visit; `last_save_failed` corrects itself the next time a save
 ## actually succeeds (`_save()`'s own header).
+##
+## ## Settings (Settings screen task)
+## A "Settings" button opens its own `SettingsMenu` instance, instantiated
+## here exactly like `_skill_tree_screen`/`_records_panel`/`_achievements_
+## panel` above -- toggled with `set_active()`, no hiding of `MenuCard`
+## behind it (unlike `src/ui/title_screen.gd`'s own Settings handler, which
+## DOES hide its menu card -- see that file's own note for why each screen
+## follows its own pre-existing local convention for overlays rather than a
+## single rule forced onto both).
 
 const TS_ROOT: String = "res://assets/third_party/tiny_swords/"
 const GRASS_SHEET: String = TS_ROOT + "Terrain/Ground/Tilemap_Flat.png"
@@ -135,6 +144,7 @@ var _start_run_button: Button
 var _skill_tree_button: Button
 var _records_button: Button
 var _achievements_button: Button
+var _settings_button: Button
 var _back_to_title_button: Button
 var _hint_banner: PanelContainer
 var _warning_banner: PanelContainer
@@ -144,6 +154,7 @@ var _music_player: AudioStreamPlayer
 var _skill_tree_screen: SkillTreeScreen
 var _records_panel: RecordsPanel
 var _achievements_panel: AchievementsPanel
+var _settings_menu: SettingsMenu
 
 
 func _ready() -> void:
@@ -178,6 +189,8 @@ func _apply_debug_panel_flag() -> void:
 		_on_records_pressed()
 	elif requested == "achievements":
 		_on_achievements_pressed()
+	elif requested == "settings":
+		_on_settings_pressed()
 
 
 func _on_cores_changed(_new_total: int) -> void:
@@ -253,6 +266,20 @@ func _on_achievements_back_requested() -> void:
 	_start_run_button.grab_focus()
 
 
+## Settings screen task, reachability item 4. Mirrors `_on_skill_tree_pressed()`
+## / `_on_records_pressed()`'s own shape exactly (dismiss the first-visit
+## hint, activate the overlay) -- see class header, "Settings," for why this
+## does NOT hide `MenuCard` behind it, unlike Title's own Settings handler.
+func _on_settings_pressed() -> void:
+	_hint_banner.visible = false
+	_settings_menu.set_active(true)
+
+
+func _on_settings_closed() -> void:
+	_settings_menu.set_active(false)
+	_start_run_button.grab_focus()
+
+
 func _on_hint_dismiss_pressed() -> void:
 	_hint_banner.visible = false
 
@@ -289,6 +316,10 @@ func _build_ui() -> void:
 	_achievements_panel = (preload("res://scenes/ui/achievements_panel.tscn") as PackedScene).instantiate() as AchievementsPanel
 	add_child(_achievements_panel)
 	_achievements_panel.back_requested.connect(_on_achievements_back_requested)
+
+	_settings_menu = (preload("res://scenes/ui/settings_menu.tscn") as PackedScene).instantiate() as SettingsMenu
+	add_child(_settings_menu)
+	_settings_menu.closed.connect(_on_settings_closed)
 
 
 func _build_background() -> void:
@@ -504,6 +535,10 @@ func _build_menu_card(parent: Control) -> void:
 	_achievements_button.pressed.connect(_on_achievements_pressed)
 	column.add_child(_achievements_button)
 
+	_settings_button = _make_menu_button(tr("HUB_SETTINGS"))
+	_settings_button.pressed.connect(_on_settings_pressed)
+	column.add_child(_settings_button)
+
 	_back_to_title_button = _make_menu_button(tr("HUB_BACK_TO_TITLE"))
 	_back_to_title_button.pressed.connect(_on_back_to_title_pressed)
 	column.add_child(_back_to_title_button)
@@ -671,6 +706,14 @@ func get_records_panel_for_test() -> RecordsPanel:
 
 func get_achievements_panel_for_test() -> AchievementsPanel:
 	return _achievements_panel
+
+
+func get_settings_button_for_test() -> Button:
+	return _settings_button
+
+
+func get_settings_menu_for_test() -> SettingsMenu:
+	return _settings_menu
 
 
 func get_music_player_for_test() -> AudioStreamPlayer:

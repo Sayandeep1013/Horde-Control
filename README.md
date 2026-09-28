@@ -60,8 +60,9 @@ Windows 10 or 11, 64-bit. Any GPU that runs Vulkan.
 | Reroll the upgrades | R | X |
 | Pause | Esc | Start |
 
-Settings (volume for music and effects, display mode, V-Sync, screen shake, damage numbers) are on
-the title screen, in the War Camp and in the pause menu.
+Settings (master/music/effects volume with a mute-all toggle, display mode, V-Sync, screen shake,
+damage numbers, movement-only controls) are on the title screen, in the War Camp and in the pause
+menu.
 
 ## Building from source
 

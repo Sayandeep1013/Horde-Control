@@ -6,7 +6,7 @@
 
 HUD, menus, upgrade screens, health bars, damage numbers, accessibility, animations, and usability guidelines.
 
-**Owns:** the three second rule, the readability hierarchy, device prompt switching, pause authority in the interface layer, UI text expansion, dynamic container rules, the Level-Up Draft interface, the HUD, hold-to-confirm, the Movement-only controls setting, the player-versus-Tower card differentiation rules, the visual half of Directional Threat Feedback, and the Hub interface. The Tower Console interface and sector selection are removed by D115 (no in-run shop, 2026-09-23) — see "Tower Console UI" below.
+**Owns:** the three second rule, the readability hierarchy, device prompt switching, pause authority in the interface layer, UI text expansion, dynamic container rules, the Level-Up Draft interface, the HUD, hold-to-confirm, the Settings screen, the Movement-only controls setting, the player-versus-Tower card differentiation rules, the visual half of Directional Threat Feedback, and the Hub interface. The Tower Console interface and sector selection are removed by D115 (no in-run shop, 2026-09-23) — see "Tower Console UI" below.
 
 ---
 
@@ -28,6 +28,58 @@ When the player levels up, the simulation pauses fully and the Level-Up Draft ap
 ## Tower Console UI — removed (decision D115, 2026-09-23)
 
 The Tower Console (the second, priced, non-pausing upgrade interface this section used to define) is removed from runs entirely. Author decision D115 ("no in-run shop"): the Level-Up Draft is the only in-run power growth; Scrap converts to Cores at Run-End Settlement instead of being spent here (Provisional Values Register > "Meta: Run-End Settlement (prototype)"). Every rule this section used to state — the `console_open` lifecycle, the world-space panel and its placement, the purchase channel and sector-selection input, and the in-run Repair action — no longer exists. The `console_open`/`console_cycle_*`/`console_select_*`/`console_cancel` input actions are removed from the Input Map below. This section is kept, marked removed, rather than deleted, per this project's own convention for a superseded mechanic (compare the "Teaching Wave XP (C-XPCAP)" Register row, removed by D108 the same way).
+
+---
+
+## Settings
+
+Review Decision Log D121 (MASTER_SDLC.md): the Settings screen (author brief:
+"one option in settings to mute or lower the volume of music and other sound
+effects ... and more quality settings if needed") is a vertical list of rows
+— label on the left, "< value >" on the right — rather than sliders or a
+single mute toggle. Provisional Values Register > "Interfaces" > "Settings"
+row carries the defaults and the volume step; `src/core/game_settings.gd`
+persists them at `user://settings.cfg`.
+
+- **Rows, in order:** Master Volume, Music Volume, Sound Effects Volume
+  (drives every audio bus except Master and Music — see the Register row),
+  Mute All (mutes Master only), Display Mode (Windowed / Fullscreen /
+  Borderless), V-Sync, Screen Shake, Damage Numbers, Movement-only controls,
+  Back.
+- **Volume steps:** 0–100% in 10% steps; 0% mutes that row's own bus (not
+  merely a very quiet volume).
+- **Input, keyboard/gamepad:** Up/Down (`move_up`/`move_down`) move the
+  highlighted row, repeating every 0.3 s while held (the same cadence the
+  Draft's own card-cycle uses). Left/Right (`move_left`/`move_right`) change
+  the highlighted row's value by one step, applied and saved immediately,
+  with the same repeat cadence.
+- **Back / leaving:** the `confirm` action's instant press closes the screen
+  from the Back row; holding EITHER `move_left` or `move_right` for 1.0
+  second while Back is highlighted also closes it (a movement-only player
+  never needs a button at all) — the same neutral-return arming rule the
+  Draft's own hold-to-confirm uses (Upgrade Draft UI & Navigation, above)
+  applies here too, so a direction already held the instant Back becomes
+  highlighted cannot auto-confirm it.
+- **Mouse:** hovering a row highlights it; clicking a row's own "<"/">"
+  changes its value; clicking the Back row closes the screen immediately,
+  with no hold required (matching every other paused menu's own mouse
+  behaviour).
+- **Platform input floor carve-out:** the Register's "Platform input floor"
+  row states every paused menu "lays choices out horizontally." Settings is
+  the one exception, named here rather than left as a silent contradiction:
+  nine adjustable rows plus Back do not read as one legible horizontal row,
+  and D121 chose the vertical list over shrinking the row count or
+  overflowing a single bar.
+- **Reachability:** the pause menu and the run-end screens (via
+  `RunFlowController`, unchanged since P2.14), the title screen, and the Hub
+  (War Camp) each open their own `SettingsMenu` instance. All four read and
+  write the same `GameSettings` state, so a change from any one of them is
+  visible from the others immediately.
+- **Applied at boot:** `GameSettings.load()` + `.apply()` run once, from the
+  title screen's own `_ready()` (the game's `run/main_scene`) — see
+  `src/core/game_settings.gd`'s header for why an Autoload's `_ready()` was
+  rejected (it would run for every headless test in the suite, not only real
+  launches).
 
 ---
 

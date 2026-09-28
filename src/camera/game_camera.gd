@@ -125,8 +125,21 @@ func snap_to(pos: Vector2) -> void:
 
 ## Screen-shake hook (task brief: "a screen-shake hook other systems can
 ## call later"). `amount` is 0..1 trauma, additive, clamped to 1.0.
+##
+## Gated by the Settings screen's Screen Shake toggle (MASTER_SDLC.md >
+## Provisional Values Register > "Interfaces" > "Settings" row;
+## src/core/game_settings.gd): disabled, a call here is silently dropped
+## rather than accumulating trauma that never visibly shakes anything --
+## `_trauma` also decays back toward 0 on its own (`_update_shake()`), so a
+## player who re-enables shake mid-decay does not see a stale backlog fire.
 func add_trauma(amount: float) -> void:
+	if not GameSettings.is_screen_shake_enabled():
+		return
 	_trauma = clampf(_trauma + amount, 0.0, 1.0)
+
+
+func get_trauma_for_test() -> float:
+	return _trauma
 
 
 func _update_shake(delta: float) -> void:

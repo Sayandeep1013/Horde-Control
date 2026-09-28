@@ -51,6 +51,19 @@ const MESSAGES: Dictionary = {
 	"SETTINGS_ON": "On",
 	"SETTINGS_OFF": "Off",
 	"SETTINGS_BACK": "Back",
+	# Settings screen rebuild (Review Decision Log D121): the row-list's own
+	# nine adjustable rows, plus the three Display Mode values.
+	"SETTINGS_MASTER_VOLUME": "Master Volume",
+	"SETTINGS_MUSIC_VOLUME": "Music Volume",
+	"SETTINGS_EFFECTS_VOLUME": "Sound Effects Volume",
+	"SETTINGS_MUTE_ALL": "Mute All",
+	"SETTINGS_DISPLAY_MODE": "Display Mode",
+	"SETTINGS_DISPLAY_WINDOWED": "Windowed",
+	"SETTINGS_DISPLAY_FULLSCREEN": "Fullscreen",
+	"SETTINGS_DISPLAY_BORDERLESS": "Borderless",
+	"SETTINGS_VSYNC": "V-Sync",
+	"SETTINGS_SCREEN_SHAKE": "Screen Shake",
+	"SETTINGS_DAMAGE_NUMBERS": "Damage Numbers",
 
 	"RUN_END_TITLE": "Run Over",
 	# Meta layer core: the outcome header itself now reads as one of these
@@ -102,6 +115,7 @@ const MESSAGES: Dictionary = {
 	"HUB_RECORDS": "Records",
 	"HUB_ACHIEVEMENTS": "Achievements",
 	"HUB_BACK_TO_TITLE": "Back to Title",
+	"HUB_SETTINGS": "Settings",
 	# docs/18_Permanent_Skill_Tree.md section 2: "the first time the Hub
 	# opens ... a one-line hint," quoted verbatim.
 	"HUB_FIRST_VISIT_HINT": "Earn Cores in battle. Spend them here. Every run counts.",
@@ -157,6 +171,7 @@ const MESSAGES: Dictionary = {
 	"TITLE_PLAY": "Play",
 	"TITLE_CONTROLS": "Controls",
 	"TITLE_CREDITS": "Credits",
+	"TITLE_SETTINGS": "Settings",
 	"TITLE_QUIT": "Quit",
 	"TITLE_BACK": "Back",
 

@@ -92,6 +92,12 @@ class NumberLabel:
 ## node (the enemy's own parent -- same convention as `blood_fx.gd`).
 ## `lethal` picks the brighter colour for a killing blow.
 static func spawn(container: Node, position: Vector2, amount: float, lethal: bool = false) -> void:
+	# Gated by the Settings screen's Damage Numbers toggle (MASTER_SDLC.md >
+	# Provisional Values Register > "Interfaces" > "Settings" row;
+	# src/core/game_settings.gd) -- checked first, before the pool is
+	# touched at all, so disabling it costs nothing beyond this one flag read.
+	if not GameSettings.are_damage_numbers_enabled():
+		return
 	if MAX_NUMBERS <= 0 or container == null or not is_instance_valid(container):
 		return
 	var idx: int = _acquire_slot(container)

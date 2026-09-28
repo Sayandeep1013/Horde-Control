@@ -53,6 +53,15 @@ class_name TitleScreen
 ## own `_on_main_menu_requested()` for how it clears every active
 ## `PauseAuthority` reason before changing the scene, so this screen never
 ## opens already paused.
+##
+## ## Settings (Settings screen task)
+## A "Settings" button opens its OWN `SettingsMenu` instance (`_build_settings_
+## menu()`) -- independent of `RunFlowController`'s instance, since no run is
+## in progress here. `GameSettings.load()` + `.apply()` runs once in `_ready()`,
+## before anything else needs audio/display state -- see src/core/
+## game_settings.gd's own header, "Boot-apply site," for why this scene (the
+## project's `run/main_scene`) is the chosen boot-apply point rather than an
+## Autoload.
 
 const TS_ROOT: String = "res://assets/third_party/tiny_swords/"
 const GRASS_SHEET: String = TS_ROOT + "Terrain/Ground/Tilemap_Flat.png"
@@ -98,11 +107,13 @@ var _credits_center: CenterContainer
 var _play_button: Button
 var _controls_button: Button
 var _credits_button: Button
+var _settings_button: Button
 var _quit_button: Button
 var _controls_back_button: Button
 var _credits_back_button: Button
 var _music_player: AudioStreamPlayer
 var _last_focused_main_button: Button = null
+var _settings_menu: SettingsMenu
 
 
 ## Harness-only flag (matching src/run/run_flow_controller.gd's own
@@ -117,9 +128,23 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	UiStrings.ensure_registered()
 	_build_ui()
+	_build_settings_menu()
 	_build_music()
+	# Settings screen task: `GameSettings.apply()` is called here, once, at the
+	# game's own `run/main_scene` -- see src/core/game_settings.gd's header,
+	# "Boot-apply site," for why this is the least-invasive choice (an
+	# Autoload's `_ready()` would run for every headless test in the whole
+	# suite, touching `user://settings.cfg` on every single test run).
+	GameSettings.load()
+	GameSettings.apply()
 	_play_button.grab_focus()
 	_apply_debug_panel_flag()
+
+
+func _build_settings_menu() -> void:
+	_settings_menu = (preload("res://scenes/ui/settings_menu.tscn") as PackedScene).instantiate() as SettingsMenu
+	add_child(_settings_menu)
+	_settings_menu.closed.connect(_on_settings_closed)
 
 
 func _apply_debug_panel_flag() -> void:
@@ -131,11 +156,15 @@ func _apply_debug_panel_flag() -> void:
 		_on_controls_pressed()
 	elif requested == "credits":
 		_on_credits_pressed()
+	elif requested == "settings":
+		_on_settings_pressed()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed(&"ui_cancel"):
 		return
+	if _settings_menu.visible:
+		return # Settings owns its own Back/cancel path (hold-to-confirm) -- see settings_menu.gd
 	if _controls_center.visible or _credits_center.visible:
 		_hide_panels_and_return()
 		get_viewport().set_input_as_handled()
@@ -320,6 +349,10 @@ func _build_menu_card(parent: Control) -> void:
 	_credits_button.pressed.connect(_on_credits_pressed)
 	column.add_child(_credits_button)
 
+	_settings_button = _make_menu_button(tr("TITLE_SETTINGS"))
+	_settings_button.pressed.connect(_on_settings_pressed)
+	column.add_child(_settings_button)
+
 	_quit_button = _make_menu_button(tr("TITLE_QUIT"))
 	_quit_button.pressed.connect(_on_quit_pressed)
 	column.add_child(_quit_button)
@@ -499,6 +532,24 @@ func _on_credits_back_pressed() -> void:
 	_hide_panels_and_return()
 
 
+## Settings screen task, reachability item 4. Mirrors `_show_panel()`'s own
+## "hide the main menu card behind the overlay" convention: unlike the Hub
+## (see hub_screen.gd's own header note), Title's existing Controls/Credits
+## sub-panels already hide `_menu_center` while shown, so Settings follows
+## that same LOCAL precedent rather than the Hub's different one.
+func _on_settings_pressed() -> void:
+	_last_focused_main_button = _settings_button
+	_menu_center.visible = false
+	_settings_menu.set_active(true)
+
+
+func _on_settings_closed() -> void:
+	_settings_menu.set_active(false)
+	_menu_center.visible = true
+	var target: Button = _last_focused_main_button if _last_focused_main_button != null else _play_button
+	target.grab_focus()
+
+
 func _on_quit_pressed() -> void:
 	get_tree().quit()
 
@@ -548,6 +599,14 @@ func get_controls_button_for_test() -> Button:
 
 func get_credits_button_for_test() -> Button:
 	return _credits_button
+
+
+func get_settings_button_for_test() -> Button:
+	return _settings_button
+
+
+func get_settings_menu_for_test() -> SettingsMenu:
+	return _settings_menu
 
 
 func get_quit_button_for_test() -> Button:
