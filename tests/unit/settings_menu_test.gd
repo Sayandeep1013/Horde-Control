@@ -23,6 +23,13 @@ func before_test() -> void:
 	add_child(_menu)
 	_menu.set_test_input_mode_for_test(true)
 	_menu.set_active(true)
+	# Blind review fix: `set_active(true)` now starts a real 0.4 s open
+	# lockout (MASTER_SDLC.md line 242 / Author decision D3). Every test
+	# below that does not itself care about that timing skips it here so it
+	# keeps testing immediate responsiveness; the dedicated lockout tests
+	# further down close and reopen the menu themselves to exercise the real
+	# window.
+	_menu.skip_lockout_for_test()
 
 
 func after_test() -> void:
@@ -33,12 +40,36 @@ func after_test() -> void:
 	# header) -- reset it exactly like tests/unit/skill_tree_screen_test.gd's
 	# own after_test() does, so it never leaks into another suite.
 	SettingsMenu.set_movement_only_controls_enabled_for_test(false)
+	# Clean up this test's own throwaway directory (blind review nit) --
+	# `user://` is the real OS-level app-data folder even for a redirected
+	# path, so a suite that never deleted its own `__settings_menu_test_*`
+	# directories would leave an unbounded number of them behind on disk.
+	_delete_dir_recursive(_dir)
+
+
+func _delete_dir_recursive(path: String) -> void:
+	var dir: DirAccess = DirAccess.open(path)
+	if dir == null:
+		return
+	dir.include_hidden = true
+	for file_name in dir.get_files():
+		dir.remove(file_name)
+	for sub_dir in dir.get_directories():
+		_delete_dir_recursive(path.path_join(sub_dir))
+	DirAccess.remove_absolute(path)
 
 
 func _hold_direction(action: StringName, seconds: float) -> void:
 	_menu.set_action_pressed_for_test(action, true)
 	var elapsed: float = 0.0
 	while elapsed < seconds:
+		_menu.tick_for_test(STEP)
+		elapsed += STEP
+
+
+func _advance_past_lockout() -> void:
+	var elapsed: float = 0.0
+	while elapsed < SettingsMenu.OPEN_LOCKOUT_SECONDS + STEP:
 		_menu.tick_for_test(STEP)
 		elapsed += STEP
 
@@ -255,3 +286,76 @@ func test_set_active_true_shows_the_screen() -> void:
 	_menu.set_active(false)
 	_menu.set_active(true)
 	assert_bool(_menu.is_active_for_test()).is_true()
+
+
+# --- Blind review fixes: reopen resets highlight, 0.4 s open lockout,
+# held-input seeding, same-frame confirm (items 3-4) ------------------------
+
+## Item 3: a stale highlight left on Back from a PREVIOUS session must not
+## survive into the next `set_active(true)` -- combined with a leftover
+## just-pressed confirm from the SAME frame that opened this screen (see the
+## next test), that used to reopen-and-immediately-close Settings.
+func test_reopening_settings_resets_the_highlight_to_row_0() -> void:
+	_menu.highlight_row_for_test(SettingsMenu.ROW_BACK)
+	_menu.set_active(false)
+	_menu.set_active(true)
+	_menu.skip_lockout_for_test()
+	assert_str(SettingsMenu.ROW_ORDER[_menu.get_highlighted_index_for_test()]).append_failure_message("reopening Settings must always start at row 0, never wherever it was left").is_equal(SettingsMenu.ROW_MASTER_VOLUME)
+
+
+## Item 3, reproduced directly: `PauseMenu`'s own bar runs its `_process()`
+## earlier in the tree than this screen's, so the SAME physical "confirm"
+## press that opened Settings (elsewhere) is still `just_pressed` when THIS
+## screen's own `_process()` runs later in that identical frame. The 0.4 s
+## open lockout must swallow it.
+func test_confirm_that_opens_settings_does_not_also_close_it_the_same_frame() -> void:
+	_menu.set_active(false)
+	_menu.press_action_once_for_test(&"confirm") # the SAME physical press that (elsewhere) just opened this menu
+	_menu.set_active(true) # opened AFTER the press, this same frame -- NOT skipping the lockout
+	_menu.tick_for_test(STEP)
+	assert_bool(_menu.is_active_for_test()).append_failure_message("a leftover just-pressed confirm from the frame Settings opened must not immediately close it").is_true()
+
+
+## Item 4: a key already held when the menu (re)opens (e.g. holding
+## `move_down` to hold-confirm "Settings" on the pause menu) must not be
+## misread as a fresh press once the open lockout ends.
+func test_a_key_already_held_at_open_does_not_fire_once_the_lockout_ends() -> void:
+	_menu.set_active(false)
+	_menu.set_action_pressed_for_test(&"move_down", true)
+	_menu.set_active(true) # NOT skipping the lockout -- the real 0.4 s window must elapse
+	_advance_past_lockout()
+	assert_int(_menu.get_highlighted_index_for_test()).append_failure_message("a key already held when the menu opened must not count as a fresh press once the lockout ends").is_equal(0)
+	_menu.release_action_for_test(&"move_down")
+
+
+func test_input_is_locked_out_for_the_full_open_window() -> void:
+	_menu.set_active(false)
+	_menu.set_active(true) # do NOT skip the lockout
+	_menu.press_action_once_for_test(&"move_down")
+	_menu.tick_for_test(STEP)
+	assert_int(_menu.get_highlighted_index_for_test()).append_failure_message("input must be locked out during the open lockout window").is_equal(0)
+	_advance_past_lockout()
+	_menu.press_action_once_for_test(&"move_down")
+	_menu.tick_for_test(STEP)
+	assert_int(_menu.get_highlighted_index_for_test()).is_equal(1)
+
+
+# --- Item 7: toggle/Display Mode change once per press, no auto-repeat -----
+
+func test_toggle_rows_change_once_per_press_with_no_auto_repeat() -> void:
+	_menu.highlight_row_for_test(SettingsMenu.ROW_MUTE_ALL)
+	_hold_direction(&"move_right", SettingsMenu.CYCLE_REPEAT_SECONDS * 3.0 + STEP)
+	assert_bool(GameSettings.is_mute_all()).append_failure_message("a toggle row held past several repeat intervals must still have flipped exactly once, not flickered back and forth").is_true()
+
+
+func test_display_mode_row_changes_once_per_press_with_no_auto_repeat() -> void:
+	_menu.highlight_row_for_test(SettingsMenu.ROW_DISPLAY_MODE)
+	_hold_direction(&"move_right", SettingsMenu.CYCLE_REPEAT_SECONDS * 3.0 + STEP)
+	assert_int(GameSettings.get_display_mode()).append_failure_message("Display Mode must advance exactly one step per press, not repeat while held").is_equal(GameSettings.DisplayMode.FULLSCREEN)
+
+
+func test_volume_rows_still_auto_repeat_while_held() -> void:
+	GameSettings.set_master_volume_pct(0)
+	_menu.highlight_row_for_test(SettingsMenu.ROW_MASTER_VOLUME)
+	_hold_direction(&"move_right", SettingsMenu.CYCLE_REPEAT_SECONDS * 2.0 + STEP)
+	assert_int(GameSettings.get_master_volume_pct()).append_failure_message("volume rows must still auto-repeat while held").is_greater(10)

@@ -41,6 +41,36 @@ class_name AudioDucking
 ## SFX_Priority-routed player calls - `audio_pool.gd`'s priority voices and
 ## `tower_cue_player.gd` both call it. A reference-counted "how many
 ## priority sounds are active right now" integer, not a bus query.
+##
+## ## BLOCKER FIX (blind review of the Settings screen task, 2026-09-28): base
+## volumes now track GameSettings LIVE, not a one-time AudioServer capture
+## This node used to call `_capture_base_volumes_from_audio_server()` exactly
+## ONCE, in `_ready()`, then rewrite Music/SFX/Ambience's bus volume_db every
+## frame as `<that one captured value> - <duck offset>`. Once
+## `src/core/game_settings.gd` existed and could ALSO write those same three
+## buses (a player changing Music/Sound-Effects volume from pause ->
+## Settings, mid-run), the two writers fought: GameSettings set the bus to
+## the player's new level, and the very next `_process()` tick here
+## overwrote it right back to the STALE level captured at `_ready()` --
+## silently reverting the player's own change. `step()` now calls
+## `_refresh_base_volumes_from_settings()` first, every tick, which reads
+## `GameSettings.volume_pct_to_db(GameSettings.get_music_volume_pct())` /
+## `..._effects_volume_pct())` fresh -- so a live Settings change is reflected
+## on the very next ramp tick, the same tick GameSettings itself would have
+## produced with no ducking active at all. `configure_base_volumes_for_test()`
+## (below) still overrides this for the pre-existing hermetic ramp-math
+## tests: setting `_use_test_base_volumes = true` makes `step()` skip the
+## GameSettings read entirely and keep whatever the test explicitly set, so
+## those tests need no `GameSettings` path redirection of their own and stay
+## exactly as isolated as they were before this fix.
+##
+## Muting interacts correctly with no special-casing here: `GameSettings`
+## mutes a bus (`AudioServer.set_bus_mute()`) independently of its volume_db
+## when a slider is at 0%. This node NEVER calls `set_bus_mute()` on
+## anything -- it only ever writes `volume_db` -- so a bus GameSettings muted
+## stays muted regardless of whatever this node computes and writes to that
+## bus's volume_db every tick (Godot's own bus mix silences a muted bus's
+## OUTPUT unconditionally, after whatever its volume_db says).
 
 const DUCK_SFX_AMBIENCE_DB := 9.0
 const DUCK_MUSIC_DB := 6.0
@@ -58,6 +88,12 @@ var _base_sfx_db: float = 0.0
 var _base_ambience_db: float = 0.0
 var _base_music_db: float = 0.0
 
+## True only when `configure_base_volumes_for_test()` has been called -- see
+## class header, "BLOCKER FIX." While true, `step()` never overwrites the
+## bases with a fresh `GameSettings` read, keeping the pre-existing ramp-math
+## tests hermetic.
+var _use_test_base_volumes: bool = false
+
 var _ramp_t: float = 0.0 # 0.0 = fully unducked, 1.0 = fully ducked
 
 var _last_sfx_db: float = 0.0
@@ -67,7 +103,7 @@ var _last_music_db: float = 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_capture_base_volumes_from_audio_server()
+	_refresh_base_volumes_from_settings()
 
 
 func _process(delta: float) -> void:
@@ -91,6 +127,7 @@ func notify_priority_stopped() -> void:
 ## result to the real audio buses. Split out from `_process` so a test can
 ## drive it with synthetic deltas instead of waiting on real frames.
 func step(delta: float) -> void:
+	_refresh_base_volumes_from_settings()
 	var target_t := 1.0 if _active_priority_count > 0 else 0.0
 	if _ramp_t != target_t:
 		if target_t > _ramp_t:
@@ -102,10 +139,17 @@ func step(delta: float) -> void:
 	_apply_ramp()
 
 
-func _capture_base_volumes_from_audio_server() -> void:
-	_base_sfx_db = _get_bus_db(BUS_SFX)
-	_base_ambience_db = _get_bus_db(BUS_AMBIENCE)
-	_base_music_db = _get_bus_db(BUS_MUSIC)
+## Reads the CURRENT `GameSettings` volume for Music and Sound Effects,
+## every call -- see class header, "BLOCKER FIX." A no-op while
+## `_use_test_base_volumes` is set (a test explicitly chose the bases it
+## wants and does not want them clobbered by whatever `GameSettings` happens
+## to hold in this same headless process).
+func _refresh_base_volumes_from_settings() -> void:
+	if _use_test_base_volumes:
+		return
+	_base_sfx_db = GameSettings.volume_pct_to_db(GameSettings.get_effects_volume_pct())
+	_base_ambience_db = _base_sfx_db # Sound Effects drives both SFX and Ambience identically
+	_base_music_db = GameSettings.volume_pct_to_db(GameSettings.get_music_volume_pct())
 
 
 ## Lets a test (or a future settings/volume system) set the base volumes
@@ -116,13 +160,7 @@ func configure_base_volumes_for_test(sfx_db: float, ambience_db: float, music_db
 	_base_sfx_db = sfx_db
 	_base_ambience_db = ambience_db
 	_base_music_db = music_db
-
-
-func _get_bus_db(bus_name: String) -> float:
-	var idx := AudioServer.get_bus_index(bus_name)
-	if idx == -1:
-		return 0.0
-	return AudioServer.get_bus_volume_db(idx)
+	_use_test_base_volumes = true
 
 
 func _apply_ramp() -> void:

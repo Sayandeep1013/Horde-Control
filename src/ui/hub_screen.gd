@@ -68,14 +68,14 @@ class_name HubScreen
 ## every visit; `last_save_failed` corrects itself the next time a save
 ## actually succeeds (`_save()`'s own header).
 ##
-## ## Settings (Settings screen task)
+## ## Settings (Settings screen task; blind review fix, item 5)
 ## A "Settings" button opens its own `SettingsMenu` instance, instantiated
 ## here exactly like `_skill_tree_screen`/`_records_panel`/`_achievements_
-## panel` above -- toggled with `set_active()`, no hiding of `MenuCard`
-## behind it (unlike `src/ui/title_screen.gd`'s own Settings handler, which
-## DOES hide its menu card -- see that file's own note for why each screen
-## follows its own pre-existing local convention for overlays rather than a
-## single rule forced onto both).
+## panel` above -- toggled with `set_active()`. UNLIKE those three
+## overlays, opening it ALSO releases keyboard focus and hides `_menu_card`
+## (`_on_settings_pressed()`'s own header note has the full reasoning: the
+## Hub's buttons use Godot's native focus system, which `ui_up`/`ui_down`/
+## `ui_accept` would otherwise keep driving underneath the dimmed overlay).
 
 const TS_ROOT: String = "res://assets/third_party/tiny_swords/"
 const GRASS_SHEET: String = TS_ROOT + "Terrain/Ground/Tilemap_Flat.png"
@@ -155,6 +155,7 @@ var _skill_tree_screen: SkillTreeScreen
 var _records_panel: RecordsPanel
 var _achievements_panel: AchievementsPanel
 var _settings_menu: SettingsMenu
+var _menu_card: PanelContainer
 
 
 func _ready() -> void:
@@ -176,6 +177,27 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if MetaProgress.cores_changed.is_connected(_on_cores_changed):
 		MetaProgress.cores_changed.disconnect(_on_cores_changed)
+
+
+## Blind review fix (item 6): Esc closes Settings on the Hub too, the same
+## way it already does in-run (`RunFlowController`) and on the title screen
+## (`TitleScreen._handle_ui_cancel()`). No other Hub overlay (Skill Tree,
+## Records, Achievements) has an Esc path today -- adding one for those is
+## out of this task's scope, named rather than silently extended.
+func _handle_ui_cancel() -> bool:
+	if _settings_menu.visible:
+		_on_settings_closed()
+		return true
+	return false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_cancel") and _handle_ui_cancel():
+		get_viewport().set_input_as_handled()
+
+
+func simulate_ui_cancel_for_test() -> void:
+	_handle_ui_cancel()
 
 
 func _apply_debug_panel_flag() -> void:
@@ -266,17 +288,31 @@ func _on_achievements_back_requested() -> void:
 	_start_run_button.grab_focus()
 
 
-## Settings screen task, reachability item 4. Mirrors `_on_skill_tree_pressed()`
-## / `_on_records_pressed()`'s own shape exactly (dismiss the first-visit
-## hint, activate the overlay) -- see class header, "Settings," for why this
-## does NOT hide `MenuCard` behind it, unlike Title's own Settings handler.
+## Settings screen task, reachability item 4. Blind review fix (item 5):
+## the Hub's own menu buttons use Godot's NATIVE focus system
+## (`focus_mode = FOCUS_ALL`, `grab_focus()` in `_ready()`), unlike
+## `SettingsMenu`'s own poll-driven `move_*`/`confirm` input -- leaving
+## `_start_run_button` (or whichever button) focused while Settings is open
+## let the engine's own `ui_up`/`ui_down`/`ui_accept` navigate and activate
+## the HUB's buttons underneath the overlay. `get_viewport().gui_release_
+## focus()` plus hiding `_menu_card` (so nothing in it can be clicked or
+## re-focused either) closes both holes -- this NO LONGER matches the
+## Skill Tree/Records/Achievements overlays' own choice not to hide
+## `MenuCard` (see this class's earlier header note, superseded here for
+## Settings specifically): those three overlays do not poll native input at
+## all AWAY from Godot's focus system the way Settings' rows do not either,
+## so the same focus-bleed risk likely exists there too, but fixing it is
+## out of this task's scope.
 func _on_settings_pressed() -> void:
 	_hint_banner.visible = false
+	get_viewport().gui_release_focus()
+	_menu_card.visible = false
 	_settings_menu.set_active(true)
 
 
 func _on_settings_closed() -> void:
 	_settings_menu.set_active(false)
+	_menu_card.visible = true
 	_start_run_button.grab_focus()
 
 
@@ -492,6 +528,7 @@ func _build_menu_card(parent: Control) -> void:
 	card.custom_minimum_size = Vector2(MENU_CARD_MIN_WIDTH, 0.0)
 	card.mouse_filter = Control.MOUSE_FILTER_PASS
 	center.add_child(card)
+	_menu_card = card # Settings screen task, blind review fix (item 5): toggled while Settings is open, see _on_settings_pressed()/_on_settings_closed()
 
 	var column := VBoxContainer.new()
 	column.name = "MenuColumn"
@@ -714,6 +751,10 @@ func get_settings_button_for_test() -> Button:
 
 func get_settings_menu_for_test() -> SettingsMenu:
 	return _settings_menu
+
+
+func get_menu_card_for_test() -> PanelContainer:
+	return _menu_card
 
 
 func get_music_player_for_test() -> AudioStreamPlayer:

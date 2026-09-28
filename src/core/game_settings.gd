@@ -3,7 +3,7 @@ class_name GameSettings
 
 ## GameSettings (Settings screen task). MASTER_SDLC.md > Provisional Values
 ## Register > "Interfaces" > "Settings" row (defaults, 10% volume step, the
-## five sound-effect buses); docs/19_UI_UX.md > "Settings" section; Review
+## four sound-effect buses); docs/19_UI_UX.md > "Settings" section; Review
 ## Decision Log D121.
 ##
 ## A static class, like UiTheme/UiPalette/MenuFrame -- NOT a sixth Autoload
@@ -38,10 +38,23 @@ class_name GameSettings
 ## first bus), Music, SFX, SFX_Priority, UI, Ambience, TowerCue -- six buses
 ## total, matching MASTER_SDLC.md > Audio > "Buses" row ("Master -> Music,
 ## SFX, SFX_Priority (<- TowerCue), UI, Ambience -- six buses (C-TOWERCUE)").
-## Master volume drives the Master bus; Music volume drives Music; the single
-## "Sound effects" volume drives every remaining bus (SFX, SFX_Priority, UI,
-## Ambience, TowerCue) -- the task brief's own list, cross-checked against
-## the five non-Master-non-Music names the .tres actually defines.
+## Master volume drives the Master bus; Music volume drives Music; "Sound
+## effects" drives SFX, SFX_Priority, UI, and Ambience.
+##
+## ## TowerCue is NOT driven directly (blind review fix)
+## `TowerCue` sends INTO `SFX_Priority` (default_bus_layout.tres: `bus/6/send
+## = &"SFX_Priority"`), which is itself one of the four buses `EFFECTS_BUSES`
+## already drives. A prior version of this file also applied the Sound
+## Effects gain to `TowerCue`'s own `volume_db` directly, which attenuated
+## the Tower-damage cue TWICE for the same setting (once on TowerCue itself,
+## again when SFX_Priority mixed it in) -- so at, say, 50% Sound Effects, the
+## cue was quieter than every other effect on the SAME slider. `TowerCue`'s
+## own `volume_db` is left untouched (unity gain, its `default_bus_layout.tres`
+## default), so its EFFECTIVE gain equals Sound Effects exactly once, via the
+## one send it already goes through. Muting still reaches it correctly:
+## muting a bus silences everything mixed INTO it before that bus's own
+## output stage, so `SFX_Priority` muted at 0% Sound Effects silences
+## `TowerCue` too, with no direct mute needed here.
 ##
 ## ## 0% = muted, not silent-by-volume (task brief)
 ## A bus at exactly 0% is muted via `AudioServer.set_bus_mute()`, not merely
@@ -74,6 +87,27 @@ class_name GameSettings
 ## that wants to exercise real persistence calls `set_path_for_test()` first
 ## and then the ordinary production setters, exactly like `MetaProgress`'s
 ## own suites do.
+##
+## ## `AudioDucking` reads its base volumes from here, live (blind review fix)
+## `src/audio/audio_ducking.gd` used to capture Music/SFX/Ambience bus dB
+## ONCE in its own `_ready()` and rewrite those same buses every frame from
+## that one-time snapshot -- so a Settings volume change made mid-run (pause
+## -> Settings -> back) was silently reverted by the very next ducking tick.
+## `AudioDucking.step()` now reads `volume_pct_to_db(get_music_volume_pct())`
+## / `volume_pct_to_db(get_effects_volume_pct())` fresh every call instead of
+## its own captured snapshot, so a live change is reflected on the very next
+## tick. `volume_pct_to_db()` is public (not `_volume_db`, its name before
+## this fix) specifically so `AudioDucking` shares the SAME pct->dB
+## conversion this file's own appliers use, rather than a second, drifting
+## copy of the same formula.
+##
+## ## `load()` renamed to `load_from_disk()` (blind review nit)
+## `load()` shadowed the GDScript global `load()` (the resource-loading
+## function every other file in this project calls constantly) within any
+## scope that also called `GameSettings.load()` unqualified -- harmless here
+## since this file never calls the global `load()` itself, but a needless
+## foot-gun for any future edit. Renamed; every call site updated
+## (`src/ui/title_screen.gd`, the test suites).
 
 enum DisplayMode { WINDOWED = 0, FULLSCREEN = 1, BORDERLESS = 2 }
 
@@ -101,9 +135,14 @@ const VOLUME_MAX_PCT: int = 100
 
 const MASTER_BUS: String = "Master"
 const MUSIC_BUS: String = "Music"
-## Register > "Settings" row: the "Sound effects" volume drives all five of
+## Register > "Settings" row: the "Sound effects" volume drives all four of
 ## these (default_bus_layout.tres; MASTER_SDLC.md > Audio > "Buses").
-const EFFECTS_BUSES: Array[String] = ["SFX", "SFX_Priority", "UI", "Ambience", "TowerCue"]
+## `TowerCue` is deliberately NOT in this list -- see class header, "TowerCue
+## is NOT driven directly."
+const EFFECTS_BUSES: Array[String] = ["SFX", "SFX_Priority", "UI", "Ambience"]
+## Named for tests/comments that need to point at it without a magic string
+## -- never iterated over for a direct volume/mute write (see class header).
+const TOWER_CUE_BUS: String = "TowerCue"
 
 const DISPLAY_MODE_COUNT: int = 3 # DisplayMode has exactly 3 named values
 
@@ -133,7 +172,7 @@ static var _movement_only_controls_enabled: bool = DEFAULT_MOVEMENT_ONLY_ENABLED
 ## via a `_for_test` setter first) -- matching `MetaProgress`'s own "fresh
 ## profile" precedent (src/meta/meta_progress.gd's header) rather than
 ## treating a missing file as an error.
-static func load() -> void:
+static func load_from_disk() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(_path) != OK:
 		return
@@ -384,7 +423,11 @@ static func _clamp_display_mode(mode: int) -> int:
 
 
 ## `pct <= 0` never reaches `linear_to_db()` -- see class header, "0% = muted".
-static func _volume_db(pct: int) -> float:
+## Public (not `_volume_db`, its name before the blind review fix) so
+## `src/audio/audio_ducking.gd` shares this SAME pct->dB conversion instead
+## of a second, drifting copy of the same formula -- see class header,
+## "AudioDucking reads its base volumes from here, live."
+static func volume_pct_to_db(pct: int) -> float:
 	if pct <= 0:
 		return SILENT_DB
 	return linear_to_db(float(pct) / 100.0)
@@ -394,7 +437,7 @@ static func _apply_master_bus() -> void:
 	var idx: int = AudioServer.get_bus_index(MASTER_BUS)
 	if idx == -1:
 		return
-	AudioServer.set_bus_volume_db(idx, _volume_db(_master_volume_pct))
+	AudioServer.set_bus_volume_db(idx, volume_pct_to_db(_master_volume_pct))
 	AudioServer.set_bus_mute(idx, _mute_all or _master_volume_pct <= 0)
 
 
@@ -402,7 +445,7 @@ static func _apply_music_bus() -> void:
 	var idx: int = AudioServer.get_bus_index(MUSIC_BUS)
 	if idx == -1:
 		return
-	AudioServer.set_bus_volume_db(idx, _volume_db(_music_volume_pct))
+	AudioServer.set_bus_volume_db(idx, volume_pct_to_db(_music_volume_pct))
 	AudioServer.set_bus_mute(idx, _music_volume_pct <= 0)
 
 
@@ -411,7 +454,7 @@ static func _apply_effects_buses() -> void:
 		var idx: int = AudioServer.get_bus_index(bus_name)
 		if idx == -1:
 			continue # named bus not present in this build's default_bus_layout.tres -- skip rather than error
-		AudioServer.set_bus_volume_db(idx, _volume_db(_effects_volume_pct))
+		AudioServer.set_bus_volume_db(idx, volume_pct_to_db(_effects_volume_pct))
 		AudioServer.set_bus_mute(idx, _effects_volume_pct <= 0)
 
 

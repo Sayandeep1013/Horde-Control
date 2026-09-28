@@ -42,44 +42,67 @@ row carries the defaults and the volume step; `src/core/game_settings.gd`
 persists them at `user://settings.cfg`.
 
 - **Rows, in order:** Master Volume, Music Volume, Sound Effects Volume
-  (drives every audio bus except Master and Music — see the Register row),
-  Mute All (mutes Master only), Display Mode (Windowed / Fullscreen /
-  Borderless), V-Sync, Screen Shake, Damage Numbers, Movement-only controls,
-  Back.
-- **Volume steps:** 0–100% in 10% steps; 0% mutes that row's own bus (not
-  merely a very quiet volume).
-- **Input, keyboard/gamepad:** Up/Down (`move_up`/`move_down`) move the
-  highlighted row, repeating every 0.3 s while held (the same cadence the
-  Draft's own card-cycle uses). Left/Right (`move_left`/`move_right`) change
-  the highlighted row's value by one step, applied and saved immediately,
-  with the same repeat cadence.
+  (drives SFX, SFX_Priority, UI, and Ambience — see the Register row;
+  TowerCue is reached only by sending through SFX_Priority, so it is not
+  driven a second time, which would attenuate it twice), Mute All (mutes
+  Master only), Display Mode (Windowed / Fullscreen / Borderless), V-Sync,
+  Screen Shake, Damage Numbers, Movement-only controls, Back.
+- **Volume steps:** 0–100% in 10% steps (Register > "Settings" row); 0%
+  mutes that row's own bus (not merely a very quiet volume).
+- **Change cadence:** only the three volume rows repeat while a direction is
+  held, at the Register's own "Draft input" row cadence (reused, not
+  restated, exactly like the Draft's own card-cycle — Upgrade Draft UI &
+  Navigation, above). Every other row (Mute All, Display Mode, Screen Shake,
+  Damage Numbers, Movement-only controls) changes ONCE per press and never
+  auto-repeats, so holding a direction on a toggle cannot flicker it back and
+  forth or skip past the Display Mode the player actually wanted.
+- **Opening:** like every other paused menu, Settings opens with the
+  Register's own "Draft input" row's 0.4 s input lockout (Platform Direction
+  line 242; Author decision D3) during which no input is read at all, and
+  always highlights the first row (Master Volume) — never wherever the
+  highlight was left the previous time it was open.
+- **Input, keyboard/gamepad:** once the lockout ends, Up/Down
+  (`move_up`/`move_down`) move the highlighted row. Left/Right
+  (`move_left`/`move_right`) change the highlighted row's value, applied and
+  saved immediately (subject to the change-cadence rule above).
 - **Back / leaving:** the `confirm` action's instant press closes the screen
-  from the Back row; holding EITHER `move_left` or `move_right` for 1.0
-  second while Back is highlighted also closes it (a movement-only player
-  never needs a button at all) — the same neutral-return arming rule the
-  Draft's own hold-to-confirm uses (Upgrade Draft UI & Navigation, above)
-  applies here too, so a direction already held the instant Back becomes
-  highlighted cannot auto-confirm it.
+  from the Back row; holding EITHER `move_left` or `move_right` for the
+  Register's own hold-to-confirm duration while Back is highlighted also
+  closes it (a movement-only player never needs a button at all) — the same
+  neutral-return arming rule the Draft's own hold-to-confirm uses (Upgrade
+  Draft UI & Navigation, above) applies here too, so a direction already
+  held cannot auto-confirm it, whether held before the screen opened or
+  before Back was reached.
 - **Mouse:** hovering a row highlights it; clicking a row's own "<"/">"
   changes its value; clicking the Back row closes the screen immediately,
   with no hold required (matching every other paused menu's own mouse
   behaviour).
 - **Platform input floor carve-out:** the Register's "Platform input floor"
-  row states every paused menu "lays choices out horizontally." Settings is
-  the one exception, named here rather than left as a silent contradiction:
-  nine adjustable rows plus Back do not read as one legible horizontal row,
-  and D121 chose the vertical list over shrinking the row count or
-  overflowing a single bar.
+  row (and Platform Direction line 242) states every paused menu "lays
+  choices out horizontally." Settings is the one exception, named here
+  rather than left as a silent contradiction: nine adjustable rows plus Back
+  do not read as one legible horizontal row, and D121 chose the vertical
+  list over shrinking the row count or overflowing a single bar — D121's own
+  Review Decision Log row has the full reasoning for why this still honours
+  Author decision D3.
 - **Reachability:** the pause menu and the run-end screens (via
   `RunFlowController`, unchanged since P2.14), the title screen, and the Hub
-  (War Camp) each open their own `SettingsMenu` instance. All four read and
-  write the same `GameSettings` state, so a change from any one of them is
-  visible from the others immediately.
-- **Applied at boot:** `GameSettings.load()` + `.apply()` run once, from the
-  title screen's own `_ready()` (the game's `run/main_scene`) — see
-  `src/core/game_settings.gd`'s header for why an Autoload's `_ready()` was
-  rejected (it would run for every headless test in the suite, not only real
-  launches).
+  (War Camp) each open their own `SettingsMenu` instance, releasing keyboard
+  focus from (and, on the Hub, hiding) whatever menu sits behind it so
+  arrow/Enter input drives Settings, not the screen underneath; closing
+  restores it. Esc (`ui_cancel`) closes Settings on the title screen and the
+  Hub, the same way `pause` already closes it in-run. All four instances
+  read and write the same `GameSettings` state, so a change from any one of
+  them is visible from the others immediately.
+- **Applied at boot:** `GameSettings.load_from_disk()` + `.apply()` run once,
+  from the title screen's own `_ready()` (the game's `run/main_scene`),
+  BEFORE the title music starts — see `src/core/game_settings.gd`'s header
+  for why an Autoload's `_ready()` was rejected (it would run for every
+  headless test in the suite, not only real launches).
+- **Live during a run:** `src/audio/audio_ducking.gd`'s ramp reads Music and
+  Sound Effects volume from `GameSettings` on every tick rather than a
+  one-time snapshot, so a volume change made from pause → Settings → back
+  takes effect immediately, even mid-duck.
 
 ---
 

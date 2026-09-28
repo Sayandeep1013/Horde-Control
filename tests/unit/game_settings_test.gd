@@ -16,7 +16,10 @@ extends GdUnitTestSuite
 
 const MASTER_BUS: String = "Master"
 const MUSIC_BUS: String = "Music"
-const EFFECTS_BUSES: Array[String] = ["SFX", "SFX_Priority", "UI", "Ambience", "TowerCue"]
+## TowerCue is deliberately NOT in this list -- see `test_tower_cue_bus_*`
+## below and GameSettings's own header, "TowerCue is NOT driven directly."
+const EFFECTS_BUSES: Array[String] = ["SFX", "SFX_Priority", "UI", "Ambience"]
+const TOWER_CUE_BUS: String = "TowerCue"
 
 var _dir: String
 
@@ -31,6 +34,21 @@ func after_test() -> void:
 	GameSettings.reset_state_for_test()
 	GameSettings.apply() # restores the real AudioServer buses to Register defaults for whichever suite runs next
 	GameSettings.reset_path_for_test()
+	# Blind review nit: clean up this test's own throwaway user:// directory
+	# instead of leaving it on disk forever.
+	_delete_dir_recursive(_dir)
+
+
+func _delete_dir_recursive(path: String) -> void:
+	var dir: DirAccess = DirAccess.open(path)
+	if dir == null:
+		return
+	dir.include_hidden = true
+	for file_name in dir.get_files():
+		dir.remove(file_name)
+	for sub_dir in dir.get_directories():
+		_delete_dir_recursive(path.path_join(sub_dir))
+	DirAccess.remove_absolute(path)
 
 
 # --- Defaults (Register row) ------------------------------------------------
@@ -63,7 +81,7 @@ func test_persistence_round_trip() -> void:
 	# Simulate a fresh process: wipe in-memory state back to compiled-in
 	# defaults, then load from the (real, but throwaway) disk file.
 	GameSettings.reset_state_for_test()
-	GameSettings.load()
+	GameSettings.load_from_disk()
 
 	assert_int(GameSettings.get_master_volume_pct()).is_equal(30)
 	assert_int(GameSettings.get_music_volume_pct()).is_equal(0)
@@ -77,7 +95,7 @@ func test_persistence_round_trip() -> void:
 
 
 func test_a_missing_settings_file_leaves_defaults_untouched() -> void:
-	GameSettings.load() # _dir/settings.cfg was never written by this test
+	GameSettings.load_from_disk() # _dir/settings.cfg was never written by this test
 	assert_int(GameSettings.get_master_volume_pct()).is_equal(100)
 
 
@@ -132,9 +150,13 @@ func test_music_volume_at_zero_mutes_the_music_bus() -> void:
 	assert_bool(AudioServer.is_bus_mute(idx)).is_true()
 
 
-## Task brief: "Effects hits all five buses" (SFX, SFX_Priority, UI, Ambience,
-## TowerCue).
-func test_effects_volume_applies_to_all_five_effect_buses() -> void:
+## Effects Volume drives four buses directly (SFX, SFX_Priority, UI,
+## Ambience). TowerCue is deliberately excluded -- see the dedicated
+## `test_tower_cue_bus_*` tests below, and GameSettings's own header
+## ("TowerCue is NOT driven directly," blind review fix): TowerCue sends
+## INTO SFX_Priority, so applying Effects gain to both would attenuate it
+## twice.
+func test_effects_volume_applies_to_all_four_effect_buses() -> void:
 	GameSettings.set_effects_volume_pct(60)
 	for bus_name: String in EFFECTS_BUSES:
 		var idx: int = AudioServer.get_bus_index(bus_name)
@@ -143,11 +165,39 @@ func test_effects_volume_applies_to_all_five_effect_buses() -> void:
 		assert_bool(AudioServer.is_bus_mute(idx)).is_false()
 
 
-func test_effects_volume_at_zero_mutes_all_five_effect_buses() -> void:
+func test_effects_volume_at_zero_mutes_all_four_effect_buses() -> void:
 	GameSettings.set_effects_volume_pct(0)
 	for bus_name: String in EFFECTS_BUSES:
 		var idx: int = AudioServer.get_bus_index(bus_name)
 		assert_bool(AudioServer.is_bus_mute(idx)).append_failure_message("bus '%s' must be muted at 0%%" % bus_name).is_true()
+
+
+# --- TowerCue is NOT driven directly (blind review BLOCKER-adjacent fix) ----
+
+func test_tower_cue_bus_volume_is_never_touched_by_effects_volume() -> void:
+	var idx: int = AudioServer.get_bus_index(TOWER_CUE_BUS)
+	assert_int(idx).is_greater_equal(0)
+	var before: float = AudioServer.get_bus_volume_db(idx)
+	GameSettings.set_effects_volume_pct(50)
+	assert_float(AudioServer.get_bus_volume_db(idx)).append_failure_message("TowerCue's own volume_db must stay unchanged -- it reaches Effects gain once, through SFX_Priority, not a second time on itself").is_equal_approx(before, 0.001)
+
+
+func test_tower_cue_bus_is_never_directly_muted_by_effects_volume() -> void:
+	var idx: int = AudioServer.get_bus_index(TOWER_CUE_BUS)
+	GameSettings.set_effects_volume_pct(0)
+	assert_bool(AudioServer.is_bus_mute(idx)).append_failure_message("GameSettings must never call set_bus_mute() on TowerCue directly -- it is silenced by SFX_Priority's own mute instead").is_false()
+
+
+## The actual bug this fixes: at, say, 50% Effects, TowerCue's EFFECTIVE
+## gain (its own unity volume_db, mixed through SFX_Priority) must equal
+## Effects exactly ONCE -- the same as every other effects bus -- not
+## Effects applied twice (once on TowerCue itself, again on SFX_Priority).
+func test_tower_cue_effective_gain_equals_effects_exactly_once_via_sfx_priority() -> void:
+	GameSettings.set_effects_volume_pct(50)
+	var sfx_priority_idx: int = AudioServer.get_bus_index("SFX_Priority")
+	var tower_cue_idx: int = AudioServer.get_bus_index(TOWER_CUE_BUS)
+	assert_float(AudioServer.get_bus_volume_db(sfx_priority_idx)).is_equal_approx(linear_to_db(0.5), 0.01)
+	assert_float(AudioServer.get_bus_volume_db(tower_cue_idx)).append_failure_message("TowerCue's own gain must be unity (0 dB) -- SFX_Priority's own gain is the ONE place Effects is applied on this path").is_equal_approx(0.0, 0.01)
 
 
 # --- Mute All (task brief: "mutes Master") -----------------------------------
@@ -208,14 +258,12 @@ func test_display_mode_and_vsync_apply_without_erroring_headless() -> void:
 
 # --- _for_test setters never touch disk --------------------------------------
 
-## FALSIFICATION (named in the report): temporarily changed `set_screen_
-## shake_enabled_for_test()` to call `save()` (the production setter's own
-## behaviour) instead of mutating memory only. `GameSettings.load()` at the
-## real default path afterward then picked up whatever this test's OWN write
-## had just left at `_dir`'s throwaway file -- wait, this specific probe
-## instead checks the FILE ITSELF is never created by any `_for_test` setter,
-## which is the concrete, file-system-level guarantee the hard constraint
-## needs. Reverted after confirming the failure (see report).
+## Checks the concrete, file-system-level guarantee the hard constraint
+## needs directly: every `_for_test` setter mutates the in-memory field ONLY
+## (see GameSettings's own class header, "`_for_test` setters never touch
+## disk") -- redirects to a throwaway `probe.cfg` first so even a bug in this
+## guarantee could never reach the real file, then asserts that path was
+## never created at all.
 func test_for_test_setters_never_write_the_settings_file() -> void:
 	GameSettings.reset_path_for_test() # back to the real user://settings.cfg path...
 	GameSettings.set_path_for_test(_dir.path_join("probe.cfg")) # ...then straight to a throwaway one, so this probe never touches the real file even transiently

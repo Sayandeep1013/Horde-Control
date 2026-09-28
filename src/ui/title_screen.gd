@@ -129,14 +129,18 @@ func _ready() -> void:
 	UiStrings.ensure_registered()
 	_build_ui()
 	_build_settings_menu()
-	_build_music()
-	# Settings screen task: `GameSettings.apply()` is called here, once, at the
-	# game's own `run/main_scene` -- see src/core/game_settings.gd's header,
-	# "Boot-apply site," for why this is the least-invasive choice (an
-	# Autoload's `_ready()` would run for every headless test in the whole
-	# suite, touching `user://settings.cfg` on every single test run).
-	GameSettings.load()
+	# Settings screen task: `GameSettings.load_from_disk()` + `.apply()` run
+	# here, once, at the game's own `run/main_scene` -- see src/core/
+	# game_settings.gd's header, "Boot-apply site," for why this is the
+	# least-invasive choice (an Autoload's `_ready()` would run for every
+	# headless test in the whole suite, touching `user://settings.cfg` on
+	# every single test run). BEFORE `_build_music()` (blind review nit): the
+	# Music bus's real volume must already be the player's saved level before
+	# the title theme's first frame plays, not the engine's bare 0 dB default
+	# for however many frames it takes `apply()` to run afterward.
+	GameSettings.load_from_disk()
 	GameSettings.apply()
+	_build_music()
 	_play_button.grab_focus()
 	_apply_debug_panel_flag()
 
@@ -161,13 +165,31 @@ func _apply_debug_panel_flag() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed(&"ui_cancel"):
-		return
+	if event.is_action_pressed(&"ui_cancel") and _handle_ui_cancel():
+		get_viewport().set_input_as_handled()
+
+
+## Blind review fix (item 6): Esc must close Settings directly here, the
+## same way `pause` (Escape/Start) already closes it in-run
+## (`RunFlowController._on_pause_action_pressed()`'s own `SETTINGS_FROM_
+## PAUSE -> _on_settings_closed()` branch) -- Settings' own hold-to-confirm
+## Back row stays available too (for a controller/movement-only player with
+## no Cancel button), this is an ADDITIONAL, faster path for a keyboard
+## player, not a replacement. Extracted into its own function so
+## `simulate_ui_cancel_for_test()` calls the EXACT same logic the real input
+## handler does, rather than a second copy that could drift.
+func _handle_ui_cancel() -> bool:
 	if _settings_menu.visible:
-		return # Settings owns its own Back/cancel path (hold-to-confirm) -- see settings_menu.gd
+		_on_settings_closed()
+		return true
 	if _controls_center.visible or _credits_center.visible:
 		_hide_panels_and_return()
-		get_viewport().set_input_as_handled()
+		return true
+	return false
+
+
+func simulate_ui_cancel_for_test() -> void:
+	_handle_ui_cancel()
 
 
 # --- Assembly ----------------------------------------------------------
@@ -537,8 +559,17 @@ func _on_credits_back_pressed() -> void:
 ## (see hub_screen.gd's own header note), Title's existing Controls/Credits
 ## sub-panels already hide `_menu_center` while shown, so Settings follows
 ## that same LOCAL precedent rather than the Hub's different one.
+##
+## Blind review fix (item 5, "Check the title screen the same way"):
+## `get_viewport().gui_release_focus()` -- `_menu_center.visible = false`
+## alone is not a documented guarantee that a focused Button inside it gives
+## up focus; explicitly releasing it means `ui_up`/`ui_down`/`ui_accept`
+## (which SettingsMenu does NOT read -- it polls `move_*`/`confirm` directly,
+## never Godot's native focus/UI-input layer) have nothing left focused to
+## drive behind the overlay.
 func _on_settings_pressed() -> void:
 	_last_focused_main_button = _settings_button
+	get_viewport().gui_release_focus()
 	_menu_center.visible = false
 	_settings_menu.set_active(true)
 

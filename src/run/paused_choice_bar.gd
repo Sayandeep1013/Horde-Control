@@ -3,14 +3,15 @@ class_name PausedChoiceBar
 
 ## Shared horizontal, hold-to-confirm choice bar (P2.14 - Run flow).
 ## MASTER_SDLC.md > Provisional Values Register > "Interfaces" > "Platform
-## input floor": "every paused menu (Draft, pause menu, settings, run-end
-## screens) lays choices out horizontally and supports hold-to-confirm."
-## This single `HBoxContainer` subclass IS that horizontal layout (docs/19
-## > "UI Layout & Dynamic Container Rules" prefers a real Container over
-## manual positioning) and is reused, unmodified, by
-## src/ui/pause_menu.gd, src/ui/settings_menu.gd, and src/ui/run_end.gd so
-## the three paused-menu surfaces this task builds share exactly one
-## cycle/hold-to-confirm implementation rather than three drifting copies.
+## input floor": every paused menu lays its choices out horizontally and
+## supports hold-to-confirm, EXCEPT Settings (D121, 2026-09-28), which is a
+## vertical row list instead and no longer uses this bar at all -- see that
+## Register row's own carve-out and `src/ui/settings_menu.gd`'s header. This
+## single `HBoxContainer` subclass IS that horizontal layout (docs/19 > "UI
+## Layout & Dynamic Container Rules" prefers a real Container over manual
+## positioning) and is reused, unmodified in SHAPE, by src/ui/pause_menu.gd
+## and src/ui/run_end.gd so those two paused-menu surfaces share exactly one
+## cycle/hold-to-confirm implementation rather than two drifting copies.
 ##
 ## ## Timing numbers reused from the Draft, named as an interpretation
 ## The Register defines a hold-to-confirm timing in exactly one place --
@@ -25,22 +26,42 @@ class_name PausedChoiceBar
 ## uncited pair of constants. Named here and in the P2.14 evidence report,
 ## "Interpretations" -- not a second Register citation for a second use.
 ##
-## ## Neutral-return arming, no separate lockout window
+## ## Neutral-return arming AND a 0.4 s open lockout (revised; blind review of
+## the Settings screen task, 2026-09-28)
 ## docs/19 > "Upgrade Draft UI & Navigation" > "Input Lockout & Arming":
 ## "Hold-to-confirm inputs ... only arm once input has returned to neutral
 ## at least once ..., so a key or stick already held at the moment the
 ## Draft opens cannot auto-confirm a card." The SAME hazard applies to any
 ## paused menu: a player holding `move_up` as ordinary movement at the
 ## instant they press `pause` must not have that hold instantly confirm
-## the highlighted option. This bar applies the identical neutral-return
-## rule (`_reset_input_state()` below), applied the instant the bar
-## becomes active -- but, unlike the Draft, does NOT add a separate 0.4 s
-## timed lockout first: the Register's 0.4 s figure is cited specifically
-## to the Draft's own opening ("Input is locked out for 0.4 seconds after
-## the Draft opens"), and no equivalent duration is stated for a paused
-## menu opened by a discrete key press (`pause`, not a level-up that can
-## land while the player is mid-input). Named as an interpretation in the
-## P2.14 evidence report, not a silently invented Register number.
+## the highlighted option.
+##
+## An earlier version of this file applied ONLY the neutral-return rule here
+## and deliberately did NOT add the Draft's own 0.4 s timed lockout,
+## reasoning that a paused menu opens on a discrete keypress (`pause`), not a
+## level-up that can land mid-input. That interpretation missed two concrete
+## bugs a blind review found: (1) `PauseMenu`'s own bar runs its `_process()`
+## EARLIER in the scene tree than `SettingsMenu`'s (both children of
+## `RunFlowController`, added in that order) -- confirming "Settings" from
+## this bar is still `just_pressed` when `SettingsMenu`'s OWN `_process()`
+## runs later in that SAME frame, so with no lockout at all a stale
+## `just_pressed` edge (or a stale highlighted-Back state) could immediately
+## re-close the very screen that press just opened; (2) returning to THIS
+## bar (e.g. leaving Settings back to the pause menu) while a direction was
+## still physically held used to hard-reset `_left_held`/`_right_held` to
+## `false` (`_reset_input_state()` below), which read a genuinely-still-held
+## key as a brand-new press on the very first post-activation poll and
+## cycled the highlight with no player input at all. MASTER_SDLC.md line 242
+## and Author decision D3 ("every paused menu" gets the lockout) are the
+## authority this file now follows literally: `OPEN_LOCKOUT_SECONDS` (the
+## Register's own "Draft input" row citation, reused rather than restated)
+## swallows every edge for the whole window, which by itself fixes bug (1)
+## for both this bar's own confirm-then-reopen sequencing AND `SettingsMenu`'s
+## (that file's own header has the matching fix); `_reset_input_state()` now
+## seeds `_left_held`/`_right_held` from the LIVE input state instead of a
+## hard-coded `false`, which fixes bug (2) -- see that function's own header
+## for the seeded repeat-timer detail that keeps an already-held key from
+## also auto-repeating instantly.
 ##
 ## ## Paused-menu timing carve-out (Author decision D104, docs/20 > Godot
 ## 4.x Implementation Standards > "Paused-menu timing")
@@ -51,10 +72,11 @@ class_name PausedChoiceBar
 ## `create_tween()` (banned project-wide; the banned-API check enforces
 ## it). `process_mode` is left at the default `PROCESS_MODE_INHERIT`
 ## deliberately: this bar is always a child of a `CanvasLayer` that itself
-## sets `PROCESS_MODE_ALWAYS` (pause_menu.gd / settings_menu.gd /
-## run_end.gd), and `INHERIT` correctly picks that up, matching
-## src/ui/hud.gd's own children (which set no process_mode of their own
-## either).
+## sets `PROCESS_MODE_ALWAYS` (pause_menu.gd / run_end.gd -- `settings_menu.gd`
+## used to be a third parent before D121 rebuilt it as a vertical row list
+## with its own, unrelated `PROCESS_MODE_ALWAYS` `CanvasLayer`), and
+## `INHERIT` correctly picks that up, matching src/ui/hud.gd's own children
+## (which set no process_mode of their own either).
 ##
 ## ## GodotPrompter skill conflict, recorded per CLAUDE.md
 ## The `godot-ui` skill's own checklist: "Pause menu root Control has
@@ -79,12 +101,18 @@ signal highlighted_changed(index: int)
 
 const CYCLE_REPEAT_SECONDS: float = 0.3
 const HOLD_CONFIRM_SECONDS: float = 1.0
+## MASTER_SDLC.md line 242 / Author decision D3: "every paused menu" opens
+## with this lockout. Reused from the Register's one citation of the figure
+## (the "Draft input" row, "0.4 s input lockout on open") -- see class
+## header, "Neutral-return arming AND a 0.4 s open lockout."
+const OPEN_LOCKOUT_SECONDS: float = 0.4
 
 var _labels: Array[String] = []
 var _views: Array[Label] = []
 var _fill_ring: DraftFillRing = null
 var _highlighted: int = 0
 var _active: bool = false
+var _lockout_remaining: float = 0.0
 
 var _hold_up_armed: bool = false
 var _hold_up_progress: float = 0.0
@@ -147,11 +175,21 @@ func set_fill_ring(ring: DraftFillRing) -> void:
 func set_active(active: bool) -> void:
 	_active = active
 	if active:
+		_lockout_remaining = OPEN_LOCKOUT_SECONDS
 		_reset_input_state()
 
 
 func is_active() -> bool:
 	return _active
+
+
+## Test seam (mirrors src/ui/draft_controller.gd's own `skip_lockout_for_test()`).
+func skip_lockout_for_test() -> void:
+	_lockout_remaining = 0.0
+
+
+func get_lockout_remaining_for_test() -> float:
+	return _lockout_remaining
 
 
 func get_highlighted_index() -> int:
@@ -205,12 +243,21 @@ func get_option_label_for_test(i: int) -> Label:
 
 # --- internals ---------------------------------------------------------------
 
+## Seeds `_left_held`/`_right_held` from the LIVE input state (blind review
+## fix) instead of a hard-coded `false`: a direction already held the
+## instant this bar (re)activates -- the mirror case named in the class
+## header, e.g. returning to the pause menu from Settings while still
+## holding a direction -- must not read as a fresh press on the first poll
+## after activation. Their repeat timers seed to a FULL `CYCLE_REPEAT_
+## SECONDS` for the same reason: an already-held key must wait the same
+## interval a genuinely fresh hold would before its first auto-repeat,
+## rather than firing instantly.
 func _reset_input_state() -> void:
 	_hold_up_progress = 0.0
-	_left_held = false
-	_right_held = false
-	_left_repeat_timer = 0.0
-	_right_repeat_timer = 0.0
+	_left_held = _is_pressed(&"draft_cycle_left") or _is_pressed(&"move_left")
+	_right_held = _is_pressed(&"draft_cycle_right") or _is_pressed(&"move_right")
+	_left_repeat_timer = CYCLE_REPEAT_SECONDS
+	_right_repeat_timer = CYCLE_REPEAT_SECONDS
 	_hold_up_armed = not _is_pressed(&"move_up") # neutral-return rule, applied at activation -- see class header
 
 
@@ -231,8 +278,15 @@ func _clear_test_edges_for_frame() -> void:
 		_test_just_pressed.clear()
 
 
+## During the open lockout, every edge is swallowed (including a leftover
+## `just_pressed` from the frame that opened this bar) -- see class header,
+## "Neutral-return arming AND a 0.4 s open lockout."
 func _process(delta: float) -> void:
 	if not _active or _labels.is_empty():
+		return
+	if _lockout_remaining > 0.0:
+		_lockout_remaining = maxf(_lockout_remaining - delta, 0.0)
+		_clear_test_edges_for_frame()
 		return
 	_poll_cycle_input(delta)
 	_poll_confirm_input()

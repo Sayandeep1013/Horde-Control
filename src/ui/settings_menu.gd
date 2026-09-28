@@ -22,9 +22,13 @@ class_name SettingsMenu
 ## of "lays out choices horizontally" by name -- named here rather than left
 ## as a silent contradiction between this file and that row.
 ##
-## `PausedChoiceBar` itself is UNCHANGED and stays exactly what the other
-## three menus use; this file no longer instantiates one (its horizontal
-## cycle-and-hold-up shape does not fit a vertical list with a per-row value).
+## `PausedChoiceBar` stays exactly what the other three menus use -- this
+## file no longer instantiates one (its horizontal cycle-and-hold-up shape
+## does not fit a vertical list with a per-row value). (Blind review fix: it
+## DID need its own open-lockout/held-input-seeding fix for the same bug
+## class this file fixes below -- see its own header -- so "UNCHANGED" no
+## longer describes it; its own SHAPE, cycling on left/right and confirming
+## on a hold-up, is what stayed the same.)
 ## `SettingsRow` (src/ui/settings_row.gd) is this file's own equivalent
 ## building block, and `SettingsMenu` itself now owns the input polling
 ## `PausedChoiceBar` used to own on its behalf, reusing the SAME two timing
@@ -59,6 +63,35 @@ class_name SettingsMenu
 ## - Movement-only players (task brief: "a movement-only player must still be
 ##   able to change values and leave") therefore need only `move_up`/`move_
 ##   down`/`move_left`/`move_right` for the entire screen -- no button.
+## - Toggle and Display Mode rows change ONCE per press, never on repeat
+##   (blind review fix, item 7): only the three volume rows keep the
+##   press-then-repeat cadence above -- see `_is_volume_row()` and
+##   `_poll_horizontal_input()`. A toggle held past the repeat interval must
+##   not flip back and forth, and Display Mode must not skip past the value
+##   the player actually wanted.
+##
+## ## 0.4 s open lockout + held-input seeding (blind review fix, items 3-4)
+## `set_active(true)` now (a) resets `_highlighted_index` to row 0 (Master
+## Volume) every time -- a stale highlight left on Back from the PREVIOUS
+## session used to combine with (b) below into a same-frame reopen-and-close
+## bug: the pause menu's own `PausedChoiceBar` runs its `_process()` earlier
+## in the scene tree than this screen's, so the SAME physical "confirm" press
+## that opened Settings (via `RunFlowController`) was still `just_pressed`
+## when THIS screen's own `_process()` ran later in that identical frame --
+## and if Back happened to still be highlighted, `_poll_confirm_input()`
+## closed it again immediately; (b) starts a Register-cited `OPEN_LOCKOUT_
+## SECONDS` window (MASTER_SDLC.md line 242; Author decision D3: "every
+## paused menu" gets this lockout, reused from the Register's one citation
+## of it, the Draft input row, rather than a new literal) during which
+## `_process()` polls nothing at all -- by the time it ends, any leftover
+## `just_pressed` edge from the opening frame is long gone (the lockout spans
+## many real frames); and (c) seeds `_up_held`/`_down_held`/`_left_held`/
+## `_right_held` from the LIVE input state at the moment of activation
+## (`_seed_input_state()`), so a key already held when the menu opens (for
+## example holding `move_up` to hold-confirm "Settings" on the pause menu
+## itself) is not misread as a fresh press once the lockout ends -- the same
+## fix `src/run/paused_choice_bar.gd` gets for its own `_left_held`/
+## `_right_held` (its own header has the mirror-case citation).
 ##
 ## ## Reachability (task brief item 4)
 ## `RunFlowController` already owns one instance (pause menu / run-end
@@ -115,6 +148,16 @@ const ROW_ORDER: Array[String] = [
 ## row), reused rather than a second, uncited pair of numbers.
 const CYCLE_REPEAT_SECONDS: float = 0.3
 const HOLD_CONFIRM_SECONDS: float = 1.0
+## MASTER_SDLC.md line 242 / Author decision D3: "every paused menu" opens
+## with this lockout. The Register's own one citation of the figure is the
+## "Draft input" row ("0.4 s input lockout on open") -- reused here for the
+## same reason `CYCLE_REPEAT_SECONDS`/`HOLD_CONFIRM_SECONDS` already are (see
+## class header).
+const OPEN_LOCKOUT_SECONDS: float = 0.4
+
+## Rows whose value keeps changing while held (blind review fix, item 7) --
+## every OTHER row (toggles, Display Mode, Back) changes once per press only.
+const REPEATING_ROWS: Array[String] = [ROW_MASTER_VOLUME, ROW_MUSIC_VOLUME, ROW_EFFECTS_VOLUME]
 
 var _root: Control
 var _frame: MenuFrame.Parts
@@ -123,6 +166,7 @@ var _rows: Dictionary = {} # String id -> SettingsRow
 
 var _active: bool = false
 var _highlighted_index: int = 0
+var _lockout_remaining: float = 0.0
 
 var _up_held: bool = false
 var _up_repeat_timer: float = 0.0
@@ -169,14 +213,34 @@ func _ready() -> void:
 ## The card's own fade/scale-in (UI pass convention, see menu_frame.gd) is
 ## purely cosmetic and runs AFTER these lines, never before or instead of
 ## them -- input activation is never delayed by it.
+##
+## Blind review fix (items 3-4): `_highlighted_index` resets to row 0 and a
+## fresh `OPEN_LOCKOUT_SECONDS` window begins EVERY activation -- see class
+## header, "0.4 s open lockout + held-input seeding," for why both are
+## needed together.
 func set_active(active: bool) -> void:
 	visible = active
 	_active = active
 	if active:
-		_reset_input_state()
+		_highlighted_index = 0
+		_lockout_remaining = OPEN_LOCKOUT_SECONDS
+		_seed_input_state()
+		_refresh_all_rows()
+		_refresh_highlight()
 		MenuFrame.animate_in(_frame)
 	else:
 		MenuFrame.reset_motion(_frame)
+
+
+## Test seam (mirrors src/ui/draft_controller.gd's `skip_lockout_for_test()`
+## naming): forces the open lockout to have already elapsed, for tests that
+## do not care about its timing.
+func skip_lockout_for_test() -> void:
+	_lockout_remaining = 0.0
+
+
+func get_lockout_remaining_for_test() -> float:
+	return _lockout_remaining
 
 
 func is_active_for_test() -> bool:
@@ -321,8 +385,17 @@ func _highlight_row(id: String) -> void:
 
 # --- Keyboard / gamepad polling ----------------------------------------------
 
+## During the open lockout, every edge (including a leftover `just_pressed`
+## from the frame that opened this screen) is swallowed -- `_clear_test_edges_
+## for_frame()` still runs so a queued test edge does not leak past the
+## lockout either. See class header, "0.4 s open lockout + held-input
+## seeding."
 func _process(delta: float) -> void:
 	if not _active:
+		return
+	if _lockout_remaining > 0.0:
+		_lockout_remaining = maxf(_lockout_remaining - delta, 0.0)
+		_clear_test_edges_for_frame()
 		return
 	_poll_vertical_input(delta)
 	_poll_horizontal_input(delta)
@@ -357,14 +430,19 @@ func _poll_vertical_input(delta: float) -> void:
 	_down_held = down_now
 
 
+## Blind review fix (item 7): the repeat branches below only re-fire for a
+## volume row (`_is_volume_row()`) -- the initial press-edge still fires for
+## EVERY row (including toggles/Display Mode), which is what makes a single
+## press change them at all; holding past the repeat interval must not.
 func _poll_horizontal_input(delta: float) -> void:
 	var left_now: bool = _is_pressed(&"move_left")
 	var right_now: bool = _is_pressed(&"move_right")
+	var repeats: bool = _is_volume_row(ROW_ORDER[_highlighted_index])
 
 	if left_now and not _left_held:
 		_apply_direction(-1)
 		_left_repeat_timer = CYCLE_REPEAT_SECONDS
-	elif left_now and _left_held:
+	elif left_now and _left_held and repeats:
 		_left_repeat_timer -= delta
 		if _left_repeat_timer <= 0.0:
 			_apply_direction(-1)
@@ -374,12 +452,16 @@ func _poll_horizontal_input(delta: float) -> void:
 	if right_now and not _right_held:
 		_apply_direction(1)
 		_right_repeat_timer = CYCLE_REPEAT_SECONDS
-	elif right_now and _right_held:
+	elif right_now and _right_held and repeats:
 		_right_repeat_timer -= delta
 		if _right_repeat_timer <= 0.0:
 			_apply_direction(1)
 			_right_repeat_timer = CYCLE_REPEAT_SECONDS
 	_right_held = right_now
+
+
+func _is_volume_row(id: String) -> bool:
+	return REPEATING_ROWS.has(id)
 
 
 ## Instant confirm (matches PausedChoiceBar's own `_poll_confirm_input()`) --
@@ -506,26 +588,27 @@ func _display_mode_text(mode: int) -> String:
 			return tr("SETTINGS_DISPLAY_WINDOWED")
 
 
-## Reapplies the neutral-return arming rule the instant this screen becomes
-## active (matches `PausedChoiceBar.set_active()`'s own `_reset_input_state()`
-## call) -- covers both "menu just opened" and "menu re-shown," neither of
-## which may let an already-held key instantly confirm or repeat.
-## `_highlighted_index` is deliberately NOT reset here -- it persists across
-## opens, matching `PausedChoiceBar`'s own identical choice (`_highlighted`
-## is set only once, in `set_options()`).
-func _reset_input_state() -> void:
-	_up_held = false
-	_down_held = false
-	_left_held = false
-	_right_held = false
-	_up_repeat_timer = 0.0
-	_down_repeat_timer = 0.0
-	_left_repeat_timer = 0.0
-	_right_repeat_timer = 0.0
+## Seeds every held-flag from the LIVE input state the instant this screen
+## becomes active (blind review fix, item 4) -- a key already held at open
+## (for example `move_up`, still held from hold-confirming "Settings" on the
+## pause menu) must not be misread as a fresh press once the open lockout
+## ends: `_up_held`/etc. start TRUE for a key that is already down, and their
+## repeat timers start at a FULL `CYCLE_REPEAT_SECONDS` so an already-held
+## key does not auto-repeat instantly either, matching how a genuinely fresh
+## press-and-hold would only repeat after that same interval. See class
+## header, "0.4 s open lockout + held-input seeding," and
+## `src/run/paused_choice_bar.gd`'s own mirror-case fix.
+func _seed_input_state() -> void:
+	_up_held = _is_pressed(&"move_up")
+	_down_held = _is_pressed(&"move_down")
+	_left_held = _is_pressed(&"move_left")
+	_right_held = _is_pressed(&"move_right")
+	_up_repeat_timer = CYCLE_REPEAT_SECONDS
+	_down_repeat_timer = CYCLE_REPEAT_SECONDS
+	_left_repeat_timer = CYCLE_REPEAT_SECONDS
+	_right_repeat_timer = CYCLE_REPEAT_SECONDS
 	_back_hold_progress = 0.0
 	_back_hold_armed = not (_is_pressed(&"move_left") or _is_pressed(&"move_right"))
-	_refresh_all_rows()
-	_refresh_highlight()
 
 
 func _is_pressed(action: StringName) -> bool:
