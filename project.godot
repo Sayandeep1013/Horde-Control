@@ -12,6 +12,7 @@ config_version=5
 
 config/name="Horde Control"
 run/main_scene="res://scenes/title.tscn"
+config/icon="res://icon.png"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [display]
