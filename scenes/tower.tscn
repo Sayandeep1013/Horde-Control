@@ -24,7 +24,7 @@
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/tower_stage3_archers.png" id="23_stage3"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/tower_destroyed_padded.png" id="24_destroyedtower"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Knights/Buildings/Castle/Castle_Destroyed.png" id="25_destroyedcastle"]
-[ext_resource type="Texture2D" path="res://assets/sprites/tower/tower_ground_shadow.png" id="26_shadow"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/shadow_tower.png" id="26_shadow"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Effects/Fire/Fire.png" id="27_fire"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
