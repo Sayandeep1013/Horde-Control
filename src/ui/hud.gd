@@ -805,7 +805,7 @@ func _build_tower_health_field() -> Control:
 	# matching the Level/Rerolls value labels below.
 	# docs/19 > "UI Layout & Dynamic Container Rules": autowrap + expand-fill
 	# so this label GROWS under pseudo-localization instead of truncating.
-	_wave_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_wave_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_wave_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_wave_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_wave_label.custom_minimum_size = Vector2(WAVE_VALUE_MIN_WIDTH, 0)
@@ -1048,7 +1048,7 @@ func _build_xp_field() -> Control:
 	# comfortably inside the round emblem -- a genuine one-off override
 	# (UiTheme's own header: "per-node add_theme_*_override is for genuine
 	# one-offs only").
-	_level_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_level_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_level_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1079,7 +1079,7 @@ func _build_xp_field() -> Control:
 	_rerolls_label = Label.new()
 	_rerolls_label.name = "RerollsLabel"
 	_rerolls_label.theme_type_variation = UiTheme.HUD_VALUE
-	_rerolls_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_rerolls_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_rerolls_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_rerolls_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_rerolls_label.custom_minimum_size = Vector2(REROLLS_VALUE_MIN_WIDTH, 0)

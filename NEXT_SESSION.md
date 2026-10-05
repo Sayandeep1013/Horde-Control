@@ -1,6 +1,18 @@
 # Next Session — Start Here
 
-## TODO - resume here (updated 2026-10-06)
+## TODO - resume here (updated 2026-10-06, v0.3.0)
+
+**v0.3.0 (2026-10-06):** author asked "make the art style more consistent ... feels a bit janky make that feel smooth ... can i play it mobile .. build an apk", then "do not install any android dev kit on my locale .. use github actions". Done on main:
+- Feel (D151-D155): physics interpolation on; camera is Main/GameCamera sampling the player's interpolated position (144 Hz: backward camera frames 58% -> 0, step dev 3.36 -> 0.078 px); enemy facing hysteresis; run-vs-shoot animation; noise shake; fades. docs/reviews/2026-10-06_FEEL_PASS.md.
+- Android (D146-D150): touch_ui.gd / touch_controls.gd (VirtualJoystick + pause), mobile UI scale, aspect expand, gl_compatibility on mobile, ETC2/ASTC, "Android" preset (prebuilt template, arm64 + armv7, minSdk 24), `.github/workflows/android.yml` builds + signs on CI (tag v* attaches APK to the release). **No Android SDK/JDK on the author's machine - never install one.** Signing key: `%USERPROFILE%\.hordecontrol\` + repo secrets ANDROID_KEYSTORE_BASE64/PASSWORD/ALIAS (docs/28 custody note). Touch self-test: `src/dev/touch_selftest.tscn` (needs a fresh seeded meta profile) - 40 PASS / 0 FAIL at 2400x1080, 1280x720, 1920x1080.
+- Art (D156-D165, amended by D166-D170): Nearest filter, Jersey10 on its 18.67 px grid (readable text >= 37, headings 56), one world scale, tile-grid arena (flat_autotile.gd, elevation_plateau.gd), pack shadows, pack-style Draft cards/HUD bars/pointers, project-made icons from tools/art/make_pixel_icons.py, dark ink on every parchment surface.
+- Blind reviews: art/feel/mobile 5/10 -> fix round (legibility, compact mobile layout, plateau corners, FX interpolation resets).
+- Full suite 919 cases, only the canary fails.
+
+**Open:** not tested on a real phone (feel at 90/120 Hz, Compatibility renderer, Back button, drag-scroll); Title card overlaps castle art at 1920x1080; touch pause menu wraps "Abandon run"; at non-1080 desktop sizes the world resamples at 0.667 (D163); unused art files listed in the art commit; stale agent worktrees under .claude/worktrees/; GitHub Actions warn about Node 20 actions (bump to v5 when convenient). Earlier open list (author decisions on Scrap etc.) still stands below.
+
+
+## Previous TODO (2026-10-06, v0.2.0)
 
 **2026-10-05/06 session (author asked: game-design + UX review, then fix everything autonomously, release the current and the improved exe).** Done and on main:
 - **v0.1.0** released (the pre-review build). **v0.2.0** released (this session's improvements). Both verified with the `--dump-tree=Main/Environment` arena check (26 children).
