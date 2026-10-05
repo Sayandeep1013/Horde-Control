@@ -143,6 +143,10 @@ Decision D148. The Android APK is built **only on GitHub Actions**; no Android S
 - **Outputs:** the APK as the workflow artifact `HordeControl-android-apk`; on a tag, also attached to that tag's release as `HordeControl-<tag>.apk` (the release is created if missing).
 - **Preset:** `export_presets.cfg` preset "Android": prebuilt template (Gradle build off), arm64-v8a and armeabi-v7a, version code 3 / name 0.3.0, package `com.sayandeep1013.hordecontrol`, landscape from the project setting, no INTERNET permission. Minimum Android is 7.0 (minSdk 24, read from the 4.7.1 template's manifest); target SDK 36.
 
+### Release signing key custody
+
+The release keystore and its password live only in the author's `%USERPROFILE%\.hordecontrol\` folder and, as the repo secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEYSTORE_ALIAS`, in GitHub. They are never committed and never written into a document. Back the folder up somewhere off this machine. If the keystore is lost, every future APK is signed with a different key, and Android will refuse to install it over an existing install; players would have to uninstall first and lose their local profile.
+
 ---
 
 ## Known Limitations

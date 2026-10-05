@@ -382,9 +382,16 @@ func _on_option_gui_input(event: InputEvent, index: int) -> void:
 		_confirm(index)
 
 
+## Tints for the resting and the highlighted option (applied as `modulate` over the
+## label's colour). The defaults suit light text on a dark surface; a menu on a parchment
+## card sets dark-ink tints instead (MenuFrame.style_choice_labels, D166).
+var option_tint: Color = Color(1, 1, 1)
+var highlight_tint: Color = Color(1.0, 0.85, 0.2)
+
+
 func _refresh_highlight() -> void:
 	for i in _views.size():
-		_views[i].modulate = Color(1.0, 0.85, 0.2) if i == _highlighted else Color(1, 1, 1)
+		_views[i].modulate = highlight_tint if i == _highlighted else option_tint
 
 
 func _update_fill_ring_visual() -> void:

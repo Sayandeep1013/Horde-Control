@@ -379,5 +379,6 @@ func _spawn_death_fx(position: Vector2) -> void:
 	if container == null:
 		return
 	var fx: Node2D = death_fx_scene.instantiate() as Node2D
+	fx.position = container.to_local(position) if container is Node2D else position # D169: placed before it enters the tree
 	container.add_child(fx)
-	fx.global_position = position
+	fx.reset_physics_interpolation()

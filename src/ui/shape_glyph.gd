@@ -95,6 +95,9 @@ func set_side(side: int) -> void:
 	custom_minimum_size = Vector2(side, side)
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	clip_text = true
+	# A Label is never shorter than its font line, so a glyph inherits the theme size
+	# (37 since D166) as a minimum height; the drawn shape needs only `side`.
+	add_theme_font_size_override("font_size", 1)
 
 
 func _draw() -> void:

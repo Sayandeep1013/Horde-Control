@@ -101,14 +101,14 @@ signal node_released(id: String)
 ## about 8.7 px on a 720p screen) -- registered in the Register > "HUD" > "Skill
 ## Tree node text". The node is now wider than it is tall (NODE_SIZE x
 ## NODE_HEIGHT) so two lines of 20 px name text and the price row fit.
-const NODE_SIZE: float = 122.0 ## width
-const NODE_HEIGHT: float = 112.0
-const ICON_SIDE: int = 16
-const NAME_FONT_SIZE: int = 19 # the font pixel grid (D156)
-const PRICE_FONT_SIZE: int = 19
+const NODE_SIZE: float = 140.0 ## width (D168: about 65 dp on a phone, where the board runs unscaled)
+const NODE_HEIGHT: float = 96.0
+const ICON_SIDE: int = 36
+const NAME_FONT_SIZE: int = 37 # the font pixel grid (D156); only used when `show_name` is on
+const PRICE_FONT_SIZE: int = 37 # D166: the price is read, so 37
 const PIP_SIZE: int = 8
 const PIP_GAP: int = 2
-const PRICE_ICON_SIDE: int = 16
+const PRICE_ICON_SIDE: int = 24
 
 ## Skill Tree art pass: how far the glow drawn in `_draw()` extends past the
 ## frame's own edge, and its two layered alphas (outer, fainter; inner,
@@ -121,6 +121,10 @@ const GLOW_OUTER_ALPHA: float = 0.12
 const GLOW_INNER_ALPHA: float = 0.22
 
 var node_id: String = ""
+## D168: a 140 px tablet cannot hold a 37 px name, so a board node shows only its
+## icon, rank pips and price; the name is in the detail panel (and the node's
+## tooltip). The Reset Tree widget has no detail of its own and turns this on.
+var show_name: bool = false
 var _last_rank: int = 0
 
 ## The branch-appropriate icon `configure()` was given -- restored by
@@ -181,6 +185,7 @@ func _build_children() -> void:
 	_name_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_name_label.custom_minimum_size = Vector2(NODE_SIZE - 20.0, 0.0)
 	_name_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_name_label.visible = false # shown only by set_state() when `show_name` is on; a stale tall minimum would otherwise stretch the node
 	column.add_child(_name_label)
 
 	_silhouette_label = Label.new()
@@ -213,7 +218,8 @@ func _build_children() -> void:
 
 	_price_label = Label.new()
 	_price_label.name = "PriceLabel"
-	_price_label.theme_type_variation = UiTheme.SMALL
+	_price_label.theme_type_variation = UiTheme.HUD_VALUE
+	_price_label.add_theme_constant_override("outline_size", UiPalette.OUTLINE_BODY) # light price text sits on a coloured tablet, inside the parchment-themed board
 	_price_label.add_theme_font_size_override("font_size", PRICE_FONT_SIZE)
 	_price_row.add_child(_price_label)
 
@@ -238,6 +244,7 @@ func configure(id: String, shape: int, branch_color: Color, display_name: String
 	_icon.shape = shape
 	_icon.glyph_color = branch_color
 	_name_label.text = display_name
+	tooltip_text = display_name
 
 
 func set_silhouette() -> void:
@@ -265,8 +272,11 @@ func set_silhouette() -> void:
 ## own. `branch_color` tints the icon/fill when owned; `price` is only read
 ## for LOCKED/UNAFFORDABLE/BUYABLE.
 func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: Color, is_root: bool) -> void:
-	_icon.visible = true
-	_name_label.visible = true
+	_icon.visible = not show_name
+	_name_label.visible = show_name
+	if show_name:
+		_name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		_name_label.custom_minimum_size = Vector2.ZERO
 	_silhouette_label.visible = false
 	_last_rank = rank
 	var owned: bool = rank > 0

@@ -142,15 +142,16 @@ const MAX_Y: int = 5
 ## header for the measured reason) -- freeing 7 rows x 18px = 126px of
 ## vertical room in the SAME 1080-px budget for the new branch-header-
 ## ribbon row and legend row this pass adds above/below the board.
-const CELL_W: float = 130.0
-const CELL_H: float = 116.0
-const DETAIL_PANEL_WIDTH: float = 420.0
+const CELL_W: float = 150.0
+const CELL_H: float = 104.0
+const DETAIL_PANEL_WIDTH: float = 460.0
 ## The root's own footprint (polish pass item 2: "keep the root visibly
 ## special ... larger"). Skill Tree art pass: shrunk to keep the same
 ## ~1.5x-of-a-real-node ratio after NODE_SIZE's own shrink (172/112 ~=
 ## 142/92).
-const ROOT_SIZE: float = 142.0 # a clearly bigger footprint than any real node's own NODE_SIZE (92) -- see coordinator review, "keep the root visibly special ... larger"
-const RESPEC_WIDGET_SIZE: float = 80.0
+const ROOT_SIZE: float = 146.0 # a clearly bigger footprint than any real node's own NODE_SIZE (92) -- see coordinator review, "keep the root visibly special ... larger"
+const RESPEC_WIDGET_SIZE: float = 96.0
+const RESPEC_WIDGET_WIDTH: float = 230.0 ## D168: carries its own 37 px name and refund
 
 var _tree: SkillTreeDefinition = null
 var _content_root: Control = null # the root Control _build_ui() creates -- see set_active()'s own header on why the fade targets this, not `self`
@@ -859,6 +860,7 @@ func _build_ui() -> void:
 	var board_panel := PanelContainer.new()
 	board_panel.name = "BoardPanel"
 	board_panel.theme_type_variation = UiTheme.PANEL
+	board_panel.theme = UiTheme.get_parchment_theme() # D166: dark ink on parchment
 	board_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	board_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board_panel.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -877,7 +879,15 @@ func _build_ui() -> void:
 	board_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	board_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board_center.mouse_filter = Control.MOUSE_FILTER_PASS
-	board_column.add_child(board_center)
+	# D168: the board can be larger than the room (a 37 px legend and 140 px
+	# nodes), so it pans: drag, wheel or scroll bars. Centred when it fits.
+	var board_scroll := ScrollContainer.new()
+	board_scroll.name = "BoardScroll"
+	board_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	board_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	board_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	board_column.add_child(board_scroll)
+	board_scroll.add_child(board_center)
 
 	_board = SkillTreeBoard.new()
 	_board.name = "Board"
@@ -949,7 +959,9 @@ func _make_branch_ribbon(texture_path: String, label_text: String) -> PanelConta
 	var label := Label.new()
 	label.name = "Label"
 	label.text = label_text
-	label.theme_type_variation = UiTheme.VALUE
+	label.theme_type_variation = UiTheme.HUD_VALUE
+	label.add_theme_color_override("font_color", UiPalette.TEXT) # light text on the coloured ribbon
+	label.add_theme_constant_override("outline_size", UiPalette.OUTLINE_BODY)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(label)
@@ -982,7 +994,7 @@ func _add_legend_entry(row: Container, texture_path: String, shape: int, glyph_c
 	row.add_child(entry)
 
 	var swatch := PanelContainer.new()
-	swatch.custom_minimum_size = Vector2(22.0, 22.0)
+	swatch.custom_minimum_size = Vector2(32.0, 32.0)
 	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	swatch.add_theme_stylebox_override("panel", UiTheme.make_texture_box(texture_path, 5, 0))
 	entry.add_child(swatch)
@@ -990,13 +1002,13 @@ func _add_legend_entry(row: Container, texture_path: String, shape: int, glyph_c
 	var glyph := UiShapeGlyph.new()
 	glyph.shape = shape
 	glyph.glyph_color = glyph_color
-	glyph.set_side(12)
+	glyph.set_side(18)
 	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	swatch.add_child(glyph)
 
 	var label := Label.new()
 	label.text = label_text
-	label.theme_type_variation = UiTheme.SMALL
+	label.theme_type_variation = UiTheme.DIM
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	entry.add_child(label)
 
@@ -1026,10 +1038,11 @@ func _build_header(parent: Container) -> void:
 	# lets keyboard/gamepad navigation reach it from the bottom of the tree.
 	_respec_view = SkillNodeView.new()
 	_respec_view.name = "RespecWidget"
+	_respec_view.show_name = true
 	row.add_child(_respec_view)
 	_respec_view.configure(RESPEC_ID, UiShapeGlyph.Shape.RECYCLE, UiPalette.DANGER, tr("SKILL_TREE_RESPEC"))
-	_respec_view.custom_minimum_size = Vector2(RESPEC_WIDGET_SIZE, RESPEC_WIDGET_SIZE)
-	_respec_view.size = Vector2(RESPEC_WIDGET_SIZE, RESPEC_WIDGET_SIZE)
+	_respec_view.custom_minimum_size = Vector2(RESPEC_WIDGET_WIDTH, RESPEC_WIDGET_SIZE)
+	_respec_view.size = Vector2(RESPEC_WIDGET_WIDTH, RESPEC_WIDGET_SIZE)
 	_respec_view.node_hovered.connect(_on_node_hovered)
 	_respec_view.node_pressed.connect(_on_node_pressed)
 	_respec_view.node_released.connect(_on_node_released)
@@ -1099,7 +1112,8 @@ func _position_node(view: Control, grid_pos: Vector2i, size: Vector2) -> void:
 func _build_detail_panel(parent: Container) -> void:
 	var panel := PanelContainer.new()
 	panel.name = "DetailPanel"
-	panel.theme_type_variation = UiTheme.ROW
+	panel.theme_type_variation = UiTheme.PANEL # D168: PANEL, not ROW, so the text clears the carved border
+	panel.theme = UiTheme.get_parchment_theme() # D166
 	panel.custom_minimum_size = Vector2(DETAIL_PANEL_WIDTH, 0.0)
 	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	parent.add_child(panel)
@@ -1126,7 +1140,7 @@ func _build_detail_panel(parent: Container) -> void:
 
 	_detail_effect = Label.new()
 	_detail_effect.name = "EffectLabel"
-	_detail_effect.theme_type_variation = UiTheme.VALUE
+	_detail_effect.theme_type_variation = UiTheme.HUD_VALUE
 	_detail_effect.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_effect.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_detail_effect.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -148,6 +148,7 @@ static func _spawn_burst(container: Node, position: Vector2, dir: Vector2, tier:
 	if burst == null:
 		return
 	burst.global_position = position
+	burst.reset_physics_interpolation() # D169: a pooled node moved here must not interpolate from its last use
 	burst.direction = dir
 	match tier:
 		Tier.PLAYER:
@@ -248,6 +249,7 @@ static func _spawn_splat(container: Node, position: Vector2, _big: bool) -> void
 		return
 	var splat: Sprite2D = _splat_pool[idx] # safe: _acquire_splat_slot() guarantees a live, valid instance at this index before returning
 	splat.global_position = position + Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
+	splat.reset_physics_interpolation() # D169
 	splat.texture = _splat_textures[randi() % _splat_textures.size()]
 	# One world texel scale (D157): no rotation, no rescale. Variety comes from
 	# the four texture variants plus flips.

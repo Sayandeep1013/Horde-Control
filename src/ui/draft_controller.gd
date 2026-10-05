@@ -150,7 +150,13 @@ const HOLD_CONFIRM_SECONDS: float = 1.0
 ## dimensions, not a reusable spacing/colour/font concept.
 ## TODO(ui-pass): promote to UiPalette if another surface needs the same
 ## card or ring size.
-const CARD_MIN_SIZE: Vector2 = Vector2(380, 380)
+const CARD_MIN_SIZE: Vector2 = Vector2(460, 440)
+## Phone layout (D167): the 720 px logical canvas leaves 160 px of HUD above
+## and a footer below, so the cards are shorter and the key badge is hidden.
+const CARD_MIN_SIZE_COMPACT: Vector2 = Vector2(460, 320)
+## The Draft's heading starts this far below the top edge on a phone, clear of
+## the HUD's Tower panel and Wave ribbon (D167).
+const COMPACT_TOP_PX: float = 160.0
 const HOLD_RING_DIAMETER: float = 56.0
 ## `tr()` key for the heading Label; its English text is registered by
 ## src/ui/theme/ui_strings.gd.
@@ -1094,6 +1100,8 @@ func _build_ui() -> void:
 	center.name = "Center"
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_PASS
+	if TouchUi.is_mobile_layout():
+		center.offset_top = COMPACT_TOP_PX # D167: below the HUD's top panels
 	_root.add_child(center)
 
 	var column := VBoxContainer.new()
@@ -1143,7 +1151,8 @@ func _build_ui() -> void:
 	var hold_caption := Label.new()
 	hold_caption.name = "HoldCaption"
 	hold_caption.text = tr("DRAFT_HOLD_CAPTION")
-	hold_caption.theme_type_variation = UiTheme.VALUE # D145: readable footer
+	hold_caption.theme_type_variation = UiTheme.HUD_VALUE # D145/D166: readable footer
+	hold_caption.visible = not TouchUi.is_mobile_layout() # D167: no "or hold up" line on a phone
 	hold_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hold_caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bottom_row.add_child(hold_caption)
@@ -1162,14 +1171,15 @@ func _build_ui() -> void:
 	_reroll_label = Label.new()
 	_reroll_label.name = "RerollHint"
 	_reroll_label.text = tr("DRAFT_REROLL") % maxi(0, _rerolls_remaining)
+	_reroll_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_reroll_label.mouse_filter = Control.MOUSE_FILTER_STOP # clickable (UX review P0-4)
 	_reroll_label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_reroll_label.gui_input.connect(_on_reroll_gui_input)
-	_reroll_label.theme_type_variation = UiTheme.VALUE # D145: readable footer
-	_reroll_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_reroll_label.theme_type_variation = UiTheme.HUD_VALUE # D145/D166: readable footer
+	_reroll_label.autowrap_mode = TextServer.AUTOWRAP_OFF # D167: never wraps; the minimum width below holds the longest text
 	_reroll_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_reroll_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_reroll_label.custom_minimum_size = Vector2(240, TouchUi.touch_height(0.0))
+	_reroll_label.custom_minimum_size = Vector2(380, TouchUi.touch_height(0.0))
 	_reroll_label.focus_mode = Control.FOCUS_ALL
 	reroll_pill.add_child(_reroll_label)
 
@@ -1177,11 +1187,17 @@ func _build_ui() -> void:
 	_how_to_pick_label = Label.new()
 	_how_to_pick_label.name = "HowToPick"
 	_how_to_pick_label.text = tr("DRAFT_HOW_TO_PICK")
-	_how_to_pick_label.theme_type_variation = UiTheme.VALUE # D145: readable footer (was dim body text)
+	_how_to_pick_label.theme_type_variation = UiTheme.HUD_VALUE # D145/D166: readable footer (was dim body text)
 	_how_to_pick_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_how_to_pick_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_how_to_pick_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(_how_to_pick_label)
+	if TouchUi.is_mobile_layout():
+		# D167: no height for a third row on a phone; the tap hint shares the footer row.
+		_how_to_pick_label.autowrap_mode = TextServer.AUTOWRAP_OFF # a wrapping label in an HBox gets ~0 width
+		bottom_row.add_child(_how_to_pick_label)
+		bottom_row.move_child(_how_to_pick_label, 1)
+	else:
+		column.add_child(_how_to_pick_label)
 
 
 ## Feel pass (D155; Register > "Feel hooks" > "Draft fade"): the dim and cards
@@ -1244,7 +1260,7 @@ func _build_card_views() -> void:
 		var def: UpgradeDefinition = card.definition
 		var view: DraftCardView = DraftCardView.new()
 		view.name = "Card%d" % i
-		view.custom_minimum_size = CARD_MIN_SIZE
+		view.custom_minimum_size = CARD_MIN_SIZE_COMPACT if TouchUi.is_mobile_layout() else CARD_MIN_SIZE
 		view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		_card_row.add_child(view)
 		var current_rank: int = 0

@@ -96,8 +96,8 @@ const GOBLIN_SPOTS: Array = [
 const MUSIC_VOLUME_DB: float = -14.0
 
 const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 56.0)
-const MENU_BAND_TOP: float = 650.0 # 1080-base px; UX review P0-2
-const MENU_BAND_BOTTOM: float = 1050.0
+const MENU_BAND_TOP: float = 540.0 # 1080-base px; UX review P0-2
+const MENU_BAND_BOTTOM: float = 1060.0
 const MENU_CARD_MIN_WIDTH: float = 460.0
 ## D147: the mobile layout draws the title on a 720 px tall logical canvas, so
 ## the logo shrinks, the card's band starts higher and the sub-panels' scroll
@@ -105,11 +105,11 @@ const MENU_CARD_MIN_WIDTH: float = 460.0
 const COMPACT_TITLE_FONT_SIZE: int = 93 # 5x the font pixel grid (D156)
 const COMPACT_TITLE_TOP: float = 12.0
 const COMPACT_TITLE_BOTTOM: float = 132.0
-const COMPACT_TAGLINE_TOP: float = 134.0
-const COMPACT_TAGLINE_BOTTOM: float = 176.0
-const COMPACT_MENU_BAND_TOP: float = 186.0
+const COMPACT_TAGLINE_TOP: float = 140.0
+const COMPACT_TAGLINE_BOTTOM: float = 190.0
+const COMPACT_MENU_BAND_TOP: float = 198.0
 const COMPACT_MENU_BAND_BOTTOM: float = 712.0
-const COMPACT_SUB_PANEL_SCROLL_HEIGHT: float = 230.0
+const COMPACT_SUB_PANEL_SCROLL_HEIGHT: float = 260.0
 const SUB_PANEL_MIN_WIDTH: float = 900.0
 const SUB_PANEL_SCROLL_MAX_HEIGHT: float = 480.0 ## docs/19 > "UI Layout & Dynamic Container Rules": a container over roughly 30% of screen height should scroll, not truncate -- both sub-panels wrap their list in a ScrollContainer capped near that budget.
 
@@ -280,7 +280,18 @@ func _add_castle(parent: Control) -> void:
 	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	_place(rect, CASTLE_TOP_LEFT, CASTLE_SIZE)
+	if TouchUi.is_mobile_layout():
+		# D167: on the compact layout the menu card takes the left half; the castle
+		# stands to its right instead of behind it (anchored to 76% of the width).
+		var size: Vector2 = CASTLE_SIZE * 0.7
+		rect.anchor_left = 0.76
+		rect.anchor_right = 0.76
+		rect.offset_left = -size.x * 0.5
+		rect.offset_right = size.x * 0.5
+		rect.offset_top = 250.0
+		rect.offset_bottom = 250.0 + size.y
+	else:
+		_place(rect, CASTLE_TOP_LEFT, CASTLE_SIZE)
 	parent.add_child(rect)
 
 
@@ -351,7 +362,7 @@ func _build_title_block(parent: Control) -> void:
 	var tagline := Label.new()
 	tagline.name = "Tagline"
 	tagline.text = tr("TITLE_TAGLINE")
-	tagline.theme_type_variation = UiTheme.HEADING
+	tagline.theme_type_variation = UiTheme.HUD_VALUE if TouchUi.is_mobile_layout() else UiTheme.HEADING # D167: 37 px on the 50 px compact band
 	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tagline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tagline.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
@@ -369,18 +380,21 @@ func _build_menu_card(parent: Control) -> void:
 	# 720p; the card is centred in a taller band so Quit stays on screen.
 	_menu_center.offset_top = COMPACT_MENU_BAND_TOP if TouchUi.is_mobile_layout() else MENU_BAND_TOP
 	_menu_center.offset_bottom = COMPACT_MENU_BAND_BOTTOM if TouchUi.is_mobile_layout() else MENU_BAND_BOTTOM
+	if TouchUi.is_mobile_layout():
+		_menu_center.anchor_right = 0.55 # D167: left half, clear of the castle on the right
 	parent.add_child(_menu_center)
 
 	var card := PanelContainer.new()
 	card.name = "MenuCard"
 	card.theme_type_variation = UiTheme.CARD
+	card.theme = UiTheme.get_parchment_theme() # D166: dark ink on parchment
 	card.custom_minimum_size = Vector2(MENU_CARD_MIN_WIDTH, 0.0)
 	card.mouse_filter = Control.MOUSE_FILTER_PASS
 	_menu_center.add_child(card)
 
 	var column := VBoxContainer.new()
 	column.name = "MenuColumn"
-	column.theme_type_variation = UiTheme.vbox("M")
+	column.theme_type_variation = &"" if not TouchUi.is_mobile_layout() else UiTheme.vbox("M") # D166: 56 px button text; the default gap keeps five buttons inside 1080
 	card.add_child(column)
 
 	_play_button = _make_menu_button(tr("TITLE_PLAY"))
@@ -410,6 +424,7 @@ func _make_menu_button(text: String) -> Button:
 	button.focus_mode = Control.FOCUS_ALL
 	button.custom_minimum_size = TouchUi.touch_size(BUTTON_MIN_SIZE)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE) # D166: the main menu is the one place a button reads at 56
 	return button
 
 
@@ -475,7 +490,7 @@ func _build_controls_panel() -> void:
 func _make_row_label(text: String, is_action: bool) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.theme_type_variation = UiTheme.VALUE if is_action else UiTheme.DIM_PARCHMENT
+	label.theme_type_variation = UiTheme.HUD_VALUE if is_action else UiTheme.DIM_PARCHMENT
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -493,8 +508,20 @@ func _build_credits_panel() -> void:
 	column.add_child(_make_panel_title(tr("TITLE_CREDITS_TITLE")))
 	column.add_child(HSeparator.new())
 
+	var lines_parent: Container = column
+	if TouchUi.is_mobile_layout():
+		# D167: five 37 px credit lines do not fit above Back on a phone; they scroll.
+		var scroll := ScrollContainer.new()
+		scroll.name = "CreditsScroll"
+		scroll.custom_minimum_size = Vector2(0.0, COMPACT_SUB_PANEL_SCROLL_HEIGHT)
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		column.add_child(scroll)
+		var inner := VBoxContainer.new()
+		inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(inner)
+		lines_parent = inner
 	for key in ["TITLE_CREDITS_TINY_SWORDS", "TITLE_CREDITS_MUSIC", "TITLE_CREDITS_KENNEY", "TITLE_CREDITS_FONT", "TITLE_CREDITS_GODOT"]:
-		column.add_child(_make_credit_line(tr(key)))
+		lines_parent.add_child(_make_credit_line(tr(key)))
 
 	_credits_back_button = _make_menu_button(tr("TITLE_BACK"))
 	_credits_back_button.pressed.connect(_on_credits_back_pressed)
@@ -539,6 +566,7 @@ func _build_sub_panel(panel_name: String) -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.name = panel_name
 	panel.theme_type_variation = UiTheme.CARD
+	panel.theme = UiTheme.get_parchment_theme() # D166
 	panel.custom_minimum_size = Vector2(minf(SUB_PANEL_MIN_WIDTH, 760.0) if TouchUi.is_mobile_layout() else SUB_PANEL_MIN_WIDTH, 0.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	center.add_child(panel)

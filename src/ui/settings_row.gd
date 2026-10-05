@@ -28,8 +28,9 @@ signal clicked() ## mouse press on the row's own name/value area (not an arrow) 
 signal left_pressed() ## mouse press on the "<" arrow
 signal right_pressed() ## mouse press on the ">" arrow
 
-const HIGHLIGHT_COLOR: Color = Color(1.0, 0.85, 0.2) # matches PausedChoiceBar._refresh_highlight()
-const NORMAL_COLOR: Color = Color(1, 1, 1)
+## D166: tints over white label text, so the row reads as dark ink at rest and deep red-brown when highlighted (parchment card).
+const HIGHLIGHT_COLOR: Color = UiPalette.HIGHLIGHT_ON_PARCHMENT
+const NORMAL_COLOR: Color = UiPalette.TEXT_ON_PARCHMENT
 const MARKER_HIGHLIGHTED: String = "▸ " # "▸" -- the shape cue, see class header
 const MARKER_NORMAL: String = "   "
 
@@ -48,17 +49,20 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	theme_type_variation = UiTheme.hbox("M")
+	modulate = NORMAL_COLOR
 
 	_marker_label = Label.new()
 	_marker_label.name = "Marker"
-	_marker_label.theme_type_variation = UiTheme.VALUE
+	_marker_label.theme_type_variation = UiTheme.HUD_VALUE
+	_white_text(_marker_label)
 	_marker_label.text = MARKER_NORMAL
 	_marker_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_marker_label)
 
 	_name_label = Label.new()
 	_name_label.name = "Name"
-	_name_label.theme_type_variation = UiTheme.VALUE
+	_name_label.theme_type_variation = UiTheme.HUD_VALUE
+	_white_text(_name_label)
 	_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_name_label.custom_minimum_size = Vector2(NAME_MIN_WIDTH, TouchUi.touch_height(0.0))
 	_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -73,7 +77,8 @@ func _ready() -> void:
 
 	_value_label = Label.new()
 	_value_label.name = "Value"
-	_value_label.theme_type_variation = UiTheme.VALUE
+	_value_label.theme_type_variation = UiTheme.HUD_VALUE
+	_white_text(_value_label)
 	_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_value_label.custom_minimum_size = Vector2(VALUE_MIN_WIDTH, TouchUi.touch_height(0.0))
 	_value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -91,13 +96,21 @@ func _make_arrow(text: String) -> Label:
 	var lbl := Label.new()
 	lbl.name = "ArrowLeft" if text == "<" else "ArrowRight"
 	lbl.text = text
-	lbl.theme_type_variation = UiTheme.VALUE
+	lbl.theme_type_variation = UiTheme.HUD_VALUE
+	_white_text(lbl)
 	lbl.custom_minimum_size = Vector2(TouchUi.touch_height(ARROW_MIN_WIDTH), TouchUi.touch_height(0.0))
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_STOP
 	lbl.mouse_entered.connect(_on_hovered)
 	return lbl
+
+
+
+## White base colour and no outline: the row's `modulate` tint is the visible colour.
+static func _white_text(lbl: Label) -> void:
+	lbl.add_theme_color_override("font_color", Color.WHITE)
+	lbl.add_theme_constant_override("outline_size", 0)
 
 
 ## `has_value` is false for the Back row: no arrows, no value text.

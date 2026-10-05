@@ -22,6 +22,7 @@ const ROW_VALUE_MIN_WIDTH: float = 220.0
 const MOBILE_SCROLL_HEIGHT: float = 380.0
 
 var _rows_parent: Container
+var _rows_scroll: ScrollContainer
 
 var _frame: MenuFrame.Parts
 var _back_button: Button
@@ -39,6 +40,7 @@ func set_active(active: bool) -> void:
 	visible = active
 	if active:
 		_refresh()
+		MenuFrame.fit_scroll(_frame, _rows_scroll, get_viewport().get_visible_rect().size.y)
 		MenuFrame.animate_in(_frame)
 	else:
 		MenuFrame.reset_motion(_frame)
@@ -68,7 +70,7 @@ func _refresh() -> void:
 		# UX review item 8 (D132): unlocked reads at a glance (colour is
 		# redundant; the word "Unlocked" is the primary signal).
 		if unlocked:
-			value_label.add_theme_color_override("font_color", UiPalette.SUCCESS)
+			value_label.add_theme_color_override("font_color", UiPalette.SUCCESS_ON_PARCHMENT)
 		else:
 			value_label.remove_theme_color_override("font_color")
 
@@ -116,10 +118,12 @@ func _build_ui() -> void:
 	# button, so they scroll by finger drag inside a capped area (docs/19 >
 	# "Max Dimensions": a container over 30% of the screen scrolls).
 	_rows_parent = _frame.column
-	if TouchUi.is_mobile_layout():
+	# D166/D167: with 37 px text the list does not fit on any screen, so it always scrolls.
+	if true:
 		var scroll := ScrollContainer.new()
 		scroll.name = "RowsScroll"
 		scroll.custom_minimum_size = Vector2(0.0, MOBILE_SCROLL_HEIGHT)
+		_rows_scroll = scroll
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		_frame.column.add_child(scroll)
 		var inner := VBoxContainer.new()
@@ -185,7 +189,7 @@ func _build_row(achievement: AchievementDefinition) -> void:
 
 	var value := Label.new()
 	value.name = "Value"
-	value.theme_type_variation = UiTheme.VALUE
+	value.theme_type_variation = UiTheme.HUD_VALUE
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	value.custom_minimum_size = Vector2(ROW_VALUE_MIN_WIDTH, 0.0)

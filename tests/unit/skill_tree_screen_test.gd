@@ -155,7 +155,9 @@ func test_a_revealed_but_not_yet_owned_node_shows_its_price_not_a_silhouette() -
 
 	var view: SkillNodeView = _screen.get_node_view_for_test("sharpened_arrows")
 	assert_bool(view.get_silhouette_label_for_test().visible).append_failure_message("a revealed node must not show the silhouette placeholder").is_false()
-	assert_bool(view.get_name_label_for_test().visible).append_failure_message("a revealed node must show its real name").is_true()
+	# D168 (deliberate): a 140 px tablet cannot hold a 37 px name, so a revealed node carries its name in the tooltip (and the detail panel), not on the tablet.
+	assert_str(view.tooltip_text).append_failure_message("a revealed node must carry its real name (tooltip)").is_not_empty()
+	assert_bool(view.get_name_label_for_test().visible).append_failure_message("the name is not drawn on a board node").is_false()
 	assert_bool(view.get_price_label_for_test().visible).is_true()
 
 

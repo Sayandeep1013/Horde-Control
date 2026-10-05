@@ -110,6 +110,7 @@ var _wave_cell: PanelContainer ## the Wave stat cell; kept in sync with _wave_la
 ## (empty) in `_build_ui()`; populated/cleared and styled by
 ## `set_settlement()`.
 var _settlement_box: VBoxContainer
+var _body_scroll: ScrollContainer
 
 ## Round 2 (LEDGER UR-14): 220 was measured too tight for the widest cell.
 ## "Time survived: 0:03" (the shortest, most common time reading) alone
@@ -123,7 +124,7 @@ var _settlement_box: VBoxContainer
 ## stroke and for pseudo-localization inflating the tr()'d prefix word
 ## (F2, docs/19: strings render roughly 30% longer, bracket-wrapped) --
 ## verified against the capture tool's --pseudo set, see the package report.
-const STAT_CELL_MIN_WIDTH: float = 320.0 ## TODO(ui-pass): promote to UiPalette as a shared stat-grid cell width token
+const STAT_CELL_MIN_WIDTH: float = 360.0 ## TODO(ui-pass): promote to UiPalette as a shared stat-grid cell width token
 
 
 func _ready() -> void:
@@ -180,7 +181,7 @@ func show_summary(summary: Dictionary) -> void:
 ## reached"); a victory (the wave sequence completed with nobody dead)
 ## never does -- so `cause_text`'s emptiness alone already IS the outcome.
 func _apply_outcome_style(is_victory: bool) -> void:
-	_title_label.add_theme_color_override("font_color", UiPalette.SUCCESS if is_victory else UiPalette.DANGER)
+	_title_label.add_theme_color_override("font_color", UiPalette.SUCCESS_ON_PARCHMENT if is_victory else UiPalette.DANGER_ON_PARCHMENT)
 	_outcome_glyph.set_defeat(not is_victory)
 
 
@@ -189,11 +190,21 @@ func _apply_outcome_style(is_victory: bool) -> void:
 ## activation is never delayed by it (rule 6).
 func set_active(active: bool) -> void:
 	visible = active
+	if active:
+		_cap_card_height()
 	_bar.set_active(active)
 	if active:
 		MenuFrame.animate_in(_frame)
 	else:
 		MenuFrame.reset_motion(_frame)
+
+
+## D167: the card may not be taller than the visible canvas minus a margin; the
+## body scrolls inside whatever is left.
+func _cap_card_height() -> void:
+	if not is_inside_tree():
+		return
+	MenuFrame.fit_scroll(_frame, _body_scroll, get_viewport().get_visible_rect().size.y)
 
 
 func is_active_for_test() -> bool:
@@ -268,8 +279,10 @@ func set_settlement(breakdown: Dictionary) -> void:
 	var lines: Array = breakdown.get("lines", [])
 	if lines.is_empty():
 		_settlement_box.visible = false
+		_cap_card_height.call_deferred()
 		return
 	_settlement_box.visible = true
+	_cap_card_height.call_deferred() # once the rows exist and have a size
 
 	var entries: Array[Dictionary] = []
 	for entry in lines:
@@ -295,7 +308,7 @@ func set_settlement(breakdown: Dictionary) -> void:
 
 		var amount_label := Label.new()
 		amount_label.name = "Amount"
-		amount_label.theme_type_variation = UiTheme.VALUE
+		amount_label.theme_type_variation = UiTheme.HUD_VALUE
 		amount_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		amount_label.text = _format_settlement_amount(0)
 		hbox.add_child(amount_label)
@@ -440,15 +453,29 @@ func _build_ui() -> void:
 	_title_label = MenuFrame.build_title(title_row, tr("RUN_END_TITLE"), UiTheme.TITLE, 320.0)
 	MenuFrame.build_separator(_frame.column)
 
+	# D167: everything between the title and the buttons scrolls, so the card
+	# never grows past the screen and Continue / Main Menu are always on it.
+	_body_scroll = ScrollContainer.new()
+	_body_scroll.name = "BodyScroll"
+	_body_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_body_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_body_scroll.custom_minimum_size = Vector2(0.0, 160.0)
+	_frame.column.add_child(_body_scroll)
+	var body := VBoxContainer.new()
+	body.name = "Body"
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.theme_type_variation = UiTheme.vbox("L")
+	_body_scroll.add_child(body)
+
 	_cause_label = _make_field_label("CauseLabel", 400.0)
 	_cause_label.theme_type_variation = UiTheme.DIM
-	_frame.column.add_child(_cause_label)
+	body.add_child(_cause_label)
 
 	var grid := HBoxContainer.new()
 	grid.name = "StatGrid"
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.theme_type_variation = UiTheme.hbox("L")
-	_frame.column.add_child(grid)
+	body.add_child(grid)
 
 	# Follow-up (coordinator review): the sibling captions an earlier
 	# version of this pass added here were removed -- each existing value
@@ -459,17 +486,17 @@ func _build_ui() -> void:
 	# Label, centred, all three the same width so the grid reads even.
 	_wave_cell = _build_stat_cell(grid, "Wave")
 	_wave_label = _make_field_label("WaveLabel", STAT_CELL_MIN_WIDTH)
-	_wave_label.theme_type_variation = UiTheme.VALUE
+	_wave_label.theme_type_variation = UiTheme.HUD_VALUE # D166: 37 px, one line per stat
 	_wave_cell.add_child(_wave_label)
 
 	var scrap_cell: PanelContainer = _build_stat_cell(grid, "Scrap")
 	_scrap_label = _make_field_label("ScrapLabel", STAT_CELL_MIN_WIDTH)
-	_scrap_label.theme_type_variation = UiTheme.VALUE
+	_scrap_label.theme_type_variation = UiTheme.HUD_VALUE
 	scrap_cell.add_child(_scrap_label)
 
 	var time_cell: PanelContainer = _build_stat_cell(grid, "Time")
 	_time_label = _make_field_label("TimeLabel", STAT_CELL_MIN_WIDTH)
-	_time_label.theme_type_variation = UiTheme.VALUE
+	_time_label.theme_type_variation = UiTheme.HUD_VALUE
 	time_cell.add_child(_time_label)
 
 	# Meta layer core: the settlement card container -- see set_settlement()'s
@@ -478,13 +505,13 @@ func _build_ui() -> void:
 	_settlement_box = VBoxContainer.new()
 	_settlement_box.name = "SettlementBox"
 	_settlement_box.visible = false
-	_frame.column.add_child(_settlement_box)
+	body.add_child(_settlement_box)
 
 	# D143: the run seed, small, for bug reports.
 	_seed_label = _make_field_label("SeedLabel", 400.0)
 	_seed_label.theme_type_variation = UiTheme.DIM_PARCHMENT
 	_seed_label.visible = false
-	_frame.column.add_child(_seed_label)
+	body.add_child(_seed_label)
 
 	_bar = PausedChoiceBar.new()
 	_bar.name = "ChoiceBar"

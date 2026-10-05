@@ -43,7 +43,7 @@ Eight waves make a full run. Most first runs end sooner.
 
 ## Download (Android)
 
-1. Get `HordeControl-<version>.apk` from the latest [Release](https://github.com/Sayandeep1013/Horde-Control/releases) on your phone.
+1. Get `HordeControl-v0.3.0.apk`, attached to the [v0.3.0 release](https://github.com/Sayandeep1013/Horde-Control/releases/tag/v0.3.0), on your phone (later releases carry their own `HordeControl-<tag>.apk`).
 2. Open it. Android asks once to allow installs from your browser or file manager; allow it, then install.
 3. Play in landscape. Drag on the left half of the screen to move, tap a card to pick an upgrade, use the pause button at the top right.
 
