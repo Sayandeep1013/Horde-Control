@@ -476,6 +476,7 @@ func _collect(pickup: Pickup) -> void:
 			run_inventory.credit_scrap(pickup.value)
 		_:
 			pass # Core/Health are out of prototype scope (task brief)
+	pickup.play_collect_fx()
 	_despawn_pickup(pickup)
 
 

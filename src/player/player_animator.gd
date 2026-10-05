@@ -67,12 +67,15 @@ class_name PlayerAnimator
 ## normalized acceleration (current acceleration magnitude / the faster of
 ## the two Register rates), and how quickly the visual scale chases that
 ## target each tick.
-@export var stretch_amount: float = 0.14
+## Feel pass (D154): defaults are 0 -- squash and rotation smear a pixel-art
+## sprite (non-integer scale and sub-pixel rotation resample every texel), so
+## the effects stay available as exports but are off for the shipped player.
+@export var stretch_amount: float = 0.0
 @export var stretch_smoothing_per_second: float = 18.0
 
 ## Lean: maximum rotation (radians) applied at full speed, chased at the
 ## same smoothing rate as stretch for one consistent "settle" feel.
-@export var max_lean_radians: float = 0.12
+@export var max_lean_radians: float = 0.0
 
 ## Hit flash duration and colour. Cosmetic constants, same category as the
 ## bob/stretch tuning above.
@@ -130,6 +133,10 @@ var _hit_tween: Tween = null
 ## so it naturally expires right as either the next shot re-triggers it or
 ## (target lost) idle/run resumes.
 var _shoot_hold_until_sim_time: float = -INF
+## Set every tick by `_update_animation_state()`: true while the player is
+## moving fast enough to show `run`. A moving archer keeps the run clip (the
+## pack has no run-and-shoot frames), so `play_shoot()` is a no-op then.
+var _is_moving: bool = false
 
 ## The last direction actually faced (movement or aim), so idle/a shot that
 ## just ended does not snap back to a default facing -- only a NEW nonzero
@@ -237,10 +244,13 @@ func update_visuals(delta: float, local_velocity: Vector2, reference_speed_px_pe
 func _update_animation_state(local_velocity: Vector2, reference_speed_px_per_second: float) -> void:
 	if _sprite_animated == null or _is_dead:
 		return
-	if SimClock.now < _shoot_hold_until_sim_time:
-		return
 	var speed_ratio: float = (local_velocity.length() / reference_speed_px_per_second) if reference_speed_px_per_second > 0.0 else 0.0
-	if speed_ratio > MOVING_SPEED_RATIO_THRESHOLD:
+	_is_moving = speed_ratio > MOVING_SPEED_RATIO_THRESHOLD
+	if _is_moving:
+		_shoot_hold_until_sim_time = -INF # moving cancels any shoot pose still holding
+	elif SimClock.now < _shoot_hold_until_sim_time:
+		return
+	if _is_moving:
 		if absf(local_velocity.x) > 0.01:
 			_facing_flip_h = local_velocity.x < 0.0
 		_play_animation(ANIM_RUN)
@@ -284,6 +294,8 @@ func play_hit_flash() -> void:
 func play_shoot(aim_direction: Vector2, fire_interval_seconds: float) -> void:
 	if _sprite_animated == null or aim_direction == Vector2.ZERO or _is_dead:
 		return
+	if _is_moving:
+		return # keep `run`, facing the direction of travel: no skating in a standing pose (D154)
 	_facing_flip_h = aim_direction.x < 0.0
 	var anim_name: StringName = _shoot_animation_for_direction(aim_direction)
 	if _sprite_animated.sprite_frames == null or not _sprite_animated.sprite_frames.has_animation(anim_name):

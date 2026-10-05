@@ -114,6 +114,8 @@ func _place_sheep(anchor: Vector2, rng: RandomNumberGenerator) -> void:
 	sheep.animation = ANIMATION_NAME
 	sheep.position = anchor
 	sheep.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# Wandered in _process: opt out of physics interpolation.
+	sheep.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	sheep.frame = rng.randi_range(0, FRAME_COUNT - 1)
 	add_child(sheep)
 	sheep.play(ANIMATION_NAME)
