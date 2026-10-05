@@ -58,9 +58,21 @@ func before_test() -> void:
 	_threat_feedback = _proto.get_node("ThreatFeedbackLayer/Overlay") as ThreatFeedback
 	_ui_sfx = _proto.get_node("UiSfx") as UiSfx
 	_shared_ducking = _proto.get_node("SharedAudioDucking") as AudioDucking
-	_seeker = _proto.get_node("Main/Entities/TowerSeeker") as EnemyController
-	_hunter = _proto.get_node("Main/Entities/PlayerHunter") as EnemyController
-	_opportunist = _proto.get_node("Main/Entities/Opportunist") as EnemyController
+	# Task 4 (D122): prototype.tscn no longer hand-places the three feel-check
+	# enemies (they taught all three intents at t=0). The per-enemy wiring
+	# claims below still need one of each, so the suite adds them itself.
+	assert_object(_proto.get_node_or_null("Main/Entities/TowerSeeker")).append_failure_message("prototype.tscn must not hand-place enemies").is_null()
+	_seeker = _add_enemy("res://scenes/entities/tower_seeker.tscn", Vector2(220, -160))
+	_hunter = _add_enemy("res://scenes/entities/player_hunter.tscn", Vector2(-260, 120))
+	_opportunist = _add_enemy("res://scenes/entities/opportunist.tscn", Vector2(0, 320))
+
+
+func _add_enemy(scene_path: String, pos: Vector2) -> EnemyController:
+	var enemy: EnemyController = (load(scene_path) as PackedScene).instantiate() as EnemyController
+	enemy.position = pos
+	_main.get_node("Entities").add_child(enemy)
+	enemy.set_tower_reference(_tower)
+	return enemy
 
 
 ## Walks up from `node`, accumulating each ancestor's own `z_index` while
@@ -93,6 +105,23 @@ func _advance_physics(ticks: int) -> void:
 
 
 # --- Every required node is present -----------------------------------------
+
+func test_the_scene_hand_places_no_enemies_at_t0() -> void:
+	var count: int = 0
+	for child in _main.get_node("Entities").get_children():
+		if child is EnemyController and child != _seeker and child != _hunter and child != _opportunist:
+			count += 1
+	assert_int(count).is_equal(0)
+
+
+func test_the_game_camera_target_is_the_player_and_follows_it() -> void:
+	assert_object(_camera.target).append_failure_message("GameCamera.target is null at runtime (P0-2)").is_same(_player)
+	_camera.snap_to(_player.global_position)
+	_player.global_position = Vector2(1200, 0)
+	await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	assert_float(_camera.global_position.x).append_failure_message("camera did not follow the moved player").is_greater(900.0)
+
 
 func test_every_required_node_is_present() -> void:
 	assert_object(_main).append_failure_message("Main instance missing").is_not_null()

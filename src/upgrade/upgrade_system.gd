@@ -146,6 +146,11 @@ class_name UpgradeSystem
 ## exit criterion) true by construction rather than by careful bookkeeping
 ## across two stores.
 var _ranks: Dictionary = {}
+## D123 (review P1-1): upgrade_id -> Array[float], one entry per rank taken,
+## each the effect that rank granted at ITS OWN rarity
+## (`effect_per_rank * rarity_multiplier`). The live stat is `1 + sum`, so a
+## later Common pick can never rescale or lower an earlier Epic pick.
+var _rank_values: Dictionary = {}
 
 ## D118: card unique_ids gated by a lifetime achievement (`UpgradeDefinition.
 ## is_unlock`) that have been unlocked -- String -> true. Empty by default,
@@ -384,18 +389,15 @@ func get_console_cost(upgrade_id: String) -> int:
 ##
 ## D117 (card rarity): `rarity_multiplier` is the rolled card's own value
 ## multiplier (Common 1.0 / Rare 1.5 / Epic 2.2, src/ui/draft_controller.gd's
-## own roll) -- REPLACES the previous multiplier for this upgrade_id, never
-## compounds, matching this file's own established replace-not-compound
-## convention for every other multiplier field. A named simplification for a
-## multi-rank upgrade bought at different rarities across separate
-## purchases: the MOST RECENT purchase's rarity governs the whole
-## accumulated stack's scaling (`total_fraction` below), not a per-rank
-## locked-in value -- the alternative (summing per-rank values independently
-## of the shared-rank counter) would require a second parallel accumulator
-## next to `_ranks` for no gameplay benefit this prototype's own acceptance
-## test needs. Defaults to 1.0 (Common) so every existing caller -- the
-## Console price/rank formula tests and any direct test call -- is
-## unaffected.
+## own roll).
+##
+## D123 (supersedes D117's "most recent purchase's rarity governs the whole
+## stack" simplification, review P1-1): each rank KEEPS the rarity it was
+## taken at. `_rank_values[upgrade_id]` stores one rarity-scaled value per
+## rank and the stat is `1 + sum(values)`, so Epic then Common gives 22% +
+## 10%, never a re-scaled 20%. Cards that share one stat (Optics+Watchtower,
+## Heavy Rounds+Overdrive, Caliber+Reinforce) are summed together
+## (`_stat_fraction()`) instead of overwriting each other.
 func apply_rank(upgrade_id: String, rarity_multiplier: float = 1.0) -> bool:
 	var def: UpgradeDefinition = get_definition(upgrade_id)
 	if def == null:
@@ -407,6 +409,9 @@ func apply_rank(upgrade_id: String, rarity_multiplier: float = 1.0) -> bool:
 
 	var new_rank: int = get_current_rank(upgrade_id) + 1
 	_ranks[upgrade_id] = new_rank
+	var values: Array = _rank_values.get(upgrade_id, [])
+	values.append(def.effect_per_rank * rarity_multiplier)
+	_rank_values[upgrade_id] = values
 	_apply_effect(def, new_rank, rarity_multiplier)
 
 	# F05-06 (fixed): sum evolution_stage_contribution into
@@ -451,20 +456,21 @@ func apply_rank(upgrade_id: String, rarity_multiplier: float = 1.0) -> bool:
 ## since "1.5 extra pierced enemies" has no meaning; those two always use
 ## `def.effect_per_rank * rank` directly, at every rarity.
 func _apply_effect(def: UpgradeDefinition, rank: int, rarity_multiplier: float = 1.0) -> void:
-	var total_fraction: float = def.effect_per_rank * float(rank) * rarity_multiplier # C-STACK: sum first, apply once, then scale by rarity
+	# C-STACK (D123): sum every rank's own rarity-scaled value, apply once.
+	var total_fraction: float = _sum_values(def.unique_id)
 	match def.unique_id:
 		RAPID_FIRE_ID:
 			if _player_weapon != null:
 				_player_weapon.set_fire_rate_multiplier(1.0 + total_fraction)
 		HEAVY_ROUNDS_ID, OVERDRIVE_FALLBACK_ID:
 			if _player_weapon != null:
-				_player_weapon.set_damage_multiplier(1.0 + total_fraction)
+				_player_weapon.set_damage_multiplier(1.0 + _stat_fraction(PLAYER_DAMAGE_IDS))
 		CALIBER_ID, REINFORCE_FALLBACK_ID:
 			if _tower_weapon != null:
-				_tower_weapon.set_damage_multiplier(1.0 + total_fraction)
+				_tower_weapon.set_damage_multiplier(1.0 + _stat_fraction(TOWER_DAMAGE_IDS))
 		OPTICS_ID, WATCHTOWER_UPGRADE_ID:
 			if _tower_weapon != null:
-				_tower_weapon.set_range_multiplier(1.0 + total_fraction)
+				_tower_weapon.set_range_multiplier(1.0 + _stat_fraction(TOWER_RANGE_IDS))
 		TOWER_VOLLEY_ID:
 			if _tower_weapon != null:
 				_tower_weapon.set_fire_rate_multiplier(1.0 + total_fraction)
@@ -511,3 +517,63 @@ func _apply_effect(def: UpgradeDefinition, rank: int, rarity_multiplier: float =
 				_tower_health.heal(_tower_health.max_health * def.effect_per_rank)
 		_:
 			push_warning("UpgradeSystem._apply_effect(): '%s' has no routing -- effect not applied to any live component" % def.unique_id)
+
+
+# --- D123: per-rank rarity accumulation, shared-stat sums, honest values ---
+
+## Cards that feed ONE live stat; their per-rank values are summed together.
+const PLAYER_DAMAGE_IDS: Array[String] = [HEAVY_ROUNDS_ID, OVERDRIVE_FALLBACK_ID]
+const TOWER_DAMAGE_IDS: Array[String] = [CALIBER_ID, REINFORCE_FALLBACK_ID]
+const TOWER_RANGE_IDS: Array[String] = [OPTICS_ID, WATCHTOWER_UPGRADE_ID]
+
+
+func _sum_values(upgrade_id: String) -> float:
+	var total: float = 0.0
+	for v in _rank_values.get(upgrade_id, []):
+		total += float(v)
+	return total
+
+
+func _stat_fraction(ids: Array[String]) -> float:
+	var total: float = 0.0
+	for id in ids:
+		total += _sum_values(id)
+	return total
+
+
+## Honest value one more rank of `upgrade_id` would grant at
+## `rarity_multiplier`, for the Draft UI to display. Returns a Dictionary:
+##   "kind":    "fraction" (a persistent % stat bonus: 0.22 = +22%),
+##              "heal_flat" (Patch Kit: health points healed),
+##              "heal_tower_fraction" (Repair Kit: fraction of Tower max
+##              health healed), or "count" (Piercing / Multishot: whole
+##              extra enemies pierced / arrows fired);
+##   "grant":   what this ONE rank adds, rarity-scaled only where the code
+##              really scales it ("fraction" kinds); heals and counts are
+##              never rarity-scaled, so the same value is returned at every
+##              rarity;
+##   "total_after": for "fraction" kinds, the combined bonus on the stat
+##              after taking it (includes same-stat sibling cards);
+##              otherwise equal to "grant";
+##   "rarity_scaled": whether the rarity multiplier changed "grant".
+## Returns {} for an unknown id.
+func get_honest_card_value(upgrade_id: String, rarity_multiplier: float = 1.0) -> Dictionary:
+	var def: UpgradeDefinition = get_definition(upgrade_id)
+	if def == null:
+		return {}
+	match upgrade_id:
+		PATCH_KIT_ID:
+			return {"kind": "heal_flat", "grant": def.effect_per_rank, "total_after": def.effect_per_rank, "rarity_scaled": false}
+		REPAIR_KIT_ID:
+			return {"kind": "heal_tower_fraction", "grant": def.effect_per_rank, "total_after": def.effect_per_rank, "rarity_scaled": false}
+		PIERCING_ARROWS_ID, MULTISHOT_ID:
+			return {"kind": "count", "grant": def.effect_per_rank, "total_after": def.effect_per_rank, "rarity_scaled": false}
+	var grant: float = def.effect_per_rank * rarity_multiplier
+	var existing: float = _sum_values(upgrade_id)
+	if PLAYER_DAMAGE_IDS.has(upgrade_id):
+		existing = _stat_fraction(PLAYER_DAMAGE_IDS)
+	elif TOWER_DAMAGE_IDS.has(upgrade_id):
+		existing = _stat_fraction(TOWER_DAMAGE_IDS)
+	elif TOWER_RANGE_IDS.has(upgrade_id):
+		existing = _stat_fraction(TOWER_RANGE_IDS)
+	return {"kind": "fraction", "grant": grant, "total_after": existing + grant, "rarity_scaled": not is_equal_approx(rarity_multiplier, 1.0)}

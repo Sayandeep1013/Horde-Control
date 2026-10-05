@@ -27,7 +27,6 @@
 
 [node name="Prototype" type="Node2D"]
 script = ExtResource("1_integration")
-enemy_paths = Array[NodePath]([NodePath("Main/Entities/TowerSeeker"), NodePath("Main/Entities/PlayerHunter"), NodePath("Main/Entities/Opportunist")])
 
 [node name="Main" parent="." instance=ExtResource("2_main")]
 
@@ -38,18 +37,9 @@ enemy_paths = Array[NodePath]([NodePath("Main/Entities/TowerSeeker"), NodePath("
 [node name="Player" parent="Main" instance=ExtResource("5_player")]
 position = Vector2(280, 0)
 
-[node name="GameCamera" type="Camera2D" parent="Main/Player"]
+[node name="GameCamera" type="Camera2D" parent="Main/Player" node_paths=PackedStringArray("target")]
 script = ExtResource("6_camera")
 target = NodePath("..")
-
-[node name="TowerSeeker" parent="Main/Entities" instance=ExtResource("7_seeker")]
-position = Vector2(220, -160)
-
-[node name="PlayerHunter" parent="Main/Entities" instance=ExtResource("8_hunter")]
-position = Vector2(-260, 120)
-
-[node name="Opportunist" parent="Main/Entities" instance=ExtResource("9_opportunist")]
-position = Vector2(0, 320)
 
 [node name="Hud" parent="." instance=ExtResource("10_hud")]
 
