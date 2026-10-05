@@ -107,15 +107,16 @@ func get_patch_centers() -> Array[Vector2]:
 
 
 func _build_tileset() -> void:
-	var ts: TileSet = TileSet.new()
-	ts.tile_size = Vector2i(TILE_SIZE, TILE_SIZE)
-	var source: TileSetAtlasSource = TileSetAtlasSource.new()
-	source.texture = flat_tilemap_texture
-	source.texture_region_size = Vector2i(TILE_SIZE, TILE_SIZE)
-	for coord in [SAND_TL, SAND_T, SAND_TR, SAND_L, SAND_FILL, SAND_R, SAND_BL, SAND_B, SAND_BR]:
-		source.create_tile(coord)
-	ts.add_source(source, 0)
-	tile_set = ts
+	tile_set = FlatAutotile.make_tileset(flat_tilemap_texture)
+
+
+## sand_network.gd paints the coast, the patches, the plaza and the paths as
+## ONE connected sand set, so no ink edge appears where a path meets a patch.
+## It calls this once: the cells are handed over and this layer is emptied.
+func take_cells() -> Dictionary:
+	var out: Dictionary = _sand.duplicate()
+	clear()
+	return out
 
 
 func _world_to_cell(p: Vector2) -> Vector2i:
@@ -198,32 +199,13 @@ func _grow_blob(origin: Vector2, rng: RandomNumberGenerator) -> void:
 
 
 func _paint() -> void:
-	for cell in _sand.keys():
-		var has_n: bool = _sand.has(cell + Vector2i(0, -1))
-		var has_s: bool = _sand.has(cell + Vector2i(0, 1))
-		var has_e: bool = _sand.has(cell + Vector2i(1, 0))
-		var has_w: bool = _sand.has(cell + Vector2i(-1, 0))
-		set_cell(cell, 0, _atlas_coord_for(has_n, has_s, has_e, has_w))
+	FlatAutotile.paint(self, FlatAutotile.SAND, _sand)
 
 
+## Kept for callers of the old 3x3 classifier; the strip tiles now resolve the
+## one-cell-wide cases too (see flat_autotile.gd).
 static func _atlas_coord_for(has_n: bool, has_s: bool, has_e: bool, has_w: bool) -> Vector2i:
-	if not has_n and not has_w:
-		return SAND_TL
-	if not has_n and not has_e:
-		return SAND_TR
-	if not has_s and not has_w:
-		return SAND_BL
-	if not has_s and not has_e:
-		return SAND_BR
-	if not has_n:
-		return SAND_T
-	if not has_s:
-		return SAND_B
-	if not has_w:
-		return SAND_L
-	if not has_e:
-		return SAND_R
-	return SAND_FILL
+	return FlatAutotile.coord_for(FlatAutotile.SAND, has_n, has_s, has_e, has_w)
 
 
 func get_sand_cell_count_for_test() -> int:
