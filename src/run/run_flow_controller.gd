@@ -462,6 +462,10 @@ func _notification(what: int) -> void:
 		_on_focus_out()
 	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_on_close_requested()
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		# D146: Android Back is Pause (and Resume when the pause menu is up).
+		if _state != State.ENDED:
+			_on_pause_action_pressed()
 
 
 ## Meta layer core (build brief item 4): "Window close during a run

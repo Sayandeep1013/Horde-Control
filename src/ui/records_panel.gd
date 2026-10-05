@@ -91,7 +91,7 @@ func _build_ui() -> void:
 	_back_button = Button.new()
 	_back_button.name = "BackButton"
 	_back_button.text = tr("RECORDS_BACK")
-	_back_button.custom_minimum_size = Vector2(220, 56)
+	_back_button.custom_minimum_size = TouchUi.button_size(Vector2(220, 56))
 	_back_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_back_button.pressed.connect(func() -> void: back_requested.emit())
 	_frame.column.add_child(_back_button)

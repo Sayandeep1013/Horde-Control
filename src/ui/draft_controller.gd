@@ -1169,7 +1169,7 @@ func _build_ui() -> void:
 	_reroll_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_reroll_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_reroll_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_reroll_label.custom_minimum_size = Vector2(240, 0)
+	_reroll_label.custom_minimum_size = Vector2(240, TouchUi.touch_height(0.0))
 	_reroll_label.focus_mode = Control.FOCUS_ALL
 	reroll_pill.add_child(_reroll_label)
 

@@ -99,6 +99,17 @@ const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 56.0)
 const MENU_BAND_TOP: float = 650.0 # 1080-base px; UX review P0-2
 const MENU_BAND_BOTTOM: float = 1050.0
 const MENU_CARD_MIN_WIDTH: float = 460.0
+## D147: the mobile layout draws the title on a 720 px tall logical canvas, so
+## the logo shrinks, the card's band starts higher and the sub-panels' scroll
+## areas are shorter. All 720-base px.
+const COMPACT_TITLE_FONT_SIZE: int = 96
+const COMPACT_TITLE_TOP: float = 12.0
+const COMPACT_TITLE_BOTTOM: float = 132.0
+const COMPACT_TAGLINE_TOP: float = 134.0
+const COMPACT_TAGLINE_BOTTOM: float = 176.0
+const COMPACT_MENU_BAND_TOP: float = 186.0
+const COMPACT_MENU_BAND_BOTTOM: float = 712.0
+const COMPACT_SUB_PANEL_SCROLL_HEIGHT: float = 230.0
 const SUB_PANEL_MIN_WIDTH: float = 900.0
 const SUB_PANEL_SCROLL_MAX_HEIGHT: float = 480.0 ## docs/19 > "UI Layout & Dynamic Container Rules": a container over roughly 30% of screen height should scroll, not truncate -- both sub-panels wrap their list in a ScrollContainer capped near that budget.
 
@@ -127,6 +138,7 @@ var _settings_menu: SettingsMenu
 const DEBUG_PANEL_FLAG_PREFIX: String = "--debug-panel="
 
 func _ready() -> void:
+	TouchUi.apply_ui_scale(get_window()) # D147: mobile UI scale, before anything measures itself
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	UiStrings.ensure_registered()
 	_build_ui()
@@ -188,6 +200,14 @@ func _handle_ui_cancel() -> bool:
 		_hide_panels_and_return()
 		return true
 	return false
+
+
+## D146: Android Back. Closes the open sub-panel; on the bare title it leaves
+## the app, which is what Back does everywhere else on Android.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if not _handle_ui_cancel():
+			get_tree().quit()
 
 
 func simulate_ui_cancel_for_test() -> void:
@@ -320,12 +340,12 @@ func _build_title_block(parent: Control) -> void:
 	# One-off, deliberately larger than any other UiTheme.TITLE use in this
 	# project (a logo, not a menu heading) -- UiPalette's own header allows
 	# `theme_override_*` for "genuine one-offs only"; this is one.
-	title.add_theme_font_size_override("font_size", 128)
+	title.add_theme_font_size_override("font_size", COMPACT_TITLE_FONT_SIZE if TouchUi.is_mobile_layout() else 128)
 	title.add_theme_constant_override("outline_size", 12)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	title.offset_top = 40.0
-	title.offset_bottom = 200.0
+	title.offset_top = COMPACT_TITLE_TOP if TouchUi.is_mobile_layout() else 40.0
+	title.offset_bottom = COMPACT_TITLE_BOTTOM if TouchUi.is_mobile_layout() else 200.0
 	parent.add_child(title)
 
 	var tagline := Label.new()
@@ -335,8 +355,8 @@ func _build_title_block(parent: Control) -> void:
 	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tagline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tagline.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	tagline.offset_top = 205.0
-	tagline.offset_bottom = 255.0
+	tagline.offset_top = COMPACT_TAGLINE_TOP if TouchUi.is_mobile_layout() else 205.0
+	tagline.offset_bottom = COMPACT_TAGLINE_BOTTOM if TouchUi.is_mobile_layout() else 255.0
 	parent.add_child(tagline)
 
 
@@ -347,8 +367,8 @@ func _build_menu_card(parent: Control) -> void:
 	_menu_center.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	# UX review P0-2 (D127): five buttons do not fit the old 705-1050 band at
 	# 720p; the card is centred in a taller band so Quit stays on screen.
-	_menu_center.offset_top = MENU_BAND_TOP
-	_menu_center.offset_bottom = MENU_BAND_BOTTOM
+	_menu_center.offset_top = COMPACT_MENU_BAND_TOP if TouchUi.is_mobile_layout() else MENU_BAND_TOP
+	_menu_center.offset_bottom = COMPACT_MENU_BAND_BOTTOM if TouchUi.is_mobile_layout() else MENU_BAND_BOTTOM
 	parent.add_child(_menu_center)
 
 	var card := PanelContainer.new()
@@ -388,7 +408,7 @@ func _make_menu_button(text: String) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_ALL
-	button.custom_minimum_size = BUTTON_MIN_SIZE
+	button.custom_minimum_size = TouchUi.touch_size(BUTTON_MIN_SIZE)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return button
 
@@ -402,6 +422,14 @@ func _make_menu_button(text: String) -> Button:
 ## matching docs/19's own Input Map section, which does not localize them
 ## either.
 func _controls_rows() -> Array:
+	if TouchUi.is_mobile_layout():
+		# D147: a phone has no keys. Same rows the player needs, touch wording.
+		return [
+			[tr("TITLE_CONTROLS_MOVE"), "Drag on the left side"],
+			[tr("TITLE_CONTROLS_DRAFT_SELECT"), "Tap a card"],
+			[tr("TITLE_CONTROLS_REROLL"), "Tap Reroll"],
+			[tr("TITLE_CONTROLS_PAUSE"), "Pause button, or Back"],
+		]
 	return [
 		[tr("TITLE_CONTROLS_MOVE"), "WASD / Arrow Keys / Left Stick"],
 		[tr("TITLE_CONTROLS_DRAFT_CYCLE"), "A/D, Left Stick, D-Pad"],
@@ -426,7 +454,7 @@ func _build_controls_panel() -> void:
 
 	var scroll := ScrollContainer.new()
 	scroll.name = "Scroll"
-	scroll.custom_minimum_size = Vector2(0.0, SUB_PANEL_SCROLL_MAX_HEIGHT)
+	scroll.custom_minimum_size = Vector2(0.0, COMPACT_SUB_PANEL_SCROLL_HEIGHT if TouchUi.is_mobile_layout() else SUB_PANEL_SCROLL_MAX_HEIGHT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	column.add_child(scroll)
 
@@ -504,14 +532,14 @@ func _build_sub_panel(panel_name: String) -> Dictionary:
 	# seam). Starting the band at 280 (the same y the Castle backdrop
 	# starts at) keeps the panel entirely clear of the title block instead.
 	center.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	center.offset_top = 280.0
-	center.offset_bottom = 1080.0
+	center.offset_top = COMPACT_MENU_BAND_TOP if TouchUi.is_mobile_layout() else 280.0
+	center.offset_bottom = COMPACT_MENU_BAND_BOTTOM if TouchUi.is_mobile_layout() else 1080.0
 	_root.get_node("Foreground").add_child(center)
 
 	var panel := PanelContainer.new()
 	panel.name = panel_name
 	panel.theme_type_variation = UiTheme.CARD
-	panel.custom_minimum_size = Vector2(SUB_PANEL_MIN_WIDTH, 0.0)
+	panel.custom_minimum_size = Vector2(minf(SUB_PANEL_MIN_WIDTH, 760.0) if TouchUi.is_mobile_layout() else SUB_PANEL_MIN_WIDTH, 0.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	center.add_child(panel)
 

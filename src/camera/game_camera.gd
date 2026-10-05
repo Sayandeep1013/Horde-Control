@@ -97,6 +97,12 @@ func _init() -> void:
 	# physics-process callback on behalf of physics interpolation.
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 
+## D146/D147 (mobile): the window's `content_scale_factor` that `zoom` has
+## already been divided by. 1.0 on desktop, so every reading of `zoom` there is
+## exactly what it was; on a phone the UI is scaled up and the camera zooms out
+## by the same factor so the player sees the same amount of world.
+var _applied_content_scale: float = 1.0
+
 
 func _ready() -> void:
 	# Built-in smoothing is disabled: lead + smoothing + shake are all
@@ -104,6 +110,7 @@ func _ready() -> void:
 	# last step applied to the position the engine actually draws from
 	# (Register > "Lead/shake application" row).
 	position_smoothing_enabled = false
+	_sync_content_scale()
 	# Feel pass (D151): the camera is driven per RENDER frame in `_process`, so
 	# it opts out of physics interpolation, and it reads the target's
 	# interpolated transform instead. It lives beside the Player (not under it)
@@ -129,6 +136,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_sync_content_scale()
 	if target != null:
 		var target_pos: Vector2 = _target_render_position()
 		var velocity_estimate: Vector2 = Vector2.ZERO
@@ -175,6 +183,21 @@ func _target_render_position() -> Vector2:
 	if not _interpolate_target or not is_inside_tree() or get_tree().paused:
 		return target.global_position
 	return _tick_previous.lerp(_tick_current, Engine.get_physics_interpolation_fraction())
+
+
+## Keeps `zoom` divided by the window's content scale factor (see
+## `_applied_content_scale`). Cheap enough to run every frame, so a resize or
+## rotation on a phone is picked up without a signal.
+func _sync_content_scale() -> void:
+	if not is_inside_tree():
+		return
+	var win: Window = get_window()
+	if win == null:
+		return
+	var f: float = maxf(win.content_scale_factor, 0.01)
+	if not is_equal_approx(f, _applied_content_scale):
+		zoom = zoom * (_applied_content_scale / f)
+		_applied_content_scale = f
 
 
 ## Test/utility hook: immediately (no smoothing lag) moves the camera to
@@ -241,7 +264,7 @@ func _update_shake(delta: float) -> void:
 ## whichever task first has both dependencies available.
 func set_view_scale(new_view_scale: float, animate: bool = true) -> void:
 	var clamped_scale: float = clampf(new_view_scale, VIEW_SCALE_MIN, VIEW_SCALE_MAX)
-	var target_zoom: Vector2 = Vector2.ONE / clamped_scale
+	var target_zoom: Vector2 = Vector2.ONE / (clamped_scale * _applied_content_scale)
 	if animate and is_inside_tree():
 		var tw: Tween = create_tween()
 		tw.tween_property(self, "zoom", target_zoom, ZOOM_EASE_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -253,7 +276,7 @@ func set_view_scale(new_view_scale: float, animate: bool = true) -> void:
 func get_view_scale() -> float:
 	if zoom.x <= 0.0:
 		return 1.0
-	return 1.0 / zoom.x
+	return 1.0 / (zoom.x * _applied_content_scale)
 
 
 ## The world-space size of the visible rectangle at the current zoom
@@ -263,7 +286,7 @@ func get_view_scale() -> float:
 func get_visible_world_size() -> Vector2:
 	var zx: float = zoom.x if zoom.x > 0.0 else 1.0
 	var zy: float = zoom.y if zoom.y > 0.0 else 1.0
-	return Vector2(VIEWPORT_REFERENCE_SIZE.x / zx, VIEWPORT_REFERENCE_SIZE.y / zy)
+	return Vector2(VIEWPORT_REFERENCE_SIZE.x / (zx * _applied_content_scale), VIEWPORT_REFERENCE_SIZE.y / (zy * _applied_content_scale))
 
 
 ## The one place the arena bounds invariant is enforced: the visible
@@ -277,8 +300,8 @@ func _clamp_to_arena_bounds(pos: Vector2) -> Vector2:
 	var arena_max: Vector2 = arena_center + ARENA_SIZE / 2.0
 	# HUD margins: the view may extend past each wall by the HUD band (D141).
 	var view_scale_now: float = get_view_scale()
-	var margin_min: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_TOP) * view_scale_now
-	var margin_max: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_BOTTOM) * view_scale_now
+	var margin_min: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_TOP) * view_scale_now * _applied_content_scale
+	var margin_max: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_BOTTOM) * view_scale_now * _applied_content_scale
 
 	var clamped: Vector2 = pos
 	if half_extent.x * 2.0 <= ARENA_SIZE.x:

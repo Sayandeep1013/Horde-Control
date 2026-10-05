@@ -8,7 +8,7 @@ A top-down survival roguelite in pixel art. You and a stone Tower stand in the m
 island while goblin waves come at both of you. Keep yourself alive, keep the Tower standing,
 and spend what each run earns on a permanent skill tree before the next one.
 
-**Windows: download the exe from [Releases](https://github.com/Sayandeep1013/Horde-Control/releases).**
+**Windows: download the exe. Android: download the apk. Both are on [Releases](https://github.com/Sayandeep1013/Horde-Control/releases).**
 
 ![Gameplay](docs/screenshots/03-gameplay.jpg)
 
@@ -41,6 +41,14 @@ and spend what each run earns on a permanent skill tree before the next one.
 
 Eight waves make a full run. Most first runs end sooner.
 
+## Download (Android)
+
+1. Get `HordeControl-<version>.apk` from the latest [Release](https://github.com/Sayandeep1013/Horde-Control/releases) on your phone.
+2. Open it. Android asks once to allow installs from your browser or file manager; allow it, then install.
+3. Play in landscape. Drag on the left half of the screen to move, tap a card to pick an upgrade, use the pause button at the top right.
+
+Android 7.0 or newer (the Godot 4.7.1 template's minimum), 64-bit or 32-bit ARM. The app asks for no permissions and never goes online. The APK is built and signed by GitHub Actions from this repository.
+
 ## Download (Windows)
 
 1. Get `HordeControl.exe` from the latest [Release](https://github.com/Sayandeep1013/Horde-Control/releases).
@@ -59,6 +67,10 @@ Windows 10 or 11, 64-bit. Any GPU that runs Vulkan.
 | Confirm | Hold Space or Enter, or click | Hold A |
 | Reroll the upgrades | R | X |
 | Pause | Esc | Start |
+
+On a phone: drag on the left half of the screen to move (the joystick appears under your thumb), tap a
+card to pick it, tap Reroll to reroll, use the pause button at the top right (Android Back also pauses).
+To see the touch controls on a desktop, launch with `-- --touch-ui`.
 
 Settings (master/music/effects volume with a mute-all toggle, display mode, V-Sync, screen shake,
 damage numbers, movement-only controls) are on the title screen, in the War Camp and in the pause

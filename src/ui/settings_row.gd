@@ -60,7 +60,8 @@ func _ready() -> void:
 	_name_label.name = "Name"
 	_name_label.theme_type_variation = UiTheme.VALUE
 	_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_name_label.custom_minimum_size = Vector2(NAME_MIN_WIDTH, 0.0)
+	_name_label.custom_minimum_size = Vector2(NAME_MIN_WIDTH, TouchUi.touch_height(0.0))
+	_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_name_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	_name_label.mouse_entered.connect(_on_hovered)
 	_name_label.gui_input.connect(_on_body_gui_input)
@@ -74,7 +75,8 @@ func _ready() -> void:
 	_value_label.name = "Value"
 	_value_label.theme_type_variation = UiTheme.VALUE
 	_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_value_label.custom_minimum_size = Vector2(VALUE_MIN_WIDTH, 0.0)
+	_value_label.custom_minimum_size = Vector2(VALUE_MIN_WIDTH, TouchUi.touch_height(0.0))
+	_value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_value_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	_value_label.mouse_entered.connect(_on_hovered)
 	_value_label.gui_input.connect(_on_body_gui_input)
@@ -90,7 +92,8 @@ func _make_arrow(text: String) -> Label:
 	lbl.name = "ArrowLeft" if text == "<" else "ArrowRight"
 	lbl.text = text
 	lbl.theme_type_variation = UiTheme.VALUE
-	lbl.custom_minimum_size = Vector2(ARROW_MIN_WIDTH, 0.0)
+	lbl.custom_minimum_size = Vector2(TouchUi.touch_height(ARROW_MIN_WIDTH), TouchUi.touch_height(0.0))
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_STOP
 	lbl.mouse_entered.connect(_on_hovered)

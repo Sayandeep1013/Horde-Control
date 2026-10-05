@@ -229,7 +229,7 @@ func test_cue_triggers_ducking_on_sfx_and_ambience_but_not_sfx_priority() -> voi
 
 
 # ============================================================================
-# 5. HUD fields at 1920x1080 (canvas_items/keep, pinned) and layout survival
+# 5. HUD fields at 1920x1080 (canvas_items/expand, pinned) and layout survival
 #    under the F2 pseudo-localization expansion (30%), with no silent
 #    truncation.
 # ============================================================================
@@ -238,7 +238,7 @@ func test_pinned_viewport_and_stretch_settings() -> void:
 	assert_int(int(ProjectSettings.get_setting("display/window/size/viewport_width"))).is_equal(1920)
 	assert_int(int(ProjectSettings.get_setting("display/window/size/viewport_height"))).is_equal(1080)
 	assert_str(str(ProjectSettings.get_setting("display/window/stretch/mode"))).is_equal("canvas_items")
-	assert_str(str(ProjectSettings.get_setting("display/window/stretch/aspect"))).is_equal("keep")
+	assert_str(str(ProjectSettings.get_setting("display/window/stretch/aspect"))).is_equal("expand") # D146: was "keep"
 
 
 func _build_hud_in_1080p_viewport() -> Dictionary:

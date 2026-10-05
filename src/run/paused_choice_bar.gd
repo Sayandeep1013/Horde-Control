@@ -151,7 +151,8 @@ func set_options(labels: Array[String]) -> void:
 		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lbl.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		lbl.custom_minimum_size = Vector2(180, 0)
+		lbl.custom_minimum_size = Vector2(180, TouchUi.touch_height(0.0))
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER if TouchUi.is_mobile_layout() else VERTICAL_ALIGNMENT_TOP
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lbl.mouse_filter = Control.MOUSE_FILTER_STOP
 		lbl.focus_mode = Control.FOCUS_ALL

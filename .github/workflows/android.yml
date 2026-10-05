@@ -1,0 +1,188 @@
+name: Android APK
+
+# Builds the signed Android APK (decision D148). Nothing here is installed on a
+# developer machine: Godot, its export templates and the Android SDK pieces all
+# live on the runner.
+#
+# Secrets this workflow reads (already set on the repository):
+#   ANDROID_KEYSTORE_BASE64    the release keystore (PKCS12), base64 encoded
+#   ANDROID_KEYSTORE_ALIAS     the key alias (also the keystore "user")
+#   ANDROID_KEYSTORE_PASSWORD  the store password; the key password is identical
+# They reach Godot only through its own environment variables
+# GODOT_ANDROID_KEYSTORE_RELEASE_PATH / _USER / _PASSWORD, so export_presets.cfg
+# keeps those fields empty and carries no secret.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # attach the APK to the release for a tag
+
+env:
+  GODOT_VERSION: "4.7.1"
+  GODOT_RELEASE_URL: https://github.com/godotengine/godot/releases/download/4.7.1-stable
+  GODOT_EDITOR_ZIP: Godot_v4.7.1-stable_linux.x86_64.zip
+  GODOT_TEMPLATES_TPZ: Godot_v4.7.1-stable_export_templates.tpz
+  GODOT_TEMPLATES_DIR: 4.7.1.stable
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Refuse a preset that carries a secret
+        run: |
+          if grep -Eq '^keystore/(debug|release)(_user|_password)?="[^"]+"' export_presets.cfg; then
+            echo "export_presets.cfg has a keystore value; keystore fields must stay empty (CI uses env vars)."
+            exit 1
+          fi
+          grep -q '^name="Android"' export_presets.cfg
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Restore Godot download cache
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-cache
+          key: godot-${{ env.GODOT_VERSION }}-linux-android-templates-v1
+
+      - name: Download Godot editor and Android export templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-cache/templates
+          cd ~/godot-cache
+          curl -fsSL -O "$GODOT_RELEASE_URL/$GODOT_EDITOR_ZIP"
+          curl -fsSL -O "$GODOT_RELEASE_URL/$GODOT_TEMPLATES_TPZ"
+          curl -fsSL -O "$GODOT_RELEASE_URL/SHA512-SUMS.txt"
+          grep -E " ($GODOT_EDITOR_ZIP|$GODOT_TEMPLATES_TPZ)\$" SHA512-SUMS.txt | sha512sum -c -
+          # Only the Android templates are needed; the full .tpz is over a gigabyte unpacked.
+          unzip -q -j -o "$GODOT_TEMPLATES_TPZ" 'templates/android_*' 'templates/version.txt' -d templates
+          rm -f "$GODOT_TEMPLATES_TPZ"
+          ls -la templates
+
+      - name: Install Godot and templates
+        run: |
+          mkdir -p ~/godot-bin ~/.local/share/godot/export_templates/$GODOT_TEMPLATES_DIR
+          unzip -q -o ~/godot-cache/$GODOT_EDITOR_ZIP -d ~/godot-bin
+          mv ~/godot-bin/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot-bin/godot
+          chmod +x ~/godot-bin/godot
+          cp ~/godot-cache/templates/* ~/.local/share/godot/export_templates/$GODOT_TEMPLATES_DIR/
+          echo "$HOME/godot-bin" >> "$GITHUB_PATH"
+          cat ~/.local/share/godot/export_templates/$GODOT_TEMPLATES_DIR/version.txt
+
+      - name: Android SDK pieces Godot checks for
+        run: |
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          echo "ANDROID_SDK=$SDK" >> "$GITHUB_ENV"
+          if ! ls "$SDK"/build-tools/*/apksigner >/dev/null 2>&1 || [ ! -x "$SDK/platform-tools/adb" ]; then
+            yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+            "$SDK/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "build-tools;35.0.0"
+          fi
+          ls "$SDK/build-tools"
+          ls "$SDK/platform-tools" | head -5
+
+      - name: Write Godot editor settings
+        run: |
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-4.7.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_SDK"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          EOF
+          cat ~/.config/godot/editor_settings-4.7.tres
+
+      - name: Decode the release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "Secret ANDROID_KEYSTORE_BASE64 is empty or missing."
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          test -s "$RUNNER_TEMP/release.keystore"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+
+      - name: Import the project
+        run: godot --headless --path . --import
+
+      - name: Pack check (the exported pack contains the arena)
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p build
+          # Same filters as the APK (one preset), as a loose .pck that can run headless on Linux.
+          godot --headless --path . --export-pack "Android" build/check.pck
+          test -s build/check.pck
+          # Headless has no renderer, so scene_capture skips the PNG but still dumps the tree.
+          godot --headless --main-pack build/check.pck res://src/dev/scene_capture.tscn --             --scene=res://scenes/prototype.tscn --frames=5 --out=x             --dump-tree=Main/Environment --meta-profile-dir="$RUNNER_TEMP/meta" > build/tree.txt 2>&1 || true
+          grep -E '^TREE ' build/tree.txt | head -3
+          grep -E 'ArenaInstance \(Node2D\).*children=26' build/tree.txt
+          rm -f build/check.pck
+
+      - name: Export the release APK
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-release "Android" build/HordeControl.apk
+          if [ ! -s build/HordeControl.apk ]; then
+            echo "The export finished but build/HordeControl.apk is missing or empty."
+            exit 1
+          fi
+          ls -la build/HordeControl.apk
+
+      - name: Verify the APK (signature, package, version, permissions)
+        run: |
+          BT="$(ls -d "$ANDROID_SDK"/build-tools/*/ | sort -V | tail -1)"
+          "$BT/apksigner" verify --verbose --print-certs build/HordeControl.apk
+          BADGING="$("$BT/aapt2" dump badging build/HordeControl.apk)"
+          echo "$BADGING" | grep -E "^package:|^sdkVersion|^targetSdkVersion|^application-label:|^native-code" || true
+          grep_badging() { echo "$BADGING" | grep -q "$1" || { echo "APK badging is missing: $1"; exit 1; }; }
+          grep_badging "name='com.sayandeep1013.hordecontrol'"
+          grep_badging "versionCode='3'"
+          grep_badging "versionName='0.3.0'"
+          PERMS="$("$BT/aapt2" dump permissions build/HordeControl.apk || true)"
+          echo "$PERMS"
+          if echo "$PERMS" | grep -q "android.permission.INTERNET"; then
+            echo "The APK requests INTERNET; the game must not."
+            exit 1
+          fi
+
+      - name: Upload the APK as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HordeControl-android-apk
+          path: build/HordeControl.apk
+          if-no-files-found: error
+
+      - name: Attach the APK to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cp build/HordeControl.apk "build/HordeControl-${TAG}.apk"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --notes "Android build of $TAG. Install the .apk on Android 7.0 or newer."
+          fi
+          gh release upload "$TAG" "build/HordeControl-${TAG}.apk" --clobber
+
+      - name: Remove the keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.keystore"

@@ -53,3 +53,10 @@ reports/
 # Generated sprite contact sheet, rebuilt on demand from the generator.
 assets/sprites/_contact_sheet.png
 .claude/worktrees/
+
+# Android export (D148): CI output and signing material never enter the repository
+build/
+*.apk
+*.aab
+*.keystore
+*.jks
