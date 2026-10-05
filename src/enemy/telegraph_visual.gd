@@ -81,7 +81,9 @@ func _ready() -> void:
 	visible = false
 
 
-func _process(_delta: float) -> void:
+# Driven in physics ticks (not _process) so the pulse stays inside the interpolated
+# transform of the enemy it decorates (physics interpolation, feel pass D151).
+func _physics_process(_delta: float) -> void:
 	var active: bool = _controller != null and _controller.is_windup_active()
 	visible = active
 	if active:

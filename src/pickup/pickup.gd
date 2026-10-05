@@ -112,6 +112,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_update_bob()
 	if driven_externally:
 		return
 	physics_step(delta)
@@ -121,15 +122,46 @@ func _physics_process(delta: float) -> void:
 ## position, never on this Area2D's own `global_position` -- the magnet/
 ## raycast physics in physics_step() below reads and writes global_position
 ## directly and tests/unit/pickup_physics_test.gd asserts exact values
-## against it, so the bob must never touch it. Runs on `_process` rather
-## than `_physics_process` (visuals, not gameplay), and reads the
+## against it, so the bob must never touch it. Runs from `_physics_process`
+## so the sprite child stays inside the physics-interpolated transform (feel
+## pass D151: a `_process` bob under an interpolated parent steps at the tick rate), and reads the
 ## test-injectable `_sim_clock` rather than the raw SimClock Autoload so a
 ## test that swaps the clock is not fighting a second, un-injected timeline.
-func _process(_delta: float) -> void:
+func _update_bob() -> void:
 	if _sprite == null:
 		return
 	var phase: float = _sim_clock.now * BOB_FREQUENCY_HZ * TAU
 	_sprite.position.y = sin(phase) * BOB_AMPLITUDE_PX
+
+
+## Feel pass (D155; Register > "Feel hooks" > "Pickup collect fade"): a
+## cosmetic ghost of the sprite swells and fades where the pickup was
+## collected, so the pickup does not just vanish. The pooled pickup itself is
+## despawned at once; the ghost owns its own tween and frees itself. Skipped
+## under the headless display driver (tests count children).
+const COLLECT_FADE_SECONDS: float = 0.15
+const COLLECT_FADE_SCALE: float = 1.5
+
+
+func play_collect_fx() -> void:
+	if _sprite == null or _sprite.texture == null or DisplayServer.get_name() == "headless":
+		return
+	var parent: Node = get_parent()
+	if parent == null or not is_inside_tree():
+		return
+	var ghost: Sprite2D = Sprite2D.new()
+	ghost.texture = _sprite.texture
+	ghost.texture_filter = _sprite.texture_filter
+	ghost.scale = _sprite.global_scale
+	ghost.z_index = z_index
+	ghost.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	parent.add_child(ghost)
+	ghost.global_position = _sprite.global_position
+	var tween: Tween = ghost.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(ghost, "scale", ghost.scale * COLLECT_FADE_SCALE, COLLECT_FADE_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_property(ghost, "modulate:a", 0.0, COLLECT_FADE_SECONDS)
+	tween.chain().tween_callback(ghost.queue_free)
 
 
 ## Art session: SpawnFx (scenes/pickups/pickup.tscn) finished its one-shot
@@ -168,6 +200,7 @@ func configure(pickup_definition: PickupDefinition, pickup_value: int, position:
 	spawn_serial = serial
 	_lifetime_seconds = pickup_definition.lifetime_seconds if pickup_definition != null and pickup_definition.lifetime_seconds > 0.0 else LIFETIME_SECONDS_DEFAULT
 	global_position = position
+	reset_physics_interpolation()
 	_spawn_time = _sim_clock.now
 	_attracted = false
 	_current_speed_px_per_second = 0.0

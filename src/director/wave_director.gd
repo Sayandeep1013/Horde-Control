@@ -1200,6 +1200,7 @@ func _attempt_spawn(encounter: EncounterDefinition, group: SpawnGroup, group_ind
 	if instance == null:
 		return false # cap throttle (EntitySpawner/Pool) -- a DIFFERENT mechanism from the validation-fail-count above; never touches it
 	instance.global_position = spawn_position
+	instance.reset_physics_interpolation() # pooled instance: do not streak in from where it last died
 	if _registry != null:
 		_registry.update_position(instance, spawn_position)
 	_current_wave_spawned.append(instance)
@@ -1477,6 +1478,7 @@ func _attempt_finisher_spawn(wave: WaveDefinition) -> bool:
 	if instance == null:
 		return false # global cap throttle
 	instance.global_position = spawn_position
+	instance.reset_physics_interpolation() # pooled instance: do not streak in from where it last died
 	if _registry != null:
 		_registry.update_position(instance, spawn_position)
 	_current_wave_finishers.append(instance)
