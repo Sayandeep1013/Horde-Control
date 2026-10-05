@@ -108,6 +108,9 @@ an upstream path (there is no single upstream original for a composite).
 | `Derived/tower_stage3_archers.png` | `Factions/Knights/Buildings/Castle/Castle_Blue.png` + `Factions/Knights/Troops/Archer/Blue/Archer_Blue.png` (frame [0,0], alpha-trimmed, one instance mirrored) | two archer frames composited standing on the castle's battlements, left and right of centre | `b20003da4cd3ad91` |
 | `Derived/grass_fill_tile.png` | `Terrain/Ground/Tilemap_Flat.png` | 64x64 crop of the grass 9-slice's centre/fill tile (atlas col 1, row 1) | `c080267c6f90f981` |
 | `Derived/sand_fill_tile.png` | `Terrain/Ground/Tilemap_Flat.png` | 64x64 crop of the sand 9-slice's centre/fill tile (atlas col 6, row 1) | `db6f26fe7472b067` |
+| `Derived/shadow_unit.png` | `Terrain/Ground/Shadows.png` | art-consistency pass (D162): the blob's alpha bounding box (74x78) resized to 48x22 by keeping its corner pixels and repeating its fully opaque middle row and column; same ink (22,28,46) at alpha 80 | `5af76c6c08658f78` |
+| `Derived/shadow_tower.png` | `Terrain/Ground/Shadows.png` | same method, 144x46, under the Tower | `9a12c2631001dad2` |
+| `Derived/shadow_band.png` | `Terrain/Ground/Shadows.png` | same method, a 192x26 band at the top of a 192x64 sheet cut into three 64 px tiles (left cap, middle, right cap), under a plateau's cliff row | `13e2daeb9056ea5d` |
 | `UI/Banners/Banner_Connection_Down.png` | `UI/Banners/Banner_Connection_Down.png` | verbatim | `08304c0fa07c5bca` |
 | `UI/Banners/Banner_Connection_Left.png` | `UI/Banners/Banner_Connection_Left.png` | verbatim | `d2a801b3e7c3bd41` |
 | `UI/Banners/Banner_Connection_Right.png` | `UI/Banners/Banner_Connection_Right.png` | verbatim | `e2e544c5891e5876` |
@@ -204,3 +207,7 @@ an upstream path (there is no single upstream original for a composite).
 | `Factions/Goblins/Buildings/Wood_House/Goblin_House_Destroyed.png` | `Factions/Goblins/Buildings/Wood_House/Goblin_House_Destroyed.png` | verbatim | `75998fbb9dff099c` |
 | `Factions/Goblins/Buildings/Wood_Tower/Wood_Tower_Destroyed.png` | `Factions/Goblins/Buildings/Wood_Tower/Wood_Tower_Destroyed.png` | verbatim | `beca37f966313c58` |
 | `Derived/cliff_face_tile.png` | `Terrain/Ground/Tilemap_Elevation.png` | derived: the 64x64 cliff-face cell at column 1, row 3, cropped for tiling under the plateau polygons | `b6af8560c4bbbe07` |
+
+## Pack files first used in the art-consistency pass (D156-D165)
+
+All already listed above and byte-identical; this pass started using them: `Terrain/Ground/Tilemap_Flat.png` (every grass and sand tile, through `src/environment/flat_autotile.gd`), `Terrain/Ground/Tilemap_Elevation.png` row 3 (cliff), `Terrain/Water/Water.png` and `Terrain/Water/Foam/Foam.png` (cut into 64 px sub-tiles), `Terrain/Bridge/Bridge_All.png` (the vertical piece, x 0-64, y 80-240), `UI/Banners/Banner_Vertical.png` and `Carved_9Slides.png` (Draft card frames), `UI/Ribbons/Ribbon_*_3Slides.png` (rarity), `UI/Pointers/01.png` and `03-06.png` (off-screen arrow, selection corners). `Terrain/Ground/Shadows.png` is used only through the Derived shadows above. The project-made art that sits beside it is recorded in `assets/ui/PROVENANCE.md`.

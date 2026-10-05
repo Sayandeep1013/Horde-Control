@@ -144,6 +144,16 @@ One shape, one meaning. A shape that means one thing must not be reused for anot
 
 ---
 
+## Visual style: one pixel grid (D156-D165)
+
+Everything on screen is Tiny Swords pixel art at the same grain: 1 art pixel is 1 screen pixel at 1920 x 1080, and nothing is rescaled or rotated. Numbers are in the Provisional Values Register ("Pixel type grid", "World texel scale", "Ground tile grid", "Draft card frame and ribbon", "HUD bar and pointer pixel style", "Project-made pixel art", "Shadows").
+
+- **Filtering and scaling.** The default texture filter is Nearest. `window/stretch/mode` stays `canvas_items` (D163), so crispness at other sizes comes from the filter, the font and uniform scale, not from stretch mode.
+- **Type.** Jersey 10 is imported with antialiasing, hinting and subpixel positioning off, and used only at its grid sizes: 19 (small, body), 37 (value, heading), 75 (title), 131 (logo).
+- **World.** Every sprite is at scale 1.0. Ground, paths, ponds, plateaus and the coast are painted from the pack's tiles (scalloped 2 px ink edge); the bridge is the pack's vertical piece; shadows are the pack's blob.
+- **Surfaces.** Draft cards sit on the pack's scroll (Player) or carved panel (Tower); rarity is a ribbon; selection is four corner pointers; HUD bars are square, ink-bordered pixel bars.
+- **Glyphs.** Shape tokens (triangle, square, heart, tower, recycle, crystal, core, coin, arrow, boot, tent) are 32 px pixel icons tinted at draw time; `tools/art/make_pixel_icons.py` makes them, and also the "!" marker, the telegraph ring and the XP crystal. The shape-to-meaning table above is unchanged.
+
 ## UI Layout & Dynamic Container Rules
 
 To prevent UI breakage across languages and scaling damage numbers, strict layout rules apply.

@@ -102,7 +102,7 @@ const MENU_CARD_MIN_WIDTH: float = 460.0
 ## D147: the mobile layout draws the title on a 720 px tall logical canvas, so
 ## the logo shrinks, the card's band starts higher and the sub-panels' scroll
 ## areas are shorter. All 720-base px.
-const COMPACT_TITLE_FONT_SIZE: int = 96
+const COMPACT_TITLE_FONT_SIZE: int = 93 # 5x the font pixel grid (D156)
 const COMPACT_TITLE_TOP: float = 12.0
 const COMPACT_TITLE_BOTTOM: float = 132.0
 const COMPACT_TAGLINE_TOP: float = 134.0
