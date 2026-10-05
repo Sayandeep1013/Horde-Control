@@ -197,7 +197,7 @@ func _build_children() -> void:
 
 	_price_icon = UiShapeGlyph.new()
 	_price_icon.name = "PriceIcon"
-	_price_icon.shape = UiShapeGlyph.Shape.CRYSTAL
+	_price_icon.shape = UiShapeGlyph.Shape.CORE
 	_price_icon.glyph_color = UiPalette.CORES
 	_price_icon.set_side(PRICE_ICON_SIDE)
 	_price_row.add_child(_price_icon)

@@ -44,7 +44,10 @@ class_name UiShapeGlyph
 ## "locked fog nodes as dim silhouettes with a lock"). Vitality already
 ## reuses the existing HEART shape and every Tower/Fortune node already uses
 ## TOWER/COIN -- no new shape needed for those three.
-enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE, COIN, CRYSTAL, TENT, ARROW, BOOT, LOCK }
+## D142: CORE is the Cores currency's own icon (a gold hexagonal coin with an
+## inner hexagon); it is appended at the END (never renumbered). The rhombus
+## CRYSTAL now means XP only.
+enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE, COIN, CRYSTAL, TENT, ARROW, BOOT, LOCK, CORE }
 
 ## Fraction of the shorter side left empty around the shape.
 const INSET_FRACTION: float = 0.12
@@ -115,6 +118,8 @@ static func draw_shape(canvas: CanvasItem, which: Shape, rect: Rect2, color: Col
 			_draw_boot(canvas, rect, color)
 		Shape.LOCK:
 			_draw_lock(canvas, rect, color)
+		Shape.CORE:
+			_draw_core(canvas, rect, color)
 
 
 ## A classic double-lobe heart, sampled from the standard parametric heart
@@ -227,6 +232,26 @@ static func _draw_crystal(canvas: CanvasItem, rect: Rect2, color: Color) -> void
 	for p in unit_points:
 		out.append(rect.position + Vector2(p.x * rect.size.x, p.y * rect.size.y))
 	canvas.draw_colored_polygon(out, color)
+
+
+## D142: the Cores currency icon -- a hexagonal coin (flat-top hexagon, so it
+## never reads as the XP rhombus) with a darker inner hexagon ring.
+static func _draw_core(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
+	var center: Vector2 = rect.get_center()
+	var radius: float = minf(rect.size.x, rect.size.y) * 0.5
+	var outer := PackedVector2Array()
+	var inner := PackedVector2Array()
+	for i in range(6):
+		var a: float = TAU * float(i) / 6.0
+		outer.append(center + Vector2(cos(a), sin(a)) * radius)
+		inner.append(center + Vector2(cos(a), sin(a)) * radius * 0.62)
+	canvas.draw_colored_polygon(outer, color)
+	canvas.draw_colored_polygon(inner, color.darkened(0.45))
+	var core := PackedVector2Array()
+	for i in range(6):
+		var a2: float = TAU * float(i) / 6.0
+		core.append(center + Vector2(cos(a2), sin(a2)) * radius * 0.38)
+	canvas.draw_colored_polygon(core, color.lightened(0.15))
 
 
 ## Skill Tree screen (polish pass): the root/Command Tent's own icon -- a

@@ -19,6 +19,9 @@ const HINT_SECONDS: float = 6.0
 const HINT_FIRST_DELAY_SECONDS: float = 6.0 ## after wave 1 opens (the objective line is up first)
 const HINT_GAP_SECONDS: float = 1.0 ## between one hint fading and the next appearing
 const FADE_SECONDS: float = 0.3
+## D145 (Register "Run announcement band" row): screen px at the 1920x1080 canvas.
+const BANNER_TOP_PX: float = 130.0
+const TOAST_TOP_PX: float = 240.0
 
 const HINT_KEYS: Array[String] = ["HINT_AUTOFIRE", "HINT_PICKUPS", "HINT_ENEMIES"]
 
@@ -36,24 +39,31 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = UiTheme.get_theme()
-	process_mode = Node.PROCESS_MODE_ALWAYS
+	process_mode = Node.PROCESS_MODE_PAUSABLE # hints/banner run on pausable time (D140)
 
 	_banner_box = VBoxContainer.new()
 	_banner_box.name = "BannerBox"
 	_banner_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner_box.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_banner_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_banner_box.offset_top = 150.0 # below the HUD top row and the Wave ribbon, above the Tower
+	_banner_box.offset_top = BANNER_TOP_PX # below the HUD top row and the Wave ribbon, above the Tower
 	add_child(_banner_box)
 
 	_toast_box = VBoxContainer.new()
 	_toast_box.name = "ToastBox"
 	_toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_toast_box.alignment = BoxContainer.ALIGNMENT_END
-	_toast_box.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	_toast_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_toast_box.offset_bottom = -170.0 # clears the bottom XP ribbon
+	_toast_box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	_toast_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_toast_box.offset_top = TOAST_TOP_PX # D145: under the banner row, never over the Tower base at spawn
 	add_child(_toast_box)
+
+
+func _notification(what: int) -> void:
+	# Toasts and banners are hidden behind the Draft / pause menu rather than shown frozen.
+	if what == NOTIFICATION_PAUSED:
+		visible = false
+	elif what == NOTIFICATION_UNPAUSED:
+		visible = true
 
 
 ## Typed command. Production wiring finds the director beside the HUD (see
@@ -80,7 +90,7 @@ func _on_wave_opened(_wave_id: String, wave_index: int) -> void:
 		if not MetaProgress.is_first_run_hints_seen():
 			_hints_running = true
 			_hint_index = 0
-			_hint_timer = get_tree().create_timer(HINT_FIRST_DELAY_SECONDS, true)
+			_hint_timer = get_tree().create_timer(HINT_FIRST_DELAY_SECONDS, false)
 			_hint_timer.timeout.connect(_show_next_hint)
 
 
@@ -103,7 +113,7 @@ func _show_next_hint() -> void:
 		_hints_running = false
 		MetaProgress.mark_first_run_hints_seen() # seen only once the whole set was shown
 	else:
-		_hint_timer = get_tree().create_timer(HINT_SECONDS + HINT_GAP_SECONDS, true)
+		_hint_timer = get_tree().create_timer(HINT_SECONDS + HINT_GAP_SECONDS, false)
 		_hint_timer.timeout.connect(_show_next_hint)
 
 
@@ -148,3 +158,7 @@ func get_toast_box_for_test() -> Control:
 
 func is_hint_sequence_running_for_test() -> bool:
 	return _hints_running
+
+
+func get_hint_time_left_for_test() -> float:
+	return _hint_timer.time_left if _hint_timer != null else -1.0

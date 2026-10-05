@@ -101,6 +101,7 @@ var _cause_label: Label
 var _wave_label: Label
 var _scrap_label: Label
 var _time_label: Label
+var _seed_label: Label
 var _frame: MenuFrame.Parts
 var _outcome_glyph: OutcomeGlyph
 var _wave_cell: PanelContainer ## the Wave stat cell; kept in sync with _wave_label's own visibility (UI pass) -- see show_summary(). A cell with no visible child sizes to ~0 in the grid rather than leaving an empty panel.
@@ -162,6 +163,11 @@ func show_summary(summary: Dictionary) -> void:
 	var seconds: float = float(summary.get("time_survived_seconds", 0.0))
 	_time_label.text = "%s: %s" % [tr("RUN_END_TIME_SURVIVED"), _format_time(seconds)]
 
+	var run_seed: int = int(summary.get("run_seed", -1))
+	_seed_label.visible = run_seed >= 0
+	if _seed_label.visible:
+		_seed_label.text = tr("RUN_END_SEED") % run_seed
+
 	_wave_cell.visible = _wave_label.visible # the wrapping cell (UI pass) tracks the SAME visibility flag, never a second decision -- an invisible child alone would leave an empty panel showing
 	_apply_outcome_style(cause_text.is_empty())
 
@@ -212,6 +218,10 @@ func get_wave_label_for_test() -> Label:
 
 func get_scrap_label_for_test() -> Label:
 	return _scrap_label
+
+
+func get_seed_label_for_test() -> Label:
+	return _seed_label
 
 
 func get_time_label_for_test() -> Label:
@@ -469,6 +479,12 @@ func _build_ui() -> void:
 	_settlement_box.name = "SettlementBox"
 	_settlement_box.visible = false
 	_frame.column.add_child(_settlement_box)
+
+	# D143: the run seed, small, for bug reports.
+	_seed_label = _make_field_label("SeedLabel", 400.0)
+	_seed_label.theme_type_variation = UiTheme.DIM_PARCHMENT
+	_seed_label.visible = false
+	_frame.column.add_child(_seed_label)
 
 	_bar = PausedChoiceBar.new()
 	_bar.name = "ChoiceBar"

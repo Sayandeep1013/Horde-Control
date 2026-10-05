@@ -170,3 +170,12 @@ func test_continue_is_the_first_and_default_highlighted_choice() -> void:
 	screen.continue_requested.connect(func() -> void: _continue_requested_fired = true)
 	bar.confirm_highlighted_for_test()
 	assert_bool(_continue_requested_fired).append_failure_message("Continue must be OPTION_CONTINUE (index 0), the primary/default action").is_true()
+
+
+func test_summary_shows_the_run_seed_small_when_known() -> void:
+	var screen: RunEndScreen = _make_screen()
+	screen.show_summary({"cause_text": "", "wave_reached": 1, "wave_total": 8, "scrap_held": 0, "time_survived_seconds": 5.0, "run_seed": 12345})
+	assert_bool(screen.get_seed_label_for_test().visible).is_true()
+	assert_str(screen.get_seed_label_for_test().text).is_equal("Seed: 12345")
+	screen.show_summary({"cause_text": "", "wave_reached": 1, "wave_total": 8, "scrap_held": 0, "time_survived_seconds": 5.0})
+	assert_bool(screen.get_seed_label_for_test().visible).is_false()

@@ -616,7 +616,7 @@ func _build_top_bar() -> void:
 
 	_cores_icon = UiShapeGlyph.new()
 	_cores_icon.name = "CoresIcon"
-	_cores_icon.shape = UiShapeGlyph.Shape.CRYSTAL
+	_cores_icon.shape = UiShapeGlyph.Shape.CORE
 	_cores_icon.glyph_color = UiPalette.CORES
 	_cores_icon.set_side(28)
 	cores_row.add_child(_cores_icon)

@@ -255,6 +255,7 @@ func _wire_run_flow_controller() -> void:
 		return
 	if _pickup_system != null:
 		_run_flow_controller.set_run_inventory(_pickup_system.run_inventory)
+	_run_flow_controller.run_seed = run_seed # shown small on the results screen (D143)
 
 
 ## F04-04 (debug overlay) + the P2.9 evidence report's capacity seam ("the

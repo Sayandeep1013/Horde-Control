@@ -52,8 +52,9 @@ func _assert_visible_rect_within_bounds(scale: float, target: Vector2, center: V
 	var half_extent: Vector2 = VIEWPORT_REF / (2.0 * Vector2(_camera.zoom.x, _camera.zoom.y))
 	var visible_min: Vector2 = _camera.global_position - half_extent
 	var visible_max: Vector2 = _camera.global_position + half_extent
-	var bound_min: Vector2 = center - ARENA_HALF
-	var bound_max: Vector2 = center + ARENA_HALF
+	# The view may extend past each wall by the HUD margin (D141), scaled by view scale.
+	var bound_min: Vector2 = center - ARENA_HALF - Vector2(GameCamera.HUD_MARGIN_SIDE, GameCamera.HUD_MARGIN_TOP) * scale
+	var bound_max: Vector2 = center + ARENA_HALF + Vector2(GameCamera.HUD_MARGIN_SIDE, GameCamera.HUD_MARGIN_BOTTOM) * scale
 	assert_float(visible_min.x).append_failure_message(
 		"view_scale=%.2f target=%s center=%s: visible_min.x=%.3f is left of the arena's left wall at %.1f" % [scale, target, center, visible_min.x, bound_min.x]
 	).is_greater_equal(bound_min.x - EPSILON)
@@ -76,6 +77,22 @@ func test_visible_rect_stays_within_arena_bounds_across_the_full_view_scale_rang
 		for target in _sweep_targets():
 			_camera.snap_to(target)
 			_assert_visible_rect_within_bounds(scale, target)
+
+
+## D141: a player standing at each wall must sit clear of the HUD bands, i.e.
+## the wall is at least the HUD margin inside the visible rectangle.
+func test_a_player_at_each_wall_clears_the_hud_band() -> void:
+	for scale in VIEW_SCALES:
+		_camera.set_view_scale(scale, false)
+		var half: Vector2 = VIEWPORT_REF * scale / 2.0
+		_camera.snap_to(Vector2(0.0, -ARENA_HALF.y))
+		assert_float((-ARENA_HALF.y) - (_camera.global_position.y - half.y)).is_greater_equal(GameCamera.HUD_MARGIN_TOP * scale - EPSILON)
+		_camera.snap_to(Vector2(0.0, ARENA_HALF.y))
+		assert_float((_camera.global_position.y + half.y) - ARENA_HALF.y).is_greater_equal(GameCamera.HUD_MARGIN_BOTTOM * scale - EPSILON)
+		_camera.snap_to(Vector2(-ARENA_HALF.x, 0.0))
+		assert_float((-ARENA_HALF.x) - (_camera.global_position.x - half.x)).is_greater_equal(GameCamera.HUD_MARGIN_SIDE * scale - EPSILON)
+		_camera.snap_to(Vector2(ARENA_HALF.x, 0.0))
+		assert_float((_camera.global_position.x + half.x) - ARENA_HALF.x).is_greater_equal(GameCamera.HUD_MARGIN_SIDE * scale - EPSILON)
 
 
 # --- Boundary and near-boundary sanity, so the sweep is not only extreme ---

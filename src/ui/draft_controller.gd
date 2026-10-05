@@ -683,9 +683,20 @@ func _roll_three_cards(avoid_ids: Array[String]) -> void:
 	_last_shown_ids = _ids_of(result)
 
 
+## D144: drops cards whose one-shot heal would be wasted right now (Patch Kit at
+## full player health, Repair Kit at full Tower health), but only while another
+## card remains in the pool; a pool of nothing else keeps them.
+func _without_wasted_cards(pool: Array[UpgradeDefinition]) -> Array[UpgradeDefinition]:
+	var kept: Array[UpgradeDefinition] = []
+	for d in pool:
+		if not _upgrade_system.is_card_wasted_now(d.unique_id):
+			kept.append(d)
+	return kept if not kept.is_empty() else pool
+
+
 func _roll_three_once() -> Array[RolledCard]:
-	var player_pool: Array[UpgradeDefinition] = _upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Player)
-	var tower_pool: Array[UpgradeDefinition] = _upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Tower)
+	var player_pool: Array[UpgradeDefinition] = _without_wasted_cards(_upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Player))
+	var tower_pool: Array[UpgradeDefinition] = _without_wasted_cards(_upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Tower))
 
 	var card_player: UpgradeDefinition = _pick_guaranteed(player_pool, ContractEnums.PoolOwnership.Player)
 	var card_tower: UpgradeDefinition = _pick_guaranteed(tower_pool, ContractEnums.PoolOwnership.Tower)
@@ -1132,7 +1143,7 @@ func _build_ui() -> void:
 	var hold_caption := Label.new()
 	hold_caption.name = "HoldCaption"
 	hold_caption.text = tr("DRAFT_HOLD_CAPTION")
-	hold_caption.theme_type_variation = UiTheme.DIM
+	hold_caption.theme_type_variation = UiTheme.VALUE # D145: readable footer
 	hold_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hold_caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bottom_row.add_child(hold_caption)
@@ -1154,7 +1165,7 @@ func _build_ui() -> void:
 	_reroll_label.mouse_filter = Control.MOUSE_FILTER_STOP # clickable (UX review P0-4)
 	_reroll_label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_reroll_label.gui_input.connect(_on_reroll_gui_input)
-	_reroll_label.theme_type_variation = UiTheme.DIM
+	_reroll_label.theme_type_variation = UiTheme.VALUE # D145: readable footer
 	_reroll_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_reroll_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_reroll_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1166,7 +1177,7 @@ func _build_ui() -> void:
 	_how_to_pick_label = Label.new()
 	_how_to_pick_label.name = "HowToPick"
 	_how_to_pick_label.text = tr("DRAFT_HOW_TO_PICK")
-	_how_to_pick_label.theme_type_variation = UiTheme.DIM
+	_how_to_pick_label.theme_type_variation = UiTheme.VALUE # D145: readable footer (was dim body text)
 	_how_to_pick_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_how_to_pick_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_how_to_pick_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1208,7 +1219,10 @@ func _build_card_views() -> void:
 		var current_rank: int = 0
 		if _upgrade_system != null:
 			current_rank = _upgrade_system.get_current_rank(def.unique_id)
-		view.setup(def, current_rank, card.rarity) # D117: the ROLLED rarity, never def.rarity (a shared Resource's own unrolled default)
+		var honest: Dictionary = {}
+		if _upgrade_system != null:
+			honest = _upgrade_system.get_honest_card_value(def.unique_id, float(RARITY_VALUE_MULTIPLIER.get(card.rarity, 1.0))) # D123/D143
+		view.setup(def, current_rank, card.rarity, honest) # D117: the ROLLED rarity, never def.rarity (a shared Resource's own unrolled default)
 		view.mouse_entered.connect(_on_card_hovered.bind(i))
 		view.gui_input.connect(_on_card_gui_input.bind(i))
 		view.set_key_badge(i + 1)

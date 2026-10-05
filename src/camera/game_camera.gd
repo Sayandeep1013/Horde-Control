@@ -57,6 +57,12 @@ const POSITION_SMOOTHING_SPEED: float = 8.0 # "Position smoothing speed" row
 const SCREEN_SHAKE_MAX: float = 12.0 # "Screen shake" row: "Max 12 px"
 const SCREEN_SHAKE_DECAY_TIME: float = 0.25 # "Screen shake" row: "decaying over 0.25 s"
 const ZOOM_EASE_TIME: float = 0.4 # "Zoom ease" row
+## "Camera HUD margin" row (D141): screen px (1920x1080 canvas) the camera may
+## scroll past each arena wall, so a player standing at the wall clears the
+## HUD panels instead of sitting under them. Scaled to world px by view scale.
+const HUD_MARGIN_TOP: float = 200.0
+const HUD_MARGIN_BOTTOM: float = 140.0
+const HUD_MARGIN_SIDE: float = 96.0
 
 ## "Arena size" row: "Tower at centre" -- see header assumption note.
 @export var arena_center: Vector2 = Vector2.ZERO
@@ -204,10 +210,14 @@ func _clamp_to_arena_bounds(pos: Vector2) -> Vector2:
 	var half_extent: Vector2 = get_visible_world_size() / 2.0
 	var arena_min: Vector2 = arena_center - ARENA_SIZE / 2.0
 	var arena_max: Vector2 = arena_center + ARENA_SIZE / 2.0
+	# HUD margins: the view may extend past each wall by the HUD band (D141).
+	var view_scale_now: float = get_view_scale()
+	var margin_min: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_TOP) * view_scale_now
+	var margin_max: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_BOTTOM) * view_scale_now
 
 	var clamped: Vector2 = pos
 	if half_extent.x * 2.0 <= ARENA_SIZE.x:
-		clamped.x = clampf(pos.x, arena_min.x + half_extent.x, arena_max.x - half_extent.x)
+		clamped.x = clampf(pos.x, arena_min.x + half_extent.x - margin_min.x, arena_max.x - half_extent.x + margin_max.x)
 	else:
 		# Degenerate case, out of the Register's tested view-scale range
 		# (Register > "Arena-to-view ratio" row guarantees the arena is at
@@ -216,7 +226,7 @@ func _clamp_to_arena_bounds(pos: Vector2) -> Vector2:
 		# range and the camera centres on the arena instead of oscillating.
 		clamped.x = arena_center.x
 	if half_extent.y * 2.0 <= ARENA_SIZE.y:
-		clamped.y = clampf(pos.y, arena_min.y + half_extent.y, arena_max.y - half_extent.y)
+		clamped.y = clampf(pos.y, arena_min.y + half_extent.y - margin_min.y, arena_max.y - half_extent.y + margin_max.y)
 	else:
 		clamped.y = arena_center.y
 	return clamped
