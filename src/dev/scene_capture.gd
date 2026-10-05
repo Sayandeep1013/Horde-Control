@@ -76,10 +76,17 @@ func _process(_delta: float) -> void:
 	_count += 1
 	if not _frames.is_empty() and _count >= _frames[0]:
 		var f: int = _frames.pop_front()
-		var img: Image = get_viewport().get_texture().get_image()
+		var tex: ViewportTexture = get_viewport().get_texture()
+		var img: Image = tex.get_image() if tex != null else null
 		var path: String = ProjectSettings.globalize_path("res://").path_join("%s_%d.png" % [_out, f])
-		img.save_png(path)
-		print("CAPTURED ", path)
+		# Headless (the CI build check) has no renderer, so there is no image:
+		# skip the PNG but still run `--dump-tree` below, which is what that
+		# check reads.
+		if img != null and not img.is_empty():
+			img.save_png(path)
+			print("CAPTURED ", path)
+		else:
+			print("NO IMAGE (headless?) for frame ", f)
 		if _dump_filter != "":
 			_dump(get_tree().root, 0)
 		if _frames.is_empty():

@@ -167,3 +167,18 @@ D115 (no in-run shop, 2026-09-23) removed the Tower Console and, with it, the el
 The two debug toggles are keyboard-only and carry no gamepad binding; they are present in the exported build's input map, which the Settings check (P0.2) reads (Author decision, D78).
 
 The game is playable with movement input alone, and every menu has a movement-only path: the Draft's movement-only cycle-and-hold-to-confirm path (Upgrade Draft UI & Navigation) requires none of the keys or buttons listed above. (The Console's own movement-only sector path is removed with the Console, D115.)
+
+---
+
+## Mobile (Android)
+
+Decisions D146 and D147; numbers in the Provisional Values Register ("Touch controls", "Mobile UI scale", "Touch target minimum").
+
+- **When it applies.** The touch controls show on a touchscreen device, on a mobile build, or with the `--touch-ui` user argument (`--no-touch-ui` forces them off). The mobile layout (compact screens, touch wording, hidden desktop rows) applies on a mobile build or with `--touch-ui`; a Windows laptop that merely has a touchscreen gets the joystick and keeps the desktop layout.
+- **Movement.** A floating joystick appears where the thumb lands in the left half of the screen. It drives `move_left/right/up/down`, so the Draft's hold-up path and the movement-only controls work with it. The bow still fires on its own.
+- **Pause.** A pause button sits at the top right, below the Scrap panel and clear of the three HUD panels. It sends the `pause` action; it hides while the Draft or the pause menu is up. Android Back does the same as Pause during a run, closes the open panel in the Hub, and leaves the app from the bare Title.
+- **Everything is tappable.** Title, Hub, Settings (the < and > arrows and the Back row), Records, Achievements, the pause menu and its Abandon confirm, the Draft (tap a card picks that card; the Reroll pill is tappable) and the run-end buttons all work by tap. The Draft's hold ring and the menus' hold footers are the keyboard and gamepad way; on a phone the footers are hidden and the Draft says "Tap a card to pick it". In the Skill Tree, a finger pressed on a node selects it and holding buys it (the hold-to-buy fill); a finger held there stands in for the `confirm` action, which the engine's emulated mouse does not drive.
+- **Hidden on a phone.** The Display mode and V-Sync rows. A phone window is always the whole screen.
+- **Size.** The UI is scaled up to 1.5 (on 16:9 phones less, so the HUD's top row still fits), which makes the 22 px body text about 12 dp. Menu rows are at least 64 px and the Title / Hub / Back buttons 80 px (logical px). Title and Hub use compact layouts. Achievements scrolls by finger drag (the engine pans only on a device that reports a touchscreen). The Skill Tree board runs unscaled while open, so its node text is small; a Skill Tree design pass for phones is open work.
+- **Limits.** 48 dp is 132 px of the 1080 canvas; seven menu rows of that height do not fit, so menu rows are about 38 dp. The pause button is about 51 dp.
+- **Test aid.** `src/dev/touch_selftest.tscn` drives the real game with synthetic finger events and prints SELFTEST PASS or FAIL lines; it needs a window (the headless runner does not deliver input to the GUI).

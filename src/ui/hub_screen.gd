@@ -131,6 +131,11 @@ const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 60.0)
 const HUB_MENU_BAND_TOP: float = 250.0 # 1080-base px; UX review P0-1
 const HUB_MENU_BAND_BOTTOM: float = 1050.0
 const START_RUN_MIN_SIZE: Vector2 = Vector2(360.0, 84.0) # the primary action, visibly larger
+## D147: the mobile layout draws the Hub on a 720 px tall logical canvas; the
+## card (which already carries its own "War Camp" ribbon) takes the whole band
+## and the separate title above it is dropped. 720-base px.
+const COMPACT_MENU_BAND_TOP: float = 8.0
+const COMPACT_MENU_BAND_BOTTOM: float = 712.0
 
 ## Harness-only flag (title_screen.gd's own `--debug-panel=` precedent):
 ## `--debug-panel=skill_tree` / `--debug-panel=records` / `--debug-panel=
@@ -161,6 +166,7 @@ var _menu_card: PanelContainer
 
 
 func _ready() -> void:
+	TouchUi.apply_ui_scale(get_window()) # D147
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	MetaProgress.ensure_loaded()
 	var first_visit: bool = not MetaProgress.is_first_hub_seen()
@@ -196,6 +202,15 @@ func _handle_ui_cancel() -> bool:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel") and _handle_ui_cancel():
 		get_viewport().set_input_as_handled()
+
+
+## D146: Android Back acts as Escape: Settings, Records and Achievements close.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		var cancel := InputEventAction.new()
+		cancel.action = &"ui_cancel"
+		cancel.pressed = true
+		get_viewport().push_input(cancel)
 
 
 func simulate_ui_cancel_for_test() -> void:
@@ -504,6 +519,7 @@ func _build_title_block(parent: Control) -> void:
 	title.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	title.offset_top = 30.0
 	title.offset_bottom = 130.0
+	title.visible = not TouchUi.is_mobile_layout()
 	parent.add_child(title)
 
 
@@ -523,8 +539,8 @@ func _build_menu_card(parent: Control) -> void:
 	# UX review P0-1 (D127): the card now holds ribbon + Start Run + 5 buttons
 	# (~600px), so the band spans nearly the whole lower screen and the card is
 	# centred inside it; a test asserts every focusable button lies in 1280x720.
-	center.offset_top = HUB_MENU_BAND_TOP
-	center.offset_bottom = HUB_MENU_BAND_BOTTOM
+	center.offset_top = COMPACT_MENU_BAND_TOP if TouchUi.is_mobile_layout() else HUB_MENU_BAND_TOP
+	center.offset_bottom = COMPACT_MENU_BAND_BOTTOM if TouchUi.is_mobile_layout() else HUB_MENU_BAND_BOTTOM
 	parent.add_child(center)
 
 	var card := PanelContainer.new()
@@ -559,7 +575,7 @@ func _build_menu_card(parent: Control) -> void:
 	_start_run_button = Button.new()
 	_start_run_button.name = "StartRunButton"
 	_start_run_button.text = tr("HUB_START_RUN")
-	_start_run_button.custom_minimum_size = START_RUN_MIN_SIZE
+	_start_run_button.custom_minimum_size = TouchUi.touch_size(START_RUN_MIN_SIZE)
 	_start_run_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_start_run_button.focus_mode = Control.FOCUS_ALL
 	_start_run_button.pressed.connect(_on_start_run_pressed)
@@ -590,7 +606,7 @@ func _make_menu_button(text: String) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_ALL
-	button.custom_minimum_size = BUTTON_MIN_SIZE
+	button.custom_minimum_size = TouchUi.touch_size(BUTTON_MIN_SIZE)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return button
 
@@ -681,7 +697,7 @@ func _build_banner(parent: Container, node_name: String, text: String, dismiss_t
 	var dismiss := Button.new()
 	dismiss.name = "DismissButton"
 	dismiss.text = dismiss_text
-	dismiss.custom_minimum_size = Vector2(140.0, 48.0)
+	dismiss.custom_minimum_size = TouchUi.button_size(Vector2(140.0, 48.0))
 	dismiss.pressed.connect(on_dismiss)
 	row.add_child(dismiss)
 

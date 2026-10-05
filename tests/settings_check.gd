@@ -102,10 +102,21 @@ const PINNED_SETTINGS := [
 	{"key": "display/window/size/viewport_width", "default": 1152, "expected": 1920},
 	{"key": "display/window/size/viewport_height", "default": 648, "expected": 1080},
 	{"key": "display/window/stretch/mode", "default": "disabled", "expected": "canvas_items"},
-	{"key": "display/window/stretch/aspect", "default": "keep", "expected": "keep"},
+	# D146 (mobile port): aspect is "expand", not "keep", so a 20:9 phone fills the screen instead of letterboxing. Intentional change.
+	{"key": "display/window/stretch/aspect", "default": "keep", "expected": "expand"},
+	# D146: landscape on a phone, either way up (4 = SCREEN_SENSOR_LANDSCAPE). Ignored on desktop.
+	{"key": "display/window/handheld/orientation", "default": 0, "expected": 4},
+	# D146: Android export needs ETC2/ASTC textures; mobile renders with the Compatibility renderer for broad device support.
+	{"key": "rendering/textures/vram_compression/import_etc2_astc", "default": false, "expected": true},
+	{"key": "rendering/renderer/rendering_method.mobile", "default": "mobile", "expected": "gl_compatibility"},
+	# D146: Back must not quit the app mid-run; RunFlowController maps it to Pause.
+	{"key": "application/config/quit_on_go_back", "default": true, "expected": false},
+	# D146: taps become the same mouse events the menus already handle.
+	{"key": "input_devices/pointing/emulate_mouse_from_touch", "default": true, "expected": true},
 	{"key": "physics/common/physics_ticks_per_second", "default": 60, "expected": 60},
 	{"key": "physics/common/max_physics_steps_per_frame", "default": 8, "expected": 8},
-	{"key": "physics/common/physics_interpolation", "default": false, "expected": false},
+	# D151 (feel pass, on main): physics interpolation is on. The check still said off; updated here so it matches the intentional change.
+	{"key": "physics/common/physics_interpolation", "default": false, "expected": true},
 	{"key": "display/window/vsync/vsync_mode", "default": 1, "expected": 1},
 ]
 

@@ -162,6 +162,14 @@ const REPEATING_ROWS: Array[String] = [ROW_MASTER_VOLUME, ROW_MUSIC_VOLUME, ROW_
 var _root: Control
 var _frame: MenuFrame.Parts
 var _fill_ring: DraftFillRing
+## D146: rows hidden on a phone (Display mode, V-Sync).
+const DESKTOP_ONLY_ROWS: Array[String] = [ROW_DISPLAY_MODE, ROW_VSYNC]
+
+## The rows actually shown, in order: ROW_ORDER minus DESKTOP_ONLY_ROWS when
+## TouchUi.is_mobile_layout(). Every highlight/index lookup uses this, never
+## the const.
+var _row_order: Array[String] = []
+
 var _rows: Dictionary = {} # String id -> SettingsRow
 
 var _active: bool = false
@@ -203,6 +211,11 @@ var _test_just_pressed: Dictionary = {}
 ## at all.
 func _ready() -> void:
 	layer = SETTINGS_MENU_CANVAS_LAYER
+	_row_order = ROW_ORDER.duplicate()
+	if TouchUi.is_mobile_layout():
+		# D146: Display mode and V-Sync mean nothing on a phone.
+		for desktop_only: String in DESKTOP_ONLY_ROWS:
+			_row_order.erase(desktop_only)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 	_build_ui()
@@ -264,7 +277,7 @@ func get_fill_ring_for_test() -> DraftFillRing:
 
 
 func highlight_row_for_test(id: String) -> void:
-	var idx: int = ROW_ORDER.find(id)
+	var idx: int = _row_order.find(id)
 	if idx != -1:
 		_highlighted_index = idx
 		_refresh_highlight()
@@ -327,8 +340,10 @@ func _build_ui() -> void:
 	_add_row(list, ROW_MUSIC_VOLUME, tr("SETTINGS_MUSIC_VOLUME"), true)
 	_add_row(list, ROW_EFFECTS_VOLUME, tr("SETTINGS_EFFECTS_VOLUME"), true)
 	_add_row(list, ROW_MUTE_ALL, tr("SETTINGS_MUTE_ALL"), true)
-	_add_row(list, ROW_DISPLAY_MODE, tr("SETTINGS_DISPLAY_MODE"), true)
-	_add_row(list, ROW_VSYNC, tr("SETTINGS_VSYNC"), true)
+	if _row_order.has(ROW_DISPLAY_MODE):
+		_add_row(list, ROW_DISPLAY_MODE, tr("SETTINGS_DISPLAY_MODE"), true)
+	if _row_order.has(ROW_VSYNC):
+		_add_row(list, ROW_VSYNC, tr("SETTINGS_VSYNC"), true)
 	_add_row(list, ROW_SCREEN_SHAKE, tr("SETTINGS_SCREEN_SHAKE"), true)
 	_add_row(list, ROW_DAMAGE_NUMBERS, tr("SETTINGS_DAMAGE_NUMBERS"), true)
 	_add_row(list, ROW_MOVEMENT_ONLY, tr("SETTINGS_MOVEMENT_ONLY"), true)
@@ -377,7 +392,7 @@ func _on_row_right_pressed(id: String) -> void:
 
 
 func _highlight_row(id: String) -> void:
-	var idx: int = ROW_ORDER.find(id)
+	var idx: int = _row_order.find(id)
 	if idx != -1:
 		_highlighted_index = idx
 		_refresh_highlight()
@@ -437,7 +452,7 @@ func _poll_vertical_input(delta: float) -> void:
 func _poll_horizontal_input(delta: float) -> void:
 	var left_now: bool = _is_pressed(&"move_left")
 	var right_now: bool = _is_pressed(&"move_right")
-	var repeats: bool = _is_volume_row(ROW_ORDER[_highlighted_index])
+	var repeats: bool = _is_volume_row(_row_order[_highlighted_index])
 
 	if left_now and not _left_held:
 		_apply_direction(-1)
@@ -467,14 +482,14 @@ func _is_volume_row(id: String) -> bool:
 ## Instant confirm (matches PausedChoiceBar's own `_poll_confirm_input()`) --
 ## works only on the Back row; every other row has nothing to "confirm."
 func _poll_confirm_input() -> void:
-	if _is_just_pressed(&"confirm") and ROW_ORDER[_highlighted_index] == ROW_BACK:
+	if _is_just_pressed(&"confirm") and _row_order[_highlighted_index] == ROW_BACK:
 		closed.emit()
 
 
 ## Movement-only path (task brief; class header). See that header for why
 ## left/right, not up/down, is this row's own hold axis.
 func _poll_back_hold(delta: float) -> void:
-	var on_back: bool = ROW_ORDER[_highlighted_index] == ROW_BACK
+	var on_back: bool = _row_order[_highlighted_index] == ROW_BACK
 	var held: bool = _is_pressed(&"move_left") or _is_pressed(&"move_right")
 	if not on_back:
 		_back_hold_progress = 0.0
@@ -494,12 +509,12 @@ func _poll_back_hold(delta: float) -> void:
 
 
 func _move_highlight(step: int) -> void:
-	_highlighted_index = wrapi(_highlighted_index + step, 0, ROW_ORDER.size())
+	_highlighted_index = wrapi(_highlighted_index + step, 0, _row_order.size())
 	_refresh_highlight()
 
 
 func _apply_direction(direction: int) -> void:
-	var id: String = ROW_ORDER[_highlighted_index]
+	var id: String = _row_order[_highlighted_index]
 	match id:
 		ROW_MASTER_VOLUME:
 			GameSettings.adjust_master_volume(direction)
@@ -525,7 +540,7 @@ func _apply_direction(direction: int) -> void:
 
 
 func _refresh_all_rows() -> void:
-	for id: String in ROW_ORDER:
+	for id: String in _row_order:
 		_refresh_row(id)
 
 
@@ -557,8 +572,8 @@ func _refresh_row(id: String) -> void:
 
 
 func _refresh_highlight() -> void:
-	for i: int in ROW_ORDER.size():
-		var row: SettingsRow = _rows.get(ROW_ORDER[i]) as SettingsRow
+	for i: int in _row_order.size():
+		var row: SettingsRow = _rows.get(_row_order[i]) as SettingsRow
 		if row != null:
 			row.set_highlighted(i == _highlighted_index)
 
@@ -566,7 +581,7 @@ func _refresh_highlight() -> void:
 func _update_fill_ring_visual() -> void:
 	if _fill_ring == null:
 		return
-	var on_back: bool = ROW_ORDER[_highlighted_index] == ROW_BACK
+	var on_back: bool = _row_order[_highlighted_index] == ROW_BACK
 	_fill_ring.progress = clampf(_back_hold_progress / HOLD_CONFIRM_SECONDS, 0.0, 1.0) if on_back else 0.0
 
 
