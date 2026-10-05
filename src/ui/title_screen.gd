@@ -75,7 +75,7 @@ const MUSIC_STREAM_PATH: String = "res://assets/third_party/opengameart/music/ba
 const GRASS_TILE_REGION: Rect2 = Rect2(64.0, 64.0, 64.0, 64.0)
 
 const CASTLE_SIZE: Vector2 = Vector2(576.0, 461.0) ## 1.8x Castle_Blue.png's native 320x256
-const CASTLE_TOP_LEFT: Vector2 = Vector2(672.0, 280.0)
+const CASTLE_TOP_LEFT: Vector2 = Vector2(672.0, 250.0)
 
 const TREE_FRAME: Vector2i = Vector2i(192, 192)
 const TREE_SIZE: Vector2 = Vector2(460.0, 460.0)
@@ -95,7 +95,9 @@ const GOBLIN_SPOTS: Array = [
 
 const MUSIC_VOLUME_DB: float = -14.0
 
-const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 68.0)
+const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 56.0)
+const MENU_BAND_TOP: float = 650.0 # 1080-base px; UX review P0-2
+const MENU_BAND_BOTTOM: float = 1050.0
 const MENU_CARD_MIN_WIDTH: float = 460.0
 const SUB_PANEL_MIN_WIDTH: float = 900.0
 const SUB_PANEL_SCROLL_MAX_HEIGHT: float = 480.0 ## docs/19 > "UI Layout & Dynamic Container Rules": a container over roughly 30% of screen height should scroll, not truncate -- both sub-panels wrap their list in a ScrollContainer capped near that budget.
@@ -343,8 +345,10 @@ func _build_menu_card(parent: Control) -> void:
 	_menu_center.name = "MenuCenter"
 	_menu_center.mouse_filter = Control.MOUSE_FILTER_PASS
 	_menu_center.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_menu_center.offset_top = 705.0
-	_menu_center.offset_bottom = 1050.0
+	# UX review P0-2 (D127): five buttons do not fit the old 705-1050 band at
+	# 720p; the card is centred in a taller band so Quit stays on screen.
+	_menu_center.offset_top = MENU_BAND_TOP
+	_menu_center.offset_bottom = MENU_BAND_BOTTOM
 	parent.add_child(_menu_center)
 
 	var card := PanelContainer.new()
