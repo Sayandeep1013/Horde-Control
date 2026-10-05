@@ -46,6 +46,7 @@ const TITLE: StringName = &"UiTitle"
 const HEADING: StringName = &"UiHeading"
 const VALUE: StringName = &"UiValue"
 const DIM: StringName = &"UiDim"
+const DIM_PARCHMENT: StringName = &"UiDimParchment" ## secondary text ON parchment panels (dark umber, no outline)
 const SMALL: StringName = &"UiSmall"
 
 ## Box-container separation steps: suffix -> UiPalette spacing token. A box
@@ -208,6 +209,7 @@ static func _build_labels(t: Theme) -> void:
 	_label_variation(t, VALUE, UiPalette.FONT_SIZE_VALUE, UiPalette.TEXT, UiPalette.OUTLINE_BODY, true)
 	_label_variation(t, DIM, UiPalette.FONT_SIZE_BODY, UiPalette.TEXT_DIM, UiPalette.OUTLINE_BODY, false)
 	_label_variation(t, SMALL, UiPalette.FONT_SIZE_SMALL, UiPalette.TEXT_DIM, UiPalette.OUTLINE_BODY, false)
+	_label_variation(t, DIM_PARCHMENT, UiPalette.FONT_SIZE_BODY, UiPalette.TEXT_ON_PARCHMENT, 0, false)
 
 	t.set_color("default_color", "RichTextLabel", UiPalette.TEXT)
 	t.set_color("font_outline_color", "RichTextLabel", UiPalette.TEXT_OUTLINE)

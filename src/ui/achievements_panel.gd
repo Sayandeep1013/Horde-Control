@@ -57,7 +57,15 @@ func _refresh() -> void:
 	for achievement in MetaProgress.achievement_list.achievements:
 		if achievement == null or not _rows.has(achievement.id):
 			continue
-		_rows[achievement.id].text = _status_text(achievement)
+		var unlocked: bool = MetaProgress.is_achievement_unlocked(achievement.id)
+		var value_label: Label = _rows[achievement.id]
+		value_label.text = _status_text(achievement)
+		# UX review item 8 (D132): unlocked reads at a glance (colour is
+		# redundant; the word "Unlocked" is the primary signal).
+		if unlocked:
+			value_label.add_theme_color_override("font_color", UiPalette.SUCCESS)
+		else:
+			value_label.remove_theme_color_override("font_color")
 
 
 ## Unlocked: "Unlocked". Locked, lifetime metric: "n / threshold" (the one
@@ -75,6 +83,21 @@ func _status_text(achievement: AchievementDefinition) -> String:
 			return "%d / %d" % [MetaProgress.get_lifetime_scrap_collected(), int(achievement.threshold)]
 		_:
 			return tr("ACHIEVEMENTS_LOCKED")
+
+
+## "Unlocks card: Multishot" / "Reward: +1 Draft reroll". Figures come from the
+## same constants the perks are applied with, never a second copy.
+static func reward_text(achievement: AchievementDefinition) -> String:
+	if achievement.unlocks_card_id != "":
+		return TranslationServer.translate("ACHIEVEMENTS_REWARD_CARD") % achievement.unlocks_card_id.capitalize()
+	match achievement.perk_id:
+		"bonus_reroll":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % TranslationServer.translate("ACHIEVEMENTS_PERK_REROLL")
+		"weapon_damage_bonus":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_DAMAGE") % roundi(MetaLoadoutApplier.ACHIEVEMENT_WEAPON_DAMAGE_BONUS * 100.0))
+		"settlement_cores_bonus":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_CORES") % roundi(MetaProgress.ACHIEVEMENT_SETTLEMENT_CORES_BONUS * 100.0))
+	return ""
 
 
 func _build_ui() -> void:
@@ -123,10 +146,20 @@ func _build_row(achievement: AchievementDefinition) -> void:
 
 	var description_label := Label.new()
 	description_label.text = achievement.description
-	description_label.theme_type_variation = UiTheme.DIM
+	description_label.theme_type_variation = UiTheme.DIM_PARCHMENT
 	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	description_label.custom_minimum_size = Vector2(ROW_LABEL_MIN_WIDTH, 0.0)
 	column.add_child(description_label)
+
+	# UX review item 8 (D132): the reward is always shown (D118 achievements
+	# unlock a Draft card or a small permanent perk).
+	var reward_label := Label.new()
+	reward_label.name = "Reward"
+	reward_label.text = reward_text(achievement)
+	reward_label.theme_type_variation = UiTheme.VALUE
+	reward_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	reward_label.custom_minimum_size = Vector2(ROW_LABEL_MIN_WIDTH, 0.0)
+	column.add_child(reward_label)
 
 	var value := Label.new()
 	value.name = "Value"

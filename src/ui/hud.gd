@@ -241,6 +241,9 @@ var _player_health_bar: HudBar
 var _player_hp_label: Label
 var _tower_health_bar: HudBar
 var _wave_label: Label
+var _announcer: RunAnnouncer
+var _scrap_cores_label: Label
+var _tower_hp_label: Label
 var _wave_caption_label: Label
 var _scrap_label: HudTruncatableLabel
 var _full_badge: Label
@@ -293,7 +296,24 @@ func _ready() -> void:
 	if economy_state == null:
 		economy_state = HudEconomyState.new()
 	_build_ui()
+	_build_run_announcer()
 	_refresh_all()
+
+
+## UX review items 4 and 9: wave banners, the run objective and first-run
+## hints. The Wave Director sits beside the HUD in the run scene
+## (Main/WaveDirector); absent in isolated HUD tests, where nothing is bound.
+func _build_run_announcer() -> void:
+	_announcer = RunAnnouncer.new()
+	_announcer.name = "RunAnnouncer"
+	add_child(_announcer)
+	var parent: Node = get_parent()
+	if parent != null:
+		_announcer.bind_wave_director(parent.get_node_or_null("Main/WaveDirector")) # nodes already exist; binding now cannot miss wave 1's wave_opened
+
+
+func get_run_announcer() -> RunAnnouncer:
+	return _announcer
 
 
 func _process(_delta: float) -> void:
@@ -407,6 +427,7 @@ func _refresh_tower_health() -> void:
 		shield = _tower.health.current_shield
 		shield_max = _tower.health.max_shield
 	_tower_health_bar.set_value(current, max_v)
+	_tower_hp_label.text = "%d/%d" % [int(round(current)), int(round(max_v))]
 	_tower_health_bar.set_shield(shield, shield_max)
 	# docs/19 > "HUD": "'Wave n/8' shows wave progress (teaching waves shown
 	# as T1-T4 in the slice)" -- the slice's T1-T4 form is out of scope for
@@ -423,6 +444,7 @@ func _refresh_tower_health() -> void:
 func _refresh_scrap() -> void:
 	_scrap_label.set_full_text("%d/%d" % [economy_state.scrap_current, economy_state.scrap_cap])
 	_full_badge.text = tr("HUD_FULL")
+	_scrap_cores_label.text = tr("HUD_SCRAP_CORES") % scrap_to_cores(economy_state.scrap_current)
 	_full_badge.visible = economy_state.scrap_current >= economy_state.scrap_cap
 	_hopper_label.visible = economy_state.hopper_amount > 0
 	if _hopper_label.visible:
@@ -431,6 +453,13 @@ func _refresh_scrap() -> void:
 	if _last_scrap_current >= 0 and economy_state.scrap_current != _last_scrap_current:
 		_play_scrap_punch()
 	_last_scrap_current = economy_state.scrap_current
+
+
+## Live Core equivalent of carried Scrap (MetaProgress.SETTLEMENT_SCRAP_PER_CORE,
+## Register > "Meta: Run-End Settlement"); display only, the real settlement
+## runs at run end.
+static func scrap_to_cores(scrap: int) -> int:
+	return int(floor(float(maxi(0, scrap)) / float(MetaProgress.SETTLEMENT_SCRAP_PER_CORE)))
 
 
 ## Cosmetic-only: a short scale punch on the Scrap value label, purely
@@ -460,7 +489,7 @@ func _refresh_xp() -> void:
 	# these two keep only their digits (UiTheme.VALUE). Every test reading
 	# them checks `.contains("<digits>")`, which still holds.
 	_level_caption_label.text = tr("HUD_LEVEL")
-	_level_label.text = "%d" % economy_state.level
+	_level_label.text = "%d" % displayed_level(economy_state.level)
 	_rerolls_caption_label.text = tr("HUD_REROLLS")
 	_rerolls_label.text = "%d" % economy_state.rerolls_remaining
 	# Second UI pass: "a burst when a level-up is ready" -- read here as "a
@@ -470,6 +499,12 @@ func _refresh_xp() -> void:
 	if _last_level >= 0 and economy_state.level > _last_level:
 		_level_emblem.trigger_burst()
 	_last_level = economy_state.level
+
+
+## UX review item 6 (D133): runs start at internal level 0 (MASTER_SDLC.md);
+## the player is shown "Lv 1". Display offset only: no gameplay value changes.
+static func displayed_level(internal_level: int) -> int:
+	return internal_level + 1
 
 
 ## UI pass: refreshes the four fixed glyph/short headers every frame so
@@ -709,6 +744,14 @@ func _build_tower_health_field() -> Control:
 	_tower_health_bar.custom_minimum_size = TOWER_BAR_MIN_SIZE
 	bar_row.add_child(_tower_health_bar)
 
+	# UX review item 6 (D132): the Tower's HP number, like the player's.
+	_tower_hp_label = Label.new()
+	_tower_hp_label.name = "TowerHpLabel"
+	_tower_hp_label.theme_type_variation = UiTheme.VALUE
+	_tower_hp_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_tower_hp_label.custom_minimum_size = Vector2(PLAYER_HP_VALUE_MIN_WIDTH, 0)
+	bar_row.add_child(_tower_hp_label)
+
 	var wave_row := HBoxContainer.new()
 	wave_row.name = "WaveRow"
 	wave_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -732,7 +775,10 @@ func _build_tower_health_field() -> Control:
 	wave_ribbon.name = "WaveRibbon"
 	wave_ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wave_ribbon.theme_type_variation = UiTheme.RIBBON
-	inner.add_child(wave_ribbon)
+	# UX review item 6 (D132): a sibling BELOW the Tower pill (child of the
+	# field, not of TowerHealthInner), so the pill frame and the ribbon's flag
+	# ends no longer collide.
+	field.add_child(wave_ribbon)
 	wave_ribbon.add_child(wave_row)
 
 	# UI pass: caption (dim) + number (value) pair -- see _refresh_tower_
@@ -742,7 +788,7 @@ func _build_tower_health_field() -> Control:
 	# sits flush against the value that follows rather than floating in
 	# whatever blank space the box's extra width leaves -- see
 	# _new_hud_label()'s `alignment` parameter.
-	_wave_caption_label = _new_hud_label("WaveCaptionLabel", UiTheme.DIM, CAPTION_WAVE_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
+	_wave_caption_label = _new_hud_label("WaveCaptionLabel", UiTheme.VALUE, CAPTION_WAVE_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	wave_row.add_child(_wave_caption_label)
 
 	_wave_label = Label.new()
@@ -778,7 +824,20 @@ func _build_scrap_field() -> Control:
 	row.name = "ScrapRow"
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
 	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
-	pill.add_child(row)
+	# UX review item 8 (D132): a second line under the Scrap row shows what the
+	# Scrap turns into at run end ("= n Cores"), so Scrap has a visible purpose.
+	var scrap_inner := VBoxContainer.new()
+	scrap_inner.name = "ScrapInner"
+	scrap_inner.mouse_filter = Control.MOUSE_FILTER_PASS
+	scrap_inner.theme_type_variation = UiTheme.vbox("XS")
+	pill.add_child(scrap_inner)
+	scrap_inner.add_child(row)
+	_scrap_cores_label = Label.new()
+	_scrap_cores_label.name = "ScrapCoresLabel"
+	_scrap_cores_label.theme_type_variation = UiTheme.SMALL
+	_scrap_cores_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_scrap_cores_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scrap_inner.add_child(_scrap_cores_label)
 
 	# Second UI pass: the real gold-icon texture (task instruction: "Scrap
 	# shown with the gold icon"), not a vector shape -- G_Idle_NoShadow.png
@@ -902,7 +961,11 @@ func _build_xp_field() -> Control:
 	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 	inner.add_child(bar_row)
 
-	_xp_glyph_label = _new_hud_label("XpGlyph", UiTheme.DIM, GLYPH_SHORT_MIN_WIDTH)
+	_xp_glyph_label = _new_hud_label("XpGlyph", UiTheme.VALUE, GLYPH_SHORT_MIN_WIDTH)
+	# UX review item 6 (D132): the "XP" caption was clipped at the ribbon's
+	# top-left corner; centre it on the bar and use the legible VALUE style.
+	_xp_glyph_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_xp_glyph_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	# Second UI pass: _new_hud_label() always sets SIZE_EXPAND_FILL (every
 	# OTHER glyph label relies on that -- see that method's own header), but
 	# with _xp_bar ALSO now EXPAND_FILL (below) in a row that finally has
@@ -952,7 +1015,7 @@ func _build_xp_field() -> Control:
 	# UI-pass round 2: RIGHT-aligned, same reason as WaveCaptionLabel above --
 	# keeps the caption flush against its value instead of floating inside
 	# its own (pseudo-localization-sized) box.
-	_level_caption_label = _new_hud_label("LevelCaptionLabel", UiTheme.DIM, CAPTION_LEVEL_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
+	_level_caption_label = _new_hud_label("LevelCaptionLabel", UiTheme.VALUE, CAPTION_LEVEL_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	# HUD polish (coordinator review, third pass): "make 'Level 0' and
 	# 'Rerolls 1' readable (bigger, outlined), consistent with the rest" --
 	# bumped to match the VALUE beside it (FONT_SIZE_VALUE) rather than
@@ -1002,7 +1065,7 @@ func _build_xp_field() -> Control:
 	_rerolls_icon.set_side(ICON_SIZE_SMALL)
 	rerolls_group.add_child(_rerolls_icon)
 
-	_rerolls_caption_label = _new_hud_label("RerollsCaptionLabel", UiTheme.DIM, CAPTION_REROLLS_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
+	_rerolls_caption_label = _new_hud_label("RerollsCaptionLabel", UiTheme.VALUE, CAPTION_REROLLS_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	# HUD polish (coordinator review, third pass): same size bump as
 	# LevelCaptionLabel above, same reason.
 	_rerolls_caption_label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)

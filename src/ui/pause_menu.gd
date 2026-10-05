@@ -81,6 +81,8 @@ const PAUSE_MENU_CANVAS_LAYER: int = 18
 const OPTION_RESUME: int = 0
 const OPTION_SETTINGS: int = 1
 const OPTION_MAIN_MENU: int = 2
+const ABANDON_OPTION_CANCEL: int = 0 ## the safe option is first, so it is the default highlight
+const ABANDON_OPTION_CONFIRM: int = 1
 
 signal resume_requested()
 signal settings_requested()
@@ -90,6 +92,7 @@ var _root: Control
 var _bar: PausedChoiceBar
 var _fill_ring: DraftFillRing
 var _title_label: Label
+var _confirming_abandon: bool = false
 var _frame: MenuFrame.Parts
 
 
@@ -108,6 +111,8 @@ func _ready() -> void:
 ## activation is never delayed by it (rule 6).
 func set_active(active: bool) -> void:
 	visible = active
+	if not active or _confirming_abandon:
+		_leave_abandon_confirmation() # always reopen on the main choices
 	_bar.set_active(active)
 	if active:
 		MenuFrame.animate_in(_frame)
@@ -124,12 +129,43 @@ func get_bar_for_test() -> PausedChoiceBar:
 
 
 func _on_option_confirmed(index: int) -> void:
+	# UX review item 7 (D134): "Main Menu" abandons the run, so it asks first.
+	if _confirming_abandon:
+		if index == ABANDON_OPTION_CONFIRM:
+			_confirming_abandon = false
+			main_menu_requested.emit()
+		else:
+			_leave_abandon_confirmation()
+			_bar.set_active(true) # fresh lockout + neutral-return arming
+		return
 	if index == OPTION_RESUME:
 		resume_requested.emit()
 	elif index == OPTION_SETTINGS:
 		settings_requested.emit()
 	elif index == OPTION_MAIN_MENU:
-		main_menu_requested.emit()
+		_enter_abandon_confirmation()
+
+
+func _enter_abandon_confirmation() -> void:
+	_confirming_abandon = true
+	_title_label.text = tr("PAUSE_MENU_ABANDON_TITLE")
+	_bar.set_options([tr("PAUSE_MENU_ABANDON_CANCEL"), tr("PAUSE_MENU_ABANDON_CONFIRM")])
+	MenuFrame.style_choice_labels(_bar)
+	_bar.set_active(true) # the held confirm that got us here must not instantly confirm "Abandon"
+
+
+func _leave_abandon_confirmation() -> void:
+	if _title_label == null:
+		_confirming_abandon = false
+		return
+	_confirming_abandon = false
+	_title_label.text = tr("PAUSE_MENU_TITLE")
+	_bar.set_options([tr("PAUSE_MENU_RESUME"), tr("PAUSE_MENU_SETTINGS"), tr("PAUSE_MENU_MAIN_MENU")])
+	MenuFrame.style_choice_labels(_bar)
+
+
+func is_confirming_abandon_for_test() -> bool:
+	return _confirming_abandon
 
 
 func _build_ui() -> void:

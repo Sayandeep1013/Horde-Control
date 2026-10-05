@@ -44,6 +44,10 @@ const MARKER_PULSE_HZ: float = 6.0
 const MARKER_PULSE_AMOUNT: float = 0.18
 const GROUND_RING_RADIUS_PX: float = 26.0
 const GROUND_RING_SQUASH: float = 0.5
+## UX review item 5 (D131): every telegraph, whatever the enemy, uses ONE
+## danger colour; enemy identity stays in the sprite. The ground disc grows
+## from nothing to the full ring as the wind-up reaches the strike moment.
+const DANGER_COLOUR: Color = UiPalette.DANGER
 
 ## Integration task, docs/25_Asset_Pipeline.md: assigned in each of
 ## scenes/entities/{tower_seeker,player_hunter,opportunist}.tscn -- never a
@@ -68,8 +72,7 @@ func _ready() -> void:
 	_sprite = Sprite2D.new()
 	_sprite.name = "Sprite2D"
 	_sprite.texture = texture
-	if _controller != null and _controller.definition != null and _controller.definition.telegraph_data != null:
-		_sprite.modulate = _controller.definition.telegraph_data.telegraph_colour
+	_sprite.modulate = DANGER_COLOUR
 	_sprite.position = Vector2(0.0, -MARKER_HEIGHT_PX)
 	_sprite.scale = Vector2.ONE * MARKER_SCALE
 	add_child(_sprite)
@@ -87,10 +90,10 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
-	var colour: Color = _sprite.modulate if _sprite != null else Color(1, 0.2, 0.2)
+	var progress: float = _controller.get_windup_progress() if _controller != null else 0.0
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, GROUND_RING_SQUASH))
-	draw_circle(Vector2.ZERO, GROUND_RING_RADIUS_PX, Color(colour, 0.28))
-	draw_arc(Vector2.ZERO, GROUND_RING_RADIUS_PX, 0.0, TAU, 32, Color(colour, 0.9), 3.0)
+	draw_circle(Vector2.ZERO, maxf(1.0, GROUND_RING_RADIUS_PX * progress), Color(DANGER_COLOUR, 0.45))
+	draw_arc(Vector2.ZERO, GROUND_RING_RADIUS_PX, 0.0, TAU, 32, Color(DANGER_COLOUR, 0.9), 3.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 

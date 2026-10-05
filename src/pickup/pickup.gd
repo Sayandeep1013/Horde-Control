@@ -63,7 +63,7 @@ const BLINK_PERIOD_SECONDS: float = 0.2
 ## BLINK_PERIOD_SECONDS above): the gentle idle bob every pickup gets, and
 ## the one-shot spawn animation Scrap specifically plays -- see
 ## `_process()` and `configure()` below.
-const BOB_AMPLITUDE_PX: float = 2.0
+const BOB_AMPLITUDE_PX: float = 4.0 # UX review item 5 (D131): was 2, too small to read at 720p
 const BOB_FREQUENCY_HZ: float = 1.2
 const SPAWN_ANIMATION_NAME: StringName = &"spawn"
 

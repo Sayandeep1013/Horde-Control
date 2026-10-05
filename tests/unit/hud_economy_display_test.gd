@@ -61,7 +61,7 @@ func test_xp_bar_and_level_and_rerolls_labels() -> void:
 
 	var bar: HudBar = hud.get_xp_bar()
 	assert_float(bar.get_fraction()).is_equal_approx(0.3, 0.001)
-	assert_str(hud.get_level_label().text).contains("4")
+	assert_str(hud.get_level_label().text).append_failure_message("internal level 4 is shown as Lv 5 (D133)").is_equal("5")
 	assert_str(hud.get_rerolls_label().text).contains("1")
 
 
@@ -74,3 +74,28 @@ func test_scrap_truncation_full_value_is_recoverable_via_tooltip() -> void:
 	var label: HudTruncatableLabel = hud.get_scrap_label()
 	assert_str(label.tooltip_text).is_equal("7/200")
 	assert_int(label.text_overrun_behavior).is_equal(TextServer.OVERRUN_TRIM_ELLIPSIS)
+
+
+func test_a_fresh_run_shows_lv_1_not_level_0() -> void:
+	var hud: Hud = _build_hud()
+	hud.economy_state.level = 0
+	hud._refresh_xp()
+	assert_str(hud.get_level_label().text).is_equal("1")
+	assert_str(hud._level_caption_label.text).is_equal("Lv")
+
+
+func test_scrap_shows_a_live_core_equivalent() -> void:
+	var hud: Hud = _build_hud()
+	hud.economy_state.scrap_current = 37
+	hud._refresh_scrap()
+	assert_str(hud._scrap_cores_label.text).contains("3 Cores")
+	assert_int(Hud.scrap_to_cores(MetaProgress.SETTLEMENT_SCRAP_PER_CORE)).is_equal(1)
+
+
+func test_wave_ribbon_is_a_sibling_of_the_tower_pill_not_inside_it() -> void:
+	var hud: Hud = _build_hud()
+	var ribbon: Node = hud.find_child("WaveRibbon", true, false)
+	var pill: Node = hud.find_child("TowerHealthPill", true, false)
+	assert_bool(pill.is_ancestor_of(ribbon)).is_false()
+	assert_object(ribbon.get_parent()).is_same(pill.get_parent())
+	assert_bool(hud.find_child("TowerHpLabel", true, false) != null).is_true()

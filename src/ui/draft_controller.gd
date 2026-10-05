@@ -283,6 +283,8 @@ var _root: Control
 var _card_row: HBoxContainer
 var _fill_ring: DraftFillRing
 var _reroll_label: Label
+var _how_to_pick_label: Label
+var _mouse_confirm_this_frame: bool = false ## UX review P0-4
 var _card_views: Array[DraftCardView] = []
 
 # --- Input/timing state (see class header, "Two clocks") ---------------------
@@ -481,6 +483,21 @@ func get_root_control_for_test() -> Control:
 
 func get_fill_ring_for_test() -> DraftFillRing:
 	return _fill_ring
+
+
+func get_how_to_pick_label_for_test() -> Label:
+	return _how_to_pick_label
+
+
+func simulate_card_click_for_test(index: int) -> void:
+	var mb := InputEventMouseButton.new()
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = true
+	_on_card_gui_input(mb, index)
+
+
+func simulate_mouse_confirm_for_test() -> void:
+	_mouse_confirm_this_frame = true
 
 
 func get_reroll_label_for_test() -> Label:
@@ -831,6 +848,7 @@ func _try_reroll() -> void:
 	_highlighted_index = 0
 	_hold_up_progress = 0.0
 	_build_card_views()
+	_refresh_reroll_text()
 	if _ui_sfx != null:
 		_ui_sfx.play_reroll()
 
@@ -858,6 +876,7 @@ func _process(delta: float) -> void:
 			_update_hold_up_arming_state()
 		_update_fill_ring_visual()
 		_clear_test_edges_for_frame() # a swallowed press during lockout must not leak into the next frame
+		_mouse_confirm_this_frame = false
 		return # input locked out for the whole 0.4 s window
 	_poll_cycle_input(delta)
 	_poll_number_select_input()
@@ -866,6 +885,7 @@ func _process(delta: float) -> void:
 	_poll_hold_up_input(delta)
 	_update_fill_ring_visual()
 	_clear_test_edges_for_frame()
+	_mouse_confirm_this_frame = false
 
 
 func _is_pressed(action: StringName) -> bool:
@@ -963,8 +983,44 @@ func _poll_number_select_input() -> void:
 
 
 func _poll_confirm_input() -> void:
-	if _is_just_pressed(&"confirm"):
+	# UX review P0-4 (D128): the `confirm` action also binds the left mouse
+	# button, so a click anywhere used to confirm the highlighted card. A mouse
+	# press is now swallowed here; clicking a card confirms THAT card through
+	# its own gui_input (_on_card_gui_input).
+	if _is_just_pressed(&"confirm") and not _mouse_confirm_this_frame:
 		_confirm_highlighted_card()
+
+
+## Flags a mouse-originated `confirm` so _poll_confirm_input() can ignore it.
+func _input(event: InputEvent) -> void:
+	if _draft_showing and event is InputEventMouseButton and event.is_action_pressed(&"confirm"):
+		_mouse_confirm_this_frame = true
+
+
+func _on_card_gui_input(event: InputEvent, index: int) -> void:
+	if not _lockout_elapsed or not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event
+	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and index >= 0 and index < _cards.size():
+		_highlighted_index = index
+		_confirm_highlighted_card()
+
+
+func _on_reroll_gui_input(event: InputEvent) -> void:
+	if not _lockout_elapsed or not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event
+	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+		_try_reroll()
+
+
+## "Reroll: R (n left)", greyed out at zero (UX review P0-4).
+func _refresh_reroll_text() -> void:
+	if _reroll_label == null:
+		return
+	var left: int = maxi(0, _rerolls_remaining)
+	_reroll_label.text = tr("DRAFT_REROLL") % left if left > 0 else tr("DRAFT_REROLL_NONE")
+	_reroll_label.modulate = Color(1, 1, 1, 1.0 if left > 0 else 0.5)
 
 
 func _poll_reroll_input() -> void:
@@ -1071,6 +1127,16 @@ func _build_ui() -> void:
 	_fill_ring.custom_minimum_size = Vector2(HOLD_RING_DIAMETER, HOLD_RING_DIAMETER)
 	bottom_row.add_child(_fill_ring)
 
+	# UX review P0-4 (D128): the ring is captioned so it no longer reads as an
+	# unlabeled circle attached to Reroll.
+	var hold_caption := Label.new()
+	hold_caption.name = "HoldCaption"
+	hold_caption.text = tr("DRAFT_HOLD_CAPTION")
+	hold_caption.theme_type_variation = UiTheme.DIM
+	hold_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hold_caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bottom_row.add_child(hold_caption)
+
 	# docs/19 > "Draft Actions": "Reroll is also a focusable element beside
 	# the cards" (Register > "Platform input floor"). Wrapped in a UiPill
 	# panel (direction: "small pill-shaped edge widgets") -- purely a visual
@@ -1084,7 +1150,10 @@ func _build_ui() -> void:
 
 	_reroll_label = Label.new()
 	_reroll_label.name = "RerollHint"
-	_reroll_label.text = "Reroll: R / Square"
+	_reroll_label.text = tr("DRAFT_REROLL") % maxi(0, _rerolls_remaining)
+	_reroll_label.mouse_filter = Control.MOUSE_FILTER_STOP # clickable (UX review P0-4)
+	_reroll_label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_reroll_label.gui_input.connect(_on_reroll_gui_input)
 	_reroll_label.theme_type_variation = UiTheme.DIM
 	_reroll_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_reroll_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
@@ -1093,9 +1162,20 @@ func _build_ui() -> void:
 	_reroll_label.focus_mode = Control.FOCUS_ALL
 	reroll_pill.add_child(_reroll_label)
 
+	# UX review P0-4 (D128): one line listing every way to pick a card.
+	_how_to_pick_label = Label.new()
+	_how_to_pick_label.name = "HowToPick"
+	_how_to_pick_label.text = tr("DRAFT_HOW_TO_PICK")
+	_how_to_pick_label.theme_type_variation = UiTheme.DIM
+	_how_to_pick_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_how_to_pick_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_how_to_pick_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(_how_to_pick_label)
+
 
 func _show_ui() -> void:
 	_root.visible = true
+	_refresh_reroll_text()
 	_build_card_views()
 
 
@@ -1130,6 +1210,8 @@ func _build_card_views() -> void:
 			current_rank = _upgrade_system.get_current_rank(def.unique_id)
 		view.setup(def, current_rank, card.rarity) # D117: the ROLLED rarity, never def.rarity (a shared Resource's own unrolled default)
 		view.mouse_entered.connect(_on_card_hovered.bind(i))
+		view.gui_input.connect(_on_card_gui_input.bind(i))
+		view.set_key_badge(i + 1)
 		# Card-row entrance (PLAN.md direction): a short staggered fade/rise,
 		# purely cosmetic (see DraftCardView.play_entrance()'s own header) --
 		# every existing rule below (lockout, arming, cycle, confirm, hover)

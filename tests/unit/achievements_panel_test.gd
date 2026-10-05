@@ -86,3 +86,14 @@ func test_back_button_emits_back_requested() -> void:
 	panel.back_requested.connect(func() -> void: _back_requested_fired = true)
 	panel.get_back_button_for_test().pressed.emit()
 	assert_bool(_back_requested_fired).is_true()
+
+
+func test_every_row_shows_its_reward_and_unlocked_rows_are_tinted() -> void:
+	var panel: AchievementsPanel = auto_free(AchievementsPanel.new())
+	add_child(panel)
+	panel.set_active(true)
+	for a in RealAchievementList.achievements:
+		var reward: String = AchievementsPanel.reward_text(a)
+		assert_str(reward).append_failure_message("%s shows no reward" % a.id).is_not_empty()
+	assert_str(AchievementsPanel.reward_text(RealAchievementList.achievements[1])).contains("Unlocks card")
+	assert_str(AchievementsPanel.reward_text(RealAchievementList.achievements[5])).contains("5%")

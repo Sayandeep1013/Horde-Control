@@ -573,6 +573,16 @@ func get_wave_total_count() -> int:
 	return waves.size()
 
 
+## UX review item 9 (D130): true when the wave that just opened contains a
+## Siege encounter, so the HUD can show "Siege incoming" (docs/11 > Siege
+## warning). Read-only query over the open wave's encounter queue.
+func is_current_wave_siege() -> bool:
+	for encounter in _wave_encounter_queue:
+		if encounter != null and encounter.encounter_type == ContractEnums.EncounterType.Siege:
+			return true
+	return false
+
+
 func get_wave_open_time_for_test() -> float:
 	return _wave_open_time
 

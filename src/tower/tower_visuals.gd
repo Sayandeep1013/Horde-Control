@@ -101,6 +101,14 @@ const CRITICAL_TINT: Color = Color(1.0, 0.35, 0.32, 1.0)
 const FLASH_TINT: Color = Color(1.6, 1.6, 1.6, 1.0)
 const FIRE_PULSE_SCALE: float = 1.12
 
+## UX review P0-3 (D127): while the player stands inside the building's
+## on-screen rectangle (the Tower is drawn above the player), this node fades
+## to OCCLUSION_FADE_ALPHA so the player stays visible. Value lives in the
+## Provisional Values Register > "HUD" > "Tower occlusion fade alpha".
+const OCCLUSION_FADE_ALPHA: float = 0.45
+const OCCLUSION_FADE_SPEED: float = 6.0 ## alpha per second; cosmetic feel
+const OCCLUSION_RECT_INSET_FRACTION: float = 0.12 ## trims the canvas's transparent margin per side
+
 const DAMAGE_FLASH_DURATION: float = 0.12
 const FIRE_PULSE_DURATION: float = 0.1
 const SHIELD_SHIMMER_PULSE_DURATION: float = 1.4
@@ -167,6 +175,7 @@ var _pulse_tween: Tween = null
 var _shimmer_loop_tween: Tween = null
 var _current_stage: int = 0
 var _destroyed: bool = false
+var _player_ref: Node2D = null ## cached player; tests inject one
 
 
 func _ready() -> void:
@@ -181,6 +190,43 @@ func _ready() -> void:
 		_shield_shimmer.modulate = Color(0.6, 0.95, 1.0, 0.0)
 		_start_shimmer_loop()
 	_setup_fire()
+
+
+func _process(delta: float) -> void:
+	if _sprite == null:
+		return
+	var target: float = OCCLUSION_FADE_ALPHA if is_player_occluded() else 1.0
+	modulate.a = move_toward(modulate.a, target, OCCLUSION_FADE_SPEED * delta)
+
+
+## True when the player's position lies inside the Tower sprite's global rect
+## (trimmed by OCCLUSION_RECT_INSET_FRACTION horizontally). Read-only.
+func is_player_occluded() -> bool:
+	if _sprite == null or _sprite.texture == null:
+		return false
+	var player: Node2D = _find_player()
+	if player == null:
+		return false
+	var rect: Rect2 = _sprite.get_global_transform() * _sprite.get_rect()
+	rect = rect.grow_individual(-rect.size.x * OCCLUSION_RECT_INSET_FRACTION, 0.0, -rect.size.x * OCCLUSION_RECT_INSET_FRACTION, 0.0)
+	return rect.has_point(player.global_position)
+
+
+func _find_player() -> Node2D:
+	if _player_ref != null and is_instance_valid(_player_ref):
+		return _player_ref
+	var registry: Node = get_node_or_null("/root/EntityRegistry")
+	if registry == null:
+		return null
+	var found: Array[Node2D] = registry.get_entities_with_tag(&"player")
+	if found.is_empty():
+		return null
+	_player_ref = found[0] # cached: avoids a registry sweep every frame
+	return _player_ref
+
+
+func set_player_for_test(player: Node2D) -> void:
+	_player_ref = player
 
 
 func on_health_changed(current_health: float, max_health: float) -> void:

@@ -127,7 +127,9 @@ const SHEEP_SPOTS: Array = [Vector2(560.0, 470.0), Vector2(650.0, 520.0), Vector
 const MUSIC_VOLUME_DB: float = -22.0 # quieter than the title's own -14 dB -- see class header, "Music"
 
 const MENU_CARD_MIN_WIDTH: float = 460.0
-const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 68.0)
+const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 60.0)
+const HUB_MENU_BAND_TOP: float = 250.0 # 1080-base px; UX review P0-1
+const HUB_MENU_BAND_BOTTOM: float = 1050.0
 const START_RUN_MIN_SIZE: Vector2 = Vector2(360.0, 84.0) # the primary action, visibly larger
 
 ## Harness-only flag (title_screen.gd's own `--debug-panel=` precedent):
@@ -518,8 +520,11 @@ func _build_menu_card(parent: Control) -> void:
 	# the same relative margin, so a tight fit at one scales to an equally
 	# tight fit at the other). Centred higher (y=800) instead, for real
 	# clearance at both resolutions.
-	center.offset_top = 650.0
-	center.offset_bottom = 950.0
+	# UX review P0-1 (D127): the card now holds ribbon + Start Run + 5 buttons
+	# (~600px), so the band spans nearly the whole lower screen and the card is
+	# centred inside it; a test asserts every focusable button lies in 1280x720.
+	center.offset_top = HUB_MENU_BAND_TOP
+	center.offset_bottom = HUB_MENU_BAND_BOTTOM
 	parent.add_child(center)
 
 	var card := PanelContainer.new()
@@ -666,7 +671,7 @@ func _build_banner(parent: Container, node_name: String, text: String, dismiss_t
 	var label := Label.new()
 	label.name = "Label"
 	label.text = text
-	label.theme_type_variation = UiTheme.DIM
+	label.theme_type_variation = UiTheme.DIM_PARCHMENT
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL

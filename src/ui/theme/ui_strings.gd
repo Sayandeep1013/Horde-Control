@@ -26,7 +26,8 @@ const LOCALE: String = "en"
 
 const MESSAGES: Dictionary = {
 	"HUD_WAVE": "Wave",
-	"HUD_LEVEL": "Level",
+	"HUD_LEVEL": "Lv",
+	"HUD_SCRAP_CORES": "= %d Cores at run end",
 	"HUD_REROLLS": "Rerolls",
 	"HUD_FULL": "FULL",
 	"HUD_HOPPER": "hopper",
@@ -35,7 +36,21 @@ const MESSAGES: Dictionary = {
 	"HUD_GLYPH_SCRAP": "SCRAP",
 	"HUD_GLYPH_XP": "XP",
 
-	"DRAFT_TITLE": "Level-Up Draft",
+	"DRAFT_TITLE": "Level up! Choose an upgrade",
+	# UX review P0-4 (D128): every way to pick, from project.godot's input map.
+	"DRAFT_HOW_TO_PICK": "Click a card  |  keys 1 / 2 / 3  |  A / D to move, Space or Enter to pick  |  or hold W / Up",
+	"DRAFT_HOLD_CAPTION": "Hold W / Up to pick",
+	"DRAFT_REROLL": "Reroll: R (%d left)",
+	"DRAFT_REROLL_NONE": "No rerolls left",
+
+	# UX review items 4 and 9 (D129/D130): run objective, first-run hints, wave banners.
+	"HINT_OBJECTIVE": "Protect yourself and the Tower - survive %d waves",
+	"HINT_OBJECTIVE_NO_COUNT": "Protect yourself and the Tower - survive every wave",
+	"HINT_AUTOFIRE": "Your bow fires automatically at the nearest goblin. Just move (WASD).",
+	"HINT_PICKUPS": "Walk over crystals (XP) and gold sacks (Scrap) to collect them.",
+	"HINT_ENEMIES": "Red torch goblins attack the Tower. Yellow TNT goblins hunt you. Purple barrels go for whichever is exposed.",
+	"BANNER_WAVE": "Wave %d",
+	"BANNER_SIEGE": "Siege incoming",
 
 	# D115 (no in-run shop): every CONSOLE_* key (Tower Console UI text) is
 	# removed along with the Console itself -- nothing left registers or
@@ -44,7 +59,10 @@ const MESSAGES: Dictionary = {
 	"PAUSE_MENU_TITLE": "Paused",
 	"PAUSE_MENU_RESUME": "Resume",
 	"PAUSE_MENU_SETTINGS": "Settings",
-	"PAUSE_MENU_MAIN_MENU": "Main Menu",
+	"PAUSE_MENU_MAIN_MENU": "Abandon run",
+	"PAUSE_MENU_ABANDON_TITLE": "Abandon run? Progress so far still earns Cores",
+	"PAUSE_MENU_ABANDON_CANCEL": "Keep playing",
+	"PAUSE_MENU_ABANDON_CONFIRM": "Abandon",
 
 	"SETTINGS_MENU_TITLE": "Settings",
 	"SETTINGS_MOVEMENT_ONLY": "Movement-only controls",
@@ -165,6 +183,11 @@ const MESSAGES: Dictionary = {
 	"ACHIEVEMENTS_BACK": "Back",
 	"ACHIEVEMENTS_UNLOCKED": "Unlocked",
 	"ACHIEVEMENTS_LOCKED": "Locked",
+	"ACHIEVEMENTS_REWARD_CARD": "Unlocks card: %s",
+	"ACHIEVEMENTS_REWARD_PERK": "Reward: %s",
+	"ACHIEVEMENTS_PERK_REROLL": "+1 Draft reroll each run",
+	"ACHIEVEMENTS_PERK_DAMAGE": "+%d%% weapon damage",
+	"ACHIEVEMENTS_PERK_CORES": "+%d%% Cores at run end",
 
 	"TITLE_GAME_NAME": "HORDE CONTROL",
 	"TITLE_TAGLINE": "Defend the Tower. Survive the horde.",
