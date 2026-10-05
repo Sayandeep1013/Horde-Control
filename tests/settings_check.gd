@@ -115,7 +115,8 @@ const PINNED_SETTINGS := [
 	{"key": "input_devices/pointing/emulate_mouse_from_touch", "default": true, "expected": true},
 	{"key": "physics/common/physics_ticks_per_second", "default": 60, "expected": 60},
 	{"key": "physics/common/max_physics_steps_per_frame", "default": 8, "expected": 8},
-	{"key": "physics/common/physics_interpolation", "default": false, "expected": false},
+	# D151 (feel pass, on main): physics interpolation is on. The check still said off; updated here so it matches the intentional change.
+	{"key": "physics/common/physics_interpolation", "default": false, "expected": true},
 	{"key": "display/window/vsync/vsync_mode", "default": 1, "expected": 1},
 ]
 
