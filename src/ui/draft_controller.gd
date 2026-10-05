@@ -683,9 +683,20 @@ func _roll_three_cards(avoid_ids: Array[String]) -> void:
 	_last_shown_ids = _ids_of(result)
 
 
+## D144: drops cards whose one-shot heal would be wasted right now (Patch Kit at
+## full player health, Repair Kit at full Tower health), but only while another
+## card remains in the pool; a pool of nothing else keeps them.
+func _without_wasted_cards(pool: Array[UpgradeDefinition]) -> Array[UpgradeDefinition]:
+	var kept: Array[UpgradeDefinition] = []
+	for d in pool:
+		if not _upgrade_system.is_card_wasted_now(d.unique_id):
+			kept.append(d)
+	return kept if not kept.is_empty() else pool
+
+
 func _roll_three_once() -> Array[RolledCard]:
-	var player_pool: Array[UpgradeDefinition] = _upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Player)
-	var tower_pool: Array[UpgradeDefinition] = _upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Tower)
+	var player_pool: Array[UpgradeDefinition] = _without_wasted_cards(_upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Player))
+	var tower_pool: Array[UpgradeDefinition] = _without_wasted_cards(_upgrade_system.get_offerable_upgrades(ContractEnums.PoolOwnership.Tower))
 
 	var card_player: UpgradeDefinition = _pick_guaranteed(player_pool, ContractEnums.PoolOwnership.Player)
 	var card_tower: UpgradeDefinition = _pick_guaranteed(tower_pool, ContractEnums.PoolOwnership.Tower)
@@ -1208,7 +1219,10 @@ func _build_card_views() -> void:
 		var current_rank: int = 0
 		if _upgrade_system != null:
 			current_rank = _upgrade_system.get_current_rank(def.unique_id)
-		view.setup(def, current_rank, card.rarity) # D117: the ROLLED rarity, never def.rarity (a shared Resource's own unrolled default)
+		var honest: Dictionary = {}
+		if _upgrade_system != null:
+			honest = _upgrade_system.get_honest_card_value(def.unique_id, float(RARITY_VALUE_MULTIPLIER.get(card.rarity, 1.0))) # D123/D143
+		view.setup(def, current_rank, card.rarity, honest) # D117: the ROLLED rarity, never def.rarity (a shared Resource's own unrolled default)
 		view.mouse_entered.connect(_on_card_hovered.bind(i))
 		view.gui_input.connect(_on_card_gui_input.bind(i))
 		view.set_key_badge(i + 1)

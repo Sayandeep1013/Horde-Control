@@ -12,9 +12,18 @@ func test_rare_and_epic_scale_every_percentage() -> void:
 
 
 func test_non_whole_results_are_shown_honestly_not_rounded() -> void:
-	assert_str(DraftCardView._scaled_effect_text("heal 1% of max health per second per rank", 1.5, "regeneration")).is_equal("heal 1.5% of max health per second per rank")
+	assert_str(DraftCardView._scaled_effect_text("heal 1% of max health per second per rank", 1.5, {"rarity_scaled": true})).is_equal("heal 1.5% of max health per second per rank")
 
 
 func test_cards_whose_effect_ignores_rarity_keep_their_authored_text() -> void:
-	assert_str(DraftCardView._scaled_effect_text("instantly heal the Tower 25% of its max health", 1.5, "repair_kit")).is_equal("instantly heal the Tower 25% of its max health")
-	assert_str(DraftCardView._scaled_effect_text("+1 extra arrow per rank at 70% damage, spread", 2.2, "multishot")).is_equal("+1 extra arrow per rank at 70% damage, spread")
+	assert_str(DraftCardView._scaled_effect_text("instantly heal the Tower 25% of its max health", 1.5, {"rarity_scaled": false})).is_equal("instantly heal the Tower 25% of its max health")
+	assert_str(DraftCardView._scaled_effect_text("+1 extra arrow per rank at 70% damage, spread", 2.2, {"rarity_scaled": false})).is_equal("+1 extra arrow per rank at 70% damage, spread")
+
+
+func test_text_follows_the_upgrade_systems_honest_value() -> void:
+	var sys: UpgradeSystem = auto_free(UpgradeSystem.new())
+	add_child(sys)
+	var heal: Dictionary = sys.get_honest_card_value(UpgradeSystem.REPAIR_KIT_ID, 2.2)
+	if not heal.is_empty():
+		assert_bool(bool(heal["rarity_scaled"])).is_false()
+		assert_str(DraftCardView._scaled_effect_text("heal the Tower 25%", 2.2, heal)).is_equal("heal the Tower 25%")

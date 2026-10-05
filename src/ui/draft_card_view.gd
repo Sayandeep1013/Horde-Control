@@ -146,10 +146,6 @@ const RARITY_LABEL_TEXT: Dictionary = {
 ## replacement for either. UiPalette has a colour and a spacing scale but no
 ## "shadow blur/offset" scale. TODO(ui-pass): promote to UiPalette if
 ## another surface wants the same elevation cue.
-## Cards whose applied effect ignores the rolled rarity (see
-## UpgradeSystem._apply_effect()): their text must not be scaled either.
-const UNSCALED_BY_RARITY_IDS: Array[String] = ["repair_kit", "patch_kit", "multishot", "piercing_arrows"]
-
 const HIGHLIGHT_SHADOW_SIZE_PX: int = 10
 const HIGHLIGHT_SHADOW_OFFSET_PX: float = 3.0
 ## Not `UiPalette.with_alpha(UiPalette.ACCENT, ...)` directly -- a `const`
@@ -371,7 +367,12 @@ func _init() -> void:
 ## `def.rarity` (a shared Resource's own unrolled default) -- defaulted to
 ## Common so every pre-D117 caller (none left in this codebase, but any
 ## future direct test construction) keeps working unchanged.
-func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnums.Rarity.Common) -> void:
+##
+## `honest` (D123/D143) is `UpgradeSystem.get_honest_card_value(id, multiplier)`
+## for this card: its "rarity_scaled" flag decides whether the text's
+## percentages are scaled, so the card shows what the code really applies.
+## Empty (no Upgrade System available, e.g. a bare view test) means scaled.
+func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnums.Rarity.Common, honest: Dictionary = {}) -> void:
 	_pool_ownership = def.pool_ownership
 	_upgrade_id = def.unique_id
 	_rarity = rarity
@@ -397,7 +398,7 @@ func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnum
 		card_name = parts[0].strip_edges()
 		effect_text = parts[1].strip_edges()
 	_name_label.text = card_name
-	_effect_label.text = _scaled_effect_text(effect_text, float(DraftController.RARITY_VALUE_MULTIPLIER.get(_rarity, 1.0)), def.unique_id)
+	_effect_label.text = _scaled_effect_text(effect_text, float(DraftController.RARITY_VALUE_MULTIPLIER.get(_rarity, 1.0)), honest)
 
 	_rank_label.text = _rank_change_text(def, current_rank)
 	# Second UI pass: pips only make sense for a ranked upgrade -- a no-max-
@@ -596,11 +597,11 @@ func get_rarity_label_for_test() -> Label:
 ## "N%" figure; a non-whole result is shown with one decimal rather than
 ## rounded into a different number (UX review, GD review "the text lies").
 ##
-## Honest-value helper (single place, so it can be swapped for the Upgrade
-## System's own per-card value query once that lands): the cards whose
-## applied effect is NOT scaled by rarity keep their authored text.
-static func _scaled_effect_text(text: String, multiplier: float, upgrade_id: String = "") -> String:
-	if is_equal_approx(multiplier, 1.0) or not _rarity_scales_text(upgrade_id):
+## `honest` is the Upgrade System's own per-card value query
+## (UpgradeSystem.get_honest_card_value): when its "rarity_scaled" is false
+## (one-shot heals, discrete counts) the authored text is kept as is.
+static func _scaled_effect_text(text: String, multiplier: float, honest: Dictionary = {}) -> String:
+	if is_equal_approx(multiplier, 1.0) or not bool(honest.get("rarity_scaled", true)):
 		return text
 	var re: RegEx = RegEx.new()
 	re.compile("(\\d+(?:\\.\\d+)?)%")
@@ -612,12 +613,6 @@ static func _scaled_effect_text(text: String, multiplier: float, upgrade_id: Str
 		last = m.get_end()
 	out += text.substr(last)
 	return out
-
-
-## False for the cards UpgradeSystem._apply_effect() applies at the authored
-## value at every rarity (one-shot heals and discrete counts).
-static func _rarity_scales_text(upgrade_id: String) -> bool:
-	return not UNSCALED_BY_RARITY_IDS.has(upgrade_id)
 
 
 static func _format_percent(value: float) -> String:

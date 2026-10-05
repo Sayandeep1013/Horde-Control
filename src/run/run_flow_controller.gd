@@ -143,6 +143,8 @@ const REASON_RUN_ENDED: StringName = &"run_ended"
 const NO_FOCUS_PAUSE_FLAG: String = "--no-focus-pause"
 
 @export var tower_path: NodePath
+## The run's seed, set by PrototypeIntegration; -1 means unknown (not shown).
+var run_seed: int = -1
 @export var wave_director_path: NodePath
 @export var pause_menu_scene: PackedScene = preload("res://scenes/ui/pause_menu.tscn")
 @export var settings_menu_scene: PackedScene = preload("res://scenes/ui/settings_menu.tscn")
@@ -740,6 +742,7 @@ func _build_summary() -> Dictionary:
 		"wave_total": _final_wave_total,
 		"scrap_held": scrap_held,
 		"time_survived_seconds": survived,
+		"run_seed": run_seed,
 	}
 
 

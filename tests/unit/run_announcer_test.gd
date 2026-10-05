@@ -91,3 +91,24 @@ func test_the_seen_flag_defaults_false_and_persists() -> void:
 	MetaProgress.set_base_path_for_test(_dir) # drop memory, reload from disk
 	MetaProgress.ensure_loaded()
 	assert_bool(MetaProgress.is_first_run_hints_seen()).is_true()
+
+
+func test_hints_do_not_advance_or_complete_while_paused() -> void:
+	var parts: Array = _make()
+	var director: FakeDirector = parts[0]
+	var announcer: RunAnnouncer = parts[1]
+	director.wave_opened.emit("t1", 0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	get_tree().paused = true
+	await get_tree().process_frame
+	var before: float = announcer.get_hint_time_left_for_test()
+	for i in 20:
+		await get_tree().process_frame
+	var after: float = announcer.get_hint_time_left_for_test()
+	var hidden_while_paused: bool = not announcer.visible
+	get_tree().paused = false
+	assert_float(after).is_equal_approx(before, 0.0001)
+	assert_bool(hidden_while_paused).is_true()
+	assert_bool(MetaProgress.is_first_run_hints_seen()).is_false()
+	assert_bool(announcer.visible).is_true()

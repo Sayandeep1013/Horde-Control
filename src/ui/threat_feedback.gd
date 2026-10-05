@@ -68,7 +68,7 @@ class_name ThreatFeedback
 ##
 ## ## UI pass (phases/UI_PASS/BRIEF.md, package A, item 7): palette + polish
 ## Every drawn `Color(...)` literal is now a `UiPalette` token: the vignette
-## wedges and the low-health warning diamond use `UiPalette.DANGER`, the
+## wedges and the low-health warning ring use `UiPalette.DANGER`, the
 ## normal (not-low-health) indicator uses `UiPalette.ACCENT`, and the
 ## indicator's rim and the hit arc are drawn over a wider, darker
 ## `UiPalette.TEXT_OUTLINE` pass first, so they stay legible against any
@@ -181,11 +181,16 @@ const VIGNETTE_PEAK_ALPHA: float = 0.4
 ## them changed.
 const ARROW_LENGTH: float = 30.0
 const ARROW_WIDTH: float = 22.0
-const DIAMOND_HALF_EXTENT: float = 16.0 ## up from 10.0 -- "larger" applies to the low-health shape too
-## The Tower icon's small badge, drawn inboard of the arrow/diamond (toward
+## The Tower icon's small badge, drawn inboard of the arrow (toward
 ## the screen centre) so it never crowds the literal screen edge.
 const ICON_BADGE_RADIUS: float = 17.0
 const ICON_SIZE: float = 20.0
+## D141: the off-screen Tower arrow stays inside the band between the top HUD
+## (Tower pill + Wave ribbon) and the bottom XP ribbon, in screen px at the
+## 1920x1080 canvas. Register "Threat arrow margins" row.
+const INDICATOR_MARGIN_TOP: float = 150.0
+const INDICATOR_MARGIN_BOTTOM: float = 170.0
+const LOW_RING_PULSE_HZ: float = 2.0
 const ICON_INSET: float = 34.0
 ## How far inboard of the indicator the HP readout label sits.
 const HP_LABEL_INSET: float = 62.0
@@ -451,7 +456,7 @@ func is_indicator_low_health() -> bool:
 ## this getter, colour via `get_indicator_color()` below, never colour
 ## alone (MASTER_SDLC.md > Visual Edge Cases > "Colour-only distinctions").
 func get_indicator_shape() -> StringName:
-	return &"warning_diamond" if is_indicator_low_health() else &"arrow"
+	return &"warning_ring" if is_indicator_low_health() else &"arrow"
 
 
 func get_indicator_color() -> Color:
@@ -560,6 +565,18 @@ func _draw_vignette_segments() -> void:
 		draw_polygon(points, colors)
 
 
+## The indicator's screen position: on the 0.85-radius ellipse toward the
+## Tower, with y clamped clear of the top and bottom HUD bands (D141).
+func _indicator_pos(box_size: Vector2, dir: Vector2) -> Vector2:
+	var center: Vector2 = box_size / 2.0
+	var radius: Vector2 = box_size / 2.0 * 0.85
+	var pos: Vector2 = center + Vector2(dir.x * radius.x, dir.y * radius.y)
+	var y_min: float = INDICATOR_MARGIN_TOP
+	var y_max: float = maxf(y_min, box_size.y - INDICATOR_MARGIN_BOTTOM)
+	pos.y = clampf(pos.y, y_min, y_max)
+	return pos
+
+
 func _draw_offscreen_indicator() -> void:
 	var box_size: Vector2 = size
 	if box_size.x <= 0.0 or box_size.y <= 0.0:
@@ -567,14 +584,12 @@ func _draw_offscreen_indicator() -> void:
 	var dir: Vector2 = get_pointing_direction()
 	if dir == Vector2.ZERO:
 		return
-	var center: Vector2 = box_size / 2.0
-	var radius: Vector2 = box_size / 2.0 * 0.85
-	var pos: Vector2 = center + Vector2(dir.x * radius.x, dir.y * radius.y)
+	var pos: Vector2 = _indicator_pos(box_size, dir)
 	var color: Color = get_indicator_color()
 	var outline_color: Color = UiPalette.TEXT_OUTLINE
 	# UX review item 7 (D134): the arrow ALWAYS points at the Tower. Below the
 	# Register's 40% threshold it turns the (already red) low-health colour and
-	# a diamond badge is drawn behind the Tower icon, so the shape still changes
+	# a pulsing ring badge is drawn around the Tower icon, so the shape still changes
 	# (Register: "changes both shape and colour") without losing the direction.
 	# Second UI pass: a directional arrow, not a plain circle -- points along
 	# `dir`, the exact same vector the vignette uses.
@@ -582,13 +597,16 @@ func _draw_offscreen_indicator() -> void:
 	draw_colored_polygon(_arrow_points(pos, dir, ARROW_LENGTH, ARROW_WIDTH), color)
 	# Second UI pass: the Tower icon, in a small dark badge so it reads
 	# clearly over any background (task instruction: "with the tower icon").
-	# Sits INBOARD of the arrow/diamond (toward the screen centre), never
+	# Sits INBOARD of the arrow (toward the screen centre), never
 	# past the screen edge.
 	var icon_pos: Vector2 = pos - dir * ICON_INSET
 	if is_indicator_low_health():
-		draw_colored_polygon(_diamond_points(icon_pos, DIAMOND_HALF_EXTENT + OUTLINE_EXTRA_WIDTH), outline_color)
-		draw_colored_polygon(_diamond_points(icon_pos, DIAMOND_HALF_EXTENT), color)
-		draw_colored_polygon(_diamond_points(icon_pos, DIAMOND_HALF_EXTENT - 5.0), UiPalette.with_alpha(UiPalette.INK, 0.9))
+		# D141: a pulsing red RING (no rhombus: that shape means XP crystal only).
+		var pulse: float = 0.5 + 0.5 * sin(SimClock.now * TAU * LOW_RING_PULSE_HZ)
+		draw_circle(icon_pos, ICON_BADGE_RADIUS + 1.0, outline_color)
+		draw_circle(icon_pos, ICON_BADGE_RADIUS, UiPalette.with_alpha(UiPalette.INK, 0.9))
+		draw_arc(icon_pos, ICON_BADGE_RADIUS + 3.0 + pulse * 3.0, 0.0, TAU, 32, UiPalette.with_alpha(color, 0.55 + 0.45 * pulse), 3.0, true)
+		draw_arc(icon_pos, ICON_BADGE_RADIUS - 1.0, 0.0, TAU, 32, color, 3.0, true)
 	else:
 		draw_circle(icon_pos, ICON_BADGE_RADIUS + 1.0, outline_color)
 		draw_circle(icon_pos, ICON_BADGE_RADIUS, UiPalette.with_alpha(UiPalette.INK, 0.85))
@@ -601,9 +619,9 @@ func _draw_offscreen_indicator() -> void:
 
 ## Second UI pass: the arrow's three points, `length` long and `width` wide
 ## at its back edge, rotated to point along `dir` (a unit vector) from
-## `pos`. `pos` is the SHAPE's own centre (matching _diamond_points()'s own
+## `pos`. `pos` is the SHAPE's own centre (matching the earlier badge shapes'
 ## convention), not its tip, so the arrow occupies the same footprint the
-## old circle/diamond did.
+## old circle did.
 func _arrow_points(pos: Vector2, dir: Vector2, length: float, width: float) -> PackedVector2Array:
 	var forward: Vector2 = dir.normalized()
 	var side: Vector2 = Vector2(-forward.y, forward.x)
@@ -639,9 +657,7 @@ func _update_tower_hp_label() -> void:
 	var max_v: float = _tower.health.max_health
 	_tower_hp_label.text = "%d/%d" % [int(round(current)), int(round(max_v))]
 	_tower_hp_label.add_theme_color_override("font_color", get_indicator_color())
-	var center: Vector2 = box_size / 2.0
-	var radius: Vector2 = box_size / 2.0 * 0.85
-	var pos: Vector2 = center + Vector2(dir.x * radius.x, dir.y * radius.y)
+	var pos: Vector2 = _indicator_pos(box_size, dir)
 	var label_pos: Vector2 = pos - dir * HP_LABEL_INSET
 	# This Label is a free child of a plain Control (no Container manages
 	# it), so its own `size` never auto-updates from a text change --
@@ -649,13 +665,6 @@ func _update_tower_hp_label() -> void:
 	# always current, unlike `size` itself.
 	_tower_hp_label.size = _tower_hp_label.get_combined_minimum_size()
 	_tower_hp_label.position = label_pos - _tower_hp_label.size * 0.5
-
-
-## The low-health warning diamond's four points at the given half-extent
-## (used both for the bright diamond and, at a larger extent, its dark
-## outline -- see _draw_offscreen_indicator()).
-func _diamond_points(pos: Vector2, half_extent: float) -> PackedVector2Array:
-	return PackedVector2Array([pos + Vector2(0, -half_extent), pos + Vector2(half_extent, 0), pos + Vector2(0, half_extent), pos + Vector2(-half_extent, 0)])
 
 
 ## See header, "Placeholder cue audio". A short, procedurally generated,

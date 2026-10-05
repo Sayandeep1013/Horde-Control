@@ -102,6 +102,7 @@ const MESSAGES: Dictionary = {
 	"RUN_END_CAUSE_ABANDONED": "Run abandoned",
 	"RUN_END_WAVE_REACHED": "Wave reached",
 	"RUN_END_SCRAP_HELD": "Scrap held",
+	"RUN_END_SEED": "Seed: %d",
 	"RUN_END_TIME_SURVIVED": "Time survived",
 	"RUN_END_SETTINGS": "Settings",
 	"RUN_END_MAIN_MENU": "Main Menu",

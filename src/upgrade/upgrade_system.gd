@@ -306,6 +306,24 @@ func get_offerable_upgrades(pool_ownership: ContractEnums.PoolOwnership) -> Arra
 	return result
 
 
+## D144 (review GD P1-7): true when taking `upgrade_id` right now would
+## achieve nothing because its one-shot heal has no room: Patch Kit with the
+## player at full health, Repair Kit with the Tower at full health. The Draft
+## avoids offering such a card when another card is available. Unknown or
+## unwired targets are never reported as wasted.
+func is_card_wasted_now(upgrade_id: String) -> bool:
+	match upgrade_id:
+		PATCH_KIT_ID:
+			if _player == null or _player.death_state == null or _player.death_state.is_dead:
+				return false
+			return _player.death_state.current_hp >= _player.death_state.max_hp
+		REPAIR_KIT_ID:
+			if _tower_health == null or _tower_health.max_health <= 0.0:
+				return false
+			return _tower_health.get_current_health() >= _tower_health.max_health
+	return false
+
+
 ## Typed query ("whether a pool is exhausted, so fallbacks unlock"): true
 ## once every LIVE upgrade (see _is_live()) authored for `pool_ownership`
 ## is at max rank. False for a pool with no live upgrades at all (Weapon/
