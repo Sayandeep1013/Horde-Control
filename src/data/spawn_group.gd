@@ -15,3 +15,9 @@ class_name SpawnGroup
 @export var start_offset_seconds: float = 0.0
 @export var spawn_interval_seconds: float = 0.0
 @export var direction_weighting_override: DirectionalWeightingEntry = null
+## D138 (balance pass 2026-10-05): spawns per burst. 1 = the original even
+## trickle (one spawn every `spawn_interval_seconds`). N > 1 emits N spawns on
+## the same tick and then waits N x `spawn_interval_seconds`, so the average
+## rate is unchanged but the enemies arrive as a clump. A Siege Seeker group
+## with burst_size > 1 also sends each burst down one of the Siege's lanes.
+@export var burst_size: int = 1

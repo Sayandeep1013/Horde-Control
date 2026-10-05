@@ -365,6 +365,10 @@ func _wire_sim_loop() -> void:
 		_sim_loop.register(SimLoop.Step.WAVE_DIRECTOR, _wave_director)
 		if _wave_director.has_signal(&"enemy_spawned") and not _wave_director.enemy_spawned.is_connected(_on_wave_enemy_spawned):
 			_wave_director.enemy_spawned.connect(_on_wave_enemy_spawned)
+		# D136: Tower shield regen is throttled while a wave is open.
+		if _tower != null and _tower.health != null and _wave_director.has_signal(&"wave_opened"):
+			_wave_director.wave_opened.connect(func(_id: String, _idx: int) -> void: _tower.health.set_wave_open(true))
+			_wave_director.wave_ended.connect(func(_id: String, _idx: int) -> void: _tower.health.set_wave_open(false))
 	for enemy in _enemies:
 		enemy.driven_externally = true # picked up by its own deferred registration -- see comment above
 

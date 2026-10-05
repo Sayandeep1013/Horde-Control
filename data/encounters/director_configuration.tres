@@ -91,10 +91,10 @@ hunt_arc_share = 0.0
 [sub_resource type="Resource" id="Resource_weight_siege"]
 script = ExtResource("6_weight")
 encounter_type = 2
-lane_count = 0
-lane_width_degrees = 0.0
+lane_count = 2
+lane_width_degrees = 40.0
 lane_separation_rule = 0
-heavy_share = 0.0
+heavy_share = 0.6
 ring = 0
 hunt_arc_degrees = 0.0
 hunt_arc_share = 0.0
@@ -223,6 +223,7 @@ script = ExtResource("13_siege")
 multiplier_defaults = Array[float]([1.5, 2.0])
 hunter_percentage = 0.15
 spawn_window_fraction = 0.75
+live_dps_bonus_share = 0.5
 
 [resource]
 script = ExtResource("1_dir")
