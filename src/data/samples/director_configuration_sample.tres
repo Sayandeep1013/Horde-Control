@@ -71,6 +71,7 @@ script = ExtResource("10_dh64v")
 multiplier_defaults = Array[float]([1.1, 1.4, 1.9])
 hunter_percentage = 0.45
 spawn_window_fraction = 0.65
+live_dps_bonus_share = 0.5
 
 [sub_resource type="Resource" id="Resource_125dq"]
 script = ExtResource("12_rkv3n")

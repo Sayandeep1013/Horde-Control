@@ -28,6 +28,7 @@ pro_ration_rule = "PLACEHOLDER_pro_ration_linear"
 script = ExtResource("5_c4848")
 rate_percent_per_second = 11.0
 delay_seconds = 8.5
+in_wave_rate_fraction = 0.25
 
 [sub_resource type="Resource" id="Resource_3p8gr"]
 script = ExtResource("6_nvmn0")
