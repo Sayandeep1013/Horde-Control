@@ -186,7 +186,8 @@ const HIGHLIGHT_SHADOW_ALPHA: float = 0.55
 ## second a motion-curve constant, neither a reusable spacing/colour/font
 ## concept. TODO(ui-pass): promote to UiPalette if another surface needs the
 ## same content width or the same lift feel.
-const CONTENT_MIN_WIDTH: float = 300.0
+## D166: 400 so a 37 px description wraps to two or three lines, not five.
+const CONTENT_MIN_WIDTH: float = 400.0
 ## Round 2 (review): 1.05 read as too subtle in a still frame; raised
 ## alongside the border-width/shadow changes above, same reasoning.
 const HIGHLIGHT_LIFT_SCALE: float = 1.09
@@ -332,7 +333,7 @@ func _init() -> void:
 	_column = VBoxContainer.new()
 	_column.name = "Column"
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_column.theme_type_variation = UiTheme.vbox("M") # Round 2, UR-06
+	_column.theme_type_variation = &"" if TouchUi.is_mobile_layout() else UiTheme.vbox("M") # Round 2, UR-06; D167: tighter on a phone
 	add_child(_column)
 
 	# Redundant colour cue (MASTER_SDLC.md > Visual Edge Cases >
@@ -343,7 +344,7 @@ func _init() -> void:
 	_ribbon.name = "RarityRibbon"
 	_ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_ribbon.custom_minimum_size = Vector2(192, 64) # the ribbon sheet at native size
+	_ribbon.custom_minimum_size = Vector2(288, 52 if TouchUi.is_mobile_layout() else 64) # native height; wider body so a 37 px rarity word fits
 	_column.add_child(_ribbon)
 
 	var header_row := HBoxContainer.new()
@@ -361,13 +362,13 @@ func _init() -> void:
 	# the text beside it the same way it did as a Label.
 	_glyph_label = UiShapeGlyph.new()
 	_glyph_label.name = "Glyph"
-	(_glyph_label as UiShapeGlyph).set_side(UiPalette.FONT_SIZE_HEADING)
+	(_glyph_label as UiShapeGlyph).set_side(UiPalette.FONT_SIZE_BODY)
 	header_row.add_child(_glyph_label)
 
 	# Clear hierarchy (task brief): header word small and dim.
 	_header_label = Label.new()
 	_header_label.name = "Header"
-	_header_label.theme_type_variation = UiTheme.SMALL
+	_header_label.theme_type_variation = UiTheme.DIM # D166: 37 px, the PLAYER / TOWER word is a differentiation signal
 	_header_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_header_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_header_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -380,7 +381,7 @@ func _init() -> void:
 	# signal, matching this project's own Colour-only-distinctions rule.
 	_rarity_label = Label.new()
 	_rarity_label.name = "Rarity"
-	_rarity_label.theme_type_variation = UiTheme.SMALL
+	_rarity_label.theme_type_variation = UiTheme.HUD_VALUE
 	# No autowrap: inside the header HBox a wrapping label is given ~1 glyph
 	# of width and stacks "RARE" one letter per line (orchestrator fix).
 	_rarity_label.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -388,7 +389,13 @@ func _init() -> void:
 	_rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_rarity_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_rarity_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_ribbon.add_child(_rarity_label)
+	if TouchUi.is_mobile_layout():
+		# D167: a phone has no height for the ribbon row; the rarity word sits at the header row's far end.
+		_ribbon.visible = false
+		_rarity_label.size_flags_horizontal = Control.SIZE_SHRINK_END
+		header_row.add_child(_rarity_label)
+	else:
+		_ribbon.add_child(_rarity_label)
 
 	_brackets = CardBrackets.new()
 	_brackets.name = "SelectionBrackets"
@@ -398,7 +405,7 @@ func _init() -> void:
 	# Clear hierarchy: name in VALUE weight (display font, larger than body).
 	_name_label = Label.new()
 	_name_label.name = "Name"
-	_name_label.theme_type_variation = UiTheme.VALUE
+	_name_label.theme_type_variation = UiTheme.HEADING
 	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_name_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -479,7 +486,8 @@ func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnum
 	add_theme_stylebox_override("panel", _frame_player if is_player else _frame_tower)
 	_ribbon.add_theme_stylebox_override("panel", UiTheme.make_ribbon_box_from(RIBBON_TEXTURES.get(_rarity, RIBBON_TEXTURES[ContractEnums.Rarity.Common]), 0, 6))
 	_rarity_label.text = String(RARITY_LABEL_TEXT.get(_rarity, "COMMON"))
-	_rarity_label.add_theme_color_override("font_color", _rarity_border_tint())
+	_rarity_label.add_theme_color_override("font_color", UiPalette.INK_PIXEL) # D166: dark ink on the ribbon; the ribbon colour is the redundant cue
+	_rarity_label.add_theme_constant_override("outline_size", 0)
 
 	var parts: PackedStringArray = def.effect_description.split(":", true, 1)
 	var card_name: String = def.unique_id
@@ -660,11 +668,12 @@ func set_key_badge(number: int) -> void:
 		_key_badge.theme_type_variation = UiTheme.PILL
 		_key_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_key_badge.custom_minimum_size = Vector2(KEY_BADGE_MIN_SIZE, KEY_BADGE_MIN_SIZE) # D145: a real badge, not a sliver
+		_key_badge.visible = not TouchUi.is_mobile_layout() # D167: a phone has no number keys
 		_key_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		var label := Label.new()
 		label.name = "KeyBadgeLabel"
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		label.theme_type_variation = UiTheme.VALUE
+		label.theme_type_variation = UiTheme.HUD_VALUE
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		_key_badge.add_child(label)

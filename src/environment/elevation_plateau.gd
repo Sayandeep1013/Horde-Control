@@ -82,6 +82,7 @@ func _ready() -> void:
 		for cell in _rasterise(poly):
 			_top_cells[cell] = true
 	_clean(_top_cells)
+	_square_bottom(_top_cells)
 
 	FlatAutotile.paint(self, FlatAutotile.GRASS, _top_cells)
 	_paint_cliff()
@@ -181,6 +182,24 @@ static func _clean(cells: Dictionary) -> void:
 			cells[c] = true
 		for c in drop:
 			cells.erase(c)
+
+
+## D169: a bottom edge that steps down by one row beside a cell leaves that cell's
+## cliff one row above the neighbouring run's (the corner cliff columns ended a row
+## short in review captures). Extend such a cell down so the whole south edge is one
+## row, with the pack's left and right cliff caps at its two ends.
+static func _square_bottom(cells: Dictionary) -> void:
+	for _pass in 2:
+		var add: Array[Vector2i] = []
+		for cell: Vector2i in cells.keys():
+			if cells.has(cell + Vector2i(0, 1)):
+				continue
+			if cells.has(cell + Vector2i(-1, 1)) or cells.has(cell + Vector2i(1, 1)):
+				add.append(cell + Vector2i(0, 1))
+		if add.is_empty():
+			break
+		for c in add:
+			cells[c] = true
 
 
 ## A cliff cell directly south of every top cell with no top cell to its south;

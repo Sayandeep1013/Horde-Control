@@ -168,8 +168,8 @@ const ICON_SIZE_LARGE: int = 32
 const ICON_SIZE_SMALL: int = 32
 ## The XP bar's round level emblem (task instruction: "the level shown in a
 ## round emblem") -- see hud_level_emblem.gd.
-const LEVEL_EMBLEM_SIZE: float = 40.0
-const WAVE_VALUE_MIN_WIDTH: float = 90.0
+const LEVEL_EMBLEM_SIZE: float = 48.0
+const WAVE_VALUE_MIN_WIDTH: float = 110.0
 const LEVEL_VALUE_MIN_WIDTH: float = 60.0
 const REROLLS_VALUE_MIN_WIDTH: float = 60.0
 ## HUD polish (coordinator review, third pass): "show the numeric value on
@@ -177,13 +177,13 @@ const REROLLS_VALUE_MIN_WIDTH: float = 60.0
 ## before (only the glyph + the bar's own fill fraction). Sized for the
 ## worst case a health value can print at (four digits before the slash is
 ## generous headroom; real max HP values are far smaller).
-const PLAYER_HP_VALUE_MIN_WIDTH: float = 110.0
+const PLAYER_HP_VALUE_MIN_WIDTH: float = 150.0
 ## UI-pass follow-up: was 70 -- too narrow for "n/200" at UiTheme.VALUE's
 ## 24px display-weight font, which silently truncated the Scrap value
 ## itself ("0/200" rendered as "0/20") because nothing else in the row
 ## forced more width. Sized for the Register's own worst case, "200/200"
 ## (Provisional Values Register > Economy & Pickups > "Scrap": cap 200).
-const SCRAP_VALUE_MIN_WIDTH: float = 130.0
+const SCRAP_VALUE_MIN_WIDTH: float = 160.0
 const FULL_BADGE_MIN_WIDTH: float = 60.0
 const HOPPER_MIN_WIDTH: float = 120.0
 
@@ -228,9 +228,9 @@ const HOPPER_MIN_WIDTH: float = 120.0
 ## original author already used for this exact kind of change.
 const GLYPH_SHORT_MIN_WIDTH: float = 80.0 ## "HP", "XP" (2 letters) at UiTheme.DIM
 const GLYPH_LONG_MIN_WIDTH: float = 150.0 ## "TOWER", "SCRAP" (5 letters) at UiTheme.DIM
-const CAPTION_WAVE_MIN_WIDTH: float = 90.0 ## "Wave"
-const CAPTION_LEVEL_MIN_WIDTH: float = 130.0 ## "Level" -- was 80, confirmed too narrow: "[[Level]]" wrapped to 2 lines under F2 pseudo-localization
-const CAPTION_REROLLS_MIN_WIDTH: float = 150.0 ## "Rerolls"
+const CAPTION_WAVE_MIN_WIDTH: float = 110.0 ## "Wave"
+const CAPTION_LEVEL_MIN_WIDTH: float = 100.0 ## "Level" -- was 80, confirmed too narrow: "[[Level]]" wrapped to 2 lines under F2 pseudo-localization
+const CAPTION_REROLLS_MIN_WIDTH: float = 140.0 ## "Rerolls"
 
 var economy_state: HudEconomyState = null
 
@@ -317,6 +317,10 @@ func get_run_announcer() -> RunAnnouncer:
 
 
 func _process(_delta: float) -> void:
+	# D167: on a phone the Draft needs the bottom of the canvas, so the XP
+	# ribbon steps aside while it is open.
+	if _xp_field != null:
+		_xp_field.visible = not (TouchUi.is_mobile_layout() and PauseAuthority.get_active_reasons().has(&"draft"))
 	_refresh_all()
 
 
@@ -636,7 +640,7 @@ func _new_hud_label(node_name: String, variation: StringName, min_width: float, 
 	label.name = node_name
 	label.theme_type_variation = variation
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.custom_minimum_size = Vector2(min_width, 0)
@@ -676,6 +680,7 @@ func _build_player_health_field() -> Control:
 	# UiTheme.SMALL (20px) -- "labels are tiny" -- see GLYPH_SHORT_MIN_WIDTH's
 	# own updated header for the matching width bump.
 	_player_glyph_label = _new_hud_label("PlayerHealthGlyph", UiTheme.DIM, GLYPH_SHORT_MIN_WIDTH)
+	_player_glyph_label.visible = false # D166: the icon carries the meaning; a 19 px caption cannot be read
 	row.add_child(_player_glyph_label)
 
 	_player_health_bar = HudBar.new()
@@ -690,8 +695,8 @@ func _build_player_health_field() -> Control:
 	# _refresh_player_health().
 	_player_hp_label = Label.new()
 	_player_hp_label.name = "PlayerHpLabel"
-	_player_hp_label.theme_type_variation = UiTheme.VALUE
-	_player_hp_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_player_hp_label.theme_type_variation = UiTheme.HUD_VALUE
+	_player_hp_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_player_hp_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_player_hp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_player_hp_label.custom_minimum_size = Vector2(PLAYER_HP_VALUE_MIN_WIDTH, 0)
@@ -733,6 +738,7 @@ func _build_tower_health_field() -> Control:
 	bar_row.add_child(_tower_icon)
 
 	_tower_glyph_label = _new_hud_label("TowerHealthGlyph", UiTheme.DIM, GLYPH_LONG_MIN_WIDTH)
+	_tower_glyph_label.visible = false # D166: the icon carries the meaning; a 19 px caption cannot be read
 	bar_row.add_child(_tower_glyph_label)
 
 	_tower_health_bar = HudBar.new()
@@ -747,7 +753,7 @@ func _build_tower_health_field() -> Control:
 	# UX review item 6 (D132): the Tower's HP number, like the player's.
 	_tower_hp_label = Label.new()
 	_tower_hp_label.name = "TowerHpLabel"
-	_tower_hp_label.theme_type_variation = UiTheme.VALUE
+	_tower_hp_label.theme_type_variation = UiTheme.HUD_VALUE
 	_tower_hp_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_tower_hp_label.custom_minimum_size = Vector2(PLAYER_HP_VALUE_MIN_WIDTH, 0)
 	bar_row.add_child(_tower_hp_label)
@@ -756,7 +762,7 @@ func _build_tower_health_field() -> Control:
 	wave_row.name = "WaveRow"
 	wave_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wave_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	wave_row.theme_type_variation = UiTheme.hbox("XS") # UR-06
+	wave_row.theme_type_variation = UiTheme.hbox("M") # UR-06
 	# UI-pass round 2 (HUD polish): TowerHealthInner is a VBoxContainer, so
 	# WaveRow -- like any of its children -- fills its FULL cross-axis width
 	# by default (matching TowerHealthBarRow's own width, ~440px), not its
@@ -788,18 +794,18 @@ func _build_tower_health_field() -> Control:
 	# sits flush against the value that follows rather than floating in
 	# whatever blank space the box's extra width leaves -- see
 	# _new_hud_label()'s `alignment` parameter.
-	_wave_caption_label = _new_hud_label("WaveCaptionLabel", UiTheme.VALUE, CAPTION_WAVE_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
+	_wave_caption_label = _new_hud_label("WaveCaptionLabel", UiTheme.HUD_VALUE, CAPTION_WAVE_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	wave_row.add_child(_wave_caption_label)
 
 	_wave_label = Label.new()
 	_wave_label.name = "WaveLabel"
-	_wave_label.theme_type_variation = UiTheme.VALUE
+	_wave_label.theme_type_variation = UiTheme.HUD_VALUE
 	# UI-pass round 2: left-aligned (the Label default), not centred -- so
 	# the digits sit flush against the caption immediately to their left,
 	# matching the Level/Rerolls value labels below.
 	# docs/19 > "UI Layout & Dynamic Container Rules": autowrap + expand-fill
 	# so this label GROWS under pseudo-localization instead of truncating.
-	_wave_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_wave_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_wave_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_wave_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_wave_label.custom_minimum_size = Vector2(WAVE_VALUE_MIN_WIDTH, 0)
@@ -871,11 +877,12 @@ func _build_scrap_field() -> Control:
 	row.add_child(_scrap_icon)
 
 	_scrap_glyph_label = _new_hud_label("ScrapGlyph", UiTheme.DIM, GLYPH_LONG_MIN_WIDTH)
+	_scrap_glyph_label.visible = false # D166: the icon carries the meaning; a 19 px caption cannot be read
 	row.add_child(_scrap_glyph_label)
 
 	_scrap_label = HudTruncatableLabel.new()
 	_scrap_label.name = "ScrapValueLabel"
-	_scrap_label.theme_type_variation = UiTheme.VALUE
+	_scrap_label.theme_type_variation = UiTheme.HUD_VALUE
 	_scrap_label.custom_minimum_size = Vector2(SCRAP_VALUE_MIN_WIDTH, 0)
 	_scrap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	# Second UI pass: offset_transform_* is visual-only (see hud_bar.gd's own
@@ -962,7 +969,7 @@ func _build_xp_field() -> Control:
 	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 	inner.add_child(bar_row)
 
-	_xp_glyph_label = _new_hud_label("XpGlyph", UiTheme.VALUE, GLYPH_SHORT_MIN_WIDTH)
+	_xp_glyph_label = _new_hud_label("XpGlyph", UiTheme.HUD_VALUE, GLYPH_SHORT_MIN_WIDTH)
 	# UX review item 6 (D132): the "XP" caption was clipped at the ribbon's
 	# top-left corner; centre it on the bar and use the legible VALUE style.
 	_xp_glyph_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -1016,13 +1023,12 @@ func _build_xp_field() -> Control:
 	# UI-pass round 2: RIGHT-aligned, same reason as WaveCaptionLabel above --
 	# keeps the caption flush against its value instead of floating inside
 	# its own (pseudo-localization-sized) box.
-	_level_caption_label = _new_hud_label("LevelCaptionLabel", UiTheme.VALUE, CAPTION_LEVEL_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
+	_level_caption_label = _new_hud_label("LevelCaptionLabel", UiTheme.HUD_VALUE, CAPTION_LEVEL_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	# HUD polish (coordinator review, third pass): "make 'Level 0' and
 	# 'Rerolls 1' readable (bigger, outlined), consistent with the rest" --
 	# bumped to match the VALUE beside it (FONT_SIZE_VALUE) rather than
 	# DIM's own smaller default; a genuine one-off override (UiTheme's own
 	# header: "per-node add_theme_*_override is for genuine one-offs only").
-	_level_caption_label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
 	level_group.add_child(_level_caption_label)
 
 	# Second UI pass: "the level shown in a round emblem" (task instruction)
@@ -1037,13 +1043,12 @@ func _build_xp_field() -> Control:
 
 	_level_label = Label.new()
 	_level_label.name = "LevelLabel"
-	_level_label.theme_type_variation = UiTheme.VALUE
+	_level_label.theme_type_variation = UiTheme.HUD_VALUE
 	# A smaller font than the theme's own VALUE size so two digits fit
 	# comfortably inside the round emblem -- a genuine one-off override
 	# (UiTheme's own header: "per-node add_theme_*_override is for genuine
 	# one-offs only").
-	_level_label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_BODY)
-	_level_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_level_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_level_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1066,16 +1071,15 @@ func _build_xp_field() -> Control:
 	_rerolls_icon.set_side(ICON_SIZE_SMALL)
 	rerolls_group.add_child(_rerolls_icon)
 
-	_rerolls_caption_label = _new_hud_label("RerollsCaptionLabel", UiTheme.VALUE, CAPTION_REROLLS_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
+	_rerolls_caption_label = _new_hud_label("RerollsCaptionLabel", UiTheme.HUD_VALUE, CAPTION_REROLLS_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
 	# HUD polish (coordinator review, third pass): same size bump as
 	# LevelCaptionLabel above, same reason.
-	_rerolls_caption_label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
 	rerolls_group.add_child(_rerolls_caption_label)
 
 	_rerolls_label = Label.new()
 	_rerolls_label.name = "RerollsLabel"
-	_rerolls_label.theme_type_variation = UiTheme.VALUE
-	_rerolls_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_rerolls_label.theme_type_variation = UiTheme.HUD_VALUE
+	_rerolls_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_rerolls_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_rerolls_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_rerolls_label.custom_minimum_size = Vector2(REROLLS_VALUE_MIN_WIDTH, 0)

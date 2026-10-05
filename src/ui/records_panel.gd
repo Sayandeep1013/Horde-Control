@@ -117,7 +117,7 @@ func _build_row(label_text: String, key: String) -> void:
 
 	var value := Label.new()
 	value.name = "Value"
-	value.theme_type_variation = UiTheme.VALUE
+	value.theme_type_variation = UiTheme.HUD_VALUE
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	value.custom_minimum_size = Vector2(ROW_VALUE_MIN_WIDTH, 0.0)

@@ -38,7 +38,7 @@ const MESSAGES: Dictionary = {
 
 	"DRAFT_TITLE": "Level up! Choose an upgrade",
 	# UX review P0-4 (D128): every way to pick, from project.godot's input map.
-	"DRAFT_HOW_TO_PICK": "Click a card  |  keys 1 / 2 / 3  |  A / D to move, Space or Enter to pick  |  or hold W / Up",
+	"DRAFT_HOW_TO_PICK": "Click a card  |  keys 1 / 2 / 3  |  A / D, then Space  |  or hold W / Up",
 	"DRAFT_HOLD_CAPTION": "Hold W / Up to pick",
 	"DRAFT_REROLL": "Reroll: R (%d left)",
 	"DRAFT_REROLL_NONE": "No rerolls left",
@@ -227,7 +227,7 @@ const MESSAGES: Dictionary = {
 const MOBILE_MESSAGES: Dictionary = {
 	"DRAFT_HOW_TO_PICK": "Tap a card to pick it",
 	"DRAFT_HOLD_CAPTION": "Or hold up to pick",
-	"DRAFT_REROLL": "Tap to reroll (%d left)",
+	"DRAFT_REROLL": "Reroll (%d left)",
 	"HINT_AUTOFIRE": "Your bow fires automatically at the nearest goblin. Just move: drag on the left side of the screen.",
 	"SKILL_TREE_ROOT_EXPLANATION": "Earn Cores by playing runs. Tap a node, then press and hold it to buy it -- buying reveals its neighbours. Reset Tree refunds every Core spent, any time, in the Hub only.",
 	"SKILL_TREE_HOLD_TO_BUY": "Press and hold to buy",

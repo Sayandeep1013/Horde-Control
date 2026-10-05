@@ -287,6 +287,37 @@ func on_stage_changed(new_stage: int, _ranks_held: int) -> void:
 	scale = Vector2.ONE * (TOWER_FAMILY_SCALE if clamped_stage < CASTLE_FAMILY_MIN_STAGE else 1.0)
 
 
+## D169: the y, in the Tower's own space, of the top opaque pixel of the sprite
+## that is showing now (stage and scale included), so the overhead bar can sit
+## just above the building instead of at a fixed height. `INF` if unknown.
+var _top_row_cache: Dictionary = {} # Texture2D -> int (first opaque row)
+
+
+func get_top_local_y() -> float:
+	if _sprite == null or _sprite.texture == null:
+		return INF
+	var tex: Texture2D = _sprite.texture
+	if not _top_row_cache.has(tex):
+		var img: Image = tex.get_image()
+		var row: int = 0
+		if img != null:
+			if img.is_compressed():
+				img.decompress()
+			var found: bool = false
+			for y in img.get_height():
+				for x in img.get_width():
+					if img.get_pixel(x, y).a > 0.1:
+						row = y
+						found = true
+						break
+				if found:
+					break
+		_top_row_cache[tex] = row
+	var tex_h: float = float(tex.get_height())
+	var local_in_sprite: float = (float(_top_row_cache[tex]) - tex_h * 0.5) * _sprite.scale.y + _sprite.offset.y if _sprite.centered else float(_top_row_cache[tex]) * _sprite.scale.y + _sprite.offset.y
+	return position.y + scale.y * (_sprite.position.y + local_in_sprite)
+
+
 ## Typed listener for TowerHealth.tower_destroyed(timestamp), wired by
 ## src/tower/tower.gd -- see class header, "Destroyed art."
 func on_tower_destroyed(_timestamp: float = 0.0) -> void:

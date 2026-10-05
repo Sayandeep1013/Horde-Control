@@ -129,6 +129,9 @@ const WOOD_BORDER: Color = Color("4a3018")    ## dark wood-brown card frame
 # --- Text -----------------------------------------------------------------
 const TEXT: Color = Color("f5ecd8")           ## warm parchment-white (was a cooler cream)
 const TEXT_ON_PARCHMENT: Color = Color("3b2a1a") ## UX review item 8 (D132): dark umber for secondary text on parchment panels (TEXT_DIM is ~1.5:1 there); about 9:1 on PARCHMENT
+const HIGHLIGHT_ON_PARCHMENT: Color = Color("8a2f00") ## D166: the highlighted choice on a parchment card (deep red-brown, about 6:1 on PARCHMENT)
+const SUCCESS_ON_PARCHMENT: Color = Color("2e6b32")
+const DANGER_ON_PARCHMENT: Color = Color("a4262c")
 const TEXT_DIM: Color = Color("b3a181")       ## warm dim tan (was blue-grey)
 const TEXT_DISABLED: Color = Color("6b5f4f")  ## warm dim brown (was blue-grey)
 const TEXT_OUTLINE: Color = Color(0.05, 0.03, 0.02, 0.95) ## near-black, warmed to match the wood ink rather than a blue-black
@@ -181,14 +184,16 @@ const FONT_WEIGHT_DISPLAY: int = 700
 ## Sizes sit on Jersey 10's own pixel grid (art-consistency pass, D156):
 ## one font pixel is 1400/75 = 18.67 px of em, so a size S draws every glyph
 ## pixel S/18.67 screen px wide. Only 19 / 37 / 56 / 75 give an integer
-## multiple (1x / 2x / 3x / 4x; measured: stems 2 / 4 / 6 / 8 px wide, no
-## mixed widths). The old 26 / 30 / 68 sat between steps and drew stems of
-## uneven width. The font is imported with antialiasing, hinting and
-## subpixel positioning off so a glyph pixel stays a hard square.
+## multiple (1x / 2x / 3x / 4x). Legibility rule (D166): 19 renders a glyph
+## pixel about 0.67 screen px at a 1280x720 window, so columns drop out
+## ("TOWER" read "TOUEA"). Every text a player must READ is therefore at
+## least FONT_SIZE_BODY (37); values and headings are 56; 19 (FONT_SIZE_SMALL)
+## is only for non-essential tags a player can ignore.
 const FONT_SIZE_SMALL: int = 19
-const FONT_SIZE_BODY: int = 19
-const FONT_SIZE_VALUE: int = 37
-const FONT_SIZE_HEADING: int = 37
+const FONT_SIZE_BODY: int = 37
+const FONT_SIZE_BUTTON: int = 37
+const FONT_SIZE_VALUE: int = 56
+const FONT_SIZE_HEADING: int = 56
 const FONT_SIZE_TITLE: int = 75
 const OUTLINE_BODY: int = 4
 const OUTLINE_DISPLAY: int = 8

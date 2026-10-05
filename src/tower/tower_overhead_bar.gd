@@ -43,6 +43,13 @@ class_name TowerOverheadBar
 ## scenes/tower.tscn's own comment), so the canvas top edge is already
 ## around -192; the Castle_Blue stage (stage 2) reads taller still.
 @export var vertical_offset: float = -215.0
+## D169: when set and the node has `get_top_local_y()`, the bar sits `top_margin` px
+## above the top of the sprite showing now, so a stage-0 or stage-1 Tower (a much
+## shorter building) does not leave it floating. `vertical_offset` is the fallback.
+@export var visuals_path: NodePath = NodePath("../Visuals")
+@export var top_margin: float = 14.0
+var _visuals: Node = null
+var _follow_offset: float = INF
 
 ## Matches src/ui/hud_bar.gd's own constant of the same name/value.
 const SHIELD_SEGMENT_HEIGHT_FRACTION: float = 0.35
@@ -65,6 +72,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	z_as_relative = false # see header, "Draw order"
 	z_index = 50
+	_visuals = get_node_or_null(visuals_path)
 	_tower_health = get_node_or_null(tower_health_path) as TowerHealth
 	_death_state = get_node_or_null(death_state_path) as DeathState
 	if _death_state != null:
@@ -76,7 +84,24 @@ func _ready() -> void:
 	queue_redraw()
 
 
+func _current_offset() -> float:
+	return _follow_offset if is_finite(_follow_offset) else vertical_offset
+
+
+func _refresh_follow_offset() -> void:
+	if _visuals == null or not _visuals.has_method(&"get_top_local_y"):
+		return
+	var top: float = float(_visuals.call(&"get_top_local_y"))
+	if not is_finite(top):
+		return
+	var wanted: float = top - top_margin
+	if not is_finite(_follow_offset) or not is_equal_approx(wanted, _follow_offset):
+		_follow_offset = wanted
+		queue_redraw()
+
+
 func _process(delta: float) -> void:
+	_refresh_follow_offset()
 	if _death_state == null:
 		set_process(false)
 		return
@@ -107,7 +132,7 @@ func _draw() -> void:
 
 	var half_w: float = bar_width * 0.5
 	var half_h: float = bar_height * 0.5
-	var top_left: Vector2 = Vector2(-half_w, vertical_offset - half_h)
+	var top_left: Vector2 = Vector2(-half_w, _current_offset() - half_h)
 
 	draw_rect(Rect2(top_left + Vector2(-1.0, -1.0), Vector2(bar_width + 2.0, bar_height + 2.0)), COLOR_OUTLINE, true)
 	draw_rect(Rect2(top_left, Vector2(bar_width, bar_height)), COLOR_BACKGROUND, true)

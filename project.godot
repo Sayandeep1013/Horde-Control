@@ -158,11 +158,8 @@ MetaProgress="*res://src/meta/meta_progress.gd"
 
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
+textures/canvas_textures/default_texture_filter=0
 
 [editor]
 
 export/convert_text_resources_to_binary=false
-
-[rendering]
-
-textures/canvas_textures/default_texture_filter=0

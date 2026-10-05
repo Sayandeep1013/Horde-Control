@@ -46,6 +46,7 @@ const TITLE: StringName = &"UiTitle"
 const HEADING: StringName = &"UiHeading"
 const VALUE: StringName = &"UiValue"
 const DIM: StringName = &"UiDim"
+const HUD_VALUE: StringName = &"UiHudValue" ## HUD numbers and captions: display font at body size (D166), so a pill stays compact
 const DIM_PARCHMENT: StringName = &"UiDimParchment" ## secondary text ON parchment panels (dark umber, no outline)
 const SMALL: StringName = &"UiSmall"
 
@@ -61,6 +62,7 @@ const BOX_STEPS: Dictionary = {
 }
 
 static var _theme: Theme = null
+static var _parchment_theme: Theme = null
 static var _body_font: Font = null
 static var _display_font: Font = null
 
@@ -74,6 +76,30 @@ static func get_theme() -> Theme:
 	if _theme == null:
 		_theme = _build()
 	return _theme
+
+
+## The same theme with every text colour switched to dark ink and every text
+## outline removed, for a surface drawn on the light parchment card (menus,
+## pause, settings, run end, Hub and Skill Tree panels). D166: one rule, dark
+## ink on parchment, light outlined text on the dark wood HUD.
+static func get_parchment_theme() -> Theme:
+	if _parchment_theme == null:
+		var t: Theme = get_theme().duplicate() as Theme
+		var ink: Color = UiPalette.TEXT_ON_PARCHMENT
+		for type_name: String in ["Label", TITLE, HEADING, VALUE, HUD_VALUE, DIM, SMALL, DIM_PARCHMENT]:
+			t.set_color("font_color", type_name, ink)
+			t.set_constant("outline_size", type_name, 0)
+		for type_name: String in ["Button", "OptionButton", "CheckButton", "CheckBox"]:
+			t.set_color("font_color", type_name, ink)
+			t.set_color("font_hover_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
+			t.set_color("font_focus_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
+			t.set_color("font_pressed_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
+			t.set_color("font_hover_pressed_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
+			t.set_constant("outline_size", type_name, 0)
+		t.set_color("default_color", "RichTextLabel", ink)
+		t.set_constant("outline_size", "RichTextLabel", 0)
+		_parchment_theme = t
+	return _parchment_theme
 
 
 static func get_body_font() -> Font:
@@ -222,6 +248,7 @@ static func _build_labels(t: Theme) -> void:
 	_label_variation(t, TITLE, UiPalette.FONT_SIZE_TITLE, UiPalette.TEXT, UiPalette.OUTLINE_DISPLAY, true)
 	_label_variation(t, HEADING, UiPalette.FONT_SIZE_HEADING, UiPalette.TEXT, UiPalette.OUTLINE_DISPLAY, true)
 	_label_variation(t, VALUE, UiPalette.FONT_SIZE_VALUE, UiPalette.TEXT, UiPalette.OUTLINE_BODY, true)
+	_label_variation(t, HUD_VALUE, UiPalette.FONT_SIZE_BODY, UiPalette.TEXT, UiPalette.OUTLINE_BODY, true)
 	_label_variation(t, DIM, UiPalette.FONT_SIZE_BODY, UiPalette.TEXT_DIM, UiPalette.OUTLINE_BODY, false)
 	_label_variation(t, SMALL, UiPalette.FONT_SIZE_SMALL, UiPalette.TEXT_DIM, UiPalette.OUTLINE_BODY, false)
 	_label_variation(t, DIM_PARCHMENT, UiPalette.FONT_SIZE_BODY, UiPalette.TEXT_ON_PARCHMENT, 0, false)
@@ -325,16 +352,18 @@ static func _build_buttons(t: Theme) -> void:
 		t.set_stylebox("hover_pressed", type_name, pressed)
 		t.set_stylebox("disabled", type_name, disabled)
 		t.set_stylebox("focus", type_name, focus)
-		t.set_color("font_color", type_name, UiPalette.TEXT)
-		t.set_color("font_hover_color", type_name, UiPalette.ACCENT)
-		t.set_color("font_focus_color", type_name, UiPalette.ACCENT)
-		t.set_color("font_pressed_color", type_name, UiPalette.ACCENT)
-		t.set_color("font_hover_pressed_color", type_name, UiPalette.ACCENT)
+		# D166: every button face is a light teal or parchment texture, so the label is
+		# dark ink with no outline (light outlined text was the least legible text in the game).
+		t.set_color("font_color", type_name, UiPalette.TEXT_ON_PARCHMENT)
+		t.set_color("font_hover_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
+		t.set_color("font_focus_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
+		t.set_color("font_pressed_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
+		t.set_color("font_hover_pressed_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
 		t.set_color("font_disabled_color", type_name, UiPalette.TEXT_DISABLED)
 		t.set_color("font_outline_color", type_name, UiPalette.TEXT_OUTLINE)
-		t.set_constant("outline_size", type_name, UiPalette.OUTLINE_BODY)
+		t.set_constant("outline_size", type_name, 0)
 		t.set_font("font", type_name, get_display_font())
-		t.set_font_size("font_size", type_name, UiPalette.FONT_SIZE_VALUE)
+		t.set_font_size("font_size", type_name, UiPalette.FONT_SIZE_BUTTON)
 
 
 static func _button_box(fill: Color, border: Color, pad_h: int, pad_v: int) -> StyleBoxFlat:

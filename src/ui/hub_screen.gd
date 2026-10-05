@@ -91,7 +91,6 @@ const FIRE_SHEET: String = TS_ROOT + "Effects/Fire/Fire.png"
 ## decoration hanging by the castle gate, not as a themed panel), and the
 ## sheep reuses `HappySheep_All.png` row 0 (idle, 8 frames) via the same
 ## `TitleSprite` frame-strip helper the archers already use.
-const BANNER_TEXTURE: String = TS_ROOT + "UI/Banners/Banner_Vertical.png"
 const SHEEP_SHEET: String = TS_ROOT + "Resources/Sheep/HappySheep_All.png"
 const MUSIC_STREAM_PATH: String = "res://assets/third_party/opengameart/music/battle_theme_a.ogg"
 
@@ -116,8 +115,6 @@ const FIRE_COUNT: int = 7
 const FIRE_SIZE: Vector2 = Vector2(96.0, 96.0)
 const FIRE_TOP_LEFT: Vector2 = Vector2(905.0, 330.0) # open grass between the title and the menu card -- the card itself sits lower (see _build_menu_card()) and would otherwise hide the fire entirely
 
-const BANNER_SIZE: Vector2 = Vector2(120.0, 120.0)
-const BANNER_TOP_LEFT: Vector2 = Vector2(1130.0, 220.0) # hangs just left of the castle gate, clear of both the title block above and the castle texture's own footprint
 
 const SHEEP_FRAME: Vector2i = Vector2i(128, 128)
 const SHEEP_IDLE_COUNT: int = 8
@@ -331,6 +328,14 @@ func _on_settings_closed() -> void:
 	_settings_menu.set_active(false)
 	_menu_card.visible = true
 	_start_run_button.grab_focus()
+	# D167: the Settings Back row acts on a finger's press, so the same finger's release
+	# lands on whatever button now sits under it (Back to Title on a phone). The card
+	# ignores the mouse and touch for a moment; keyboard and gamepad are unaffected.
+	_menu_card.mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED
+	var timer: SceneTreeTimer = get_tree().create_timer(0.3, true, false, true)
+	timer.timeout.connect(func() -> void:
+		if is_instance_valid(_menu_card):
+			_menu_card.mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_INHERITED)
 
 
 func _on_hint_dismiss_pressed() -> void:
@@ -387,7 +392,7 @@ func _build_background() -> void:
 	for spot in HOUSE_SPOTS:
 		_add_house(background, spot)
 	_add_castle(background)
-	_add_banner(background)
+	# D169: the blank vertical banner that hung above the castle gate carried no meaning and is gone.
 	for spot in ARCHER_SPOTS:
 		_add_archer(background, spot[0], spot[1])
 	for spot in SHEEP_SPOTS:
@@ -439,18 +444,6 @@ func _add_house(parent: Control, top_left: Vector2) -> void:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	_place(rect, top_left, HOUSE_SIZE)
-	parent.add_child(rect)
-
-
-func _add_banner(parent: Control) -> void:
-	var rect := TextureRect.new()
-	rect.name = "Banner"
-	rect.texture = load(BANNER_TEXTURE)
-	rect.stretch_mode = TextureRect.STRETCH_SCALE
-	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	_place(rect, BANNER_TOP_LEFT, BANNER_SIZE)
 	parent.add_child(rect)
 
 
@@ -546,6 +539,7 @@ func _build_menu_card(parent: Control) -> void:
 	var card := PanelContainer.new()
 	card.name = "MenuCard"
 	card.theme_type_variation = UiTheme.CARD
+	card.theme = UiTheme.get_parchment_theme() # D166: dark ink on parchment
 	card.custom_minimum_size = Vector2(MENU_CARD_MIN_WIDTH, 0.0)
 	card.mouse_filter = Control.MOUSE_FILTER_PASS
 	center.add_child(card)
@@ -578,6 +572,7 @@ func _build_menu_card(parent: Control) -> void:
 	_start_run_button.custom_minimum_size = TouchUi.touch_size(START_RUN_MIN_SIZE)
 	_start_run_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_start_run_button.focus_mode = Control.FOCUS_ALL
+	_start_run_button.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
 	_start_run_button.pressed.connect(_on_start_run_pressed)
 	column.add_child(_start_run_button)
 
@@ -608,6 +603,7 @@ func _make_menu_button(text: String) -> Button:
 	button.focus_mode = Control.FOCUS_ALL
 	button.custom_minimum_size = TouchUi.touch_size(BUTTON_MIN_SIZE)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE) # D166: main menu buttons read at 56
 	return button
 
 
@@ -663,6 +659,11 @@ func _build_banners() -> void:
 	column.offset_top = 100.0
 	column.offset_left = 660.0
 	column.offset_right = -660.0
+	if TouchUi.is_mobile_layout():
+		# D167: the banner sits in the free column left of the menu card, never over it.
+		column.anchor_right = 0.34
+		column.offset_left = float(UiPalette.SCREEN_MARGIN)
+		column.offset_right = 0.0
 	_root.add_child(column)
 
 	_hint_banner = _build_banner(column, "HintBanner", tr("HUB_FIRST_VISIT_HINT"), tr("HUB_HINT_DISMISS"), _on_hint_dismiss_pressed)
@@ -691,7 +692,7 @@ func _build_banner(parent: Container, node_name: String, text: String, dismiss_t
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.custom_minimum_size = Vector2(420.0, 0.0)
+	label.custom_minimum_size = Vector2(240.0 if TouchUi.is_mobile_layout() else 420.0, 0.0)
 	row.add_child(label)
 
 	var dismiss := Button.new()

@@ -23,7 +23,7 @@ class_name MenuFrame
 ## 4-32 px, sized for padding and separation, not a modal card's own
 ## minimum width. Reported in phases/UI_PASS/reports/D_menus.md.
 
-const CARD_MIN_WIDTH: float = 420.0 ## TODO(ui-pass): promote to UiPalette as a shared modal-card width token
+const CARD_MIN_WIDTH: float = 780.0 ## TODO(ui-pass): promote to UiPalette as a shared modal-card width token
 
 
 ## The five nodes every one of the three menus builds, in the same shape,
@@ -55,7 +55,7 @@ static func build(layer: CanvasLayer, dim_alpha: float, column_separation_step: 
 
 	parts.root = Control.new()
 	parts.root.name = "Root"
-	parts.root.theme = UiTheme.get_theme()
+	parts.root.theme = UiTheme.get_parchment_theme() # D166: dark ink on every parchment card
 	parts.root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	parts.root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(parts.root)
@@ -87,6 +87,18 @@ static func build(layer: CanvasLayer, dim_alpha: float, column_separation_step: 
 	parts.card.add_child(parts.column)
 
 	return parts
+
+
+## D167: caps `parts.card` to the visible canvas (minus a margin) and makes `scroll`
+## as tall as its content, up to the room the card's fixed parts leave. Call after
+## the card is in the tree and whenever the scroll's content changes.
+static func fit_scroll(parts: Parts, scroll: ScrollContainer, canvas_height: float) -> void:
+	var usable: float = maxf(240.0, canvas_height - 2.0 * float(UiPalette.SPACE_XL))
+	parts.card.custom_maximum_size = Vector2(-1.0, usable)
+	scroll.custom_minimum_size.y = 0.0
+	var fixed: float = parts.card.get_combined_minimum_size().y
+	var room: float = maxf(120.0, usable - fixed)
+	scroll.custom_minimum_size.y = minf((scroll.get_child(0) as Control).get_combined_minimum_size().y, room)
 
 
 ## A title Label matching every existing menu's own convention (autowrap,
@@ -126,9 +138,18 @@ static func build_separator(parent: Container) -> HSeparator:
 ## `bar.set_options()` call -- every caller in this package only calls
 ## `set_options()` once, so there is no later rebuild to re-style.
 static func style_choice_labels(bar: PausedChoiceBar) -> void:
+	# D166: one rule on parchment, dark ink. The label keeps a white base colour and
+	# no outline; the bar's tints (modulate) turn it ink at rest and a deep red-brown
+	# when highlighted, so the colour is never the only cue (the underline row is).
 	for child in bar.get_children():
 		if child is Label:
-			(child as Label).theme_type_variation = UiTheme.VALUE
+			var lbl := child as Label
+			lbl.theme_type_variation = UiTheme.VALUE
+			lbl.add_theme_color_override("font_color", Color.WHITE)
+			lbl.add_theme_constant_override("outline_size", 0)
+	bar.option_tint = UiPalette.TEXT_ON_PARCHMENT
+	bar.highlight_tint = UiPalette.HIGHLIGHT_ON_PARCHMENT
+	bar.call("_refresh_highlight")
 
 
 ## Tight footer for the hold-to-confirm ring (coordinator follow-up,

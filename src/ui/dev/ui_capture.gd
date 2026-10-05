@@ -97,7 +97,7 @@ func _run() -> void:
 	await _stage_threat_feedback()
 
 	flow._end_run(flow.EndCause.TOWER_DESTROYED)
-	await _frames(40)
+	await _frames(150) # the settlement rows reveal one after another
 	await _shot("06_run_end")
 
 	get_tree().quit()

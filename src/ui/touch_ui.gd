@@ -24,7 +24,7 @@ const FLAG_FORCE_OFF: String = "--no-touch-ui"
 ## The project canvas is 1080 px tall and `canvas_items` stretching already
 ## scales it to the window. The mobile layout multiplies that by up to 1.5
 ## (`Window.content_scale_factor`): a 20:9 phone gets 1.5, a logical canvas of
-## 1600x720, and text that was 22 px tall reads as 12 dp or more. A 16:9 phone
+## 1600x720, and body text (37 px at the 1080 px base, D166) reads as 20 dp or more. A 16:9 phone
 ## gets less, because the HUD's top row needs a logical canvas at least
 ## `UI_MIN_LOGICAL_WIDTH_PX` wide. The camera divides the factor back out
 ## (src/camera/game_camera.gd), so the player sees the same amount of world.
