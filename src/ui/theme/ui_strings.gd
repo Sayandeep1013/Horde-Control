@@ -35,7 +35,12 @@ const MESSAGES: Dictionary = {
 	"HUD_GLYPH_SCRAP": "SCRAP",
 	"HUD_GLYPH_XP": "XP",
 
-	"DRAFT_TITLE": "Level-Up Draft",
+	"DRAFT_TITLE": "Level up! Choose an upgrade",
+	# UX review P0-4 (D128): every way to pick, from project.godot's input map.
+	"DRAFT_HOW_TO_PICK": "Click a card  |  keys 1 / 2 / 3  |  A / D to move, Space or Enter to pick  |  or hold W / Up",
+	"DRAFT_HOLD_CAPTION": "Hold W / Up to pick",
+	"DRAFT_REROLL": "Reroll: R (%d left)",
+	"DRAFT_REROLL_NONE": "No rerolls left",
 
 	# D115 (no in-run shop): every CONSOLE_* key (Tower Console UI text) is
 	# removed along with the Console itself -- nothing left registers or

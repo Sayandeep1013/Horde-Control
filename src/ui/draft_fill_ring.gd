@@ -56,7 +56,7 @@ var progress: float = 0.0:
 ## rule lives in DraftCardView), so a colour-only ring here does not
 ## violate "never by colour alone" (Register > Visual Edge Cases).
 @export var ring_color: Color = UiPalette.ACCENT
-@export var track_color: Color = UiPalette.with_alpha(UiPalette.LINE, 0.55)
+@export var track_color: Color = UiPalette.with_alpha(UiPalette.TEXT, 0.6)
 @export var ring_width: float = DEFAULT_RING_WIDTH
 ## Optional small glyph drawn at the ring's centre (e.g. a "hold up" arrow).
 ## Empty (the default) draws nothing -- every existing caller that never set
@@ -138,7 +138,9 @@ func _draw_center_glyph(center: Vector2, r: float) -> void:
 func _draw_center_shape(center: Vector2, r: float) -> void:
 	var side: float = r * CENTER_SHAPE_SIDE_FRACTION
 	var rect := Rect2(center - Vector2(side, side) * 0.5, Vector2(side, side))
-	var color: Color = ring_color if progress > 0.0 else track_color
+	# UX review P0-4 (D128): idle triangle is full-strength text colour, not the
+	# 55%-alpha track colour, so the ring reads as an intentional control.
+	var color: Color = ring_color if progress > 0.0 else UiPalette.TEXT
 	UiShapeGlyph.draw_shape(self, center_shape as UiShapeGlyph.Shape, rect, color)
 
 
