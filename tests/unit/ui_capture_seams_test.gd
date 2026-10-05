@@ -21,7 +21,7 @@ const NODE_PATHS: Array[String] = [
 	"RunFlowController",
 	"Main/Tower",
 	"Main/Player",
-	"Main/Player/GameCamera",
+	"Main/GameCamera",
 	"ThreatFeedbackLayer/Overlay",
 ]
 

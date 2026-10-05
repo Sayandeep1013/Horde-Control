@@ -156,6 +156,8 @@ static func _acquire_slot(container: Node) -> int:
 static func _build_label() -> NumberLabel:
 	var l: NumberLabel = NumberLabel.new()
 	l.z_as_relative = false
+	# Tween-driven on global_position each render frame: opt out of physics interpolation.
+	l.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	l.z_index = Z_INDEX
 	l.visible = false
 	return l

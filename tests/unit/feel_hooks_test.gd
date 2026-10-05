@@ -16,7 +16,7 @@ func before_test() -> void:
 	_proto = auto_free(PrototypeScene.instantiate())
 	_proto.run_seed = 1
 	add_child(_proto)
-	_camera = _proto.get_node("Main/Player/GameCamera") as GameCamera
+	_camera = _proto.get_node("Main/GameCamera") as GameCamera
 	_player = _proto.get_node("Main/Player") as Player
 	_tower = _proto.get_node("Main/Tower") as Tower
 	_camera.snap_to(_camera.global_position) # clears trauma

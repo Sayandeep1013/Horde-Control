@@ -84,6 +84,12 @@ var _original_sprite_offset: Vector2 = Vector2.ZERO
 const HIT_FLASH_DURATION_SECONDS: float = 0.08
 const HIT_FLASH_COLOUR: Color = Color(2.4, 2.4, 2.4, 1.0)
 const MOVING_EPSILON_PX_PER_SEC: float = 4.0
+## Facing hysteresis (feel pass, D153; Register > "Feel hooks" rows "Enemy
+## facing flip horizontal share" and "Enemy facing flip minimum interval"):
+## the sprite flips only when the horizontal share of the facing direction
+## exceeds this AND at least the interval has passed since the last flip.
+const FACING_FLIP_HORIZONTAL_SHARE: float = 0.35
+const FACING_FLIP_MIN_INTERVAL_SECONDS: float = 0.2
 
 ## Hit-feedback pass: a quick, purely cosmetic squash on THIS node (Visuals),
 ## never the body -- brief: "a tiny knock-back squash (visual only, the
@@ -100,6 +106,9 @@ var _sprite: AnimatedSprite2D = null
 var _shadow: CanvasItem = null
 
 var _facing: Vector2 = Vector2.DOWN
+var _facing_flip_h: bool = false
+var _flip_clock: float = 0.0
+var _last_flip_clock: float = -1000.0
 var _striking: bool = false
 var _death_played: bool = false
 var _flash_tween: Tween = null
@@ -142,9 +151,10 @@ func _ready() -> void:
 		_death_state.damage_applied.connect(_on_damage_applied)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _controller == null or _sprite == null:
 		return
+	_flip_clock += delta
 
 	var is_dead: bool = _death_state != null and _death_state.is_dead
 	if is_dead:
@@ -183,8 +193,13 @@ func _update_facing_and_flip() -> void:
 	var v: Vector2 = _controller.velocity
 	if v.length_squared() > MOVING_EPSILON_PX_PER_SEC * MOVING_EPSILON_PX_PER_SEC:
 		_facing = v.normalized()
-	if absf(_facing.x) > 0.05:
-		_sprite.flip_h = _facing.x < 0.0
+	if absf(_facing.x) > FACING_FLIP_HORIZONTAL_SHARE:
+		var want_flip: bool = _facing.x < 0.0
+		if want_flip != _facing_flip_h and _flip_clock - _last_flip_clock >= FACING_FLIP_MIN_INTERVAL_SECONDS:
+			_facing_flip_h = want_flip
+			_last_flip_clock = _flip_clock
+	if not _striking:
+		_sprite.flip_h = _facing_flip_h
 	if _shadow != null and _shadow.has_method(&"set_flip_h"):
 		_shadow.call(&"set_flip_h", _sprite.flip_h)
 
@@ -330,6 +345,7 @@ func _restore_original_art() -> void:
 func _restore_alive_visuals() -> void:
 	_restore_original_art()
 	_striking = false
+	_last_flip_clock = -1000.0 # a reused instance may flip at once on its first heading
 	scale = Vector2.ONE # defensive: _on_death_visuals() already does this, but a reused instance must never start life mid-squash
 	if _squash_tween != null and _squash_tween.is_valid():
 		_squash_tween.kill()
