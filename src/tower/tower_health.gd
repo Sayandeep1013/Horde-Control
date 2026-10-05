@@ -67,6 +67,13 @@ var current_shield: float = 0.0
 var regen_rate_percent_per_second: float = 0.0
 var regen_delay_seconds: float = 0.0
 
+## D136 (balance pass 2026-10-05): fraction of the regen rate that applies
+## while a wave is open (ShieldRegeneration.in_wave_rate_fraction; Register >
+## Tower). `_wave_open` is pushed by the integration layer from the Wave
+## Director's wave_opened / wave_ended signals via `set_wave_open()`.
+var in_wave_rate_fraction: float = 1.0
+var _wave_open: bool = false
+
 ## P2.11 modifier layer (src/upgrade/upgrade_system.gd): the definition-
 ## derived base max_shield (max_health x base_shield_fraction, from
 ## data/tower/base.tres via configure() below), kept separately from the
@@ -154,6 +161,7 @@ func configure(definition: TowerDefinition) -> void:
 	current_shield = max_shield
 	regen_rate_percent_per_second = definition.shield_regeneration.rate_percent_per_second
 	regen_delay_seconds = definition.shield_regeneration.delay_seconds
+	in_wave_rate_fraction = definition.shield_regeneration.in_wave_rate_fraction
 	if _death_state != null:
 		_death_state.max_hp = max_health
 		_death_state.current_hp = max_health
@@ -229,6 +237,16 @@ func heal(amount: float) -> void:
 	health_changed.emit(get_current_health(), max_health)
 
 
+## D136: called by PrototypeIntegration on the Wave Director's wave_opened
+## (true) and wave_ended (false) signals.
+func set_wave_open(open: bool) -> void:
+	_wave_open = open
+
+
+func is_wave_open_for_test() -> bool:
+	return _wave_open
+
+
 func is_destroyed() -> bool:
 	return _death_state != null and _death_state.is_dead
 
@@ -270,7 +288,8 @@ func _try_regenerate_shield() -> void:
 		return
 	if now - _last_damage_sim_time < regen_delay_seconds:
 		return
-	var new_shield: float = minf(max_shield, current_shield + max_shield * (regen_rate_percent_per_second / 100.0) * dt)
+	var rate_fraction: float = in_wave_rate_fraction if _wave_open else 1.0
+	var new_shield: float = minf(max_shield, current_shield + max_shield * (regen_rate_percent_per_second / 100.0) * rate_fraction * dt)
 	if not is_equal_approx(new_shield, current_shield):
 		current_shield = new_shield
 		shield_changed.emit(current_shield, max_shield)

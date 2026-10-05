@@ -37,6 +37,12 @@ class_name WaveDefinition
 @export var overtime_condition: OvertimeCondition = null
 @export var pressure_metric_constants: PressureMetricConstants = null
 @export var boss_overlap_rules: ContractEnums.BossOverlapRules = ContractEnums.BossOverlapRules.NotApplicable
+## D135 (balance pass 2026-10-05): multipliers applied to every standard enemy
+## this wave spawns (health, and per-hit/tick damage). 1.0 = the Register's
+## base enemy stats. Values per wave live in the Register ("Wave enemy scaling").
+@export var enemy_hp_multiplier: float = 1.0
+@export var enemy_damage_multiplier: float = 1.0 ## Tower Seekers and Opportunists
+@export var hunter_damage_multiplier: float = 1.0 ## Player Hunters (their contact damage lands on the player, whose pool is far smaller than the Tower's)
 
 ## Derived: not authored (docs/20). Sum of this wave's spawn groups' cap
 ## weights, resolved through the two lookup dictionaries described above.

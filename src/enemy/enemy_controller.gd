@@ -167,6 +167,12 @@ var death_state: DeathState = null
 var current_intent: ContractEnums.TargetIntent = ContractEnums.TargetIntent.TowerSeeker
 
 var _configured: bool = false
+
+## D135 (balance pass): per-wave multipliers pushed by the Wave Director at
+## spawn through `set_wave_scaling()`. 1.0 = the Register's base stats.
+var _hp_multiplier: float = 1.0
+var _damage_multiplier: float = 1.0
+var _base_hitbox_damage: float = -1.0
 var _player: Node2D = null
 var _tower: Node2D = null
 
@@ -376,9 +382,9 @@ func _apply_definition(preserved_hp: float = -1.0) -> void:
 
 	if death_state != null:
 		var max_hp: float = float(definition.health_band.value) if definition.health_band != null else 0.0
-		death_state.max_hp = max_hp
+		death_state.max_hp = max_hp * _hp_multiplier
 		if preserved_hp >= 0.0:
-			death_state.current_hp = minf(preserved_hp, max_hp) # leash rule: "keeping its current HP"
+			death_state.current_hp = minf(preserved_hp, max_hp * _hp_multiplier) # leash rule: "keeping its current HP"
 		else:
 			death_state.reset_for_reuse()
 
@@ -387,6 +393,25 @@ func _apply_definition(preserved_hp: float = -1.0) -> void:
 	else:
 		_leash_deadline = -1.0
 	_leash_telegraph_active = false
+
+
+## D135 (balance pass, review 2026-10-05 P0-2): the Wave Director calls this
+## right after spawning with the current wave's `enemy_hp_multiplier` /
+## `enemy_damage_multiplier` (Register > "Wave enemy scaling"). Rescales the
+## freshly reset health pool and the hitbox's per-hit damage; the multipliers
+## are remembered so a leash conversion keeps them.
+func set_wave_scaling(hp_multiplier: float, damage_multiplier: float, hunter_damage_multiplier: float = 1.0) -> void:
+	_hp_multiplier = maxf(0.01, hp_multiplier)
+	var is_hunter: bool = definition != null and definition.target_intent == ContractEnums.TargetIntent.PlayerHunter
+	_damage_multiplier = maxf(0.01, hunter_damage_multiplier if is_hunter else damage_multiplier)
+	if death_state != null and definition != null and definition.health_band != null:
+		var base_hp: float = float(definition.health_band.value)
+		death_state.max_hp = base_hp * _hp_multiplier
+		death_state.current_hp = death_state.max_hp
+	if hitbox != null:
+		if _base_hitbox_damage < 0.0:
+			_base_hitbox_damage = hitbox.damage
+		hitbox.damage = _base_hitbox_damage * _damage_multiplier
 
 
 static func _set_circle_radius(shape_node: CollisionShape2D, radius: float) -> void:
@@ -1093,6 +1118,17 @@ func _on_own_logical_death(_entity: Node2D, position: Vector2) -> void:
 	# the evidence report), it will not be re-registered after this point.
 	if _sim_loop != null:
 		_sim_loop.unregister(SimLoop.Step.ENEMY_AI_AND_MOVEMENT, self)
+	# D139 (balance pass 2026-10-05): a dead enemy stays in the tree until the
+	# Pool reclaims it, so its C-SLOTS attack-slot claims were only ever
+	# released by `_exit_tree()` -- which a pooled corpse never reaches. Every
+	# dead Tower Seeker therefore squatted on one of the Tower's 27 slots
+	# forever; by the end of T4 all 27 were leaked, no Seeker could claim a
+	# slot, and every later Seeker waited 32 px outside the ring without ever
+	# attacking (the Tower took zero damage in combat waves 1-4). Release at
+	# Logical Death instead.
+	AttackSlotManager.release_claim(_tower, self)
+	AttackSlotManager.release_claim(_player, self)
+	AttackSlotManager.release_claim(_opportunist_target, self)
 
 
 ## Opportunist event rule, event 2: the out-of-range timer. "the out-of-

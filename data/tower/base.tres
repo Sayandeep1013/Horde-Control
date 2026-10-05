@@ -17,6 +17,7 @@ base_shield_fraction = 0.25
 script = ExtResource("2_regen")
 rate_percent_per_second = 10.0
 delay_seconds = 8.0
+in_wave_rate_fraction = 0.0
 
 [sub_resource type="Resource" id="Resource_footprint"]
 script = ExtResource("3_footprint")

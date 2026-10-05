@@ -920,7 +920,8 @@ func _process_spawn_groups(encounter: EncounterDefinition) -> void:
 		# index() / _process_pressure_metric().
 		var start_offset: float = float(_group_start_offset_override.get(group_index, group.start_offset_seconds))
 		while emitted < effective_count:
-			var due_time: float = _encounter_open_time + start_offset + float(emitted) * group.spawn_interval_seconds * interval_multiplier
+			var burst: int = maxi(1, group.burst_size)
+			var due_time: float = _encounter_open_time + start_offset + float((emitted / burst) * burst) * group.spawn_interval_seconds * interval_multiplier # D138: spawns in one burst share a due time (burst == 1 reduces to the original formula)
 			if now < due_time:
 				break
 			if not _attempt_spawn(encounter, group, group_index, emitted):
@@ -1192,8 +1193,25 @@ func _attempt_spawn(encounter: EncounterDefinition, group: SpawnGroup, group_ind
 	if _registry != null:
 		_registry.update_position(instance, spawn_position)
 	_current_wave_spawned.append(instance)
+	_apply_wave_scaling(instance)
 	enemy_spawned.emit(instance, group.enemy_definition_id, spawn_position)
 	return true
+
+
+## D135 (review 2026-10-05 P0-2). Register > "Wave enemy scaling": the open
+## wave's `enemy_hp_multiplier` / `enemy_damage_multiplier` (1.0 when a wave
+## authors none) are applied to every standard enemy at spawn. Finishers
+## (spawned by `_spawn_finisher`) are deliberately not scaled: their HP is
+## already a fixed fraction of a Hunter's by the Register.
+func _apply_wave_scaling(instance: Node2D) -> void:
+	if _current_wave_index < 0 or _current_wave_index >= waves.size():
+		return
+	var wave: WaveDefinition = waves[_current_wave_index]
+	if wave == null or not instance.has_method("set_wave_scaling"):
+		return
+	if is_equal_approx(wave.enemy_hp_multiplier, 1.0) and is_equal_approx(wave.enemy_damage_multiplier, 1.0) and is_equal_approx(wave.hunter_damage_multiplier, 1.0):
+		return
+	instance.call("set_wave_scaling", wave.enemy_hp_multiplier, wave.enemy_damage_multiplier, wave.hunter_damage_multiplier)
 
 
 ## P2.8b. Register > "Encounter-level alive cap": "e.g. 120 in heavy Siege;
@@ -1248,7 +1266,7 @@ func _weighting_for_type(encounter_type: ContractEnums.EncounterType) -> Directi
 ## sufficient to satisfy "180 deg apart" and "fixed when the encounter
 ## opens", though the Register does not itself forbid rolling the
 ## orientation per encounter.
-func _base_angle_for(encounter: EncounterDefinition, rng: RandomNumberGenerator, spawn_index: int, group_count: int) -> float:
+func _base_angle_for(encounter: EncounterDefinition, rng: RandomNumberGenerator, spawn_index: int, group_count: int, burst_size: int = 1) -> float:
 	var weighting: DirectionalWeightingEntry = encounter.directional_weighting_override if encounter.directional_weighting_override != null else _weighting_for_type(encounter.encounter_type)
 	match encounter.encounter_type:
 		ContractEnums.EncounterType.SplitAssault:
@@ -1268,7 +1286,29 @@ func _base_angle_for(encounter: EncounterDefinition, rng: RandomNumberGenerator,
 				var half_arc: float = deg_to_rad(arc_degrees) * 0.5
 				return arc_center + rng.randf_range(-half_arc, half_arc)
 			return rng.randf() * TAU
-		_: # StandardAssault, Siege: uniform across the ring
+		ContractEnums.EncounterType.Siege:
+			# D138 (review 2026-10-05 P0-2 lever 1): a Siege Seeker group with
+			# burst_size > 1 sends each BURST down one of two lanes (the Split
+			# Assault lane rule: width, 180 degree separation, heavy share, all
+			# from the Siege's directional weighting entry) so the shield is
+			# hit from one side at a time and the player must go to that side.
+			# Lane bearing is rolled once per encounter from the keyed RNG.
+			# Anything else in a Siege (Hunters, burst_size 1) stays uniform.
+			var burst: int = maxi(1, burst_size)
+			if burst > 1 and weighting != null and weighting.lane_count >= 2:
+				var burst_count: int = ceili(float(group_count) / float(burst))
+				var heavy: float = weighting.heavy_share if weighting.heavy_share > 0.0 else 0.6
+				var lane_width: float = weighting.lane_width_degrees if weighting.lane_width_degrees > 0.0 else 40.0
+				var lanes: Array[bool] = SpawnGeometry.split_assault_lane_sequence(burst_count, heavy)
+				var burst_index: int = spawn_index / burst
+				var heavy_burst: bool = lanes[burst_index] if burst_index < lanes.size() else true
+				var bearing_rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "siege_lane", encounter.unique_id, _current_wave_index])
+				var lane_base: float = bearing_rng.randf() * TAU
+				var center: float = lane_base if heavy_burst else lane_base + PI
+				var half: float = deg_to_rad(lane_width) * 0.5
+				return center + rng.randf_range(-half, half)
+			return rng.randf() * TAU
+		_: # StandardAssault: uniform across the ring
 			return rng.randf() * TAU
 
 
@@ -1287,10 +1327,13 @@ func _hunt_arc_center(rng: RandomNumberGenerator) -> float:
 	return rng.randf() * TAU
 
 
-func _resolve_spawn_placement(encounter: EncounterDefinition, definition: EnemyDefinition, serial: int, _group_index: int, spawn_index: int, group_count: int) -> Dictionary:
+func _resolve_spawn_placement(encounter: EncounterDefinition, definition: EnemyDefinition, serial: int, group_index: int, spawn_index: int, group_count: int) -> Dictionary:
 	var ring_info: Dictionary = _ring_for_intent(definition.target_intent)
 	var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "spawn", serial]) # Register > "Keyed RNG"
-	var angle: float = _base_angle_for(encounter, rng, spawn_index, group_count)
+	var group_burst: int = 1
+	if group_index >= 0 and group_index < encounter.spawn_groups.size():
+		group_burst = (encounter.spawn_groups[group_index] as SpawnGroup).burst_size
+	var angle: float = _base_angle_for(encounter, rng, spawn_index, group_count, group_burst)
 	var radius_fraction: float = rng.randf()
 	return SpawnGeometry.validate_and_shift(
 		angle, radius_fraction,
@@ -1498,6 +1541,12 @@ func _maybe_scale_siege_spawn_groups(encounter: EncounterDefinition) -> void:
 	var live_dps: float = _tower_capacity_dps()
 	if base_dps <= 0.0 or live_dps <= base_dps:
 		return # documented fallback: nothing to scale to -- keep the authored .tres literal
+	# D137: only `live_dps_bonus_share` of the upgrade bonus counts, so Tower
+	# damage cards stop cancelling against Siege size one-for-one.
+	var bonus_share: float = 1.0
+	if director_configuration != null and director_configuration.siege_volume_constants != null:
+		bonus_share = director_configuration.siege_volume_constants.live_dps_bonus_share
+	live_dps = base_dps + (live_dps - base_dps) * bonus_share
 
 	var multiplier: float = float(siege_multiplier_by_encounter_id[encounter.unique_id])
 	var constants: SiegeVolumeConstants = director_configuration.siege_volume_constants if director_configuration != null else null

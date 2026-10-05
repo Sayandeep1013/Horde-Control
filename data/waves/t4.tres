@@ -48,3 +48,6 @@ inter_wave_gap_seconds = 8.0
 overtime_condition = SubResource("Resource_overtime")
 pressure_metric_constants = null
 boss_overlap_rules = 0
+enemy_hp_multiplier = 0.85
+enemy_damage_multiplier = 0.9
+hunter_damage_multiplier = 0.12

@@ -131,9 +131,12 @@ func test_at_base_tower_dps_the_authored_literal_counts_are_used_unchanged() -> 
 ## (combat_2_siege's own entry in `siege_multiplier_by_encounter_id`),
 ## live DPS = 50.0 (double base), wave max duration = 90 s (combat_2.tres,
 ## read directly, not restated), window fraction 0.75, hunter percentage
-## 0.15 (director_configuration.tres's own `siege_volume_constants`, read
-## directly, not restated): Seekers = ceil(1.5*50*0.75*90/60) = ceil(84.375)
-## = 85; Hunters = round(0.15*85) = round(12.75) = 13.
+## 0.15 and `live_dps_bonus_share` 0.5 (director_configuration.tres's own
+## `siege_volume_constants`, read directly, not restated; D137, balance pass
+## 2026-10-05: only half of the upgrade bonus counts, so the formula sees
+## 25 + 0.5 * (50 - 25) = 37.5 DPS rather than 50): Seekers =
+## ceil(1.5*37.5*0.75*90/60) = ceil(63.28) = 64; Hunters = round(0.15*64) =
+## round(9.6) = 10. (Before D137 this was 85 and 13.)
 func test_above_base_tower_dps_the_formula_is_recomputed_live() -> void:
 	var ctx: Dictionary = _build_director()
 	var director: WaveDirector = ctx["director"]
@@ -149,8 +152,8 @@ func test_above_base_tower_dps_the_formula_is_recomputed_live() -> void:
 
 	var seeker_i: int = _seeker_group_index(CombatTwoSiege)
 	var hunter_i: int = _hunter_group_index(CombatTwoSiege)
-	assert_int(director.get_effective_group_count_for_test(CombatTwoSiege, seeker_i)).append_failure_message("Seeker count did not scale to the formula's own result at 50 Tower DPS (expected 85)").is_equal(85)
-	assert_int(director.get_effective_group_count_for_test(CombatTwoSiege, hunter_i)).append_failure_message("Hunter count did not scale to the formula's own result at 50 Tower DPS (expected 13)").is_equal(13)
+	assert_int(director.get_effective_group_count_for_test(CombatTwoSiege, seeker_i)).append_failure_message("Seeker count did not scale to the formula's own result at 50 Tower DPS (expected 64)").is_equal(64)
+	assert_int(director.get_effective_group_count_for_test(CombatTwoSiege, hunter_i)).append_failure_message("Hunter count did not scale to the formula's own result at 50 Tower DPS (expected 10)").is_equal(10)
 
 	# Still never mutates the shared Resource.
 	assert_int(CombatTwoSiege.spawn_groups[seeker_i].count).append_failure_message("the shared .tres Resource's own authored count was mutated -- this must go through _group_count_override only").is_equal(43)
