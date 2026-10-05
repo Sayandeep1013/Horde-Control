@@ -174,8 +174,10 @@ func _spawn_prop(p: Vector2, rng: RandomNumberGenerator) -> void:
 	var s: Sprite2D = Sprite2D.new()
 	s.texture = textures[rng.randi_range(0, textures.size() - 1)]
 	s.position = p
-	s.scale = Vector2.ONE * rng.randf_range(min_scale, max_scale)
-	s.rotation = rng.randf_range(0.0, TAU)
+	# One world texel scale (D157): never rescale or rotate pixel art; vary
+	# the look by flipping instead.
+	s.scale = Vector2.ONE
+	s.flip_h = rng.randf() < 0.5
 	s.modulate = tint
 	s.z_index = 0
 	s.z_as_relative = true # relative to this node, which is already absolute

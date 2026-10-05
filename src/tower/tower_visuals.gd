@@ -136,7 +136,7 @@ const CASTLE_FAMILY_MIN_STAGE: int = 2
 ## sprite offsets in scenes/tower.tscn put the building's base 64 px below
 ## the Tower's position, so the footprint circle sits under the building
 ## instead of under empty ground in front of it.
-const TOWER_FAMILY_SCALE: float = 1.5
+const TOWER_FAMILY_SCALE: float = 1.0 # one world texel scale (D157); was 1.5
 
 @export var sprite_path: NodePath
 @export var shield_shimmer_path: NodePath

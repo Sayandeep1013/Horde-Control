@@ -320,7 +320,7 @@ func _build_title_block(parent: Control) -> void:
 	# One-off, deliberately larger than any other UiTheme.TITLE use in this
 	# project (a logo, not a menu heading) -- UiPalette's own header allows
 	# `theme_override_*` for "genuine one-offs only"; this is one.
-	title.add_theme_font_size_override("font_size", 128)
+	title.add_theme_font_size_override("font_size", 131)
 	title.add_theme_constant_override("outline_size", 12)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)

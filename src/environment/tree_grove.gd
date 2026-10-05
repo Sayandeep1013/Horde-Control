@@ -199,7 +199,8 @@ func _place_tree(pos: Vector2, rng: RandomNumberGenerator) -> void:
 	tree.sprite_frames = _frames
 	tree.animation = ANIMATION_NAME
 	tree.position = pos
-	tree.scale = Vector2.ONE * rng.randf_range(0.85, 1.15)
+	tree.scale = Vector2.ONE # one world texel scale (D157)
+	tree.flip_h = rng.randf() < 0.5
 	tree.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tree.frame = rng.randi_range(0, FRAME_COUNT - 1)
 	tree.z_index = 0
