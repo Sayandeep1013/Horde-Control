@@ -445,12 +445,12 @@ func test_rarity_multiplier_scales_the_live_effect_by_exactly_the_rolled_rarity(
 	var expected_rank1: float = HANDGUN_BASE_DAMAGE * 1.15
 	assert_float(weapon.get_effective_damage_per_shot()).append_failure_message("a Rare (1.5x) card did not raise damage by exactly 15 percent").is_equal_approx(expected_rank1, TOLERANCE)
 
-	# Rank 2, rolled Epic (2.2x): total_fraction = 0.1 * 2 * 2.2 = 0.44 (this
-	# file's own named simplification -- the MOST RECENT purchase's rarity
-	# governs the whole accumulated stack, see apply_rank()'s own header).
+	# Rank 2, rolled Epic (2.2x): D123 -- each rank keeps its own rarity, so
+	# the stat is 1 + 0.1*1.5 + 0.1*2.2 = 1.37 (was 1.44 under D117's
+	# "latest pick rescales the whole stack").
 	system.apply_rank("heavy_rounds", 2.2)
-	var expected_rank2: float = HANDGUN_BASE_DAMAGE * 1.44
-	assert_float(weapon.get_effective_damage_per_shot()).append_failure_message("an Epic (2.2x) card did not scale the accumulated 2-rank stack to exactly 44 percent").is_equal_approx(expected_rank2, TOLERANCE)
+	var expected_rank2: float = HANDGUN_BASE_DAMAGE * 1.37
+	assert_float(weapon.get_effective_damage_per_shot()).append_failure_message("an Epic (2.2x) second rank did not add exactly 22 percent on top of the Rare first rank (D123 per-rank rarity)").is_equal_approx(expected_rank2, TOLERANCE)
 
 	# A default (Common, 1.0x) call is unaffected -- every pre-D117 call
 	# site (this whole file's other falsifications) keeps working exactly

@@ -87,7 +87,15 @@ class_name PrototypeIntegration
 ## draft_controller.gd's comments references it), so it is not part of
 ## this propagation; named as a limitation in the evidence report rather
 ## than silently assumed solved.
-@export var run_seed: int = 20260920
+##
+## D123 (review P0-3): the seed is no longer a constant -- every run was
+## identical. Resolution order (`resolve_run_seed()`): (1) a non-negative
+## `run_seed` set by a test/harness before the node enters the tree;
+## (2) a `--seed=N` user argument (after `--`); (3) a fresh random seed.
+## `RUN_SEED_UNSET` (-1) means "not injected". Read the resolved value back
+## with `get_run_seed()` (the results screen can show it for bug reports).
+const RUN_SEED_UNSET: int = -1
+@export var run_seed: int = RUN_SEED_UNSET
 
 var _main: Node = null
 var _player: Player = null
@@ -133,6 +141,7 @@ func _ready() -> void:
 		if enemy != null:
 			_enemies.append(enemy)
 
+	run_seed = resolve_run_seed(run_seed, OS.get_cmdline_user_args())
 	_apply_meta_loadout()
 	_wire_hud()
 	_wire_overhead_bars()
@@ -184,6 +193,20 @@ func _wire_run_seed() -> void:
 		_wave_director.run_seed = run_seed
 	if _draft_controller != null:
 		_draft_controller.run_seed = run_seed
+
+
+## D123. Pure resolution of the run seed; see the `run_seed` doc above.
+static func resolve_run_seed(injected: int, user_args: PackedStringArray) -> int:
+	if injected >= 0:
+		return injected
+	for arg in user_args:
+		if arg.begins_with("--seed="):
+			var text: String = arg.substr("--seed=".length())
+			if text.is_valid_int() and text.to_int() >= 0:
+				return text.to_int()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.randomize()
+	return int(rng.randi() & 0x7fffffff)
 
 
 func get_run_seed() -> int:
