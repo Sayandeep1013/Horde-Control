@@ -468,6 +468,17 @@ func is_windup_active() -> bool:
 	return _windup_active
 
 
+## UX review item 5 (D131): 0.0 at wind-up start, 1.0 at the strike moment
+## (0.0 while no wind-up is active). Read-only; cosmetic consumers only.
+func get_windup_progress() -> float:
+	if not _windup_active or definition == null or definition.telegraph_data == null:
+		return 0.0
+	var duration: float = definition.telegraph_data.windup_duration_seconds
+	if duration <= 0.0:
+		return 1.0
+	return clampf(1.0 - (_next_hit_time - _now()) / duration, 0.0, 1.0)
+
+
 func is_leash_telegraphing() -> bool:
 	return _leash_telegraph_active
 
