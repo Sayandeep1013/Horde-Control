@@ -26,7 +26,8 @@ const LOCALE: String = "en"
 
 const MESSAGES: Dictionary = {
 	"HUD_WAVE": "Wave",
-	"HUD_LEVEL": "Level",
+	"HUD_LEVEL": "Lv",
+	"HUD_SCRAP_CORES": "= %d Cores at run end",
 	"HUD_REROLLS": "Rerolls",
 	"HUD_FULL": "FULL",
 	"HUD_HOPPER": "hopper",
@@ -179,6 +180,11 @@ const MESSAGES: Dictionary = {
 	"ACHIEVEMENTS_BACK": "Back",
 	"ACHIEVEMENTS_UNLOCKED": "Unlocked",
 	"ACHIEVEMENTS_LOCKED": "Locked",
+	"ACHIEVEMENTS_REWARD_CARD": "Unlocks card: %s",
+	"ACHIEVEMENTS_REWARD_PERK": "Reward: %s",
+	"ACHIEVEMENTS_PERK_REROLL": "+1 Draft reroll each run",
+	"ACHIEVEMENTS_PERK_DAMAGE": "+%d%% weapon damage",
+	"ACHIEVEMENTS_PERK_CORES": "+%d%% Cores at run end",
 
 	"TITLE_GAME_NAME": "HORDE CONTROL",
 	"TITLE_TAGLINE": "Defend the Tower. Survive the horde.",

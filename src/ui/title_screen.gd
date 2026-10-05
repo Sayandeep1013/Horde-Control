@@ -447,7 +447,7 @@ func _build_controls_panel() -> void:
 func _make_row_label(text: String, is_action: bool) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.theme_type_variation = UiTheme.VALUE if is_action else UiTheme.DIM
+	label.theme_type_variation = UiTheme.VALUE if is_action else UiTheme.DIM_PARCHMENT
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -476,7 +476,7 @@ func _build_credits_panel() -> void:
 func _make_credit_line(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.theme_type_variation = UiTheme.DIM
+	label.theme_type_variation = UiTheme.DIM_PARCHMENT
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

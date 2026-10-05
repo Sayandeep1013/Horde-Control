@@ -109,7 +109,7 @@ func _build_row(label_text: String, key: String) -> void:
 
 	var label := Label.new()
 	label.text = label_text
-	label.theme_type_variation = UiTheme.DIM
+	label.theme_type_variation = UiTheme.DIM_PARCHMENT
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.custom_minimum_size = Vector2(ROW_LABEL_MIN_WIDTH, 0.0)

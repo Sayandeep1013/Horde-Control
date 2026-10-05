@@ -671,7 +671,7 @@ func _build_banner(parent: Container, node_name: String, text: String, dismiss_t
 	var label := Label.new()
 	label.name = "Label"
 	label.text = text
-	label.theme_type_variation = UiTheme.DIM
+	label.theme_type_variation = UiTheme.DIM_PARCHMENT
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL

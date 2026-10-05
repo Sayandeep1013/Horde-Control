@@ -125,6 +125,7 @@ const WOOD_BORDER: Color = Color("4a3018")    ## dark wood-brown card frame
 
 # --- Text -----------------------------------------------------------------
 const TEXT: Color = Color("f5ecd8")           ## warm parchment-white (was a cooler cream)
+const TEXT_ON_PARCHMENT: Color = Color("3b2a1a") ## UX review item 8 (D132): dark umber for secondary text on parchment panels (TEXT_DIM is ~1.5:1 there); about 9:1 on PARCHMENT
 const TEXT_DIM: Color = Color("b3a181")       ## warm dim tan (was blue-grey)
 const TEXT_DISABLED: Color = Color("6b5f4f")  ## warm dim brown (was blue-grey)
 const TEXT_OUTLINE: Color = Color(0.05, 0.03, 0.02, 0.95) ## near-black, warmed to match the wood ink rather than a blue-black
