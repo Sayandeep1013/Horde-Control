@@ -192,7 +192,11 @@ func test_dim_background_covers_the_full_1920x1080_viewport() -> void:
 	assert_object(root).is_not_null()
 	var dim: Control = root.get_node("Dim") as Control
 	assert_object(dim).append_failure_message("Dim background node missing").is_not_null()
-	assert_vector(dim.size).append_failure_message("Dim background does not cover the full viewport: %s" % dim.size).is_equal(VIEWPORT_REF)
+	# D146: the project stretch aspect is "expand", so the live viewport is
+	# whatever the window's aspect makes it (the headless runner's window is
+	# not 16:9). The dim must cover THAT viewport, not a fixed 1920x1080.
+	var live: Vector2 = get_viewport().get_visible_rect().size
+	assert_vector(dim.size).append_failure_message("Dim background does not cover the full viewport: %s vs %s" % [dim.size, live]).is_equal(live)
 	assert_vector(dim.position).is_equal(Vector2.ZERO)
 
 

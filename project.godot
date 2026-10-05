@@ -14,12 +14,15 @@ config/name="Horde Control"
 run/main_scene="res://scenes/title.tscn"
 config/icon="res://icon.png"
 config/features=PackedStringArray("4.7", "Forward Plus")
+config/quit_on_go_back=false
 
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
 
 [input]
 
@@ -113,6 +116,10 @@ debug_pseudoloc_toggle={
 ]
 }
 
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
+
 [layer_names]
 
 2d_physics/layer_1="PlayerBody"
@@ -141,6 +148,11 @@ EventBus="*res://src/core/event_bus.gd"
 EntityRegistry="*res://src/core/entity_registry.gd"
 CombatStats="*res://src/core/combat_stats.gd"
 MetaProgress="*res://src/meta/meta_progress.gd"
+
+[rendering]
+
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
 
 [editor]
 

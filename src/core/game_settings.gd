@@ -461,6 +461,8 @@ static func _apply_effects_buses() -> void:
 static func _apply_display_mode() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
+	if OS.has_feature("mobile"):
+		return # D146: a phone window is always the whole screen; the saved desktop mode must not touch it.
 	match _display_mode:
 		DisplayMode.FULLSCREEN:
 			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)

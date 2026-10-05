@@ -79,6 +79,14 @@ class_name SkillNodeView
 enum State { SILHOUETTE, LOCKED, UNAFFORDABLE, BUYABLE, MAX, OWNED_MAX }
 
 signal node_hovered(id: String)
+## D146 (mobile): a touch has no hover, so the press itself selects the node.
+## Emitted on a left-button press (which is what the engine's emulated mouse
+## makes of a finger); the hold that buys still comes from the `confirm`
+## action, which that same press also drives.
+signal node_pressed(id: String)
+## Matching release of that press (the control keeps the pointer grab, so this
+## also fires when the finger slides off the node before lifting).
+signal node_released(id: String)
 
 ## Skill Tree art pass: shrunk from 112 (unchanged since the earlier polish
 ## pass) to make room for the new branch-header-ribbon row and legend row
@@ -143,6 +151,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE # keyboard nav is driven by SkillTreeScreen's own cursor, not Godot focus traversal
 	mouse_entered.connect(func() -> void: node_hovered.emit(node_id))
+	gui_input.connect(_on_gui_input)
 	_style = UiTheme.make_texture_box(UiPalette.TEX_BUTTON_DISABLED, UiPalette.NODE_TEXTURE_MARGIN, 4)
 	add_theme_stylebox_override("panel", _style)
 	_build_children()
@@ -213,6 +222,16 @@ func _build_children() -> void:
 ## `branch_color` are supplied directly (rather than derived from a
 ## SkillNodeDefinition) so the synthetic "Reset Tree" pseudo-node can share
 ## this exact widget.
+func _on_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed:
+				node_pressed.emit(node_id)
+			else:
+				node_released.emit(node_id)
+
+
 func configure(id: String, shape: int, branch_color: Color, display_name: String) -> void:
 	node_id = id
 	_true_shape = shape

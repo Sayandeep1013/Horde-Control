@@ -18,6 +18,11 @@ const ACHIEVEMENTS_CANVAS_LAYER: int = 5
 const ROW_LABEL_MIN_WIDTH: float = 460.0
 const ROW_VALUE_MIN_WIDTH: float = 220.0
 
+## D147: height of the scrolling list on the mobile layout (720-base px).
+const MOBILE_SCROLL_HEIGHT: float = 380.0
+
+var _rows_parent: Container
+
 var _frame: MenuFrame.Parts
 var _back_button: Button
 var _rows: Dictionary = {} # String (achievement id) -> Label (the value cell)
@@ -107,6 +112,22 @@ func _build_ui() -> void:
 	MenuFrame.build_title(_frame.column, tr("ACHIEVEMENTS_TITLE"), UiTheme.HEADING, 480.0)
 	MenuFrame.build_separator(_frame.column)
 
+	# D147: on the 720 px tall mobile canvas the rows do not fit above the Back
+	# button, so they scroll by finger drag inside a capped area (docs/19 >
+	# "Max Dimensions": a container over 30% of the screen scrolls).
+	_rows_parent = _frame.column
+	if TouchUi.is_mobile_layout():
+		var scroll := ScrollContainer.new()
+		scroll.name = "RowsScroll"
+		scroll.custom_minimum_size = Vector2(0.0, MOBILE_SCROLL_HEIGHT)
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_frame.column.add_child(scroll)
+		var inner := VBoxContainer.new()
+		inner.name = "RowsColumn"
+		inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		inner.theme_type_variation = UiTheme.vbox("XS")
+		scroll.add_child(inner)
+		_rows_parent = inner
 	if MetaProgress.achievement_list != null:
 		for achievement in MetaProgress.achievement_list.achievements:
 			if achievement != null:
@@ -117,7 +138,7 @@ func _build_ui() -> void:
 	_back_button = Button.new()
 	_back_button.name = "BackButton"
 	_back_button.text = tr("ACHIEVEMENTS_BACK")
-	_back_button.custom_minimum_size = Vector2(220, 56)
+	_back_button.custom_minimum_size = TouchUi.button_size(Vector2(220, 56))
 	_back_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_back_button.pressed.connect(func() -> void: back_requested.emit())
 	_frame.column.add_child(_back_button)
@@ -127,7 +148,8 @@ func _build_row(achievement: AchievementDefinition) -> void:
 	var row := PanelContainer.new()
 	row.name = "%sRow" % achievement.id.capitalize().replace(" ", "")
 	row.theme_type_variation = UiTheme.ROW
-	_frame.column.add_child(row)
+	row.mouse_filter = Control.MOUSE_FILTER_PASS # lets a finger drag scroll the list
+	_rows_parent.add_child(row)
 
 	var hbox := HBoxContainer.new()
 	hbox.theme_type_variation = UiTheme.hbox("L")

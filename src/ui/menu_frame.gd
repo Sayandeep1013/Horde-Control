@@ -148,6 +148,7 @@ static func build_hold_footer(column: Container) -> VBoxContainer:
 	footer.name = "HoldFooter"
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER
 	footer.theme_type_variation = UiTheme.vbox("XS")
+	footer.visible = not TouchUi.is_mobile_layout() # D147: the hold ring is the keyboard/pad way; a phone taps.
 	column.add_child(footer)
 	return footer
 

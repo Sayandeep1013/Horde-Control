@@ -221,6 +221,19 @@ const MESSAGES: Dictionary = {
 	"TITLE_CREDITS_GODOT": "Made with Godot Engine (MIT) - godotengine.org",
 }
 
+## D147: keyboard-and-mouse wording replaced by touch wording in the mobile
+## layout (a phone build, or `--touch-ui`). Same keys; `ensure_registered()`
+## picks one table once. A key absent here keeps its desktop text.
+const MOBILE_MESSAGES: Dictionary = {
+	"DRAFT_HOW_TO_PICK": "Tap a card to pick it",
+	"DRAFT_HOLD_CAPTION": "Or hold up to pick",
+	"DRAFT_REROLL": "Tap to reroll (%d left)",
+	"HINT_AUTOFIRE": "Your bow fires automatically at the nearest goblin. Just move: drag on the left side of the screen.",
+	"SKILL_TREE_ROOT_EXPLANATION": "Earn Cores by playing runs. Tap a node, then press and hold it to buy it -- buying reveals its neighbours. Reset Tree refunds every Core spent, any time, in the Hub only.",
+	"SKILL_TREE_HOLD_TO_BUY": "Press and hold to buy",
+	"SKILL_TREE_HOLD_TO_RESET": "Press and hold to reset",
+}
+
 static var _registered: bool = false
 
 
@@ -230,6 +243,7 @@ static func ensure_registered() -> void:
 	_registered = true
 	var translation := Translation.new()
 	translation.locale = LOCALE
+	var mobile: bool = TouchUi.is_mobile_layout_real()
 	for key: String in MESSAGES:
-		translation.add_message(key, MESSAGES[key])
+		translation.add_message(key, MOBILE_MESSAGES.get(key, MESSAGES[key]) if mobile else MESSAGES[key])
 	TranslationServer.add_translation(translation)

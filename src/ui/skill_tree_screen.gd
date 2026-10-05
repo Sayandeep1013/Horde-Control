@@ -190,6 +190,9 @@ var _confirm_requires_release: bool = false
 var _dir_state: Dictionary = {}
 
 var _use_test_input: bool = false
+
+## D146: true while a finger / mouse button is down on a node (see `_on_node_pressed`).
+var _pointer_held: bool = false
 var _test_pressed: Dictionary = {}
 var _test_just_pressed: Dictionary = {}
 
@@ -223,8 +226,11 @@ func _process(delta: float) -> void:
 ## movement-only gate every time the screen opens.
 func set_active(active: bool) -> void:
 	visible = active
+	if is_inside_tree():
+		TouchUi.set_scale_suspended(get_window(), active) # D147: the board needs the 1080 px canvas
 	if active:
 		_movement_only_armed = false
+		_pointer_held = false
 		_hold_progress = 0.0
 		refresh(true)
 		# Neutral-return arming (docs/19 > "Input Lockout & Arming"), applied
@@ -445,6 +451,21 @@ static func _is_mechanic_node(def: SkillNodeDefinition) -> bool:
 
 func _on_node_hovered(id: String) -> void:
 	_select(id)
+
+
+## D146 (mobile): a finger press on a node selects it AND starts the hold,
+## because a touch has no hover step first. `_select()` would arm
+## `_confirm_requires_release` (the press that selected it is still down), which
+## is right for a held key carried over from another screen but wrong for a
+## deliberate press on this very node, so it is cleared here.
+func _on_node_pressed(id: String) -> void:
+	_select(id)
+	_confirm_requires_release = false
+	_pointer_held = true
+
+
+func _on_node_released(_id: String) -> void:
+	_pointer_held = false
 
 
 func _select(id: String) -> void:
@@ -710,7 +731,9 @@ func _poll_back_input() -> void:
 ## player must move away and stop again to re-arm it).
 func _poll_hold(delta: float) -> void:
 	var state: int = _state_for(_selected_id)
-	var confirm_down: bool = _is_pressed(&"confirm")
+	# D146: the engine's emulated mouse from a finger does not drive the `confirm`
+	# action, so a finger held on a node counts as `confirm` held.
+	var confirm_down: bool = _is_pressed(&"confirm") or _pointer_held
 
 	if _confirm_requires_release and not confirm_down:
 		_confirm_requires_release = false
@@ -1008,6 +1031,8 @@ func _build_header(parent: Container) -> void:
 	_respec_view.custom_minimum_size = Vector2(RESPEC_WIDGET_SIZE, RESPEC_WIDGET_SIZE)
 	_respec_view.size = Vector2(RESPEC_WIDGET_SIZE, RESPEC_WIDGET_SIZE)
 	_respec_view.node_hovered.connect(_on_node_hovered)
+	_respec_view.node_pressed.connect(_on_node_pressed)
+	_respec_view.node_released.connect(_on_node_released)
 	_node_views[RESPEC_ID] = _respec_view
 	_nav_positions[RESPEC_ID] = Vector2(0, MAX_Y + 1)
 
@@ -1034,7 +1059,7 @@ func _build_header(parent: Container) -> void:
 	_back_button = Button.new()
 	_back_button.name = "BackButton"
 	_back_button.text = tr("SKILL_TREE_BACK")
-	_back_button.custom_minimum_size = Vector2(160, 56)
+	_back_button.custom_minimum_size = TouchUi.button_size(Vector2(160, 56))
 	_back_button.pressed.connect(func() -> void: back_requested.emit())
 	row.add_child(_back_button)
 
@@ -1054,6 +1079,8 @@ func _build_nodes() -> void:
 		var shape: int = UiShapeGlyph.Shape.TENT if is_root else _icon_shape_for(def)
 		view.configure(def.id, shape, _branch_color(def.branch), def.display_name)
 		view.node_hovered.connect(_on_node_hovered)
+		view.node_pressed.connect(_on_node_pressed)
+		view.node_released.connect(_on_node_released)
 		_position_node(view, def.grid_position, Vector2(ROOT_SIZE, ROOT_SIZE) if is_root else Vector2(SkillNodeView.NODE_SIZE, SkillNodeView.NODE_HEIGHT))
 		_node_views[def.id] = view
 		_nav_positions[def.id] = Vector2(def.grid_position)

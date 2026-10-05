@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://src/integration/prototype_integration.gd" id="1_integration"]
 [ext_resource type="PackedScene" path="res://scenes/main.tscn" id="2_main"]
@@ -24,6 +24,7 @@
 [ext_resource type="Script" path="res://src/run/run_flow_controller.gd" id="23_runflow"]
 [ext_resource type="Script" path="res://src/audio/music_player.gd" id="24_musicplayer"]
 [ext_resource type="AudioStream" path="res://assets/third_party/opengameart/music/battle_theme_a.ogg" id="25_musicstream"]
+[ext_resource type="Script" path="res://src/ui/touch_controls.gd" id="26_touch"]
 
 [node name="Prototype" type="Node2D"]
 script = ExtResource("1_integration")
@@ -42,6 +43,11 @@ script = ExtResource("6_camera")
 target = NodePath("..")
 
 [node name="Hud" parent="." instance=ExtResource("10_hud")]
+
+; Mobile port (D146, D147): the virtual joystick and the pause button, only
+; visible on a touchscreen (TouchUi). Own CanvasLayer so the HUD is untouched.
+[node name="TouchControls" type="CanvasLayer" parent="."]
+script = ExtResource("26_touch")
 
 [node name="ThreatFeedbackLayer" parent="." instance=ExtResource("11_threatfeedback")]
 
