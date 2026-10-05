@@ -135,7 +135,7 @@ const SWEEP_THRESHOLD_PX: float = 12.0
 ## Register sizes the collision circle above, never a rendered sprite's
 ## scale): how big the arrow art renders relative to Arrow.png's own 64x64
 ## frame, and how far behind it the faint trail ghost sits.
-const PROJECTILE_ART_SCALE: float = 0.6
+const PROJECTILE_ART_SCALE: float = 1.0 # one world texel scale (D157)
 const TRAIL_OFFSET_PX: float = 10.0
 
 ## See this file's header, "SimLoop / driven_externally". Defaults false
@@ -222,7 +222,7 @@ func _add_trail_sprite(main_sprite: Sprite2D) -> void:
 	trail.name = "Trail"
 	trail.texture = main_sprite.texture
 	trail.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	trail.scale = main_sprite.scale * 0.75
+	trail.scale = main_sprite.scale
 	trail.modulate = Color(1.0, 1.0, 1.0, 0.25)
 	trail.position = Vector2(-TRAIL_OFFSET_PX, 0.0)
 	add_child(trail)

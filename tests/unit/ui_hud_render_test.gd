@@ -40,7 +40,8 @@ const VIEWPORT_SIZE: Vector2i = Vector2i(1920, 1080)
 ## Not a Provisional Values Register number -- the Register has no HUD pill
 ## height row; "pill" itself is a UI-pass addition, not a pre-existing
 ## Register concept. This bound is local to this test.
-const MAX_SANE_PILL_HEIGHT_PX: float = 100.0
+## 112 (was 100): the pixel-grid type sizes (D156) put HUD values at 37 px (was 30), which adds 8 px to the two-row pills; the defect this test catches still starts at about 125 px.
+const MAX_SANE_PILL_HEIGHT_PX: float = 112.0
 
 var _hud: Hud
 var _viewport_size_saved: Vector2i

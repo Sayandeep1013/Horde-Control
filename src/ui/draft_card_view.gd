@@ -140,6 +140,33 @@ const RARITY_LABEL_TEXT: Dictionary = {
 	ContractEnums.Rarity.Epic: "EPIC",
 }
 
+## Art-consistency pass (D159). The card frame is the pack's own carved art
+## instead of a flat parchment box with a vector border: a PLAYER card is the
+## rounded parchment scroll (`Banners/Banner_Vertical.png`), a TOWER card the
+## squared carved panel (`Banners/Carved_9Slides.png`), which keeps the
+## Register's "rounded for Player, squared for Tower" frame-shape rule with
+## pack art. Rarity is the pack's ribbon in place of the old thin colour line
+## (Common yellow, Rare blue, Epic red; the word stays, so colour is never the
+## only signal). Selection is the pack's four corner pointers
+## (`Pointers/03-06.png`) plus the existing lift. `get_frame_style()` still
+## returns the logical per-card StyleBoxFlat (corner radius rounded vs squared)
+## that the Differentiation test reads; it is no longer what is drawn.
+const FRAME_PLAYER_TEXTURE: Texture2D = preload("res://assets/third_party/tiny_swords/UI/Banners/Banner_Vertical.png")
+const FRAME_PLAYER_REGION: Rect2 = Rect2(36, 31, 120, 131)
+const FRAME_TOWER_TEXTURE: Texture2D = preload("res://assets/third_party/tiny_swords/UI/Banners/Carved_9Slides.png")
+const RIBBON_TEXTURES: Dictionary = {
+	ContractEnums.Rarity.Common: preload("res://assets/third_party/tiny_swords/UI/Ribbons/Ribbon_Yellow_3Slides.png"),
+	ContractEnums.Rarity.Rare: preload("res://assets/third_party/tiny_swords/UI/Ribbons/Ribbon_Blue_3Slides.png"),
+	ContractEnums.Rarity.Epic: preload("res://assets/third_party/tiny_swords/UI/Ribbons/Ribbon_Red_3Slides.png"),
+}
+const BRACKET_TEXTURES: Array[Texture2D] = [
+	preload("res://assets/third_party/tiny_swords/UI/Pointers/03.png"),
+	preload("res://assets/third_party/tiny_swords/UI/Pointers/04.png"),
+	preload("res://assets/third_party/tiny_swords/UI/Pointers/05.png"),
+	preload("res://assets/third_party/tiny_swords/UI/Pointers/06.png"),
+]
+const BRACKET_REACH_PX: float = 10.0 ## how far a selection bracket sits outside the card
+
 ## Round 2 (review): a shadow, present only while highlighted, is a
 ## silhouette difference (visible with colour desaturated, unlike a colour
 ## swap alone) layered on top of the border-width/lift cues, not a
@@ -192,16 +219,58 @@ class RankPips extends Control:
 	func _draw() -> void:
 		if max_rank <= 0 or size.y <= 0.0:
 			return
-		var pip_radius: float = size.y * 0.5
+		# Pixel pips (D159): a square with the pack's 2 px ink border, filled
+		# for a held rank and empty otherwise; no antialiased circles.
+		var pip: float = roundf(size.y)
 		var gap: float = UiPalette.SPACE_S
 		for i in range(max_rank):
-			var cx: float = pip_radius + float(i) * (pip_radius * 2.0 + gap)
-			var color: Color = fill_color if i < filled else empty_color
-			draw_circle(Vector2(cx, pip_radius), pip_radius, color)
+			var x: float = float(i) * (pip + gap)
+			draw_rect(Rect2(x, 0.0, pip, pip), UiPalette.INK_PIXEL, true)
+			var inner := Rect2(x + 2.0, 2.0, pip - 4.0, pip - 4.0)
+			draw_rect(inner, fill_color if i < filled else UiPalette.PARCHMENT.darkened(0.15), true)
+
+
+## Corner pointers around the whole card while it is selected. A child of the
+## PanelContainer, so it is laid out inside the content margins; it draws
+## outward from there to the card's own corners (plus BRACKET_REACH_PX).
+class CardBrackets extends Control:
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var card: Control = get_parent() as Control
+		if card == null:
+			return
+		var r := Rect2(-position, card.size).grow(BRACKET_REACH_PX)
+		var t: Texture2D = BRACKET_TEXTURES[0]
+		var s: Vector2 = t.get_size()
+		var tint: Color = UiPalette.ACCENT
+		draw_texture(BRACKET_TEXTURES[0], (r.position - Vector2(s.x * 0.25, s.y * 0.25)).round(), tint)
+		draw_texture(BRACKET_TEXTURES[1], (Vector2(r.end.x - s.x * 0.75, r.position.y - s.y * 0.25)).round(), tint)
+		draw_texture(BRACKET_TEXTURES[2], (Vector2(r.position.x - s.x * 0.25, r.end.y - s.y * 0.75)).round(), tint)
+		draw_texture(BRACKET_TEXTURES[3], (r.end - Vector2(s.x * 0.75, s.y * 0.75)).round(), tint)
+
+
+static func _make_frame(tex: Texture2D, region: Rect2, ml: int, mt: int, mr: int, mb: int, content: Vector4) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = tex
+	sb.region_rect = region
+	sb.texture_margin_left = ml
+	sb.texture_margin_top = mt
+	sb.texture_margin_right = mr
+	sb.texture_margin_bottom = mb
+	sb.content_margin_left = content.x
+	sb.content_margin_top = content.y
+	sb.content_margin_right = content.z
+	sb.content_margin_bottom = content.w
+	return sb
 
 
 var _column: VBoxContainer
-var _accent_strip: ColorRect
+var _ribbon: PanelContainer
+var _frame_player: StyleBoxTexture
+var _frame_tower: StyleBoxTexture
+var _brackets: Control
 var _header_label: Label
 ## Declared `Label` (get_glyph_label()'s own return type, unchanged --
 ## tests/unit/draft_input_lockout_test.gd's seam) though the instance built
@@ -252,7 +321,13 @@ func _init() -> void:
 	# has no seam to show, by construction, so it replaces the texture
 	# entirely rather than trying to hide the seam.
 	_style = UiTheme.make_box(UiPalette.PARCHMENT, BORDER_COLOR_NORMAL, CORNER_SQUARED_PX, BORDER_WIDTH_NORMAL, UiPalette.SPACE_L)
-	add_theme_stylebox_override("panel", _style)
+	# The logical frame (`_style`) is what get_frame_style() returns; the drawn
+	# frame is one of two pack StyleBoxTextures (see the art header above).
+	_style.draw_center = false
+	_style.set_border_width_all(0)
+	_frame_player = _make_frame(FRAME_PLAYER_TEXTURE, FRAME_PLAYER_REGION, 20, 30, 20, 30, Vector4(30, 40, 30, 44))
+	_frame_tower = _make_frame(FRAME_TOWER_TEXTURE, Rect2(0, 0, 192, 192), 26, 26, 26, 26, Vector4(30, 30, 30, 30))
+	add_theme_stylebox_override("panel", _frame_tower)
 
 	_column = VBoxContainer.new()
 	_column.name = "Column"
@@ -264,11 +339,12 @@ func _init() -> void:
 	# "Colour-only distinctions"): a Player/Tower-tinted band ABOVE the
 	# shape/glyph/word signals that remain the actual differentiation, never
 	# the only one. Coloured per-card in setup().
-	_accent_strip = ColorRect.new()
-	_accent_strip.name = "AccentStrip"
-	_accent_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_accent_strip.custom_minimum_size = Vector2(0.0, UiPalette.SPACE_XS)
-	_column.add_child(_accent_strip)
+	_ribbon = PanelContainer.new()
+	_ribbon.name = "RarityRibbon"
+	_ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_ribbon.custom_minimum_size = Vector2(192, 64) # the ribbon sheet at native size
+	_column.add_child(_ribbon)
 
 	var header_row := HBoxContainer.new()
 	header_row.name = "HeaderRow"
@@ -309,9 +385,15 @@ func _init() -> void:
 	# of width and stacks "RARE" one letter per line (orchestrator fix).
 	_rarity_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_rarity_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_rarity_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_rarity_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_row.add_child(_rarity_label)
+	_ribbon.add_child(_rarity_label)
+
+	_brackets = CardBrackets.new()
+	_brackets.name = "SelectionBrackets"
+	_brackets.visible = false
+	add_child(_brackets)
 
 	# Clear hierarchy: name in VALUE weight (display font, larger than body).
 	_name_label = Label.new()
@@ -354,10 +436,16 @@ func _init() -> void:
 	_rank_label.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 0)
 	_column.add_child(_rank_label)
 
+	# The pack's parchment is light, so the card's own text is dark umber with no
+	# outline (D159); only the rarity word on its ribbon keeps the light text.
+	for label in [_header_label, _name_label, _effect_label, _rank_label]:
+		label.add_theme_color_override("font_color", UiPalette.TEXT_ON_PARCHMENT)
+		label.add_theme_constant_override("outline_size", 0)
+
 	# Second UI pass: rank pips, right below the text line they reinforce.
 	_rank_pips = RankPips.new()
 	_rank_pips.name = "RankPips"
-	_rank_pips.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 14.0)
+	_rank_pips.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 16.0)
 	_column.add_child(_rank_pips)
 
 
@@ -388,7 +476,8 @@ func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnum
 	shape_glyph.shape = UiShapeGlyph.Shape.TRIANGLE if is_player else UiShapeGlyph.Shape.SQUARE
 	shape_glyph.glyph_color = UiPalette.PLAYER if is_player else UiPalette.TOWER
 	_header_label.text = HEADER_PLAYER if is_player else HEADER_TOWER
-	_accent_strip.color = UiPalette.PLAYER if is_player else UiPalette.TOWER
+	add_theme_stylebox_override("panel", _frame_player if is_player else _frame_tower)
+	_ribbon.add_theme_stylebox_override("panel", UiTheme.make_ribbon_box_from(RIBBON_TEXTURES.get(_rarity, RIBBON_TEXTURES[ContractEnums.Rarity.Common]), 0, 6))
 	_rarity_label.text = String(RARITY_LABEL_TEXT.get(_rarity, "COMMON"))
 	_rarity_label.add_theme_color_override("font_color", _rarity_border_tint())
 
@@ -450,7 +539,9 @@ func _apply_highlight_style() -> void:
 	# highlighted card reads as a distinct silhouette (not only a colour
 	# change) even in a still frame with colour desaturated -- see class
 	# header and the HIGHLIGHT_SHADOW_* constants above.
-	_style.shadow_size = HIGHLIGHT_SHADOW_SIZE_PX if _highlighted else 0
+	_style.shadow_size = 0 # the logical style draws nothing (see the art header)
+	if _brackets != null:
+		_brackets.visible = _highlighted
 	_style.shadow_color = UiPalette.with_alpha(UiPalette.ACCENT, HIGHLIGHT_SHADOW_ALPHA)
 	_style.shadow_offset = Vector2(0.0, HIGHLIGHT_SHADOW_OFFSET_PX) if _highlighted else Vector2.ZERO
 

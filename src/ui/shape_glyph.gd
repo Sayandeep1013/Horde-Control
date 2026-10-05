@@ -49,6 +49,24 @@ class_name UiShapeGlyph
 ## CRYSTAL now means XP only.
 enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE, COIN, CRYSTAL, TENT, ARROW, BOOT, LOCK, CORE }
 
+## Art-consistency pass (D161): every shape except LOCK is now a pixel-art
+## token (assets/ui/icons/icon_<name>.png, project-made by
+## tools/art/make_pixel_icons.py: 32x32, 1 art px = 1 screen px, a 2 px ink
+## outline, baked light grey and tinted by `glyph_color`). It is drawn at its
+## native size, centred in the rect, never rescaled, so its pixel grain
+## matches the pack's. The vector code below remains the fallback for a
+## shape with no icon (LOCK) and for a missing file.
+const ICON_DIR: String = "res://assets/ui/icons/"
+const ICON_NAMES: Dictionary = {
+	Shape.TRIANGLE: "triangle", Shape.SQUARE: "square", Shape.HEART: "heart",
+	Shape.TOWER: "tower", Shape.RECYCLE: "recycle", Shape.COIN: "coin",
+	Shape.CRYSTAL: "crystal", Shape.TENT: "tent", Shape.ARROW: "arrow",
+	Shape.BOOT: "boot", Shape.CORE: "core",
+}
+static var _icon_cache: Dictionary = {}
+## Below this rect size (a rank pip, a tiny bullet) the 32 px token would not fit, so the vector shape is drawn instead.
+const ICON_MIN_RECT_PX: float = 20.0
+
 ## Fraction of the shorter side left empty around the shape.
 const INSET_FRACTION: float = 0.12
 
@@ -90,6 +108,11 @@ func _draw() -> void:
 ## Shared with custom-drawn controls (the hold rings) so every pool glyph on
 ## screen is the same geometry.
 static func draw_shape(canvas: CanvasItem, which: Shape, rect: Rect2, color: Color) -> void:
+	var icon: Texture2D = icon_for(which)
+	if icon != null and minf(rect.size.x, rect.size.y) >= ICON_MIN_RECT_PX:
+		var pos: Vector2 = (rect.get_center() - icon.get_size() * 0.5).round()
+		canvas.draw_texture(icon, pos, color)
+		return
 	match which:
 		Shape.TRIANGLE:
 			var points := PackedVector2Array([
@@ -120,6 +143,20 @@ static func draw_shape(canvas: CanvasItem, which: Shape, rect: Rect2, color: Col
 			_draw_lock(canvas, rect, color)
 		Shape.CORE:
 			_draw_core(canvas, rect, color)
+
+
+## The pixel-art token for `which`, or null when there is none.
+static func icon_for(which: Shape) -> Texture2D:
+	if not ICON_NAMES.has(which):
+		return null
+	if _icon_cache.has(which):
+		return _icon_cache[which]
+	var path: String = ICON_DIR + "icon_%s.png" % ICON_NAMES[which]
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path) as Texture2D
+	_icon_cache[which] = tex
+	return tex
 
 
 ## A classic double-lobe heart, sampled from the standard parametric heart

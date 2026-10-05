@@ -40,11 +40,15 @@ const TELEGRAPH_Z_INDEX: int = 40
 ## fills as the strike approaches, instead of a bare diamond on the body
 ## (which, drawn over the Tower, looked like red boxes stuck to it).
 const MARKER_HEIGHT_PX: float = 104.0
-const MARKER_SCALE: float = 0.55
+## Art-consistency pass (D161): the "!" and the ground ring are pixel art
+## drawn at native size (scale 1.0). The marker pulses by modulate (alpha),
+## never by scale, so its pixels never resample; the ring is a 6-frame sheet
+## whose frame follows the wind-up progress.
 const MARKER_PULSE_HZ: float = 6.0
-const MARKER_PULSE_AMOUNT: float = 0.18
-const GROUND_RING_RADIUS_PX: float = 26.0
-const GROUND_RING_SQUASH: float = 0.5
+const MARKER_PULSE_ALPHA: float = 0.25
+const RING_FRAMES: int = 6
+const RING_FRAME_SIZE: Vector2i = Vector2i(64, 32)
+const RING_TEXTURE: Texture2D = preload("res://assets/ui/telegraph_ring.png")
 ## UX review item 5 (D131): every telegraph, whatever the enemy, uses ONE
 ## danger colour; enemy identity stays in the sprite. The ground disc grows
 ## from nothing to the full ring as the wind-up reaches the strike moment.
@@ -61,6 +65,8 @@ const DANGER_COLOUR: Color = UiPalette.DANGER
 
 var _controller: EnemyController = null
 var _sprite: Sprite2D = null
+var _ring: Sprite2D = null
+var _ring_atlas: AtlasTexture = null
 
 
 func _ready() -> void:
@@ -75,8 +81,18 @@ func _ready() -> void:
 	_sprite.texture = texture
 	_sprite.modulate = DANGER_COLOUR
 	_sprite.position = Vector2(0.0, -MARKER_HEIGHT_PX)
-	_sprite.scale = Vector2.ONE * MARKER_SCALE
+	_sprite.scale = Vector2.ONE
 	add_child(_sprite)
+
+	_ring_atlas = AtlasTexture.new()
+	_ring_atlas.atlas = RING_TEXTURE
+	_ring_atlas.region = Rect2(Vector2.ZERO, Vector2(RING_FRAME_SIZE))
+	_ring = Sprite2D.new()
+	_ring.name = "Ring"
+	_ring.texture = _ring_atlas
+	_ring.modulate = DANGER_COLOUR
+	_ring.show_behind_parent = true
+	add_child(_ring)
 
 	visible = false
 
@@ -87,17 +103,11 @@ func _physics_process(_delta: float) -> void:
 	var active: bool = _controller != null and _controller.is_windup_active()
 	visible = active
 	if active:
-		var pulse: float = 1.0 + MARKER_PULSE_AMOUNT * sin(SimClock.now * TAU * MARKER_PULSE_HZ)
-		_sprite.scale = Vector2.ONE * MARKER_SCALE * pulse
-		queue_redraw()
-
-
-func _draw() -> void:
-	var progress: float = _controller.get_windup_progress() if _controller != null else 0.0
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, GROUND_RING_SQUASH))
-	draw_circle(Vector2.ZERO, maxf(1.0, GROUND_RING_RADIUS_PX * progress), Color(DANGER_COLOUR, 0.45))
-	draw_arc(Vector2.ZERO, GROUND_RING_RADIUS_PX, 0.0, TAU, 32, Color(DANGER_COLOUR, 0.9), 3.0)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		var pulse: float = 1.0 - MARKER_PULSE_ALPHA * (0.5 + 0.5 * sin(SimClock.now * TAU * MARKER_PULSE_HZ))
+		_sprite.modulate = Color(DANGER_COLOUR, pulse)
+		var progress: float = _controller.get_windup_progress()
+		var frame: int = clampi(int(round(progress * float(RING_FRAMES - 1))), 0, RING_FRAMES - 1)
+		_ring_atlas.region = Rect2(Vector2(frame * RING_FRAME_SIZE.x, 0), Vector2(RING_FRAME_SIZE))
 
 
 func get_sprite_for_test() -> Sprite2D:

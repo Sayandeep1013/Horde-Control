@@ -23,7 +23,9 @@ func test_xp_crystal_hue_matches_the_xp_bar() -> void:
 	for y in img.get_height():
 		for x in img.get_width():
 			var c: Color = img.get_pixel(x, y)
-			if c.a > 0.9 and c.s > 0.2:
+			# The 2 px ink outline (D161) is dark and blue-grey by design; the
+			# hue of the crystal itself is read from its lit, saturated pixels.
+			if c.a > 0.9 and c.s > 0.2 and c.v > 0.5:
 				hue_sum += c.h
 				n += 1
 	assert_int(n).is_greater(100)

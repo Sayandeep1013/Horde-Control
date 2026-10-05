@@ -81,7 +81,7 @@ const COLLISION_RADIUS_PX: float = 6.0
 ## whichever texture ends up wired there. Same scale the player's own
 ## projectile uses (src/combat/player_projectile.gd's PROJECTILE_ART_SCALE)
 ## for a consistent arrow size across both factions' shots.
-const PROJECTILE_ART_SCALE: float = 0.6
+const PROJECTILE_ART_SCALE: float = 1.0 # one world texel scale (D157)
 const TRAIL_OFFSET_PX: float = 10.0
 
 ## docs/20 > Physics & Collisions: the sweep threshold, verbatim ("exceeds
@@ -151,7 +151,7 @@ func _style_composed_sprite() -> void:
 	trail.name = "Trail"
 	trail.texture = sprite.texture
 	trail.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	trail.scale = sprite.scale * 0.75
+	trail.scale = sprite.scale
 	trail.modulate = Color(1.0, 1.0, 1.0, 0.25)
 	trail.position = Vector2(-TRAIL_OFFSET_PX, 0.0)
 	add_child(trail)

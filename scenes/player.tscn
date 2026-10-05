@@ -11,7 +11,7 @@
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/player_fire.ogg" id="10_playerfire"]
 [ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/player_damage.ogg" id="11_playerdamage"]
 [ext_resource type="SpriteFrames" path="res://assets/sprite_frames/player_archer.tres" id="12_spriteframes"]
-[ext_resource type="Texture2D" path="res://assets/sprites/soft_shadow.png" id="13_shadow"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/shadow_unit.png" id="13_shadow"]
 [ext_resource type="Script" path="res://src/player/player_overhead_bar.gd" id="14_overheadbar"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
@@ -61,8 +61,6 @@ registry_entity_path = NodePath("..")
 ; centered on the frame, feet ~28-30px below that centre at scale 1.0).
 [node name="Shadow" type="Sprite2D" parent="."]
 position = Vector2(0, 28)
-scale = Vector2(0.85, 0.85)
-modulate = Color(1, 1, 1, 0.6)
 texture = ExtResource("13_shadow")
 
 [node name="Visuals" type="Node2D" parent="."]

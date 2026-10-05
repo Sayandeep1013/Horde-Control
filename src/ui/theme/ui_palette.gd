@@ -32,6 +32,9 @@ class_name UiPalette
 ## from blue-grey toward brown/bronze.
 
 # --- Surfaces -------------------------------------------------------------
+## The pack's own ink colour (22,28,46), sampled from its sheets: the outline of
+## every pixel-art element, project-made art included (D160/D161).
+const INK_PIXEL: Color = Color(22.0 / 255.0, 28.0 / 255.0, 46.0 / 255.0)
 const INK: Color = Color("18110c")            ## deepest panel fill (was a blue-black; now a dark umber)
 const SURFACE: Color = Color("2a1d14")        ## raised panel / card fill (dark walnut)
 const SURFACE_HOVER: Color = Color("3c2a19")  ## hovered / highlighted row fill (warm brown)
@@ -175,13 +178,18 @@ const SLIDER_PAD: int = 5                     ## half-height of a slider track
 const FONT_PATH: String = "res://assets/ui/fonts/Jersey10-Regular.ttf"
 const FONT_WEIGHT_BODY: int = 500
 const FONT_WEIGHT_DISPLAY: int = 700
-## Sizes are tuned to Jersey 10, whose glyphs sit small in the em: about a
-## quarter larger than the same role needed in Pixelify Sans.
-const FONT_SIZE_SMALL: int = 20
-const FONT_SIZE_BODY: int = 26
-const FONT_SIZE_VALUE: int = 30
-const FONT_SIZE_HEADING: int = 40
-const FONT_SIZE_TITLE: int = 68
+## Sizes sit on Jersey 10's own pixel grid (art-consistency pass, D156):
+## one font pixel is 1400/75 = 18.67 px of em, so a size S draws every glyph
+## pixel S/18.67 screen px wide. Only 19 / 37 / 56 / 75 give an integer
+## multiple (1x / 2x / 3x / 4x; measured: stems 2 / 4 / 6 / 8 px wide, no
+## mixed widths). The old 26 / 30 / 68 sat between steps and drew stems of
+## uneven width. The font is imported with antialiasing, hinting and
+## subpixel positioning off so a glyph pixel stays a hard square.
+const FONT_SIZE_SMALL: int = 19
+const FONT_SIZE_BODY: int = 19
+const FONT_SIZE_VALUE: int = 37
+const FONT_SIZE_HEADING: int = 37
+const FONT_SIZE_TITLE: int = 75
 const OUTLINE_BODY: int = 4
 const OUTLINE_DISPLAY: int = 8
 const LINE_SPACING: int = 2

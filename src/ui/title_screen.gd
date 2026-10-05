@@ -102,7 +102,7 @@ const MENU_CARD_MIN_WIDTH: float = 460.0
 ## D147: the mobile layout draws the title on a 720 px tall logical canvas, so
 ## the logo shrinks, the card's band starts higher and the sub-panels' scroll
 ## areas are shorter. All 720-base px.
-const COMPACT_TITLE_FONT_SIZE: int = 96
+const COMPACT_TITLE_FONT_SIZE: int = 93 # 5x the font pixel grid (D156)
 const COMPACT_TITLE_TOP: float = 12.0
 const COMPACT_TITLE_BOTTOM: float = 132.0
 const COMPACT_TAGLINE_TOP: float = 134.0
@@ -340,7 +340,7 @@ func _build_title_block(parent: Control) -> void:
 	# One-off, deliberately larger than any other UiTheme.TITLE use in this
 	# project (a logo, not a menu heading) -- UiPalette's own header allows
 	# `theme_override_*` for "genuine one-offs only"; this is one.
-	title.add_theme_font_size_override("font_size", COMPACT_TITLE_FONT_SIZE if TouchUi.is_mobile_layout() else 128)
+	title.add_theme_font_size_override("font_size", COMPACT_TITLE_FONT_SIZE if TouchUi.is_mobile_layout() else 131)
 	title.add_theme_constant_override("outline_size", 12)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)

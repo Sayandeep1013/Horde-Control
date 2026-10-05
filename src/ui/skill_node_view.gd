@@ -104,8 +104,8 @@ signal node_released(id: String)
 const NODE_SIZE: float = 122.0 ## width
 const NODE_HEIGHT: float = 112.0
 const ICON_SIDE: int = 16
-const NAME_FONT_SIZE: int = 20
-const PRICE_FONT_SIZE: int = 18
+const NAME_FONT_SIZE: int = 19 # the font pixel grid (D156)
+const PRICE_FONT_SIZE: int = 19
 const PIP_SIZE: int = 8
 const PIP_GAP: int = 2
 const PRICE_ICON_SIDE: int = 16

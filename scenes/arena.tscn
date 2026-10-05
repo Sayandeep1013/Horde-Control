@@ -53,7 +53,7 @@
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Rocks/Rocks_02.png" id="15_waterrock2"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Rocks/Rocks_04.png" id="16_waterrock4"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Ground/Tilemap_Elevation.png" id="17_elevtex"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Ground/Shadows.png" id="18_shadowtex"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/shadow_band.png" id="18_shadowtex"]
 [ext_resource type="Script" path="res://src/environment/elevation_plateau.gd" id="19_elevscript"]
 [ext_resource type="Script" path="res://src/environment/pond_field.gd" id="20_pondscript"]
 [ext_resource type="Script" path="res://src/environment/animated_prop.gd" id="21_animprop"]
@@ -66,7 +66,7 @@
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Gold_Mine/GoldMine_Active.png" id="28_goldmine"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Knights/Buildings/House/House_Blue.png" id="29_knightshouse"]
 [ext_resource type="Script" path="res://src/environment/sand_network.gd" id="30_sandnetwork"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/sand_fill_tile.png" id="31_sandfill"]
+[ext_resource type="Script" path="res://src/environment/bridge_span.gd" id="32_bridgespan"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_north"]
 size = Vector2(4928, 64)
@@ -91,6 +91,91 @@ region_enabled = true
 region_rect = Rect2(0, 0, 4800, 3200)
 texture_repeat = 2
 
+; The island's edge: water beyond the true arena boundary (ArenaBounds'
+; own collision, untouched), replacing the old flat Kenney wall sprites.
+; North/South are wider than the arena so they cover the four corners;
+; West/East fill the remaining strip along the sides only -- the same
+; corner-coverage convention the walls they replace used.
+[node name="WaterNorthSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -1950)
+z_index = 0
+texture = ExtResource("3_water")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 6200, 700)
+texture_repeat = 2
+
+[node name="WaterSouthSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, 1950)
+z_index = 0
+texture = ExtResource("3_water")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 6200, 700)
+texture_repeat = 2
+
+[node name="WaterWestSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-2750, 0)
+z_index = 0
+texture = ExtResource("3_water")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 700, 3200)
+texture_repeat = 2
+
+[node name="WaterEastSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(2750, 0)
+z_index = 0
+texture = ExtResource("3_water")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 700, 3200)
+texture_repeat = 2
+
+; A few static water-rock accents (first bob frame only -- these sheets are
+; animated 8-frame loops, kept static here to bound scope; see task report).
+[node name="WaterRockA" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-2650, -1300)
+z_index = 0
+texture = ExtResource("14_waterrock1")
+region_enabled = true
+region_rect = Rect2(0, 0, 128, 128)
+
+[node name="WaterRockB" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(2600, 1250)
+z_index = 0
+texture = ExtResource("14_waterrock3")
+region_enabled = true
+region_rect = Rect2(0, 0, 128, 128)
+
+[node name="WaterRockC" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -2050)
+z_index = 0
+texture = ExtResource("14_waterrock1")
+region_enabled = true
+region_rect = Rect2(128, 0, 128, 128)
+
+[node name="WaterRockD" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, 2100)
+z_index = 0
+texture = ExtResource("14_waterrock3")
+region_enabled = true
+region_rect = Rect2(256, 0, 128, 128)
+
+; Animated foam right at the seam between the coastal sand and the water.
+[node name="FoamRing" type="Node2D" parent="."]
+z_index = 0
+script = ExtResource("8_foamring")
+foam_texture = ExtResource("9_foamtex")
+
 ; Organic sand: a few free patches and a coastal ring around the whole
 ; island. See src/environment/ground_detail.gd. The Tower plaza and every
 ; path used to live here too; they are now SandNetwork below (supervisor
@@ -104,10 +189,10 @@ flat_tilemap_texture = ExtResource("7_flattilemap")
 ; (including the bridge crossing), as one smooth Polygon2D + Line2D shape.
 ; See src/environment/sand_network.gd's own header for why this replaced
 ; tile-stamped circles/paths this session.
-[node name="SandNetwork" type="Node2D" parent="."]
+[node name="SandNetwork" type="TileMapLayer" parent="."]
 z_index = 0
 script = ExtResource("30_sandnetwork")
-sand_texture = ExtResource("31_sandfill")
+flat_tilemap_texture = ExtResource("7_flattilemap")
 plaza_radius_px = 400.0
 landmark_clearings = Array[Vector2]([Vector2(0, -640), Vector2(1800, -1300), Vector2(1550, 950), Vector2(-1850, 1180)])
 landmark_clearing_radii = Array[float]([140.0, 260.0, 170.0, 220.0])
@@ -152,7 +237,7 @@ prop_count = 160
 cluster_count = 10
 props_per_cluster = 4
 avoid_centers = Array[Vector2]([Vector2(0, -640), Vector2(1800, -1300), Vector2(1550, 950), Vector2(-1850, 1180), Vector2(-1150, -1080), Vector2(1500, 620), Vector2(-1750, 250), Vector2(300, 950), Vector2(700, -1200), Vector2(-950, -150)])
-avoid_radii = Array[float]([160.0, 320.0, 220.0, 280.0, 320.0, 340.0, 300.0, 280.0, 210.0, 230.0])
+avoid_radii = Array[float]([160.0, 320.0, 220.0, 280.0, 320.0, 340.0, 300.0, 330.0, 260.0, 270.0])
 textures = Array[Texture2D]([ExtResource("5_deco01"), ExtResource("5_deco01"), ExtResource("5_deco02"), ExtResource("5_deco02"), ExtResource("5_deco03"), ExtResource("5_deco03"), ExtResource("5_deco04"), ExtResource("5_deco04"), ExtResource("5_deco05"), ExtResource("5_deco05"), ExtResource("5_deco06"), ExtResource("5_deco06"), ExtResource("5_deco07"), ExtResource("5_deco07"), ExtResource("5_deco08"), ExtResource("5_deco08"), ExtResource("5_deco09"), ExtResource("5_deco09"), ExtResource("5_deco10"), ExtResource("5_deco10"), ExtResource("5_deco11"), ExtResource("5_deco11"), ExtResource("5_deco12"), ExtResource("5_deco13"), ExtResource("5_deco14"), ExtResource("5_deco15")])
 
 ; Animated tree groves clustered toward the edges. See
@@ -165,7 +250,7 @@ rim_cluster_count = 4
 rim_trees_per_cluster = 6
 lone_tree_count = 10
 avoid_centers = Array[Vector2]([Vector2(0, -640), Vector2(1800, -1300), Vector2(1550, 950), Vector2(-1850, 1180), Vector2(-1150, -1080), Vector2(1500, 620), Vector2(-1750, 250), Vector2(300, 950), Vector2(700, -1200), Vector2(-950, -150)])
-avoid_radii = Array[float]([160.0, 320.0, 220.0, 280.0, 320.0, 340.0, 300.0, 280.0, 210.0, 230.0])
+avoid_radii = Array[float]([160.0, 320.0, 220.0, 280.0, 320.0, 340.0, 300.0, 330.0, 260.0, 270.0])
 
 ; Two grazing flocks (biome brief: "sheep flocks grazing"), hand-placed on
 ; open grass clear of every pond/plateau/landmark above.
@@ -287,106 +372,14 @@ shape = SubResource("RectangleShape2D_west")
 position = Vector2(2432, 0)
 shape = SubResource("RectangleShape2D_east")
 
-; The island's edge: water beyond the true arena boundary (ArenaBounds'
-; own collision, untouched), replacing the old flat Kenney wall sprites.
-; North/South are wider than the arena so they cover the four corners;
-; West/East fill the remaining strip along the sides only -- the same
-; corner-coverage convention the walls they replace used.
-[node name="WaterNorthSprite" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(0, -1950)
+; The bridge (biome brief: "one crossed by a bridge on a path"): the pack's
+; own vertical bridge piece at native scale and no rotation (BridgeSpan, D157),
+; over the water rows of PondField.pond_centers[0] at x=288 (the centre of the
+; path column SandNetwork.bridge_crossing_target lands in). Placed last so it
+; draws over PondField's water and shore wherever they meet.
+[node name="Bridge" type="Node2D" parent="."]
+position = Vector2(288, 960)
 z_index = 0
-texture = ExtResource("3_water")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 6200, 700)
-texture_repeat = 2
-
-[node name="WaterSouthSprite" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(0, 1950)
-z_index = 0
-texture = ExtResource("3_water")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 6200, 700)
-texture_repeat = 2
-
-[node name="WaterWestSprite" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(-2750, 0)
-z_index = 0
-texture = ExtResource("3_water")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 700, 3200)
-texture_repeat = 2
-
-[node name="WaterEastSprite" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(2750, 0)
-z_index = 0
-texture = ExtResource("3_water")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 700, 3200)
-texture_repeat = 2
-
-; A few static water-rock accents (first bob frame only -- these sheets are
-; animated 8-frame loops, kept static here to bound scope; see task report).
-[node name="WaterRockA" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(-2650, -1300)
-z_index = 0
-texture = ExtResource("14_waterrock1")
-region_enabled = true
-region_rect = Rect2(0, 0, 128, 128)
-
-[node name="WaterRockB" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(2600, 1250)
-z_index = 0
-texture = ExtResource("14_waterrock3")
-region_enabled = true
-region_rect = Rect2(0, 0, 128, 128)
-
-[node name="WaterRockC" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(0, -2050)
-z_index = 0
-texture = ExtResource("14_waterrock1")
-region_enabled = true
-region_rect = Rect2(128, 0, 128, 128)
-
-[node name="WaterRockD" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(0, 2100)
-z_index = 0
-texture = ExtResource("14_waterrock3")
-region_enabled = true
-region_rect = Rect2(256, 0, 128, 128)
-
-; Animated foam right at the seam between the coastal sand and the water.
-[node name="FoamRing" type="Node2D" parent="."]
-z_index = 0
-script = ExtResource("8_foamring")
-foam_texture = ExtResource("9_foamtex")
-
-; The bridge (biome brief: "one crossed by a bridge on a path"), spanning
-; PondField.pond_centers[0]'s narrow north-south neck (axes (230, 115), so
-; the path crossing at x=300 sees a gap of roughly 2*115=230px, plus up to
-; ~16% shoreline jitter). Bridge_All.png's row-0 frame (region 0,0,192,64)
-; is a complete horizontal deck with end posts; rotated 90 degrees so the
-; deck runs north-south along SandNetwork's bridge_crossing_target path,
-; and scaled on its local X (pre-rotation) axis to comfortably cover that
-; gap with a little overlap onto both banks. Placed last so it draws over
-; PondField's water/foam wherever they meet.
-[node name="Bridge" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(300, 950)
-rotation_degrees = 90.0
-scale = Vector2(1.4, 1.15)
-z_index = 0
+script = ExtResource("32_bridgespan")
 texture = ExtResource("22_bridgetex")
-region_enabled = true
-region_rect = Rect2(0, 0, 192, 64)
+length_px = 160.0

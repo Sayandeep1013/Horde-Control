@@ -154,20 +154,20 @@ static func _spawn_burst(container: Node, position: Vector2, dir: Vector2, tier:
 			burst.amount = randi_range(4, 6)
 			burst.initial_velocity_min = 40.0
 			burst.initial_velocity_max = 110.0
-			burst.scale_amount_min = 1.2
-			burst.scale_amount_max = 2.6
+			burst.scale_amount_min = 1.0
+			burst.scale_amount_max = 1.0
 		Tier.DEATH:
 			burst.amount = 18
 			burst.initial_velocity_min = 80.0
 			burst.initial_velocity_max = 240.0
-			burst.scale_amount_min = 2.2
-			burst.scale_amount_max = 5.0
+			burst.scale_amount_min = 1.0
+			burst.scale_amount_max = 1.0
 		_:
 			burst.amount = randi_range(6, 12)
 			burst.initial_velocity_min = 55.0
 			burst.initial_velocity_max = 160.0
-			burst.scale_amount_min = 1.6
-			burst.scale_amount_max = 3.6
+			burst.scale_amount_min = 1.0
+			burst.scale_amount_max = 1.0
 	burst.restart()
 	burst.emitting = true
 
@@ -242,16 +242,19 @@ static func _get_particle_texture() -> ImageTexture:
 
 # --- Ground splat decal ------------------------------------------------------
 
-static func _spawn_splat(container: Node, position: Vector2, big: bool) -> void:
+static func _spawn_splat(container: Node, position: Vector2, _big: bool) -> void:
 	var idx: int = _acquire_splat_slot(container)
 	if idx == -1:
 		return
 	var splat: Sprite2D = _splat_pool[idx] # safe: _acquire_splat_slot() guarantees a live, valid instance at this index before returning
 	splat.global_position = position + Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
 	splat.texture = _splat_textures[randi() % _splat_textures.size()]
-	splat.rotation = randf_range(0.0, TAU)
-	var s: float = randf_range(1.5, 2.1) if big else randf_range(0.8, 1.3)
-	splat.scale = Vector2(s, s)
+	# One world texel scale (D157): no rotation, no rescale. Variety comes from
+	# the four texture variants plus flips.
+	splat.rotation = 0.0
+	splat.flip_h = randf() < 0.5
+	splat.flip_v = randf() < 0.5
+	splat.scale = Vector2.ONE
 	splat.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	splat.visible = true
 

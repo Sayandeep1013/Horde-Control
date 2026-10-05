@@ -349,7 +349,7 @@ func test_tower_visuals_stage_and_ground_shadow_textures_are_all_non_null() -> v
 	for i in range(4):
 		assert_object(visuals.stage_textures[i]).append_failure_message("stage_textures[%d] is null -- broken resource path" % i).is_not_null()
 	assert_object(visuals.ground_shadow_texture).append_failure_message("TowerVisuals.ground_shadow_texture is null -- broken resource path").is_not_null()
-	assert_str(visuals.ground_shadow_texture.resource_path).contains("assets/sprites/tower/tower_ground_shadow.png")
+	assert_str(visuals.ground_shadow_texture.resource_path).contains("assets/third_party/tiny_swords/Derived/shadow_tower.png")
 	assert_object(visuals.destroyed_tower_texture).append_failure_message("TowerVisuals.destroyed_tower_texture is null -- broken resource path").is_not_null()
 	assert_object(visuals.destroyed_castle_texture).append_failure_message("TowerVisuals.destroyed_castle_texture is null -- broken resource path").is_not_null()
 	# The initial (stage 0, Base) texture must already be applied -- primed

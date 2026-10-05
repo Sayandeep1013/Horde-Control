@@ -2,42 +2,33 @@ extends Node2D
 class_name FoamRing
 
 ## Animated foam along the island's true edge (art pass, D102; biome brief:
-## "animated foam along the island edge (Foam.png 192x192 x8)"). Places a
-## line of AnimatedSprite2D instances right at the arena's real boundary
-## (`arena_size`'s own edge, the same rectangle `scenes/arena.tscn`'s Floor
-## and ArenaBounds already agree on) so the seam between the coastal sand
-## `GroundDetail` paints and the `Water*Sprite` tiles beyond it has motion,
-## not a hard cut.
+## "animated foam along the island edge (Foam.png 192x192 x8)").
 ##
-## SHARED SpriteFrames. Every instance plays the SAME SpriteFrames resource
-## (built once here, sliced from `Terrain/Water/Foam/Foam.png`), matching
-## this project's own "share SpriteFrames resources" performance rule
-## (scenery_scatter.gd's header) -- this file can place several dozen foam
-## sprites for the cost of one 8-frame texture set. Each instance starts on
-## a different frame (KeyedRng-seeded) so the whole ring does not pulse in
-## perfect unison.
+## Art-consistency pass (D158): the three Line2D "surf" bands this node used to
+## draw are gone. Foam.png is a ring drawn around a 64 px land tile, so, as in
+## pond_field.gd, the ring is cut into its nine 64 px sub-tiles and the one that
+## falls on each water cell next to the coast is placed there. That is the
+## pack's own convention (foam under the land, peeking out into the water),
+## done tile by tile so no foam ever lands on the island itself.
 ##
-## VISIBILITY. `camera_bounds_test.gd`'s own arena/view-scale numbers mean
-## the live camera's edge, at its most extreme clamp, lands exactly on the
-## arena boundary this ring sits on -- so this is the outermost dressing a
-## player can actually see, right where GroundDetail's coastal sand band
-## ends. It is placed here for that reason, not as unreachable set
-## dressing.
+## The land is the same cell rectangle GroundDetail paints (its coastal sand
+## ring runs to the arena edge), so the foam cells are the one-cell ring just
+## outside it. Corner cells use the diagonal sub-tile.
+##
+## DETERMINISM. Each sprite starts on a KeyedRng frame so the ring does not
+## pulse in unison.
 
 const FRAME_SIZE: int = 192
 const FRAME_COUNT: int = 8
+const TILE_SIZE: int = 64
 const ANIMATION_NAME: StringName = &"foam"
 const FPS: float = 6.0
-
-## Spacing between foam instances along an edge. Feel/density number, not
-## a Register number.
-const SPACING_PX: float = 176.0
 
 @export var foam_texture: Texture2D
 @export var arena_size: Vector2 = Vector2(4800.0, 3200.0)
 @export var seed_key: String = "arena_biome"
 
-var _frames: SpriteFrames = null
+var _frames: Dictionary = {} # Vector2i offset -> SpriteFrames
 
 
 func _ready() -> void:
@@ -46,57 +37,57 @@ func _ready() -> void:
 	if foam_texture == null:
 		push_warning("FoamRing has no foam_texture assigned; no foam will be placed.")
 		return
-	# Orchestrator rework: a drawn surf band along the coast instead of a row
-	# of 192 px foam sprites, which read as evenly spaced squares on a
-	# straight edge. Same treatment as pond_field.gd's surf.
 	var half: Vector2 = arena_size / 2.0
-	var corners: PackedVector2Array = PackedVector2Array([
-		Vector2(-half.x, -half.y), Vector2(half.x, -half.y),
-		Vector2(half.x, half.y), Vector2(-half.x, half.y), Vector2(-half.x, -half.y),
-	])
-	_band(corners, Color(0.9, 1.0, 0.98, 0.35), SURF_OUTER_WIDTH_PX)
-	_band(corners, Color(0.9, 1.0, 0.98, 0.55), SURF_MID_WIDTH_PX)
-	_band(corners, Color(0.95, 1.0, 1.0, 0.95), 4.0)
+	var min_land: Vector2i = FlatAutotile.world_to_cell(-half)
+	var max_land: Vector2i = FlatAutotile.world_to_cell(half - Vector2.ONE)
+	var rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "coast_foam"])
+	for cy in range(min_land.y - 1, max_land.y + 2):
+		for cx in range(min_land.x - 1, max_land.x + 2):
+			var cell: Vector2i = Vector2i(cx, cy)
+			if _is_land(cell, min_land, max_land):
+				continue
+			for off in _offsets_for(cell, min_land, max_land):
+				_place(cell, off, rng)
 
 
-const SURF_OUTER_WIDTH_PX: float = 56.0
-const SURF_MID_WIDTH_PX: float = 22.0
+static func _is_land(cell: Vector2i, min_land: Vector2i, max_land: Vector2i) -> bool:
+	return cell.x >= min_land.x and cell.x <= max_land.x and cell.y >= min_land.y and cell.y <= max_land.y
 
 
-func _band(points: PackedVector2Array, colour: Color, width: float) -> void:
-	var line: Line2D = Line2D.new()
-	line.points = points
-	line.width = width
-	line.default_color = colour
-	line.joint_mode = Line2D.LINE_JOINT_ROUND
-	add_child(line)
+func _offsets_for(cell: Vector2i, min_land: Vector2i, max_land: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if _is_land(cell + d, min_land, max_land):
+			out.append(-d)
+	for d in [Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]:
+		if _is_land(cell + d, min_land, max_land) and not _is_land(cell + Vector2i(d.x, 0), min_land, max_land) and not _is_land(cell + Vector2i(0, d.y), min_land, max_land):
+			out.append(-d)
+	return out
 
 
-func _build_frames() -> void:
-	_frames = SpriteFrames.new()
-	_frames.remove_animation(&"default")
-	_frames.add_animation(ANIMATION_NAME)
-	_frames.set_animation_loop_mode(ANIMATION_NAME, SpriteFrames.LOOP_LINEAR)
-	_frames.set_animation_speed(ANIMATION_NAME, FPS)
+func _place(cell: Vector2i, off: Vector2i, rng: RandomNumberGenerator) -> void:
+	var foam: AnimatedSprite2D = AnimatedSprite2D.new()
+	foam.sprite_frames = _frames_for_offset(off)
+	foam.animation = ANIMATION_NAME
+	foam.position = FlatAutotile.cell_center(cell)
+	foam.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	foam.frame = rng.randi_range(0, FRAME_COUNT - 1)
+	add_child(foam)
+	foam.play(ANIMATION_NAME)
+
+
+func _frames_for_offset(off: Vector2i) -> SpriteFrames:
+	if _frames.has(off):
+		return _frames[off]
+	var frames: SpriteFrames = SpriteFrames.new()
+	frames.remove_animation(&"default")
+	frames.add_animation(ANIMATION_NAME)
+	frames.set_animation_loop_mode(ANIMATION_NAME, SpriteFrames.LOOP_LINEAR)
+	frames.set_animation_speed(ANIMATION_NAME, FPS)
 	for i in FRAME_COUNT:
 		var atlas: AtlasTexture = AtlasTexture.new()
 		atlas.atlas = foam_texture
-		atlas.region = Rect2(i * FRAME_SIZE, 0, FRAME_SIZE, FRAME_SIZE)
-		_frames.add_frame(ANIMATION_NAME, atlas)
-
-
-func _line(from_pos: Vector2, to_pos: Vector2, rotation_deg: float, rng: RandomNumberGenerator) -> void:
-	var length: float = from_pos.distance_to(to_pos)
-	var count: int = maxi(1, int(length / SPACING_PX))
-	for i in range(count):
-		var t: float = (float(i) + 0.5) / float(count)
-		var pos: Vector2 = from_pos.lerp(to_pos, t)
-		var foam: AnimatedSprite2D = AnimatedSprite2D.new()
-		foam.sprite_frames = _frames
-		foam.animation = ANIMATION_NAME
-		foam.position = pos
-		foam.rotation_degrees = rotation_deg
-		foam.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		foam.frame = rng.randi_range(0, FRAME_COUNT - 1)
-		add_child(foam)
-		foam.play(ANIMATION_NAME)
+		atlas.region = Rect2(i * FRAME_SIZE + (1 + off.x) * TILE_SIZE, (1 + off.y) * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+		frames.add_frame(ANIMATION_NAME, atlas)
+	_frames[off] = frames
+	return frames
