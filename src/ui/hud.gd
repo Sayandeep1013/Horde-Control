@@ -241,6 +241,7 @@ var _player_health_bar: HudBar
 var _player_hp_label: Label
 var _tower_health_bar: HudBar
 var _wave_label: Label
+var _announcer: RunAnnouncer
 var _wave_caption_label: Label
 var _scrap_label: HudTruncatableLabel
 var _full_badge: Label
@@ -293,7 +294,24 @@ func _ready() -> void:
 	if economy_state == null:
 		economy_state = HudEconomyState.new()
 	_build_ui()
+	_build_run_announcer()
 	_refresh_all()
+
+
+## UX review items 4 and 9: wave banners, the run objective and first-run
+## hints. The Wave Director sits beside the HUD in the run scene
+## (Main/WaveDirector); absent in isolated HUD tests, where nothing is bound.
+func _build_run_announcer() -> void:
+	_announcer = RunAnnouncer.new()
+	_announcer.name = "RunAnnouncer"
+	add_child(_announcer)
+	var parent: Node = get_parent()
+	if parent != null:
+		_announcer.bind_wave_director.call_deferred(parent.get_node_or_null("Main/WaveDirector"))
+
+
+func get_run_announcer() -> RunAnnouncer:
+	return _announcer
 
 
 func _process(_delta: float) -> void:

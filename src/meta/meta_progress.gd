@@ -388,6 +388,7 @@ func _reconcile(data: Dictionary) -> Dictionary:
 	profile["cores"] = clampi(int(data.get("cores", 0)), 0, CORE_WALLET_CAP)
 	profile["lifetime_cores"] = maxi(0, int(data.get("lifetime_cores", 0)))
 	profile["first_hub_seen"] = bool(data.get("first_hub_seen", false))
+	profile["first_run_hints_seen"] = bool(data.get("first_run_hints_seen", false))
 	profile["lifetime_kills"] = maxi(0, int(data.get("lifetime_kills", 0)))
 	profile["lifetime_scrap_collected"] = maxi(0, int(data.get("lifetime_scrap_collected", 0)))
 
@@ -478,6 +479,7 @@ func _fresh_profile() -> Dictionary:
 		},
 		"settled_run_ids": [],
 		"first_hub_seen": false,
+		"first_run_hints_seen": false, # UX review item 4 (D129); additive key, no schema bump
 		"flags": {
 			"last_save_failed": false,
 			"recovered_from_corruption": false,
@@ -714,6 +716,19 @@ func acknowledge_recovered_from_corruption() -> void:
 	if not bool(flags.get("recovered_from_corruption", false)):
 		return
 	flags["recovered_from_corruption"] = false
+	_save()
+
+
+## UX review item 4 (D129): the three wave-1 hint toasts are shown until the
+## whole set has been shown once. Same one-time-flag shape as first_hub_seen.
+func is_first_run_hints_seen() -> bool:
+	return bool(_profile.get("first_run_hints_seen", false))
+
+
+func mark_first_run_hints_seen() -> void:
+	if is_first_run_hints_seen():
+		return
+	_profile["first_run_hints_seen"] = true
 	_save()
 
 

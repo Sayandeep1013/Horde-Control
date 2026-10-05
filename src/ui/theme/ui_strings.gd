@@ -42,6 +42,15 @@ const MESSAGES: Dictionary = {
 	"DRAFT_REROLL": "Reroll: R (%d left)",
 	"DRAFT_REROLL_NONE": "No rerolls left",
 
+	# UX review items 4 and 9 (D129/D130): run objective, first-run hints, wave banners.
+	"HINT_OBJECTIVE": "Protect yourself and the Tower - survive %d waves",
+	"HINT_OBJECTIVE_NO_COUNT": "Protect yourself and the Tower - survive every wave",
+	"HINT_AUTOFIRE": "Your bow fires automatically at the nearest goblin. Just move (WASD).",
+	"HINT_PICKUPS": "Walk over crystals (XP) and gold sacks (Scrap) to collect them.",
+	"HINT_ENEMIES": "Red torch goblins attack the Tower. Yellow TNT goblins hunt you. Purple barrels go for whichever is exposed.",
+	"BANNER_WAVE": "Wave %d",
+	"BANNER_SIEGE": "Siege incoming",
+
 	# D115 (no in-run shop): every CONSOLE_* key (Tower Console UI text) is
 	# removed along with the Console itself -- nothing left registers or
 	# reads them (verified by grep before removal).
