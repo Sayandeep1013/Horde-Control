@@ -1184,15 +1184,46 @@ func _build_ui() -> void:
 	column.add_child(_how_to_pick_label)
 
 
+## Feel pass (D155; Register > "Feel hooks" > "Draft fade"): the dim and cards
+## ease in and out instead of popping. Cosmetic only: `_draft_showing`, the
+## pause reason and all input state change at once, never behind the fade.
+const FADE_SECONDS: float = 0.15
+var _fade_tween: Tween = null
+
+
+func _kill_fade() -> void:
+	if _fade_tween != null and _fade_tween.is_valid():
+		_fade_tween.kill()
+	_fade_tween = null
+
+
 func _show_ui() -> void:
+	_kill_fade()
 	_root.visible = true
+	if DisplayServer.get_name() != "headless" and is_inside_tree():
+		_root.modulate.a = 0.0
+		_fade_tween = _root.create_tween()
+		_fade_tween.tween_property(_root, "modulate:a", 1.0, FADE_SECONDS)
+	else:
+		_root.modulate.a = 1.0
 	_refresh_reroll_text()
 	_build_card_views()
 
 
 func _hide_ui() -> void:
 	_draft_showing = false
-	_root.visible = false
+	_kill_fade()
+	if DisplayServer.get_name() != "headless" and is_inside_tree() and _root.visible:
+		_fade_tween = _root.create_tween()
+		_fade_tween.tween_property(_root, "modulate:a", 0.0, FADE_SECONDS)
+		_fade_tween.tween_callback(_finish_hide)
+	else:
+		_root.visible = false
+
+
+func _finish_hide() -> void:
+	if not _draft_showing:
+		_root.visible = false
 
 
 func _build_card_views() -> void:

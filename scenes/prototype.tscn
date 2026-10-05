@@ -38,9 +38,9 @@ script = ExtResource("1_integration")
 [node name="Player" parent="Main" instance=ExtResource("5_player")]
 position = Vector2(280, 0)
 
-[node name="GameCamera" type="Camera2D" parent="Main/Player" node_paths=PackedStringArray("target")]
+[node name="GameCamera" type="Camera2D" parent="Main" node_paths=PackedStringArray("target")]
 script = ExtResource("6_camera")
-target = NodePath("..")
+target = NodePath("../Player")
 
 [node name="Hud" parent="." instance=ExtResource("10_hud")]
 
@@ -124,7 +124,7 @@ wave_director_path = NodePath("../Main/WaveDirector")
 script = ExtResource("18_director")
 entity_spawner_path = NodePath("../EntitySpawner")
 tower_path = NodePath("../Tower")
-camera_path = NodePath("../Player/GameCamera")
+camera_path = NodePath("../GameCamera")
 ; Integration task (F04-04): the real DebugOverlay instance below, so
 ; Pressure, its escalation state and the health quadrant actually reach
 ; the overlay instead of only being reachable through the

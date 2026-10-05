@@ -57,6 +57,10 @@ const POSITION_SMOOTHING_SPEED: float = 8.0 # "Position smoothing speed" row
 const SCREEN_SHAKE_MAX: float = 12.0 # "Screen shake" row: "Max 12 px"
 const SCREEN_SHAKE_DECAY_TIME: float = 0.25 # "Screen shake" row: "decaying over 0.25 s"
 const ZOOM_EASE_TIME: float = 0.4 # "Zoom ease" row
+## "Screen shake noise frequency" row (feel pass, D152): the shake offset is
+## sampled from smooth noise at this rate instead of a fresh random value per
+## rendered frame, so it feels the same at 60 and 144 Hz.
+const SHAKE_NOISE_FREQUENCY_HZ: float = 30.0
 ## "Camera HUD margin" row (D141): screen px (1920x1080 canvas) the camera may
 ## scroll past each arena wall, so a player standing at the wall clears the
 ## HUD panels instead of sitting under them. Scaled to world px by view scale.
@@ -77,6 +81,21 @@ var _previous_target_position: Vector2 = Vector2.ZERO
 var _has_previous_target_position: bool = false
 var _trauma: float = 0.0
 var _shake_offset: Vector2 = Vector2.ZERO
+var _shake_time: float = 0.0
+## Last two physics-tick positions of `target`, sampled in `_physics_process`
+## at the LAST physics priority so they are the settled end-of-tick positions.
+## Godot 4.7 exposes no `get_global_transform_interpolated()` for 2D nodes, so
+## the camera reproduces it: lerp(previous tick, current tick, fraction).
+var _tick_previous: Vector2 = Vector2.ZERO
+var _tick_current: Vector2 = Vector2.ZERO
+var _interpolate_target: bool = false
+var _shake_noise: FastNoiseLite = null
+
+
+func _init() -> void:
+	# Before entering the tree, so Camera2D never switches itself to its
+	# physics-process callback on behalf of physics interpolation.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 
 ## D146/D147 (mobile): the window's `content_scale_factor` that `zoom` has
 ## already been divided by. 1.0 on desktop, so every reading of `zoom` there is
@@ -92,9 +111,25 @@ func _ready() -> void:
 	# (Register > "Lead/shake application" row).
 	position_smoothing_enabled = false
 	_sync_content_scale()
+	# Feel pass (D151): the camera is driven per RENDER frame in `_process`, so
+	# it opts out of physics interpolation, and it reads the target's
+	# interpolated transform instead. It lives beside the Player (not under it)
+	# so its transform is never derived from a parent that moves on the tick.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	process_callback = Camera2D.CAMERA2D_PROCESS_IDLE # the viewport follows the camera each render frame
+	process_physics_priority = 100000 # sample the target after every mover has ticked
+	_interpolate_target = bool(ProjectSettings.get_setting("physics/common/physics_interpolation", false))
 	if target != null:
-		_follow_position = target.global_position
-		_previous_target_position = target.global_position
+		_tick_previous = target.global_position
+		_tick_current = target.global_position
+	_shake_noise = FastNoiseLite.new()
+	_shake_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_shake_noise.frequency = 1.0
+	_shake_noise.seed = 7
+	if target != null:
+		var start: Vector2 = _target_render_position()
+		_follow_position = start
+		_previous_target_position = start
 		_has_previous_target_position = true
 	global_position = _clamp_to_arena_bounds(_follow_position)
 	_setup_vignette()
@@ -103,9 +138,14 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_sync_content_scale()
 	if target != null:
-		var target_pos: Vector2 = target.global_position
+		var target_pos: Vector2 = _target_render_position()
 		var velocity_estimate: Vector2 = Vector2.ZERO
-		if _has_previous_target_position and delta > 0.0:
+		if target is CharacterBody2D:
+			# Authoritative per-tick velocity: a finite difference of a ticked
+			# position reads 0 on tick-less frames and a multiple of the real
+			# speed on tick frames at any refresh rate other than 60 Hz.
+			velocity_estimate = (target as CharacterBody2D).velocity
+		elif _has_previous_target_position and delta > 0.0:
 			velocity_estimate = (target_pos - _previous_target_position) / delta
 		_previous_target_position = target_pos
 		_has_previous_target_position = true
@@ -124,6 +164,25 @@ func _process(delta: float) -> void:
 
 	var position_with_effects: Vector2 = _follow_position + _shake_offset
 	global_position = _clamp_to_arena_bounds(position_with_effects)
+
+
+func _physics_process(_delta: float) -> void:
+	if target == null:
+		return
+	_tick_previous = _tick_current
+	_tick_current = target.global_position
+
+
+## The target's position as it is DRAWN this frame: interpolated between the
+## last two physics ticks by the engine's interpolation fraction. While the
+## tree is paused no ticks are sampled, so it returns the settled position
+## instead of replaying the last step.
+func _target_render_position() -> Vector2:
+	if target == null:
+		return Vector2.ZERO
+	if not _interpolate_target or not is_inside_tree() or get_tree().paused:
+		return target.global_position
+	return _tick_previous.lerp(_tick_current, Engine.get_physics_interpolation_fraction())
 
 
 ## Keeps `zoom` divided by the window's content scale factor (see
@@ -149,6 +208,8 @@ func snap_to(pos: Vector2) -> void:
 	_follow_position = pos
 	_shake_offset = Vector2.ZERO
 	_trauma = 0.0
+	if target != null:
+		_previous_target_position = _target_render_position()
 	global_position = _clamp_to_arena_bounds(pos)
 
 
@@ -181,7 +242,11 @@ func _update_shake(delta: float) -> void:
 	# the shake eases out rather than cutting off abruptly at exactly 12 px.
 	_trauma = maxf(_trauma - (1.0 / SCREEN_SHAKE_DECAY_TIME) * delta, 0.0)
 	var magnitude: float = _trauma * _trauma * SCREEN_SHAKE_MAX
-	_shake_offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * magnitude
+	_shake_time += delta
+	var t: float = _shake_time * SHAKE_NOISE_FREQUENCY_HZ
+	var nx: float = clampf(_shake_noise.get_noise_2d(t, 0.0) * 1.5, -1.0, 1.0)
+	var ny: float = clampf(_shake_noise.get_noise_2d(t, 100.0) * 1.5, -1.0, 1.0)
+	_shake_offset = Vector2(nx, ny) * magnitude
 
 
 ## Sets the camera's view scale (Register > "View scale" row), clamped to

@@ -65,6 +65,7 @@ func test_idle_bob_fades_out_at_full_speed() -> void:
 # --- Squash-and-stretch --------------------------------------------------
 
 func test_stretches_along_motion_when_accelerating() -> void:
+	_animator.stretch_amount = 0.14 # shipped default is 0 (D154); exercise the opt-in effect
 	_animator.update_visuals(DELTA, Vector2.ZERO, REFERENCE_SPEED) # establish a zero baseline for the acceleration delta
 	_animator.update_visuals(DELTA, Vector2(REFERENCE_SPEED, 0.0), REFERENCE_SPEED) # a full jump in one tick == hard acceleration
 	var s: Vector2 = _animator.get_current_scale_for_test()
@@ -73,6 +74,7 @@ func test_stretches_along_motion_when_accelerating() -> void:
 
 
 func test_squashes_when_stopping() -> void:
+	_animator.stretch_amount = 0.14 # shipped default is 0 (D154); exercise the opt-in effect
 	_animator.update_visuals(DELTA, Vector2(REFERENCE_SPEED, 0.0), REFERENCE_SPEED) # cruising at full speed, zero acceleration
 	_animator.update_visuals(DELTA, Vector2(REFERENCE_SPEED, 0.0), REFERENCE_SPEED)
 	_animator.update_visuals(DELTA, Vector2.ZERO, REFERENCE_SPEED) # a full stop in one tick == hard deceleration
@@ -87,21 +89,33 @@ func test_scale_settles_back_to_neutral_at_steady_cruise() -> void:
 	assert_vector(s).append_failure_message("scale did not settle back to neutral (1,1) during a steady cruise with no acceleration, got %s" % str(s)).is_equal_approx(Vector2.ONE, Vector2(0.02, 0.02))
 
 
+func test_shipped_defaults_do_not_squash_or_rotate_the_pixel_sprite() -> void:
+	_animator.update_visuals(DELTA, Vector2.ZERO, REFERENCE_SPEED)
+	for _i in range(20):
+		_animator.update_visuals(DELTA, Vector2(REFERENCE_SPEED, 0.0), REFERENCE_SPEED)
+	_animator.update_visuals(DELTA, Vector2.ZERO, REFERENCE_SPEED)
+	assert_vector(_animator.get_current_scale_for_test()).is_equal_approx(Vector2.ONE, Vector2(0.0001, 0.0001))
+	assert_float(_animator.get_current_lean_for_test()).is_equal_approx(0.0, 0.0001)
+
+
 # --- Lean --------------------------------------------------------------------
 
 func test_leans_into_rightward_movement() -> void:
+	_animator.max_lean_radians = 0.12 # shipped default is 0 (D154); exercise the opt-in effect
 	for _i in range(30):
 		_animator.update_visuals(DELTA, Vector2(REFERENCE_SPEED, 0.0), REFERENCE_SPEED)
 	assert_float(_animator.get_current_lean_for_test()).append_failure_message("expected a positive lean while moving right, got %f" % _animator.get_current_lean_for_test()).is_greater(0.0)
 
 
 func test_leans_into_leftward_movement_the_opposite_way() -> void:
+	_animator.max_lean_radians = 0.12 # shipped default is 0 (D154); exercise the opt-in effect
 	for _i in range(30):
 		_animator.update_visuals(DELTA, Vector2(-REFERENCE_SPEED, 0.0), REFERENCE_SPEED)
 	assert_float(_animator.get_current_lean_for_test()).append_failure_message("expected a negative lean while moving left, got %f" % _animator.get_current_lean_for_test()).is_less(0.0)
 
 
 func test_lean_never_exceeds_its_configured_maximum() -> void:
+	_animator.max_lean_radians = 0.12 # shipped default is 0 (D154); exercise the opt-in effect
 	for _i in range(60):
 		_animator.update_visuals(DELTA, Vector2(REFERENCE_SPEED, 0.0), REFERENCE_SPEED)
 	assert_float(absf(_animator.get_current_lean_for_test())).is_less_equal(_animator.max_lean_radians + 0.001)
@@ -194,3 +208,50 @@ func test_hurtbox_damage_triggers_the_hit_flash_through_player() -> void:
 	await get_tree().physics_frame
 
 	assert_that(sprite.modulate).append_failure_message("taking damage through the real Hurtbox did not trigger the hit flash (sprite.modulate stayed %s, base was %s)" % [str(sprite.modulate), str(base)]).is_not_equal(base)
+
+
+# --- Run while moving; shoot pose only when standing (feel pass D154) ------
+
+func _make_animated_animator() -> PlayerAnimator:
+	var animator: PlayerAnimator = PlayerAnimatorScript.new()
+	var anim_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
+	anim_sprite.name = "Sprite2D"
+	var frames: SpriteFrames = SpriteFrames.new()
+	for anim_name in [&"idle", &"run", &"shoot_right", &"shoot_up", &"shoot_up_diag", &"shoot_down", &"shoot_down_diag"]:
+		if not frames.has_animation(anim_name):
+			frames.add_animation(anim_name)
+		frames.add_frame(anim_name, PlaceholderTexture2D.new())
+	anim_sprite.sprite_frames = frames
+	animator.add_child(anim_sprite)
+	animator.sprite_path = NodePath("Sprite2D")
+	add_child(animator)
+	auto_free(animator)
+	return animator
+
+
+func test_a_moving_player_keeps_the_run_animation_when_the_weapon_fires() -> void:
+	var animator: PlayerAnimator = _make_animated_animator()
+	var anim_sprite: AnimatedSprite2D = animator.get_node("Sprite2D")
+	for _i in range(5):
+		animator.update_visuals(DELTA, Vector2(REFERENCE_SPEED, 0.0), REFERENCE_SPEED)
+		animator.play_shoot(Vector2.UP, 0.5) # fires straight up while running right
+		animator.update_visuals(DELTA, Vector2(REFERENCE_SPEED, 0.0), REFERENCE_SPEED)
+		assert_str(String(anim_sprite.animation)).append_failure_message("moving archer showed %s instead of run" % anim_sprite.animation).is_equal("run")
+	assert_bool(anim_sprite.flip_h).append_failure_message("run must face the direction of travel").is_false()
+
+
+func test_a_standing_player_still_plays_the_shoot_pose() -> void:
+	var animator: PlayerAnimator = _make_animated_animator()
+	var anim_sprite: AnimatedSprite2D = animator.get_node("Sprite2D")
+	animator.update_visuals(DELTA, Vector2.ZERO, REFERENCE_SPEED)
+	animator.play_shoot(Vector2.UP, 0.5)
+	assert_str(String(anim_sprite.animation)).is_equal("shoot_up")
+
+
+func test_starting_to_move_cancels_a_holding_shoot_pose() -> void:
+	var animator: PlayerAnimator = _make_animated_animator()
+	var anim_sprite: AnimatedSprite2D = animator.get_node("Sprite2D")
+	animator.update_visuals(DELTA, Vector2.ZERO, REFERENCE_SPEED)
+	animator.play_shoot(Vector2.RIGHT, 0.5)
+	animator.update_visuals(DELTA, Vector2(REFERENCE_SPEED, 0.0), REFERENCE_SPEED)
+	assert_str(String(anim_sprite.animation)).is_equal("run")

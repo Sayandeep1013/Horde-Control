@@ -133,7 +133,7 @@ func _stage_threat_feedback() -> void:
 	print("ui_capture: threat on-screen=%s intensity=%.2f segment=%d" % [overlay.is_tower_on_screen(), overlay.get_display_intensity(), overlay.get_active_segment_index()])
 	await _shot("07_threat_vignette")
 
-	var camera: GameCamera = _proto.get_node("Main/Player/GameCamera") as GameCamera
+	var camera: GameCamera = _proto.get_node("Main/GameCamera") as GameCamera
 	for i in 40:
 		player.global_position = tower.global_position + Vector2(-1500, -700)
 		player.velocity = Vector2.ZERO

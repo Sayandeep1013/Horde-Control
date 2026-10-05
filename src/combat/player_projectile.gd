@@ -249,6 +249,7 @@ func _now() -> float:
 func launch(origin: Vector2, velocity: Vector2, damage: float, source: Variant, lifetime_seconds: float, pierce_count: int = 0) -> void:
 	global_position = origin
 	rotation = velocity.angle()
+	reset_physics_interpolation() # pooled: no streak from the previous shot
 	_velocity = velocity
 	_damage = damage
 	_source = source

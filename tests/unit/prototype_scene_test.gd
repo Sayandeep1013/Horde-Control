@@ -53,7 +53,7 @@ func before_test() -> void:
 	_main = _proto.get_node("Main")
 	_tower = _proto.get_node("Main/Tower") as Tower
 	_player = _proto.get_node("Main/Player") as Player
-	_camera = _proto.get_node("Main/Player/GameCamera") as GameCamera
+	_camera = _proto.get_node("Main/GameCamera") as GameCamera
 	_hud = _proto.get_node("Hud") as Hud
 	_threat_feedback = _proto.get_node("ThreatFeedbackLayer/Overlay") as ThreatFeedback
 	_ui_sfx = _proto.get_node("UiSfx") as UiSfx
@@ -116,6 +116,8 @@ func test_the_scene_hand_places_no_enemies_at_t0() -> void:
 
 func test_the_game_camera_target_is_the_player_and_follows_it() -> void:
 	assert_object(_camera.target).append_failure_message("GameCamera.target is null at runtime (P0-2)").is_same(_player)
+	assert_object(_camera.get_parent()).append_failure_message("GameCamera must be a sibling of the Player, not its child (D151: physics interpolation)").is_same(_player.get_parent())
+	assert_int(_camera.physics_interpolation_mode).is_equal(Node.PHYSICS_INTERPOLATION_MODE_OFF)
 	_camera.snap_to(_player.global_position)
 	_player.global_position = Vector2(1200, 0)
 	await get_tree().process_frame

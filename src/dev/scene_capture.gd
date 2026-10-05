@@ -68,6 +68,7 @@ func _ready() -> void:
 		var player: Node2D = instance.get_node_or_null("Main/Player") as Node2D
 		if player != null:
 			player.global_position = _player_pos
+			player.reset_physics_interpolation()
 	if _hold_action != "" and InputMap.has_action(_hold_action):
 		Input.action_press(_hold_action)
 
