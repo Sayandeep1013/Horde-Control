@@ -88,7 +88,7 @@ class_name PrototypeIntegration
 ## this propagation; named as a limitation in the evidence report rather
 ## than silently assumed solved.
 ##
-## D123 (review P0-3): the seed is no longer a constant -- every run was
+## D124 (review P0-3): the seed is no longer a constant -- every run was
 ## identical. Resolution order (`resolve_run_seed()`): (1) a non-negative
 ## `run_seed` set by a test/harness before the node enters the tree;
 ## (2) a `--seed=N` user argument (after `--`); (3) a fresh random seed.
@@ -154,6 +154,7 @@ func _ready() -> void:
 	_wire_pickup_system()
 	_wire_run_flow_controller()
 	_wire_wave_director_capacity_and_overlay()
+	_wire_feel_hooks()
 
 
 ## Meta layer core (build brief item 3: "add ONE application seam"). The
@@ -195,7 +196,7 @@ func _wire_run_seed() -> void:
 		_draft_controller.run_seed = run_seed
 
 
-## D123. Pure resolution of the run seed; see the `run_seed` doc above.
+## D124. Pure resolution of the run seed; see the `run_seed` doc above.
 static func resolve_run_seed(injected: int, user_args: PackedStringArray) -> int:
 	if injected >= 0:
 		return injected
@@ -453,6 +454,83 @@ func _wire_enemies() -> void:
 		return
 	for enemy in _enemies:
 		enemy.set_tower_reference(_tower)
+
+
+# --- D126 (review P1-9): feel hooks -- shake on damage, pickup/level-up SFX ---
+
+## Provisional Values Register > "Feel hooks (D126)": trauma added on a
+## Player hit / on Tower HEALTH loss (shield-only hits do not shake), and the
+## minimum sim-time gap between pickup ticks.
+const TRAUMA_PLAYER_HIT: float = 0.35
+const TRAUMA_TOWER_HEALTH_LOSS: float = 0.2
+const PICKUP_SFX_MIN_GAP_S: float = 0.06
+const PICKUP_TICK_STREAM: AudioStream = preload("res://assets/third_party/kenney/audio/ui/cycle.ogg")
+const LEVEL_UP_STREAM: AudioStream = preload("res://assets/third_party/kenney/audio/ui/confirm.ogg")
+
+var _last_tower_health: float = -1.0
+var _last_pickup_sfx_s: float = -1000.0
+var _pickup_player: AudioStreamPlayer = null
+var _level_up_player: AudioStreamPlayer = null
+
+
+func _wire_feel_hooks() -> void:
+	if _player != null:
+		var hurtbox: Node = _player.get_node_or_null("Hurtbox")
+		if hurtbox != null and hurtbox.has_signal("damage_received"):
+			hurtbox.damage_received.connect(_on_player_hurt)
+		var collector: Node = _player.get_node_or_null("Collector")
+		if collector != null and collector.has_signal("pickup_entered"):
+			collector.pickup_entered.connect(_on_pickup_collected)
+	if _tower != null and _tower.health != null:
+		_last_tower_health = _tower.health.get_current_health()
+		_tower.health.health_changed.connect(_on_tower_health_changed)
+	# The pickup tick lives in the pausable world; the level-up chime must be
+	# audible while the Draft has the tree paused, so it is ALWAYS-mode and
+	# sits outside `Main` (same placement rule as UiSfx).
+	_pickup_player = AudioStreamPlayer.new()
+	_pickup_player.name = "PickupTickPlayer"
+	_pickup_player.bus = "SFX"
+	_pickup_player.stream = PICKUP_TICK_STREAM
+	add_child(_pickup_player)
+	_level_up_player = AudioStreamPlayer.new()
+	_level_up_player.name = "LevelUpPlayer"
+	_level_up_player.bus = "UI"
+	_level_up_player.stream = LEVEL_UP_STREAM
+	_level_up_player.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_level_up_player)
+	if EventBus.has_signal("draft_opened") and not EventBus.draft_opened.is_connected(_on_draft_opened_sfx):
+		EventBus.draft_opened.connect(_on_draft_opened_sfx)
+
+
+func _exit_tree() -> void:
+	if EventBus.has_signal("draft_opened") and EventBus.draft_opened.is_connected(_on_draft_opened_sfx):
+		EventBus.draft_opened.disconnect(_on_draft_opened_sfx)
+
+
+func _on_player_hurt(_amount: float, _source: Variant, _hitbox: Node) -> void:
+	if _camera != null:
+		_camera.add_trauma(TRAUMA_PLAYER_HIT) # gated by Settings > Screen Shake inside add_trauma()
+
+
+func _on_tower_health_changed(current_health: float, _max_health: float) -> void:
+	if _last_tower_health >= 0.0 and current_health < _last_tower_health and _camera != null:
+		_camera.add_trauma(TRAUMA_TOWER_HEALTH_LOSS)
+	_last_tower_health = current_health
+
+
+func _on_pickup_collected(area: Area2D) -> void:
+	if not (area is Pickup) or _pickup_player == null:
+		return
+	var now_s: float = SimClock.now
+	if now_s - _last_pickup_sfx_s < PICKUP_SFX_MIN_GAP_S:
+		return
+	_last_pickup_sfx_s = now_s
+	_pickup_player.play()
+
+
+func _on_draft_opened_sfx(_timestamp: float) -> void:
+	if _level_up_player != null:
+		_level_up_player.play()
 
 
 func get_player() -> Player:

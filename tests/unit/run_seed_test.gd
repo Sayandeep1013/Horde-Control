@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 
-## D123 (review P0-3): the run seed is random per run, with an override for
+## D124 (review P0-3): the run seed is random per run, with an override for
 ## tests/harnesses (injected export, or a `--seed=N` user arg).
 
 const PrototypeScene: PackedScene = preload("res://scenes/prototype.tscn")
