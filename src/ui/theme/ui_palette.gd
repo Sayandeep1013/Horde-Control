@@ -32,6 +32,9 @@ class_name UiPalette
 ## from blue-grey toward brown/bronze.
 
 # --- Surfaces -------------------------------------------------------------
+## The pack's own ink colour (22,28,46), sampled from its sheets: the outline of
+## every pixel-art element, project-made art included (D160/D161).
+const INK_PIXEL: Color = Color(22.0 / 255.0, 28.0 / 255.0, 46.0 / 255.0)
 const INK: Color = Color("18110c")            ## deepest panel fill (was a blue-black; now a dark umber)
 const SURFACE: Color = Color("2a1d14")        ## raised panel / card fill (dark walnut)
 const SURFACE_HOVER: Color = Color("3c2a19")  ## hovered / highlighted row fill (warm brown)

@@ -130,7 +130,7 @@ func _init() -> void:
 	low_fill_color = UiPalette.DANGER
 	shield_color = UiPalette.SHIELD
 	background_color = UiPalette.with_alpha(UiPalette.INK, UiPalette.PANEL_ALPHA)
-	border_color = UiPalette.LINE_STRONG
+	border_color = UiPalette.INK_PIXEL
 	tick_color = UiPalette.TEXT
 
 
@@ -253,6 +253,16 @@ func get_shield_max_value() -> float:
 	return _shield_max_value
 
 
+## Art-consistency pass (D160): drawn as pixel art, not as anti-aliased
+## rounded StyleBoxFlats. The bar is a hard-edged ink border (the pack's ink
+## colour, `UiPalette.INK_PIXEL`) around square fills; the "rounded" corner of
+## the above-tick state is a two-pixel chamfer on the border's corners, and
+## the below-tick state is the plain square corner, so the border-SHAPE cue
+## (get_border_corner_radius() > 0 versus 0) is unchanged. Every edge is a
+## whole pixel, so nothing is resampled at any window size.
+const CHAMFER_PX: int = 2
+
+
 func _draw() -> void:
 	var box_size: Vector2 = size
 	if box_size.x <= 0.0 or box_size.y <= 0.0:
@@ -260,81 +270,64 @@ func _draw() -> void:
 	var fraction: float = get_fraction()
 	var below_tick: bool = is_below_tick()
 	var corner_radius: int = get_border_corner_radius()
-	var border_width: float = get_border_width()
+	var bw: float = get_border_width()
+	var notch: float = float(CHAMFER_PX) if corner_radius > 0 else 0.0
 
-	# Track: a rounded background whose corners square off in step with the
-	# border below the Register's 40% tick -- the whole bar reads as one
-	# shape changing, not a rounded fill sitting inside a differently-shaped
-	# frame.
-	var track := StyleBoxFlat.new()
-	track.bg_color = background_color
-	track.anti_aliasing = true
-	track.set_corner_radius_all(corner_radius)
-	draw_style_box(track, Rect2(Vector2.ZERO, box_size))
+	# Ink border (a chamfered or square solid), then the inner area on top.
+	_draw_chamfered(Rect2(Vector2.ZERO, box_size), border_color, notch)
+	var inner := Rect2(Vector2(bw, bw), box_size - Vector2(bw, bw) * 2.0)
+	if inner.size.x <= 0.0 or inner.size.y <= 0.0:
+		return
+	draw_rect(inner, background_color, true)
 
 	var fill_top: float = 0.0
-	var fill_height: float = box_size.y
+	var fill_height: float = inner.size.y
 	if enable_shield_segment:
-		fill_top = box_size.y * SHIELD_SEGMENT_HEIGHT_FRACTION
-		fill_height = box_size.y - fill_top
+		fill_top = inner.size.y * SHIELD_SEGMENT_HEIGHT_FRACTION
+		fill_height = inner.size.y - fill_top
 
 	var current_fill_color: Color = low_fill_color if below_tick else fill_color
+	var fill_w: float = round(inner.size.x * fraction)
 
-	# Cosmetic: a trailing "ghost" segment showing the fraction this bar
-	# most recently held, fading down to meet the new one over
-	# UiPalette.BAR_LAG seconds (advanced in _process()). Never read by any
-	# getter.
+	# Cosmetic trailing "ghost" segment (see _process()).
 	if _ghost_fraction > fraction + 0.001:
-		var ghost_rect := Rect2(Vector2(box_size.x * fraction, fill_top), Vector2(box_size.x * (_ghost_fraction - fraction), fill_height))
-		draw_style_box(_fill_box(UiPalette.with_alpha(current_fill_color, GHOST_ALPHA), 0, 0), ghost_rect)
+		var ghost_w: float = round(inner.size.x * (_ghost_fraction - fraction))
+		draw_rect(Rect2(inner.position + Vector2(fill_w, fill_top), Vector2(ghost_w, fill_height)), UiPalette.with_alpha(current_fill_color, GHOST_ALPHA), true)
 
 	if fraction > 0.0:
-		# Rounded on the leading (left) edge always; the trailing (cut) edge
-		# only rounds once the bar is completely full, so a partial fill's
-		# straight cut reads as a cut, not a rounded nub.
-		var right_radius: int = corner_radius if fraction >= 0.999 else 0
-		draw_style_box(_fill_box(current_fill_color, corner_radius, right_radius), Rect2(Vector2(0.0, fill_top), Vector2(box_size.x * fraction, fill_height)))
-		# Second UI pass: gain glow, a bright overlay on the fill's own region
-		# only, fading over UiPalette.XP_GLOW (see class header, "a gain glow,
-		# symmetric to the loss flash").
+		var fill_rect := Rect2(inner.position + Vector2(0.0, fill_top), Vector2(fill_w, fill_height))
+		draw_rect(fill_rect, current_fill_color, true)
+		# A one-pixel lighter top edge and a darker bottom edge: the pack's
+		# flat three-tone shading, replacing the old translucent gloss band.
+		if fill_rect.size.x > 0.0 and fill_rect.size.y > 4.0:
+			draw_rect(Rect2(fill_rect.position, Vector2(fill_rect.size.x, 2.0)), current_fill_color.lightened(0.25), true)
+			draw_rect(Rect2(fill_rect.position + Vector2(0.0, fill_rect.size.y - 2.0), Vector2(fill_rect.size.x, 2.0)), current_fill_color.darkened(0.25), true)
 		if _gain_glow_alpha > 0.0:
-			draw_style_box(_fill_box(UiPalette.with_alpha(UiPalette.GOLD, _gain_glow_alpha * FLASH_PEAK_ALPHA), corner_radius, right_radius), Rect2(Vector2(0.0, fill_top), Vector2(box_size.x * fraction, fill_height)))
+			draw_rect(fill_rect, UiPalette.with_alpha(UiPalette.GOLD, _gain_glow_alpha * FLASH_PEAK_ALPHA), true)
 
 	if enable_shield_segment and _max_value > 0.0:
-		# The shield strip is scaled against the HEALTH bar's own max, not the
-		# shield's own max, so "shield = 25% of Tower max health" (Register >
-		# Tower) reads as one quarter of the SAME bar length health uses -
-		# the two pools share one visual scale, per "overlaid ... on the
-		# health bar."
+		# The shield strip is scaled against the HEALTH bar's own max (see the
+		# class header), so both pools share one visual scale.
 		var shield_fraction: float = clampf(_shield_value / _max_value, 0.0, 1.0)
 		if shield_fraction > 0.0:
-			var shield_right_radius: int = corner_radius if shield_fraction >= 0.999 else 0
-			draw_style_box(_fill_box(shield_color, corner_radius, shield_right_radius), Rect2(Vector2.ZERO, Vector2(box_size.x * shield_fraction, fill_top)))
-
-	# Cosmetic: a subtle inner highlight band near the top of the whole
-	# track, independent of fill level, for a slight glossy read.
-	var highlight_height: float = maxf(1.0, box_size.y * 0.22)
-	var highlight_inset: float = border_width + 1.0
-	if box_size.x > highlight_inset * 2.0:
-		draw_rect(Rect2(Vector2(highlight_inset, highlight_inset), Vector2(box_size.x - highlight_inset * 2.0, highlight_height)), UiPalette.with_alpha(UiPalette.TEXT, HIGHLIGHT_ALPHA), true)
+			draw_rect(Rect2(inner.position, Vector2(round(inner.size.x * shield_fraction), fill_top)), shield_color, true)
 
 	if enable_health_tick_rule:
-		var tick_x: float = box_size.x * TICK_FRACTION
-		draw_line(Vector2(tick_x, 0.0), Vector2(tick_x, box_size.y), tick_color, 2.0)
+		var tick_x: float = round(inner.position.x + inner.size.x * TICK_FRACTION)
+		draw_rect(Rect2(Vector2(tick_x, inner.position.y), Vector2(2.0, inner.size.y)), tick_color, true)
 
-	# Cosmetic: a brief flash across the whole bar on a value LOSS, fading
-	# over UiPalette.BAR_FLASH seconds (advanced in _process()). Drawn last
-	# so it reads over the fill/shield/tick.
+	# Cosmetic: a brief flash across the whole bar on a value LOSS.
 	if _flash_alpha > 0.0:
-		draw_style_box(_fill_box(UiPalette.with_alpha(UiPalette.TEXT, _flash_alpha * FLASH_PEAK_ALPHA), corner_radius, corner_radius), Rect2(Vector2.ZERO, box_size))
+		draw_rect(inner, UiPalette.with_alpha(UiPalette.TEXT, _flash_alpha * FLASH_PEAK_ALPHA), true)
 
-	var border := StyleBoxFlat.new()
-	border.bg_color = Color(0, 0, 0, 0)
-	border.border_color = border_color
-	border.set_border_width_all(int(border_width))
-	border.set_corner_radius_all(corner_radius)
-	border.anti_aliasing = true
-	draw_style_box(border, Rect2(Vector2.ZERO, box_size))
+
+## A solid rect with its four corners cut by `notch` px (0 = a plain rect).
+func _draw_chamfered(rect: Rect2, color: Color, notch: float) -> void:
+	if notch <= 0.0:
+		draw_rect(rect, color, true)
+		return
+	draw_rect(Rect2(rect.position + Vector2(notch, 0.0), Vector2(rect.size.x - notch * 2.0, rect.size.y)), color, true)
+	draw_rect(Rect2(rect.position + Vector2(0.0, notch), Vector2(rect.size.x, rect.size.y - notch * 2.0)), color, true)
 
 
 ## A flat, borderless fill box with independently rounded left/right

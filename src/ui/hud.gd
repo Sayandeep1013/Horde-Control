@@ -164,8 +164,8 @@ const XP_BAR_MIN_SIZE: Vector2 = Vector2(400, 22)
 ## turret), SMALL for the two lighter fields (Scrap coin, XP recycle).
 ## HUD polish (third pass): scaled down alongside the bars above, for the
 ## same "compact, not huge" reason.
-const ICON_SIZE_LARGE: int = 26
-const ICON_SIZE_SMALL: int = 20
+const ICON_SIZE_LARGE: int = 32
+const ICON_SIZE_SMALL: int = 32
 ## The XP bar's round level emblem (task instruction: "the level shown in a
 ## round emblem") -- see hud_level_emblem.gd.
 const LEVEL_EMBLEM_SIZE: float = 40.0
@@ -865,7 +865,8 @@ func _build_scrap_field() -> Control:
 	# the only thing that matters, as intended.
 	_scrap_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_scrap_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_scrap_icon.custom_minimum_size = Vector2(ICON_SIZE_SMALL, ICON_SIZE_SMALL)
+	# Native size (45x47 crop), never rescaled: one texel scale (D157).
+	_scrap_icon.custom_minimum_size = Vector2(45, 47)
 	_scrap_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(_scrap_icon)
 
@@ -988,7 +989,7 @@ func _build_xp_field() -> Control:
 	# UiPalette.LINE_STRONG (bronze) sat too close in value to the ribbon's
 	# own khaki fabric behind it to read as a frame when the bar is empty.
 	# A bright accent border reads as a frame regardless of fill state.
-	_xp_bar.border_color = UiPalette.ACCENT
+	_xp_bar.border_color = UiPalette.INK_PIXEL
 	_xp_bar.custom_minimum_size = XP_BAR_MIN_SIZE
 	# SIZE_EXPAND_FILL: the bar itself stretches across the ribbon's full
 	# width (task instruction: "full-width bottom ribbon") instead of staying

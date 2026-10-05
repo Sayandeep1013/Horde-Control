@@ -150,7 +150,7 @@ const HOLD_CONFIRM_SECONDS: float = 1.0
 ## dimensions, not a reusable spacing/colour/font concept.
 ## TODO(ui-pass): promote to UiPalette if another surface needs the same
 ## card or ring size.
-const CARD_MIN_SIZE: Vector2 = Vector2(360, 300)
+const CARD_MIN_SIZE: Vector2 = Vector2(380, 380)
 const HOLD_RING_DIAMETER: float = 56.0
 ## `tr()` key for the heading Label; its English text is registered by
 ## src/ui/theme/ui_strings.gd.

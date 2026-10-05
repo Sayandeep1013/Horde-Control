@@ -1023,7 +1023,7 @@ func _build_header(parent: Container) -> void:
 	var cores_icon := UiShapeGlyph.new()
 	cores_icon.shape = UiShapeGlyph.Shape.CORE
 	cores_icon.glyph_color = UiPalette.CORES
-	cores_icon.set_side(28)
+	cores_icon.set_side(32)
 	cores_row.add_child(cores_icon)
 
 	_cores_label = Label.new()
@@ -1132,7 +1132,7 @@ func _build_detail_panel(parent: Container) -> void:
 	_detail_price_icon.name = "PriceIcon"
 	_detail_price_icon.shape = UiShapeGlyph.Shape.CORE
 	_detail_price_icon.glyph_color = UiPalette.CORES
-	_detail_price_icon.set_side(24)
+	_detail_price_icon.set_side(32)
 	price_row.add_child(_detail_price_icon)
 
 	_detail_price = Label.new()

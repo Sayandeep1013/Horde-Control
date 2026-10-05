@@ -162,6 +162,21 @@ static func make_ribbon_box(texture_path: String, content_margin_h: int = UiPale
 	return sb
 
 
+## `make_ribbon_box()` for a ribbon texture that is already loaded.
+static func make_ribbon_box_from(tex: Texture2D, content_margin_h: int = UiPalette.SPACE_L, content_margin_v: int = UiPalette.SPACE_XS) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = tex
+	sb.texture_margin_left = UiPalette.RIBBON_TEXTURE_MARGIN
+	sb.texture_margin_right = UiPalette.RIBBON_TEXTURE_MARGIN
+	sb.texture_margin_top = 0
+	sb.texture_margin_bottom = 0
+	sb.content_margin_left = content_margin_h
+	sb.content_margin_right = content_margin_h
+	sb.content_margin_top = content_margin_v
+	sb.content_margin_bottom = content_margin_v
+	return sb
+
+
 static func _make_font(weight: int) -> Font:
 	var base: Font = null
 	if ResourceLoader.exists(UiPalette.FONT_PATH):

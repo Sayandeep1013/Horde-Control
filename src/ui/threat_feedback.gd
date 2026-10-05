@@ -593,28 +593,78 @@ func _draw_offscreen_indicator() -> void:
 	# (Register: "changes both shape and colour") without losing the direction.
 	# Second UI pass: a directional arrow, not a plain circle -- points along
 	# `dir`, the exact same vector the vignette uses.
-	draw_colored_polygon(_arrow_points(pos, dir, ARROW_LENGTH + OUTLINE_EXTRA_WIDTH * 2.0, ARROW_WIDTH + OUTLINE_EXTRA_WIDTH * 2.0), outline_color)
-	draw_colored_polygon(_arrow_points(pos, dir, ARROW_LENGTH, ARROW_WIDTH), color)
+	_draw_pixel_pointer(pos, dir, color)
 	# Second UI pass: the Tower icon, in a small dark badge so it reads
 	# clearly over any background (task instruction: "with the tower icon").
 	# Sits INBOARD of the arrow (toward the screen centre), never
 	# past the screen edge.
 	var icon_pos: Vector2 = pos - dir * ICON_INSET
+	# Art-consistency pass (D160): a square pixel badge (2 px ink border), not
+	# AA circles. Low health: a pulsing square ring (the shape still changes,
+	# and still is not a rhombus, which means XP crystal only).
+	icon_pos = icon_pos.round()
+	var half: float = ICON_BADGE_RADIUS
 	if is_indicator_low_health():
-		# D142: a pulsing red RING (no rhombus: that shape means XP crystal only).
 		var pulse: float = 0.5 + 0.5 * sin(SimClock.now * TAU * LOW_RING_PULSE_HZ)
-		draw_circle(icon_pos, ICON_BADGE_RADIUS + 1.0, outline_color)
-		draw_circle(icon_pos, ICON_BADGE_RADIUS, UiPalette.with_alpha(UiPalette.INK, 0.9))
-		draw_arc(icon_pos, ICON_BADGE_RADIUS + 3.0 + pulse * 3.0, 0.0, TAU, 32, UiPalette.with_alpha(color, 0.55 + 0.45 * pulse), 3.0, true)
-		draw_arc(icon_pos, ICON_BADGE_RADIUS - 1.0, 0.0, TAU, 32, color, 3.0, true)
+		var grow: float = 4.0 + roundf(pulse * 4.0)
+		_draw_square_ring(icon_pos, half + grow, 4.0, UiPalette.with_alpha(color, 0.55 + 0.45 * pulse))
+		draw_rect(Rect2(icon_pos - Vector2(half + 2.0, half + 2.0), Vector2(half + 2.0, half + 2.0) * 2.0), UiPalette.INK_PIXEL, true)
+		draw_rect(Rect2(icon_pos - Vector2(half, half), Vector2(half, half) * 2.0), UiPalette.INK, true)
+		_draw_square_ring(icon_pos, half, 2.0, color)
 	else:
-		draw_circle(icon_pos, ICON_BADGE_RADIUS + 1.0, outline_color)
-		draw_circle(icon_pos, ICON_BADGE_RADIUS, UiPalette.with_alpha(UiPalette.INK, 0.85))
+		draw_rect(Rect2(icon_pos - Vector2(half + 2.0, half + 2.0), Vector2(half + 2.0, half + 2.0) * 2.0), UiPalette.INK_PIXEL, true)
+		draw_rect(Rect2(icon_pos - Vector2(half, half), Vector2(half, half) * 2.0), UiPalette.INK, true)
 	UiShapeGlyph.draw_shape(self, UiShapeGlyph.Shape.TOWER, Rect2(icon_pos - Vector2(ICON_SIZE, ICON_SIZE) * 0.5, Vector2(ICON_SIZE, ICON_SIZE)), color)
 	if has_recent_hit_arc():
 		var bearing: float = get_hit_arc_bearing_from_tower()
-		draw_arc(pos, HIT_ARC_RADIUS, bearing - HIT_ARC_HALF_WIDTH, bearing + HIT_ARC_HALF_WIDTH, HIT_ARC_SEGMENTS, outline_color, HIT_ARC_LINE_WIDTH + OUTLINE_EXTRA_WIDTH)
-		draw_arc(pos, HIT_ARC_RADIUS, bearing - HIT_ARC_HALF_WIDTH, bearing + HIT_ARC_HALF_WIDTH, HIT_ARC_SEGMENTS, UiPalette.with_alpha(UiPalette.TEXT, 0.9), HIT_ARC_LINE_WIDTH)
+		# Pixel dashes along the arc (4 px squares on a 2 px ink backing).
+		for i in range(HIT_ARC_SEGMENTS + 1):
+			var a: float = lerpf(bearing - HIT_ARC_HALF_WIDTH, bearing + HIT_ARC_HALF_WIDTH, float(i) / float(HIT_ARC_SEGMENTS))
+			var q: Vector2 = (pos + Vector2(cos(a), sin(a)) * HIT_ARC_RADIUS).round()
+			draw_rect(Rect2(q - Vector2(3.0, 3.0), Vector2(6.0, 6.0)), outline_color, true)
+		for i in range(HIT_ARC_SEGMENTS + 1):
+			var a2: float = lerpf(bearing - HIT_ARC_HALF_WIDTH, bearing + HIT_ARC_HALF_WIDTH, float(i) / float(HIT_ARC_SEGMENTS))
+			var q2: Vector2 = (pos + Vector2(cos(a2), sin(a2)) * HIT_ARC_RADIUS).round()
+			draw_rect(Rect2(q2 - Vector2(2.0, 2.0), Vector2(4.0, 4.0)), UiPalette.with_alpha(UiPalette.TEXT, 0.9), true)
+
+
+## Art-consistency pass (D160): the off-screen arrow is pack/pixel art drawn at
+## native size, snapped to the eight compass directions so a 90-degree turn is
+## the only rotation ever applied (a lossless turn of the pixels). The four
+## diagonals use the pack's own `UI/Pointers/01.png` cursor (which points
+## north-west); the four cardinals use the project-made east arrow
+## (assets/ui/icons/pointer_east.png, tools/art/make_pixel_icons.py).
+const POINTER_DIAGONAL: Texture2D = preload("res://assets/third_party/tiny_swords/UI/Pointers/01.png")
+const POINTER_DIAGONAL_REGION: Rect2 = Rect2(22, 17, 22, 30)
+const POINTER_CARDINAL: Texture2D = preload("res://assets/ui/icons/pointer_east.png")
+
+
+func _draw_pixel_pointer(pos: Vector2, dir: Vector2, color: Color) -> void:
+	var octant: int = posmod(int(round(dir.angle() / (PI * 0.25))), 8) # 0 = east, 2 = south (y down)
+	var quarter_turns: int
+	var tex: Texture2D
+	var region: Rect2
+	if octant % 2 == 1:
+		# Diagonal. The cursor points north-west = octant 5; turn it from there.
+		tex = POINTER_DIAGONAL
+		region = POINTER_DIAGONAL_REGION
+		quarter_turns = (octant - 5) / 2
+	else:
+		tex = POINTER_CARDINAL
+		region = Rect2(Vector2.ZERO, POINTER_CARDINAL.get_size())
+		quarter_turns = octant / 2
+	var half: Vector2 = (region.size * 0.5).round()
+	draw_set_transform(pos.round(), float(quarter_turns) * PI * 0.5, Vector2.ONE)
+	draw_texture_rect_region(tex, Rect2(-half, region.size), region, color)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+func _draw_square_ring(center: Vector2, half: float, width: float, color: Color) -> void:
+	var outer := Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0)
+	draw_rect(Rect2(outer.position, Vector2(outer.size.x, width)), color, true)
+	draw_rect(Rect2(outer.position + Vector2(0.0, outer.size.y - width), Vector2(outer.size.x, width)), color, true)
+	draw_rect(Rect2(outer.position + Vector2(0.0, width), Vector2(width, outer.size.y - width * 2.0)), color, true)
+	draw_rect(Rect2(outer.position + Vector2(outer.size.x - width, width), Vector2(width, outer.size.y - width * 2.0)), color, true)
 
 
 ## Second UI pass: the arrow's three points, `length` long and `width` wide
