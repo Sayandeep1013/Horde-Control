@@ -59,7 +59,10 @@ const MESSAGES: Dictionary = {
 	"PAUSE_MENU_TITLE": "Paused",
 	"PAUSE_MENU_RESUME": "Resume",
 	"PAUSE_MENU_SETTINGS": "Settings",
-	"PAUSE_MENU_MAIN_MENU": "Main Menu",
+	"PAUSE_MENU_MAIN_MENU": "Abandon run",
+	"PAUSE_MENU_ABANDON_TITLE": "Abandon run? Progress so far still earns Cores",
+	"PAUSE_MENU_ABANDON_CANCEL": "Keep playing",
+	"PAUSE_MENU_ABANDON_CONFIRM": "Abandon",
 
 	"SETTINGS_MENU_TITLE": "Settings",
 	"SETTINGS_MOVEMENT_ONLY": "Movement-only controls",

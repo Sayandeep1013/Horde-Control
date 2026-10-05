@@ -115,6 +115,7 @@ var _active: bool = false
 var _lockout_remaining: float = 0.0
 
 var _hold_up_armed: bool = false
+var _mouse_confirm_this_frame: bool = false ## UX review P1-9
 var _hold_up_progress: float = 0.0
 var _left_held: bool = false
 var _left_repeat_timer: float = 0.0
@@ -274,6 +275,7 @@ func _is_just_pressed(action: StringName) -> bool:
 
 
 func _clear_test_edges_for_frame() -> void:
+	_mouse_confirm_this_frame = false
 	if _use_test_input:
 		_test_just_pressed.clear()
 
@@ -329,8 +331,21 @@ func _cycle(step: int) -> void:
 
 
 func _poll_confirm_input() -> void:
-	if _is_just_pressed(&"confirm"):
+	# UX review P1-9 (D128): `confirm` also binds the left mouse button; a mouse
+	# press confirms through the clicked option's own gui_input instead, never
+	# the keyboard-highlighted option (and never twice).
+	if _is_just_pressed(&"confirm") and not _mouse_confirm_this_frame:
 		_confirm(_highlighted)
+
+
+func _input(event: InputEvent) -> void:
+	if _active and event is InputEventMouseButton and event.is_action_pressed(&"confirm"):
+		_mouse_confirm_this_frame = true
+
+
+## Test seam: flags a mouse-originated confirm for the current frame.
+func simulate_mouse_confirm_for_test() -> void:
+	_mouse_confirm_this_frame = true
 
 
 func _poll_hold_up_input(delta: float) -> void:

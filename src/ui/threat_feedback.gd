@@ -572,25 +572,26 @@ func _draw_offscreen_indicator() -> void:
 	var pos: Vector2 = center + Vector2(dir.x * radius.x, dir.y * radius.y)
 	var color: Color = get_indicator_color()
 	var outline_color: Color = UiPalette.TEXT_OUTLINE
-	if is_indicator_low_health():
-		# A slightly larger dark diamond drawn first, then the bright one on
-		# top, gives the bright shape a dark rim -- legible over any
-		# background, matching the arrow case below.
-		draw_colored_polygon(_diamond_points(pos, DIAMOND_HALF_EXTENT + OUTLINE_EXTRA_WIDTH), outline_color)
-		draw_colored_polygon(_diamond_points(pos, DIAMOND_HALF_EXTENT), color)
-	else:
-		# Second UI pass: a directional arrow, not a plain circle -- task
-		# instruction: "larger arrow at the screen edge". Points along `dir`,
-		# the exact same vector the vignette and the old circle already used.
-		draw_colored_polygon(_arrow_points(pos, dir, ARROW_LENGTH + OUTLINE_EXTRA_WIDTH * 2.0, ARROW_WIDTH + OUTLINE_EXTRA_WIDTH * 2.0), outline_color)
-		draw_colored_polygon(_arrow_points(pos, dir, ARROW_LENGTH, ARROW_WIDTH), color)
+	# UX review item 7 (D134): the arrow ALWAYS points at the Tower. Below the
+	# Register's 40% threshold it turns the (already red) low-health colour and
+	# a diamond badge is drawn behind the Tower icon, so the shape still changes
+	# (Register: "changes both shape and colour") without losing the direction.
+	# Second UI pass: a directional arrow, not a plain circle -- points along
+	# `dir`, the exact same vector the vignette uses.
+	draw_colored_polygon(_arrow_points(pos, dir, ARROW_LENGTH + OUTLINE_EXTRA_WIDTH * 2.0, ARROW_WIDTH + OUTLINE_EXTRA_WIDTH * 2.0), outline_color)
+	draw_colored_polygon(_arrow_points(pos, dir, ARROW_LENGTH, ARROW_WIDTH), color)
 	# Second UI pass: the Tower icon, in a small dark badge so it reads
 	# clearly over any background (task instruction: "with the tower icon").
 	# Sits INBOARD of the arrow/diamond (toward the screen centre), never
 	# past the screen edge.
 	var icon_pos: Vector2 = pos - dir * ICON_INSET
-	draw_circle(icon_pos, ICON_BADGE_RADIUS + 1.0, outline_color)
-	draw_circle(icon_pos, ICON_BADGE_RADIUS, UiPalette.with_alpha(UiPalette.INK, 0.85))
+	if is_indicator_low_health():
+		draw_colored_polygon(_diamond_points(icon_pos, DIAMOND_HALF_EXTENT + OUTLINE_EXTRA_WIDTH), outline_color)
+		draw_colored_polygon(_diamond_points(icon_pos, DIAMOND_HALF_EXTENT), color)
+		draw_colored_polygon(_diamond_points(icon_pos, DIAMOND_HALF_EXTENT - 5.0), UiPalette.with_alpha(UiPalette.INK, 0.9))
+	else:
+		draw_circle(icon_pos, ICON_BADGE_RADIUS + 1.0, outline_color)
+		draw_circle(icon_pos, ICON_BADGE_RADIUS, UiPalette.with_alpha(UiPalette.INK, 0.85))
 	UiShapeGlyph.draw_shape(self, UiShapeGlyph.Shape.TOWER, Rect2(icon_pos - Vector2(ICON_SIZE, ICON_SIZE) * 0.5, Vector2(ICON_SIZE, ICON_SIZE)), color)
 	if has_recent_hit_arc():
 		var bearing: float = get_hit_arc_bearing_from_tower()
