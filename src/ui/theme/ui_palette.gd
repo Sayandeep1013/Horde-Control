@@ -141,7 +141,7 @@ const SCRAP: Color = Color("d9894a")          ## Scrap, prices
 const GOLD: Color = Color("f4c430")           ## the Scrap icon's own coin colour; punch/glow accents that read as "treasure" rather than the cooler ACCENT gold
 const SUCCESS: Color = Color("7be08a")        ## victory, affordable
 ## Meta layer core (Hub/Skill Tree screen): the Cores currency's own colour, a
-## bright gold (D141; it was amethyst, which collided with the XP crystal's
+## bright gold (D142; it was amethyst, which collided with the XP crystal's
 ## lavender). Cores are told apart from the in-run Scrap pouch by SHAPE: a hex
 ## coin (UiShapeGlyph.Shape.CORE) versus the pouch, see docs/19 > "Symbol shapes".
 const CORES: Color = Color("ffd23f")

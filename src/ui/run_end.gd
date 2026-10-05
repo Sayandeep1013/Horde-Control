@@ -480,9 +480,9 @@ func _build_ui() -> void:
 	_settlement_box.visible = false
 	_frame.column.add_child(_settlement_box)
 
-	# D142: the run seed, small, for bug reports.
+	# D143: the run seed, small, for bug reports.
 	_seed_label = _make_field_label("SeedLabel", 400.0)
-	_seed_label.theme_type_variation = UiTheme.SMALL
+	_seed_label.theme_type_variation = UiTheme.DIM_PARCHMENT
 	_seed_label.visible = false
 	_frame.column.add_child(_seed_label)
 

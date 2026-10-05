@@ -416,7 +416,7 @@ func test_every_telegraph_visual_texture_is_non_null_and_carries_a_real_sprite()
 	for enemy in [_seeker, _hunter, _opportunist]:
 		var telegraph: TelegraphVisual = enemy.get_node("TelegraphVisual") as TelegraphVisual
 		assert_object(telegraph.texture).append_failure_message("%s's TelegraphVisual.texture is null" % enemy.name).is_not_null()
-		assert_str(telegraph.texture.resource_path).contains("third_party/kenney/telegraphs/telegraph_diamond.png")
+		assert_str(telegraph.texture.resource_path).contains("assets/ui/telegraph_exclaim.png") # D142: the "!" marker replaced the diamond
 		var sprite: Sprite2D = telegraph.get_sprite_for_test()
 		assert_object(sprite).is_not_null()
 		assert_object(sprite.texture).is_same(telegraph.texture)

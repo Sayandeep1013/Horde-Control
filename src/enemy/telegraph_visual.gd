@@ -2,7 +2,7 @@ extends Node2D
 class_name TelegraphVisual
 
 ## TelegraphVisual (integration task). Wires
-## `assets/ui/telegraph_exclaim.png` (a project-made red "!" glyph, D141; it replaced the
+## `assets/ui/telegraph_exclaim.png` (a project-made red "!" glyph, D142; it replaced the
 ## Kenney diamond because a rhombus now means XP crystal only) (docs/25_
 ## Asset_Pipeline.md) into the three enemy scenes, showing a sprite while
 ## the attached EnemyController's attack wind-up is active.

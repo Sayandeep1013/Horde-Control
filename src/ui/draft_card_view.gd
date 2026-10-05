@@ -146,6 +146,7 @@ const RARITY_LABEL_TEXT: Dictionary = {
 ## replacement for either. UiPalette has a colour and a spacing scale but no
 ## "shadow blur/offset" scale. TODO(ui-pass): promote to UiPalette if
 ## another surface wants the same elevation cue.
+const KEY_BADGE_MIN_SIZE: float = 48.0 ## px at the 1920x1080 canvas, "Draft footer and key badge" Register row (D145)
 const HIGHLIGHT_SHADOW_SIZE_PX: int = 10
 const HIGHLIGHT_SHADOW_OFFSET_PX: float = 3.0
 ## Not `UiPalette.with_alpha(UiPalette.ACCENT, ...)` directly -- a `const`
@@ -567,11 +568,14 @@ func set_key_badge(number: int) -> void:
 		_key_badge.name = "KeyBadge"
 		_key_badge.theme_type_variation = UiTheme.PILL
 		_key_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_key_badge.custom_minimum_size = Vector2(KEY_BADGE_MIN_SIZE, KEY_BADGE_MIN_SIZE) # D145: a real badge, not a sliver
+		_key_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		var label := Label.new()
 		label.name = "KeyBadgeLabel"
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		label.theme_type_variation = UiTheme.VALUE
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		_key_badge.add_child(label)
 		var header_row: Node = _glyph_label.get_parent()
 		header_row.add_child(_key_badge)

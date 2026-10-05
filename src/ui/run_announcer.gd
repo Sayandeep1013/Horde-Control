@@ -19,6 +19,9 @@ const HINT_SECONDS: float = 6.0
 const HINT_FIRST_DELAY_SECONDS: float = 6.0 ## after wave 1 opens (the objective line is up first)
 const HINT_GAP_SECONDS: float = 1.0 ## between one hint fading and the next appearing
 const FADE_SECONDS: float = 0.3
+## D145 (Register "Run announcement band" row): screen px at the 1920x1080 canvas.
+const BANNER_TOP_PX: float = 130.0
+const TOAST_TOP_PX: float = 240.0
 
 const HINT_KEYS: Array[String] = ["HINT_AUTOFIRE", "HINT_PICKUPS", "HINT_ENEMIES"]
 
@@ -43,16 +46,15 @@ func _ready() -> void:
 	_banner_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner_box.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_banner_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_banner_box.offset_top = 150.0 # below the HUD top row and the Wave ribbon, above the Tower
+	_banner_box.offset_top = BANNER_TOP_PX # below the HUD top row and the Wave ribbon, above the Tower
 	add_child(_banner_box)
 
 	_toast_box = VBoxContainer.new()
 	_toast_box.name = "ToastBox"
 	_toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_toast_box.alignment = BoxContainer.ALIGNMENT_END
-	_toast_box.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	_toast_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_toast_box.offset_bottom = -170.0 # clears the bottom XP ribbon
+	_toast_box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	_toast_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_toast_box.offset_top = TOAST_TOP_PX # D145: under the banner row, never over the Tower base at spawn
 	add_child(_toast_box)
 
 

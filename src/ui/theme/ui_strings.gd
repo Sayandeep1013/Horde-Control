@@ -27,7 +27,7 @@ const LOCALE: String = "en"
 const MESSAGES: Dictionary = {
 	"HUD_WAVE": "Wave",
 	"HUD_LEVEL": "Lv",
-	"HUD_SCRAP_CORES": "= %d Cores at run end",
+	"HUD_SCRAP_CORES": "~ %d Cores at run end",
 	"HUD_REROLLS": "Rerolls",
 	"HUD_FULL": "FULL",
 	"HUD_HOPPER": "hopper",

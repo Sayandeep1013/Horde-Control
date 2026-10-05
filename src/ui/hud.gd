@@ -834,7 +834,7 @@ func _build_scrap_field() -> Control:
 	scrap_inner.add_child(row)
 	_scrap_cores_label = Label.new()
 	_scrap_cores_label.name = "ScrapCoresLabel"
-	_scrap_cores_label.theme_type_variation = UiTheme.SMALL
+	_scrap_cores_label.theme_type_variation = &"" # D145: default Label = body size, bright text (was small dim text)
 	_scrap_cores_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_scrap_cores_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	scrap_inner.add_child(_scrap_cores_label)

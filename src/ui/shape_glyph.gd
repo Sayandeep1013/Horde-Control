@@ -44,7 +44,7 @@ class_name UiShapeGlyph
 ## "locked fog nodes as dim silhouettes with a lock"). Vitality already
 ## reuses the existing HEART shape and every Tower/Fortune node already uses
 ## TOWER/COIN -- no new shape needed for those three.
-## D141: CORE is the Cores currency's own icon (a gold hexagonal coin with an
+## D142: CORE is the Cores currency's own icon (a gold hexagonal coin with an
 ## inner hexagon); it is appended at the END (never renumbered). The rhombus
 ## CRYSTAL now means XP only.
 enum Shape { TRIANGLE, SQUARE, HEART, TOWER, RECYCLE, COIN, CRYSTAL, TENT, ARROW, BOOT, LOCK, CORE }
@@ -234,7 +234,7 @@ static func _draw_crystal(canvas: CanvasItem, rect: Rect2, color: Color) -> void
 	canvas.draw_colored_polygon(out, color)
 
 
-## D141: the Cores currency icon -- a hexagonal coin (flat-top hexagon, so it
+## D142: the Cores currency icon -- a hexagonal coin (flat-top hexagon, so it
 ## never reads as the XP rhombus) with a darker inner hexagon ring.
 static func _draw_core(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
 	var center: Vector2 = rect.get_center()

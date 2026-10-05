@@ -185,7 +185,7 @@ const ARROW_WIDTH: float = 22.0
 ## the screen centre) so it never crowds the literal screen edge.
 const ICON_BADGE_RADIUS: float = 17.0
 const ICON_SIZE: float = 20.0
-## D141: the off-screen Tower arrow stays inside the band between the top HUD
+## D142: the off-screen Tower arrow stays inside the band between the top HUD
 ## (Tower pill + Wave ribbon) and the bottom XP ribbon, in screen px at the
 ## 1920x1080 canvas. Register "Threat arrow margins" row.
 const INDICATOR_MARGIN_TOP: float = 150.0
@@ -566,7 +566,7 @@ func _draw_vignette_segments() -> void:
 
 
 ## The indicator's screen position: on the 0.85-radius ellipse toward the
-## Tower, with y clamped clear of the top and bottom HUD bands (D141).
+## Tower, with y clamped clear of the top and bottom HUD bands (D142).
 func _indicator_pos(box_size: Vector2, dir: Vector2) -> Vector2:
 	var center: Vector2 = box_size / 2.0
 	var radius: Vector2 = box_size / 2.0 * 0.85
@@ -601,7 +601,7 @@ func _draw_offscreen_indicator() -> void:
 	# past the screen edge.
 	var icon_pos: Vector2 = pos - dir * ICON_INSET
 	if is_indicator_low_health():
-		# D141: a pulsing red RING (no rhombus: that shape means XP crystal only).
+		# D142: a pulsing red RING (no rhombus: that shape means XP crystal only).
 		var pulse: float = 0.5 + 0.5 * sin(SimClock.now * TAU * LOW_RING_PULSE_HZ)
 		draw_circle(icon_pos, ICON_BADGE_RADIUS + 1.0, outline_color)
 		draw_circle(icon_pos, ICON_BADGE_RADIUS, UiPalette.with_alpha(UiPalette.INK, 0.9))

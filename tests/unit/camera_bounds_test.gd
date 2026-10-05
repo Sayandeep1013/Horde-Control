@@ -52,7 +52,7 @@ func _assert_visible_rect_within_bounds(scale: float, target: Vector2, center: V
 	var half_extent: Vector2 = VIEWPORT_REF / (2.0 * Vector2(_camera.zoom.x, _camera.zoom.y))
 	var visible_min: Vector2 = _camera.global_position - half_extent
 	var visible_max: Vector2 = _camera.global_position + half_extent
-	# The view may extend past each wall by the HUD margin (D140), scaled by view scale.
+	# The view may extend past each wall by the HUD margin (D141), scaled by view scale.
 	var bound_min: Vector2 = center - ARENA_HALF - Vector2(GameCamera.HUD_MARGIN_SIDE, GameCamera.HUD_MARGIN_TOP) * scale
 	var bound_max: Vector2 = center + ARENA_HALF + Vector2(GameCamera.HUD_MARGIN_SIDE, GameCamera.HUD_MARGIN_BOTTOM) * scale
 	assert_float(visible_min.x).append_failure_message(
@@ -79,7 +79,7 @@ func test_visible_rect_stays_within_arena_bounds_across_the_full_view_scale_rang
 			_assert_visible_rect_within_bounds(scale, target)
 
 
-## D140: a player standing at each wall must sit clear of the HUD bands, i.e.
+## D141: a player standing at each wall must sit clear of the HUD bands, i.e.
 ## the wall is at least the HUD margin inside the visible rectangle.
 func test_a_player_at_each_wall_clears_the_hud_band() -> void:
 	for scale in VIEW_SCALES:

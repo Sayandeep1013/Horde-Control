@@ -1143,7 +1143,7 @@ func _build_ui() -> void:
 	var hold_caption := Label.new()
 	hold_caption.name = "HoldCaption"
 	hold_caption.text = tr("DRAFT_HOLD_CAPTION")
-	hold_caption.theme_type_variation = UiTheme.DIM
+	hold_caption.theme_type_variation = UiTheme.VALUE # D145: readable footer
 	hold_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hold_caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bottom_row.add_child(hold_caption)
@@ -1165,7 +1165,7 @@ func _build_ui() -> void:
 	_reroll_label.mouse_filter = Control.MOUSE_FILTER_STOP # clickable (UX review P0-4)
 	_reroll_label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_reroll_label.gui_input.connect(_on_reroll_gui_input)
-	_reroll_label.theme_type_variation = UiTheme.DIM
+	_reroll_label.theme_type_variation = UiTheme.VALUE # D145: readable footer
 	_reroll_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_reroll_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_reroll_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1177,7 +1177,7 @@ func _build_ui() -> void:
 	_how_to_pick_label = Label.new()
 	_how_to_pick_label.name = "HowToPick"
 	_how_to_pick_label.text = tr("DRAFT_HOW_TO_PICK")
-	_how_to_pick_label.theme_type_variation = UiTheme.DIM
+	_how_to_pick_label.theme_type_variation = UiTheme.VALUE # D145: readable footer (was dim body text)
 	_how_to_pick_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_how_to_pick_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_how_to_pick_label.mouse_filter = Control.MOUSE_FILTER_IGNORE

@@ -156,7 +156,7 @@ func _build_row(achievement: AchievementDefinition) -> void:
 	var reward_label := Label.new()
 	reward_label.name = "Reward"
 	reward_label.text = reward_text(achievement)
-	reward_label.theme_type_variation = UiTheme.VALUE
+	reward_label.theme_type_variation = UiTheme.DIM_PARCHMENT
 	reward_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	reward_label.custom_minimum_size = Vector2(ROW_LABEL_MIN_WIDTH, 0.0)
 	column.add_child(reward_label)
