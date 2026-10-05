@@ -309,7 +309,7 @@ func _build_run_announcer() -> void:
 	add_child(_announcer)
 	var parent: Node = get_parent()
 	if parent != null:
-		_announcer.bind_wave_director.call_deferred(parent.get_node_or_null("Main/WaveDirector"))
+		_announcer.bind_wave_director(parent.get_node_or_null("Main/WaveDirector")) # nodes already exist; binding now cannot miss wave 1's wave_opened
 
 
 func get_run_announcer() -> RunAnnouncer:

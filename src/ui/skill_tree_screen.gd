@@ -143,7 +143,7 @@ const MAX_Y: int = 5
 ## vertical room in the SAME 1080-px budget for the new branch-header-
 ## ribbon row and legend row this pass adds above/below the board.
 const CELL_W: float = 130.0
-const CELL_H: float = 104.0
+const CELL_H: float = 116.0
 const DETAIL_PANEL_WIDTH: float = 420.0
 ## The root's own footprint (polish pass item 2: "keep the root visibly
 ## special ... larger"). Skill Tree art pass: shrunk to keep the same
@@ -948,7 +948,7 @@ func _build_legend_row(parent: Container) -> void:
 
 	_add_legend_entry(row, UiPalette.TEX_BUTTON_HOVER, UiShapeGlyph.Shape.SQUARE, UiPalette.ACCENT, tr("SKILL_TREE_LEGEND_OWNED"))
 	_add_legend_entry(row, UiPalette.TEX_BUTTON_NORMAL, UiShapeGlyph.Shape.SQUARE, UiPalette.TEXT, tr("SKILL_TREE_LEGEND_AVAILABLE"))
-	_add_legend_entry(row, UiPalette.TEX_BUTTON_DANGER, UiShapeGlyph.Shape.SQUARE, UiPalette.DANGER, tr("SKILL_TREE_LEGEND_UNAFFORDABLE"))
+	_add_legend_entry(row, UiPalette.TEX_BUTTON_NORMAL, UiShapeGlyph.Shape.SQUARE, UiPalette.SCRAP, tr("SKILL_TREE_LEGEND_UNAFFORDABLE"))
 	_add_legend_entry(row, UiPalette.TEX_BUTTON_DISABLED, UiShapeGlyph.Shape.LOCK, UiPalette.TEXT_DIM, tr("SKILL_TREE_LEGEND_LOCKED"))
 
 
@@ -1054,19 +1054,19 @@ func _build_nodes() -> void:
 		var shape: int = UiShapeGlyph.Shape.TENT if is_root else _icon_shape_for(def)
 		view.configure(def.id, shape, _branch_color(def.branch), def.display_name)
 		view.node_hovered.connect(_on_node_hovered)
-		_position_node(view, def.grid_position, ROOT_SIZE if is_root else SkillNodeView.NODE_SIZE)
+		_position_node(view, def.grid_position, Vector2(ROOT_SIZE, ROOT_SIZE) if is_root else Vector2(SkillNodeView.NODE_SIZE, SkillNodeView.NODE_HEIGHT))
 		_node_views[def.id] = view
 		_nav_positions[def.id] = Vector2(def.grid_position)
 
 
-func _position_node(view: Control, grid_pos: Vector2i, size: float) -> void:
+func _position_node(view: Control, grid_pos: Vector2i, size: Vector2) -> void:
 	var col: int = grid_pos.x - MIN_X
 	var row: int = grid_pos.y - MIN_Y
 	view.position = Vector2(
-		col * CELL_W + (CELL_W - size) * 0.5,
-		row * CELL_H + (CELL_H - size) * 0.5,
+		col * CELL_W + (CELL_W - size.x) * 0.5,
+		row * CELL_H + (CELL_H - size.y) * 0.5,
 	)
-	view.size = Vector2(size, size)
+	view.size = size
 
 
 func _build_detail_panel(parent: Container) -> void:

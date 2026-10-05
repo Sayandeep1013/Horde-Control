@@ -43,7 +43,7 @@ func _ready() -> void:
 	_banner_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner_box.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_banner_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_banner_box.offset_top = 260.0
+	_banner_box.offset_top = 150.0 # below the HUD top row and the Wave ribbon, above the Tower
 	add_child(_banner_box)
 
 	_toast_box = VBoxContainer.new()

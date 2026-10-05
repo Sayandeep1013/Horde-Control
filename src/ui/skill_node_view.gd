@@ -89,13 +89,18 @@ signal node_hovered(id: String)
 ## the old NODE_SIZE/CELL_H. 92 (down from 112, matching CELL_H's own
 ## proportional shrink in skill_tree_screen.gd) keeps the same node/cell gap
 ## ratio while freeing roughly 18px x 7 rows = 126px of vertical room.
-const NODE_SIZE: float = 92.0
-const ICON_SIDE: int = 24
-const NAME_FONT_SIZE: int = 13
-const PRICE_FONT_SIZE: int = 12
-const PIP_SIZE: int = 10
+## UX review item 8 (D132): text raised to 20/18 px at the 1080 base (was 13/12,
+## about 8.7 px on a 720p screen) -- registered in the Register > "HUD" > "Skill
+## Tree node text". The node is now wider than it is tall (NODE_SIZE x
+## NODE_HEIGHT) so two lines of 20 px name text and the price row fit.
+const NODE_SIZE: float = 122.0 ## width
+const NODE_HEIGHT: float = 112.0
+const ICON_SIDE: int = 16
+const NAME_FONT_SIZE: int = 20
+const PRICE_FONT_SIZE: int = 18
+const PIP_SIZE: int = 8
 const PIP_GAP: int = 2
-const PRICE_ICON_SIDE: int = 13
+const PRICE_ICON_SIDE: int = 16
 
 ## Skill Tree art pass: how far the glow drawn in `_draw()` extends past the
 ## frame's own edge, and its two layered alphas (outer, fainter; inner,
@@ -132,13 +137,13 @@ var _glow_enabled: bool = false
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(NODE_SIZE, NODE_SIZE)
+	custom_minimum_size = Vector2(NODE_SIZE, NODE_HEIGHT)
 	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE # keyboard nav is driven by SkillTreeScreen's own cursor, not Godot focus traversal
 	mouse_entered.connect(func() -> void: node_hovered.emit(node_id))
-	_style = UiTheme.make_texture_box(UiPalette.TEX_BUTTON_DISABLED, UiPalette.NODE_TEXTURE_MARGIN, 10)
+	_style = UiTheme.make_texture_box(UiPalette.TEX_BUTTON_DISABLED, UiPalette.NODE_TEXTURE_MARGIN, 4)
 	add_theme_stylebox_override("panel", _style)
 	_build_children()
 
@@ -148,7 +153,7 @@ func _build_children() -> void:
 	column.name = "Column"
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.theme_type_variation = UiTheme.vbox("XS")
+	column.add_theme_constant_override("separation", 1) # tight: 20 px text has to fit the tablet
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(column)
 
@@ -160,7 +165,7 @@ func _build_children() -> void:
 
 	_name_label = Label.new()
 	_name_label.name = "NameLabel"
-	_name_label.theme_type_variation = UiTheme.SMALL
+	_name_label.theme_type_variation = UiTheme.VALUE # bright text (UX review item 8): the dim tan was unreadable on the teal tablet
 	_name_label.add_theme_font_size_override("font_size", NAME_FONT_SIZE)
 	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -299,10 +304,13 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 			_icon.glyph_color = UiPalette.TEXT_DIM
 		State.UNAFFORDABLE:
 			_price_label.text = str(price)
-			_price_label.add_theme_color_override("font_color", UiPalette.DANGER)
-			_price_icon.glyph_color = UiPalette.DANGER
-			_style.texture = load(UiPalette.TEX_BUTTON_DANGER) as Texture2D
-			_style.modulate_color = branch_tint
+			# UX review item 8 (D132): calmer than the old red-on-red -- the normal
+			# tablet, dimmed, with a muted amber price. Unaffordable is still told
+			# apart from Available by the price colour AND the dimmer frame.
+			_price_label.add_theme_color_override("font_color", UiPalette.SCRAP)
+			_price_icon.glyph_color = UiPalette.SCRAP
+			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D
+			_style.modulate_color = branch_tint * Color(0.72, 0.72, 0.72, 1.0)
 		State.BUYABLE:
 			_price_label.text = str(price)
 			_price_label.add_theme_color_override("font_color", UiPalette.SUCCESS)
