@@ -1,6 +1,26 @@
 # Next Session — Start Here
 
-## TODO - resume here (updated 2026-09-28)
+## TODO - resume here (updated 2026-10-06)
+
+**2026-10-05/06 session (author asked: game-design + UX review, then fix everything autonomously, release the current and the improved exe).** Done and on main:
+- **v0.1.0** released (the pre-review build). **v0.2.0** released (this session's improvements). Both verified with the `--dump-tree=Main/Environment` arena check (26 children).
+- Reviews: `docs/reviews/2026-10-05_GAME_DESIGN_REVIEW.md`, `..._UX_REVIEW.md`, `..._BALANCE_PASS.md`.
+- WP-A (D122-D126): camera actually follows the player (missing node_paths), random run seed (`--seed=N` override, shown on results), per-rank Draft rarity, same-stat bonuses sum, pre-placed t=0 enemies removed, screen shake wired, pickup + level-up sounds.
+- WP-B (D127-D134): Title/Hub buttons back on screen (bounds test), Tower fades when the player is behind it, Draft footer/key badges/hold-ring caption/reroll count, click confirms only the clicked card, run announcer (objective, wave-1 hints, wave banner, Siege warning), purple XP crystal, telegraph fill, HUD cleanup, "Lv 1", red Tower arrow, Abandon-run confirm, Scrap -> Cores readout, Skill Tree/Achievements legibility.
+- WP-C (D135-D139): **attack-slot leak** (dead pooled enemies kept their Tower/player slots, so after T4 nothing could hit the Tower - the real reason a zero-input bot won) fixed; per-wave enemy multipliers, shield regen only between waves, Siege DPS share 0.5, Siege bursts and lanes. Balance bot at `src/dev/balance_bot.gd`. Still bot loses 3/3, collect bot wins 2/3.
+- Blind Opus review (5/10, ACCEPT WITH FIXES) -> fix round (D140-D145): hints pause-aware, camera margin so the player never hides under the HUD, shape language (gold hex coin = Cores, red "!" = attack warning, red ring = low Tower; table in docs/19), honest card values wired, heal-card filter.
+- Full suite 896 cases, only the canary fails; schema_check and settings_check pass.
+
+**Open / deferred (not done):**
+1. Author decisions raised by the reviews: Scrap has no in-run use (a Tower-repair verb would revisit Author decision D115); rename Scrap to "Gold"?; hint toasts vs a real tutorial wave; F2 pseudo-localization in shipped builds (D78); MASTER_SDLC.md:264 vs :1349 Scrap settlement contradiction.
+2. Winning runs last ~6.3 min, under the 7-10 min aim; Tower margin at a win is thin. Re-run the balance bot with like-for-like pick policy.
+3. Not built: Siege spawn markers / Siege audio cue, hit-stop (D125), shield-break flash, wave-1 magnet-radius ring, Controls "How to Play" panel.
+4. The red "!" attack marker was never seen in a real capture (covered only by the scene test).
+5. Draft card body text is still light-on-parchment (low contrast); Skill Tree text ~13 px at 720p.
+6. Older items still open: Hub overlays keyboard-focus bleed check, `draft_controller.gd` held-input reset, docs/20 Tower Console prose, exit-time leak lines in single-suite runs, a one-off segfault at capture exit (did not repeat).
+
+## Previous TODO (2026-09-28)
+
 
 **2026-09-28 status:** items 1-3 done and on main (Settings merged after one blind Opus review round, all findings fixed; icon set; full suite on main 837 cases, only the canary fails). **Item 4 (export) was blocked by a permission check in auto mode** - the author has to allow or run the export. Items 5-6 wait on it. Release notes drafted (see item 6). Open follow-ups from the Settings work: the Hub's Skill Tree/Records/Achievements overlays may have the same keyboard-focus bleed Settings had; `src/ui/draft_controller.gd` still hard-resets held left/right at open (same pattern fixed in PausedChoiceBar); docs/20 lines 49 (InteractionRadius layer) and 75 (Console events in telemetry) still name the Tower Console.
 
