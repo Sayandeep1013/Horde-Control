@@ -199,7 +199,7 @@ func get_active_synergies(ability_id: String) -> Array[String]:
 	return AbilitySynergy.active_texts(ability_id, _owned.keys())
 
 
-## Armory keystone (docs/31 §7.1): a free Level-1 player ability from the
+## Kept for tests (D281): the Armory no longer calls this; it widens the Opening Pick. Formerly: a free Level-1 player ability from the
 ## unlocked pool. Goes through UpgradeSystem when present so the card's rank
 ## stays in step with the ability level. Returns the ability id ("" if none).
 func grant_free_random_ability(rng_seed: int = 0) -> String:

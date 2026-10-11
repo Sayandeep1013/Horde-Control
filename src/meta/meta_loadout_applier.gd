@@ -111,7 +111,8 @@ const WARLORD_TOWER_TINT: Color = Color(1.0, 0.88, 0.5)
 ## set_damage_taken_multiplier(m), set_crit_chance_bonus(f),
 ## set_skill_cooldown_multiplier(m), set_skill_damage_multiplier(m),
 ## set_ability_damage_multiplier(m), set_tower_ability_damage_multiplier(m),
-## set_repair_multiplier(m), grant_free_random_ability().
+## set_repair_multiplier(m). (grant_free_random_ability() stays on the AbilityManager for
+## tests but is no longer called here: Armory now widens the Opening Pick, D281.)
 ## Every setter takes the ABSOLUTE multiplier, so calling this twice is safe.
 
 
@@ -330,7 +331,7 @@ static func _tree_of(candidates: Array) -> SceneTree:
 ## only when its value is not neutral and only on a node found by group that has
 ## the method. Returns what it did: {"called": Array[String], "armory_granted":
 ## bool} so the caller can retry the grant later if the ability manager does not
-## exist yet. `grant_armory` is false on a retry that must not double-grant.
+## exist yet. `grant_armory` is accepted for compatibility and ignored (D281).
 static func apply_group_hooks(loadout: MetaLoadout, tree: SceneTree, grant_armory: bool) -> Dictionary:
 	var result: Dictionary = {"called": [] as Array[String], "armory_granted": false}
 	if loadout == null or tree == null:
@@ -353,8 +354,9 @@ static func apply_group_hooks(loadout: MetaLoadout, tree: SceneTree, grant_armor
 		_hook(tree, &"set_ability_damage_multiplier", [1.0 + ACHIEVEMENT_ABILITY_DAMAGE_BONUS], called)
 	if loadout.tower_ability_damage_bonus > 0.0:
 		_hook(tree, &"set_tower_ability_damage_multiplier", [1.0 + loadout.tower_ability_damage_bonus], called)
-	if grant_armory and loadout.armory_enabled and _hook(tree, &"grant_free_random_ability", [], called):
-		result["armory_granted"] = true
+	# Armory (docs/32 §A, D281): no longer grants a free random ability here. The skill
+	# node now makes the Opening Pick offer 4 abilities rolled Epic (RunEvents reads
+	# `loadout.armory_enabled`); `grant_armory` and "armory_granted" stay for callers.
 	if loadout.tower_regen_in_radius_hp > 0.0:
 		_hook(tree, &"set_passive_regen_hp_per_second", [loadout.tower_regen_in_radius_hp], called) # Warden
 	var repair_bonus: float = loadout.tower_repair_bonus

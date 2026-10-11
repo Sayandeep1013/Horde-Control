@@ -118,6 +118,8 @@ func _process(delta: float) -> void:
 	if _death_state != null and _trail_hp > _death_state.current_hp:
 		_trail_hp = maxf(_death_state.current_hp, _trail_hp - _death_state.max_hp * TRAIL_CATCHUP_FRACTION_PER_SECOND * delta)
 		redraw_needed = true
+	if not is_equal_approx(_drawn_focus, _focus_value()):
+		redraw_needed = true # Focus is charging or draining
 	if economy_state != null:
 		# XP can rise on any tick (credit_xp() has no signal this node could
 		# subscribe to instead); redrawing unconditionally while wired is as
@@ -133,11 +135,57 @@ var _drawn_visible: bool = true
 
 func _draw() -> void:
 	_drawn_visible = GameSettings.is_show_overhead_bars()
+	_drawn_focus = _focus_value()
+	_draw_focus_glow()
 	if not _drawn_visible:
 		return
 	_draw_hp_bar()
 	if economy_state != null:
 		_draw_xp_bar()
+	_draw_focus_arc()
+
+
+## --- v1.0 Focus (docs/32 §A2; Register "v1.0 Run Events" > Focus) ---------------
+## A small arc under the XP bar fills as the player stands still; at full Focus the
+## archer gets a soft gold glow. Read from the parent Player's `get_focus()` (0 when
+## the parent has none, e.g. a bare bar in a test).
+const FOCUS_ARC_RADIUS_PX: float = 15.0
+const FOCUS_ARC_WIDTH_PX: float = 3.0
+const FOCUS_ARC_START: float = deg_to_rad(35.0) ## a shallow smile: 35 to 145 degrees below the centre
+const FOCUS_ARC_END: float = deg_to_rad(145.0)
+const COLOR_FOCUS_TRACK: Color = Color(0.10, 0.09, 0.09, 0.80)
+const COLOR_FOCUS_FILL: Color = Color(1.0, 0.85, 0.30, 0.95)
+const COLOR_FOCUS_GLOW: Color = Color(1.0, 0.82, 0.25)
+const FOCUS_GLOW_CENTER: Vector2 = Vector2(0.0, -10.0) ## roughly the archer's body
+const FOCUS_GLOW_RADIUS_PX: float = 30.0
+
+var _drawn_focus: float = 0.0
+
+
+func _focus_value() -> float:
+	var parent: Node = get_parent()
+	return float(parent.get_focus()) if parent != null and parent.has_method("get_focus") else 0.0
+
+
+func _draw_focus_arc() -> void:
+	if _drawn_focus <= 0.001:
+		return
+	var center: Vector2 = Vector2(0.0, _xp_vertical_offset + xp_bar_height * 0.5 + gap_px - FOCUS_ARC_RADIUS_PX * 0.45)
+	draw_arc(center, FOCUS_ARC_RADIUS_PX, FOCUS_ARC_START, FOCUS_ARC_END, 16, COLOR_OUTLINE, FOCUS_ARC_WIDTH_PX + 2.0, true)
+	draw_arc(center, FOCUS_ARC_RADIUS_PX, FOCUS_ARC_START, FOCUS_ARC_END, 16, COLOR_FOCUS_TRACK, FOCUS_ARC_WIDTH_PX, true)
+	var end_angle: float = lerpf(FOCUS_ARC_START, FOCUS_ARC_END, clampf(_drawn_focus, 0.0, 1.0))
+	draw_arc(center, FOCUS_ARC_RADIUS_PX, FOCUS_ARC_START, end_angle, 16, COLOR_FOCUS_FILL, FOCUS_ARC_WIDTH_PX, true)
+
+
+func _draw_focus_glow() -> void:
+	if _drawn_focus < 1.0:
+		return
+	# A thin gold ring keeps the glow readable on pale sand as well as grass.
+	draw_arc(FOCUS_GLOW_CENTER, FOCUS_GLOW_RADIUS_PX, 0.0, TAU, 32, Color(COLOR_FOCUS_GLOW.r, COLOR_FOCUS_GLOW.g, COLOR_FOCUS_GLOW.b, 0.55), 2.0, true)
+	# Soft: three stacked translucent discs, brightest at the centre.
+	for i in 3:
+		var t: float = float(i) / 3.0
+		draw_circle(FOCUS_GLOW_CENTER, FOCUS_GLOW_RADIUS_PX * (1.0 - t * 0.5), Color(COLOR_FOCUS_GLOW.r, COLOR_FOCUS_GLOW.g, COLOR_FOCUS_GLOW.b, 0.12 + 0.08 * t))
 
 
 func _draw_hp_bar() -> void:

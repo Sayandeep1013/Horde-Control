@@ -19,7 +19,11 @@ extends Node
 ##     [--arena-wave=N] (at frame 3: spawn wave N's arena interactables by the normal rules)
 ##     [--boons=war,haste,ward,bounty] (at frame 3: claim those Shrine boons for a tray capture)
 ##     [--light-kegs=F] (at frame F: light every Powder Keg)
-##   (the v1.0 flags are dev-only helpers for WP-COMBAT / WP-ARENA captures, prototype scene only)
+##   (the v1.0 flags are dev-only helpers for WP-COMBAT captures, prototype scene only)
+##   [--event=opening|patrons_boon|sanctuary|blood_pact] [--flawless] [--armory]
+##   [--champion=pactbound] [--relic=lucky_coin]   (docs/32 run events: at frame 1 the
+##    Opening Pick that opens every run is answered with card 1, so captures that do not
+##    ask for an event run unpaused as before; --event then queues that event at once)
 ## Writes <out>_<frame>.png for each listed frame.
 ##
 ## `--player_pos=X,Y` and `--meta-profile-dir=`/`--debug-panel=` are not
@@ -57,6 +61,9 @@ var _pause_frame: int = -1 # WP-LOADOUT: opens the pause menu at this frame
 var _scene: Node = null
 var _has_player_pos: bool = false
 var _player_pos: Vector2 = Vector2.ZERO
+var _event_kind: String = ""
+var _event_flawless: bool = false
+var _event_armory: bool = false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS # keep counting frames while a Draft or menu pauses the tree
@@ -118,6 +125,14 @@ func _ready() -> void:
 			_scrap = int(arg.trim_prefix("--scrap="))
 		elif arg.begins_with("--hold_move="):
 			_hold_action = "move_" + arg.trim_prefix("--hold_move=")
+		elif arg.begins_with("--event="):
+			_event_kind = arg.trim_prefix("--event=")
+		elif arg == "--flawless":
+			_event_flawless = true
+		elif arg == "--armory":
+			_event_armory = true
+		elif arg.begins_with("--relic="):
+			RunConfig.relic_ids.append(arg.trim_prefix("--relic="))
 		elif arg.begins_with("--player_pos="):
 			var xy: PackedStringArray = arg.trim_prefix("--player_pos=").split(",")
 			if xy.size() == 2:
@@ -142,11 +157,30 @@ func _ready() -> void:
 	if _hold_action != "" and InputMap.has_action(_hold_action):
 		Input.action_press(_hold_action)
 
+## docs/32: answers the run-start Opening Pick (so every other capture runs unpaused),
+## then queues the event named by `--event=` (the event controller opens it next frame).
+func _drive_run_events() -> void:
+	if not _scene.has_method("get_event_controller"):
+		return
+	var ui: Node = _scene.get_event_controller()
+	var events: Node = _scene.get_run_events()
+	if ui == null or events == null:
+		return
+	while ui.is_showing():
+		ui.skip_lockout_for_test()
+		ui.confirm_choice_for_test(0)
+	if _event_kind != "":
+		events.armory_enabled = _event_armory
+		events.queue_dev_event(_event_kind, _event_flawless)
+
+
 ## v1.0 dev helpers (WP-COMBAT captures): grants abilities, edits the Tower's
 ## health and Scrap, spawns a ring of Seekers and presses the dash / skill actions.
 func _drive_v1_helpers() -> void:
 	if _scene == null:
 		return
+	if _count == 1:
+		_drive_run_events()
 	if _count == 2:
 		var mgr: Node = get_tree().get_first_node_in_group(&"ability_manager")
 		var us: Node = _scene.get_node_or_null("Main/UpgradeSystem")

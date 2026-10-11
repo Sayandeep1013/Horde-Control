@@ -280,6 +280,15 @@ func _run_flow() -> void:
 	_prototype = packed.instantiate()
 	add_child(_prototype)
 	await _frames(40)
+	# docs/32: the run opens with the Opening Pick (a paused card choice); a finger tap picks.
+	var events_ui: EventDraftController = _prototype.get_node_or_null("EventDraftInstance") as EventDraftController
+	_check("event: the Opening Pick is showing at run start", events_ui != null and events_ui.is_showing() and events_ui.get_kind() == RunEvents.KIND_OPENING)
+	if events_ui != null and events_ui.is_showing():
+		_shot("run_opening_pick")
+		await _tap(events_ui.get_card_views_for_test()[1].get_global_rect().get_center())
+		await _frames(20)
+		_check("event: tapping a card picks it and the run resumes", not events_ui.is_showing() and not get_tree().paused)
+	await _frames(20)
 	var player: Node2D = _prototype.get_node("Main/Player") as Node2D
 	var tc: TouchControls = _prototype.get_node("TouchControls") as TouchControls
 	_check("touch controls visible", tc.visible and tc.joystick != null and tc.pause_button != null)

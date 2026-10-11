@@ -52,9 +52,43 @@ static func _now() -> float:
 	return SimClock.now
 
 
-static func apply_burn(enemy: Node, dps: float, duration: float, source_id: String) -> void:
+## Named burn modifiers (docs/32): each source (Blood Pact "eternal_flame", a relic)
+## owns one {dps, duration} multiplier pair; applied burns use their product, so
+## sources compose by multiplication and never overwrite one another.
+static var _burn_mods: Dictionary = {} # source id (String) -> Vector2(dps_mult, duration_mult)
+
+
+static func set_burn_modifier(source: String, dps_mult: float, duration_mult: float) -> void:
+	if is_equal_approx(dps_mult, 1.0) and is_equal_approx(duration_mult, 1.0):
+		_burn_mods.erase(source)
+	else:
+		_burn_mods[source] = Vector2(dps_mult, duration_mult)
+
+
+static func clear_burn_modifiers() -> void:
+	_burn_mods.clear()
+
+
+static func burn_dps_multiplier() -> float:
+	var m: float = 1.0
+	for v: Vector2 in _burn_mods.values():
+		m *= v.x
+	return m
+
+
+static func burn_duration_multiplier() -> float:
+	var m: float = 1.0
+	for v: Vector2 in _burn_mods.values():
+		m *= v.y
+	return m
+
+
+static func apply_burn(enemy: Node, dps: float, duration: float, source_id: String, apply_modifiers: bool = true) -> void:
 	if enemy == null or not is_instance_valid(enemy) or dps <= 0.0 or duration <= 0.0:
 		return
+	if apply_modifiers: # false for a spread, which carries an already-modified burn
+		dps *= burn_dps_multiplier()
+		duration *= burn_duration_multiplier()
 	var e: Dictionary = _entry(enemy, true)
 	var now: float = _now()
 	var active: bool = float(e["burn_until"]) > now

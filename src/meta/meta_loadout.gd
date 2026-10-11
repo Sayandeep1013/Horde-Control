@@ -55,7 +55,7 @@ var rarity_luck_points: int = 0 ## flat luck points, added to the Draft's own ra
 ## --- v2 additions (D250, docs/31 section 7.1) ---------------------------------
 var player_crit_chance_bonus: float = 0.0 ## flat fraction (Keen Eye, 0.04 per rank)
 var player_weapon_range_bonus: float = 0.0 ## fraction (Eagle Eye)
-var armory_enabled: bool = false ## Armory keystone: a free Level 1 player ability at run start
+var armory_enabled: bool = false ## Armory keystone: the Opening Pick offers 4 abilities rolled Epic (D281)
 var damage_taken_reduction: float = 0.0 ## fraction removed from incoming player damage (Iron Skin)
 var dash_cooldown_reduction: float = 0.0 ## fraction (Fleet Foot)
 var dash_extra_charges: int = 0 ## flat (Second Dash)

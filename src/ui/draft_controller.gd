@@ -579,6 +579,13 @@ func queue_forced_draft_for_meta() -> void:
 	_try_open_next_draft()
 
 
+## v1.0 Run Events (docs/32 §A): true while a Level-Up / War Chest Draft is on
+## screen or queued. The event controller waits for this to clear, so an event
+## never opens on top of a Draft.
+func is_busy() -> bool:
+	return _draft_session_active or _draft_showing or not _pending_draft_requests.is_empty()
+
+
 func get_draft_card_serial_for_test() -> int:
 	return _draft_card_serial
 

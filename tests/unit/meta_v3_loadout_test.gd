@@ -136,8 +136,9 @@ func test_every_hook_is_called_on_the_ability_manager_with_the_register_values()
 	assert_float(float(calls["set_skill_damage_multiplier"])).is_equal_approx(1.45, 0.0001)
 	assert_float(float(calls["set_tower_ability_damage_multiplier"])).is_equal_approx(1.30, 0.0001)
 	assert_float(float(calls["set_repair_multiplier"])).is_equal_approx(1.40, 0.0001)
-	assert_int(int(calls["grant_count"])).append_failure_message("Armory grants one free ability").is_equal(1)
-	assert_bool(bool(result["armory_granted"])).is_true()
+	assert_bool(_full_loadout().armory_enabled).is_true()
+	assert_int(int(calls.get("grant_count", 0))).append_failure_message("D281: the Armory no longer grants a free ability here; it widens the Opening Pick").is_equal(0)
+	assert_bool(bool(result["armory_granted"])).is_false()
 
 
 func test_an_empty_loadout_calls_no_hook() -> void:
@@ -161,12 +162,12 @@ func test_absent_hooks_and_missing_nodes_are_skipped_silently() -> void:
 	assert_float(float((partial.get("calls") as Dictionary)["set_crit_chance_bonus"])).is_equal_approx(0.12, 0.0001)
 
 
-func test_running_the_hooks_twice_never_grants_the_armory_ability_twice() -> void:
+func test_running_the_hooks_twice_never_grants_a_free_ability() -> void:
 	var spy: Node = _make_spy()
 	var loadout: MetaLoadout = _full_loadout()
 	var first: Dictionary = MetaLoadoutApplier.apply_group_hooks(loadout, get_tree(), true)
 	MetaLoadoutApplier.apply_group_hooks(loadout, get_tree(), not bool(first["armory_granted"])) # the integration's deferred retry
-	assert_int(int((spy.get("calls") as Dictionary)["grant_count"])).is_equal(1)
+	assert_int(int((spy.get("calls") as Dictionary).get("grant_count", 0))).is_equal(0)
 
 
 func test_mason_and_ability_power_perks_compose_with_the_tree() -> void:

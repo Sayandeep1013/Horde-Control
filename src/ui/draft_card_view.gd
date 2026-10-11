@@ -512,6 +512,39 @@ func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnum
 	_apply_highlight_style()
 
 
+## v1.0 Run Events (docs/32 §A): a card for a choice that is not an upgrade, a
+## Sanctuary blessing or a Blood Pact option. `data` keys (all optional but name):
+##   header (String)       the word beside the glyph (e.g. "PAY WITH THE TOWER")
+##   name, effect (String) the title and the one-sentence effect
+##   cost (String)         a bold cost line below the effect (e.g. "-20 max HP")
+##   cost_color (Color)    its colour (default DANGER_ON_PARCHMENT)
+##   shape (UiShapeGlyph.Shape), glyph_color (Color)
+##   player_frame (bool)   rounded scroll (true) or squared panel (false)
+##   ribbon_text (String), ribbon_rarity (int) -> the ribbon colour and border tint
+func setup_event(data: Dictionary) -> void:
+	_upgrade_id = ""
+	_rarity = int(data.get("ribbon_rarity", ContractEnums.Rarity.Common))
+	var is_player: bool = bool(data.get("player_frame", true))
+	_pool_ownership = ContractEnums.PoolOwnership.Player if is_player else ContractEnums.PoolOwnership.Tower
+	_style.set_corner_radius_all(CORNER_ROUNDED_PX if is_player else CORNER_SQUARED_PX)
+	_glyph_label.text = GLYPH_PLAYER if is_player else GLYPH_TOWER
+	var shape_glyph: UiShapeGlyph = _glyph_label as UiShapeGlyph
+	shape_glyph.shape = int(data.get("shape", UiShapeGlyph.Shape.TRIANGLE))
+	shape_glyph.glyph_color = data.get("glyph_color", UiPalette.PLAYER)
+	_header_label.text = String(data.get("header", ""))
+	add_theme_stylebox_override("panel", _frame_player if is_player else _frame_tower)
+	_ribbon.add_theme_stylebox_override("panel", UiTheme.make_ribbon_box_from(RIBBON_TEXTURES.get(_rarity, RIBBON_TEXTURES[ContractEnums.Rarity.Common]), 0, 6))
+	_rarity_label.text = String(data.get("ribbon_text", ""))
+	_rarity_label.add_theme_color_override("font_color", UiPalette.INK_PIXEL)
+	_rarity_label.add_theme_constant_override("outline_size", 0)
+	_name_label.text = String(data.get("name", ""))
+	_effect_label.text = String(data.get("effect", ""))
+	_rank_label.text = String(data.get("cost", ""))
+	_rank_label.add_theme_color_override("font_color", data.get("cost_color", UiPalette.DANGER_ON_PARCHMENT))
+	_rank_pips.visible = false
+	_apply_highlight_style()
+
+
 func _rank_change_text(def: UpgradeDefinition, current_rank: int) -> String:
 	if def.has_max_rank:
 		if current_rank <= 0:

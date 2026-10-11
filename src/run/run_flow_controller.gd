@@ -890,6 +890,27 @@ func _capture_final_wave() -> void:
 		_final_wave_total = (waves as Array).size()
 
 
+## "Pact: Twin String, Siege Breaker  |  Sanctuary: Valor" for the Results screen; "" when none.
+func _boons_text() -> String:
+	var events: Node = get_tree().get_first_node_in_group(&"run_events") if is_inside_tree() else null
+	if events == null or not events.has_method("get_summary"):
+		return ""
+	var pacts: Array[String] = []
+	var blessings: Array[String] = []
+	for entry: Dictionary in events.get_summary():
+		var id: String = str(entry.get("id", ""))
+		if str(entry.get("type", "")) == "pact":
+			pacts.append(EventDraftController.pact_name(id))
+		else:
+			blessings.append(tr("SANCT_%s_NAME" % id.to_upper()))
+	var parts: Array[String] = []
+	if not pacts.is_empty():
+		parts.append("%s: %s" % [tr("PAUSE_BUILD_BOON_PACT"), ", ".join(pacts)])
+	if not blessings.is_empty():
+		parts.append("%s: %s" % [tr("PAUSE_BUILD_BOON_SANCT"), ", ".join(blessings)])
+	return "  |  ".join(parts)
+
+
 func _build_summary() -> Dictionary:
 	var cause_text: String = ""
 	# Meta layer core (Hub/Skill Tree screen session, build brief item 4):
@@ -930,6 +951,7 @@ func _build_summary() -> Dictionary:
 		"scrap_held": scrap_held,
 		"time_survived_seconds": survived,
 		"run_seed": run_seed,
+		"boons_text": _boons_text(), # docs/32 §A: the Pacts taken and the Sanctuary choice
 		# D254 (Results screen, docs/31 section 8.3)
 		"difficulty_name": RunConfig.get_difficulty().display_name,
 		"endless": RunConfig.endless,

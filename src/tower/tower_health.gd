@@ -212,14 +212,41 @@ func get_bonus_max_shield_fraction_for_test() -> float:
 func set_bonus_max_health_fraction(fraction: float) -> void:
 	if not _configured:
 		return
-	var new_max_health: float = _base_max_health * (1.0 + fraction)
-	var delta: float = new_max_health - max_health
 	_bonus_max_health_fraction = fraction
+	_recompute_max_health()
+
+
+## v1.0 Blood Pact "Pay with the Tower" (Register "v1.0 Run Events"): a SEPARATE
+## multiplicative term, so a pact cost composes with Reinforced Plating and the
+## meta bonus instead of being overwritten by their absolute setters.
+var _pact_max_health_multiplier: float = 1.0
+
+
+## Typed command. REPLACES the pact term; current health is clamped to the new
+## maximum, never raised by a pact.
+func set_pact_max_health_multiplier(multiplier: float) -> void:
+	if not _configured:
+		return
+	_pact_max_health_multiplier = clampf(multiplier, 0.05, 1.0)
+	_recompute_max_health()
+
+
+func get_pact_max_health_multiplier() -> float:
+	return _pact_max_health_multiplier
+
+
+## max = base x (1 + Reinforced Plating) x pact term. A rise heals by exactly the
+## increase; a fall only clamps current health.
+func _recompute_max_health() -> void:
+	var new_max_health: float = _base_max_health * (1.0 + _bonus_max_health_fraction) * _pact_max_health_multiplier
+	var delta: float = new_max_health - max_health
 	max_health = new_max_health
 	if _death_state != null:
 		_death_state.max_hp = max_health
 		if delta > 0.0:
 			_death_state.current_hp = minf(max_health, _death_state.current_hp + delta)
+		else:
+			_death_state.current_hp = minf(_death_state.current_hp, max_health)
 	health_changed.emit(get_current_health(), max_health)
 
 

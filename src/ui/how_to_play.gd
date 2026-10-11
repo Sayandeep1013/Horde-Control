@@ -64,6 +64,15 @@ static func _key(action: StringName) -> String:
 	return " or ".join(keys.slice(0, 2)) if not keys.is_empty() else "-"
 
 
+## The Focus line; its percentage is read from the player's Focus constant.
+static func focus_line() -> String:
+	return TranslationServer.translate(&"HOWTO_FOCUS") % int(round(Player.FOCUS_FIRE_RATE_BONUS * 100.0))
+
+
+static func events_line() -> String:
+	return TranslationServer.translate(&"HOWTO_EVENTS")
+
+
 ## The one-line description of enemy row `id` (see ENEMIES).
 static func enemy_line(id: String) -> String:
 	return TranslationServer.translate(StringName("HOWTO_ENEMY_" + id))
@@ -151,6 +160,10 @@ static func build_content(parent: Container, max_height: float) -> ScrollContain
 	for i: int in range(1, SECTION_COUNT + 1):
 		_add_text(left, "Head%d" % i, "%d. %s" % [i, heading(i)], UiTheme.HUD_VALUE, width)
 		_add_text(left, "Body%d" % i, body(i), UiTheme.DIM_PARCHMENT, width)
+
+	# docs/32: one line each for Focus and the run events, under the numbered sections.
+	_add_text(left, "FocusLine", HowToPlay.focus_line(), UiTheme.DIM_PARCHMENT, width)
+	_add_text(left, "EventsLine", HowToPlay.events_line(), UiTheme.DIM_PARCHMENT, width)
 
 	var right: VBoxContainer = left if touch else _column("InfoColumn")
 	if not touch:

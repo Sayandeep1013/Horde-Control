@@ -259,7 +259,7 @@ Bot policies are in `src/dev/balance_bot.gd`, with a new `kite` policy that uses
 
 | Branch | Nodes (effect per rank, ranks) |
 | --- | --- |
-| Archer | Sharpened Arrows +8% dmg (3); Quick Draw +6% fire rate (3); Keen Eye +4% crit (3); Eagle Eye +10% weapon range (2); Armory: start each run with a free Level-1 player ability from your unlocked pool (1, keystone) |
+| Archer | Sharpened Arrows +8% dmg (3); Quick Draw +6% fire rate (3); Keen Eye +4% crit (3); Eagle Eye +10% weapon range (2); Armory: the Opening Pick offers 4 abilities rolled Epic instead of 3 at Rare (D281, docs/32)|
 | Survival | Vitality +10% max HP (3); Swift Boots +4% speed (3); Iron Skin -5% damage taken (3); Fleet Foot -10% dash cooldown (2); Second Dash +1 dash charge (1); Second Wind (1, unchanged) |
 | Battle Skills | Frost Nova unlock (1); Firebomb unlock (1); War Horn unlock (1); Skill Focus -8% skill cooldown (3); Skill Power +15% skill damage (3) |
 | Tower | Stone Walls +10% HP (3); Arrow Slits +10% dmg (3); Shield Runes +15% shield (2); Mason's Kit +20% repair per Scrap (2); Watchtower +10% range (2); Engineers: Tower abilities +15% dmg (2); Fortress (1, unchanged) |
