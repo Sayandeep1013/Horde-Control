@@ -22,7 +22,7 @@ reach_or_range_px = 30
 
 [sub_resource type="Resource" id="Resource_health"]
 script = ExtResource("2_band")
-value = 3200
+value = 6500
 
 [sub_resource type="Resource" id="Resource_damage"]
 script = ExtResource("2_band")

@@ -192,7 +192,8 @@ class StaggerCue extends Node2D:
 			var a: float = t * 3.0 + TAU * float(i) / 5.0
 			var p := Vector2(cos(a) * 30.0, sin(a) * 12.0)
 			_star(p, 9.0, Color(1.0, 0.92, 0.25))
-		draw_string(ThemeDB.fallback_font, Vector2(-44.0, -22.0), "STAGGERED", HORIZONTAL_ALIGNMENT_CENTER, 88.0, 16, Color(1.0, 0.95, 0.5))
+		draw_string_outline(ThemeDB.fallback_font, Vector2(-70.0, -24.0), "STAGGERED", HORIZONTAL_ALIGNMENT_CENTER, 140.0, 18, 4, Color(0.15, 0.08, 0.0))
+		draw_string(ThemeDB.fallback_font, Vector2(-70.0, -24.0), "STAGGERED", HORIZONTAL_ALIGNMENT_CENTER, 140.0, 18, Color(1.0, 0.95, 0.5))
 
 	func _star(c: Vector2, r: float, col: Color) -> void:
 		var pts := PackedVector2Array()

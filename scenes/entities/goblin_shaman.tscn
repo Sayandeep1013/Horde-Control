@@ -81,6 +81,7 @@ texture = ExtResource("7_diamond")
 ; Readability).
 [node name="Visuals" type="Node2D" parent="."]
 script = ExtResource("11_animator")
+scale = Vector2(1.1, 1.1)
 directional_strike = true
 
 [node name="Shadow" type="Sprite2D" parent="Visuals"]
@@ -88,6 +89,7 @@ position = Vector2(0, 2)
 texture = ExtResource("13_shadow")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Visuals"]
+modulate = Color(0.66, 0.72, 1.0, 1)
 texture_filter = 1
 sprite_frames = ExtResource("12_frames")
 animation = &"idle"
