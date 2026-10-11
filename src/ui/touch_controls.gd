@@ -31,11 +31,20 @@ const JOYSTICK_DEADZONE_RATIO: float = 0.1
 const JOYSTICK_ZONE_WIDTH_RATIO: float = 0.5
 const PAUSE_BUTTON_SIZE_PX: float = 88.0 ## logical px; x1.5 = 132 px on a 1080 px phone = 48 dp
 const PAUSE_BUTTON_MARGIN_RIGHT_PX: float = 20.0 ## HUD side margin
-const PAUSE_BUTTON_TOP_PX: float = 128.0 ## clears the top HUD row and the Scrap panel's second line
+const PAUSE_BUTTON_TOP_PX: float = 176.0 ## clears the top HUD row and the Scrap and kills panel (v1.0 HUD)
+## v1.0 (docs/31 section 5 inputs; Register > v1.0 Interface > "Touch action buttons"):
+## the Dash and Battle Skill buttons, thumb-sized, bottom-right. The HUD hides its
+## own action cluster on touch, so these ARE the cluster and never overlap it.
+const SKILL_BUTTON_SIZE_PX: float = 120.0
+const DASH_BUTTON_SIZE_PX: float = 96.0
+const ACTION_MARGIN_PX: float = 24.0
+const ACTION_GAP_PX: float = 20.0
 const IDLE_ALPHA: float = 0.75
 
 var joystick: VirtualJoystick = null
 var pause_button: Button = null
+var dash_button: HudActionButton = null
+var skill_button: HudActionButton = null
 
 var _pause_authority: Node = null
 
@@ -50,6 +59,7 @@ func _ready() -> void:
 		return
 	_build_joystick()
 	_build_pause_button()
+	_build_action_buttons()
 	_pause_authority = get_node_or_null("/root/PauseAuthority")
 	if _pause_authority != null and _pause_authority.has_signal(&"reasons_changed"):
 		_pause_authority.reasons_changed.connect(_on_reasons_changed)
@@ -84,6 +94,34 @@ func _build_joystick() -> void:
 	joystick.add_theme_stylebox_override("pressed_joystick", _circle(Color(UiPalette.INK, 0.45), Color(UiPalette.ACCENT, 0.9), JOYSTICK_SIZE_PX))
 	joystick.add_theme_stylebox_override("pressed_tip", _circle(Color(UiPalette.PARCHMENT, 0.8), Color(UiPalette.ACCENT, 1.0), JOYSTICK_TIP_SIZE_PX))
 	add_child(joystick)
+
+
+func _build_action_buttons() -> void:
+	skill_button = HudActionButton.new(HudActionButton.Kind.SKILL)
+	skill_button.name = "SkillButton"
+	skill_button.make_interactive(SKILL_BUTTON_SIZE_PX)
+	skill_button.theme = UiTheme.get_theme()
+	_place_bottom_right(skill_button, SKILL_BUTTON_SIZE_PX, ACTION_MARGIN_PX)
+	add_child(skill_button)
+
+	dash_button = HudActionButton.new(HudActionButton.Kind.DASH)
+	dash_button.name = "DashButton"
+	dash_button.make_interactive(DASH_BUTTON_SIZE_PX)
+	dash_button.theme = UiTheme.get_theme()
+	_place_bottom_right(dash_button, DASH_BUTTON_SIZE_PX, ACTION_MARGIN_PX + SKILL_BUTTON_SIZE_PX + ACTION_GAP_PX)
+	add_child(dash_button)
+
+
+## Anchored to the bottom-right corner; `right_inset` is the gap to the right edge.
+func _place_bottom_right(control: Control, side: float, right_inset: float) -> void:
+	control.anchor_left = 1.0
+	control.anchor_right = 1.0
+	control.anchor_top = 1.0
+	control.anchor_bottom = 1.0
+	control.offset_left = -(right_inset + side)
+	control.offset_right = -right_inset
+	control.offset_top = -(ACTION_MARGIN_PX + side)
+	control.offset_bottom = -ACTION_MARGIN_PX
 
 
 func _build_pause_button() -> void:
@@ -150,6 +188,9 @@ func _refresh_pause_visibility() -> void:
 	if _pause_authority != null and _pause_authority.has_method(&"get_active_reasons"):
 		blocked = not (_pause_authority.get_active_reasons() as Array).is_empty()
 	pause_button.visible = not blocked
+	for button: Control in [dash_button, skill_button]:
+		if button != null:
+			button.visible = not blocked
 
 
 func _circle(fill: Color, border: Color, diameter: float) -> StyleBoxFlat:

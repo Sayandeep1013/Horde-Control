@@ -56,13 +56,12 @@ func test_xp_bar_and_level_and_rerolls_labels() -> void:
 	hud.economy_state.xp_current = 30.0
 	hud.economy_state.xp_required_for_next_level = 100.0
 	hud.economy_state.level = 4
-	hud.economy_state.rerolls_remaining = 1
 	hud._refresh_xp()
 
 	var bar: HudBar = hud.get_xp_bar()
 	assert_float(bar.get_fraction()).is_equal_approx(0.3, 0.001)
 	assert_str(hud.get_level_label().text).append_failure_message("internal level 4 is shown as Lv 5 (D133)").is_equal("5")
-	assert_str(hud.get_rerolls_label().text).contains("1")
+	assert_object(hud.find_child("RerollsLabel", true, false)).append_failure_message("Rerolls moved to the Draft (docs/31 8.1)").is_null()
 
 
 func test_scrap_truncation_full_value_is_recoverable_via_tooltip() -> void:
@@ -81,21 +80,17 @@ func test_a_fresh_run_shows_lv_1_not_level_0() -> void:
 	hud.economy_state.level = 0
 	hud._refresh_xp()
 	assert_str(hud.get_level_label().text).is_equal("1")
-	assert_str(hud._level_caption_label.text).is_equal("Lv")
+	assert_object(hud.find_child("LevelCaptionLabel", true, false)).append_failure_message("no word captions on the v1.0 HUD").is_null()
 
 
-func test_scrap_shows_a_live_core_equivalent() -> void:
-	var hud: Hud = _build_hud()
-	hud.economy_state.scrap_current = 37
-	hud._refresh_scrap()
-	assert_str(hud._scrap_cores_label.text).contains("3 Cores")
+func test_scrap_to_cores_uses_the_settlement_rate() -> void:
 	assert_int(Hud.scrap_to_cores(MetaProgress.SETTLEMENT_SCRAP_PER_CORE)).is_equal(1)
+	assert_int(Hud.scrap_to_cores(37)).is_equal(3)
 
 
-func test_wave_ribbon_is_a_sibling_of_the_tower_pill_not_inside_it() -> void:
+func test_the_hud_has_no_floating_cores_line_or_tower_value_beside_the_arrow() -> void:
 	var hud: Hud = _build_hud()
-	var ribbon: Node = hud.find_child("WaveRibbon", true, false)
-	var pill: Node = hud.find_child("TowerHealthPill", true, false)
-	assert_bool(pill.is_ancestor_of(ribbon)).is_false()
-	assert_object(ribbon.get_parent()).is_same(pill.get_parent())
-	assert_bool(hud.find_child("TowerHpLabel", true, false) != null).is_true()
+	assert_object(hud.find_child("ScrapCoresLabel", true, false)).append_failure_message("the Cores estimate moved to the pause menu").is_null()
+	var overlay: ThreatFeedback = auto_free(ThreatFeedback.new())
+	add_child(overlay)
+	assert_object(overlay.find_child("TowerHpLabel", true, false)).append_failure_message("the floating Tower value label is gone; the arrow stays").is_null()

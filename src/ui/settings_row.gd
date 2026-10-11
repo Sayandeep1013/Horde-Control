@@ -34,9 +34,9 @@ const NORMAL_COLOR: Color = UiPalette.TEXT_ON_PARCHMENT
 const MARKER_HIGHLIGHTED: String = "▸ " # "▸" -- the shape cue, see class header
 const MARKER_NORMAL: String = "   "
 
-const VALUE_MIN_WIDTH: float = 200.0
+const VALUE_MIN_WIDTH: float = 240.0
 const ARROW_MIN_WIDTH: float = 36.0
-const NAME_MIN_WIDTH: float = 420.0
+const NAME_MIN_WIDTH: float = 400.0
 
 var _marker_label: Label
 var _name_label: Label
@@ -123,6 +123,13 @@ func configure(name_text: String, has_value: bool) -> void:
 
 func set_value_text(text: String) -> void:
 	_value_label.text = text
+
+
+## A text-only value on a row that has no arrows (the Reset row's "Press again").
+## Empty text hides it again.
+func set_note(text: String) -> void:
+	_value_label.text = text
+	_value_label.visible = text != ""
 
 
 func set_highlighted(active: bool) -> void:

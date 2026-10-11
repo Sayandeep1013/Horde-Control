@@ -165,6 +165,11 @@ func _run_menus() -> void:
 	add_child(title)
 	await _frames(30)
 	_shot("title")
+	_check("title: How to Play opens by tap", await _tap_text("How to Play"))
+	await _frames(20)
+	_shot("title_how_to_play")
+	_check("title: How to Play Back by tap", await _tap_text("Back"))
+	await _frames(20)
 	_check("title: Controls opens by tap", await _tap_text("Controls"))
 	await _frames(20)
 	_shot("title_controls")
@@ -278,6 +283,27 @@ func _run_flow() -> void:
 	var player: Node2D = _prototype.get_node("Main/Player") as Node2D
 	var tc: TouchControls = _prototype.get_node("TouchControls") as TouchControls
 	_check("touch controls visible", tc.visible and tc.joystick != null and tc.pause_button != null)
+
+	# --- v1.0: Dash and Battle Skill touch buttons press/release their actions ---
+	var vis: Rect2 = get_viewport().get_visible_rect()
+	_check("touch: dash and skill buttons exist", tc.dash_button != null and tc.skill_button != null)
+	_check("touch: both buttons are on screen", vis.encloses(tc.dash_button.get_global_rect()) and vis.encloses(tc.skill_button.get_global_rect()))
+	_check("touch: buttons do not overlap each other or the pause button", not tc.dash_button.get_global_rect().intersects(tc.skill_button.get_global_rect()) and not tc.pause_button.get_global_rect().intersects(tc.dash_button.get_global_rect()) and not tc.pause_button.get_global_rect().intersects(tc.skill_button.get_global_rect()))
+	var hud_node: Hud = _prototype.get_node("Hud") as Hud
+	_check("touch: the HUD action cluster steps aside", not hud_node.get_action_cluster().visible)
+	_touch(tc.dash_button.get_global_rect().get_center(), true, 1)
+	await _frames(3)
+	_check("touch: holding the Dash button presses dash", Input.is_action_pressed(&"dash"))
+	_touch(tc.dash_button.get_global_rect().get_center(), false, 1)
+	await _frames(3)
+	_check("touch: lifting the finger releases dash", not Input.is_action_pressed(&"dash"))
+	_touch(tc.skill_button.get_global_rect().get_center(), true, 1)
+	await _frames(3)
+	_check("touch: holding the Skill button presses battle_skill", Input.is_action_pressed(&"battle_skill"))
+	_touch(tc.skill_button.get_global_rect().get_center(), false, 1)
+	await _frames(3)
+	_check("touch: lifting the finger releases battle_skill", not Input.is_action_pressed(&"battle_skill"))
+	_shot("run_touch_buttons")
 
 	# --- joystick moves the player ---
 	var vp: Vector2 = get_viewport().get_visible_rect().size

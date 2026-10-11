@@ -261,7 +261,7 @@ func test_four_hud_fields_lay_out_within_the_pinned_viewport() -> void:
 
 	var bounds := Rect2(Vector2.ZERO, Vector2(1920, 1080))
 	var fields: Array = [hud.get_player_health_field(), hud.get_tower_health_field(), hud.get_scrap_field(), hud.get_xp_field()]
-	var names: Array = ["player health", "Tower health/wave", "Scrap", "XP/level/rerolls"]
+	var names: Array = ["player health", "Tower health/wave", "Scrap", "XP/level"]
 	for i in range(fields.size()):
 		var field: Control = fields[i]
 		assert_object(field).append_failure_message("%s field was not built" % names[i]).is_not_null()
@@ -290,18 +290,18 @@ func test_hud_layout_survives_pseudolocalization_without_silent_truncation() -> 
 
 	# Every OTHER label must be structurally incapable of SILENT truncation:
 	# not configured to trim, and wired to wrap/grow instead.
-	var other_labels: Array = [hud.get_wave_label(), hud.get_full_badge_label(), hud.get_hopper_label(), hud.get_level_label(), hud.get_rerolls_label()]
-	var other_names: Array = ["Wave", "FULL badge", "Hopper", "Level", "Rerolls"]
+	var other_labels: Array = [hud.get_wave_label(), hud.get_full_badge_label(), hud.get_hopper_label(), hud.get_level_label(), hud.get_timer_label()]
+	var other_names: Array = ["Wave", "FULL badge", "Hopper", "Level", "Timer"]
 	for i in range(other_labels.size()):
 		var label: Label = other_labels[i]
 		assert_int(label.text_overrun_behavior).append_failure_message("%s label is configured to trim/truncate instead of growing" % other_names[i]).is_equal(TextServer.OVERRUN_NO_TRIMMING)
-		assert_int(label.autowrap_mode).append_failure_message("%s label cannot wrap, so growth from pseudo-localization would silently clip it" % other_names[i]).is_not_equal(TextServer.AUTOWRAP_OFF)
+		assert_bool(label.clip_text).append_failure_message("%s label clips its text instead of growing" % other_names[i]).is_false()
 
 	# The four fields must still fit inside the viewport after the 30%
 	# expansion -- this is the actual "did the layout survive" claim.
 	var bounds := Rect2(Vector2.ZERO, Vector2(1920, 1080))
 	var fields: Array = [hud.get_player_health_field(), hud.get_tower_health_field(), hud.get_scrap_field(), hud.get_xp_field()]
-	var names: Array = ["player health", "Tower health/wave", "Scrap", "XP/level/rerolls"]
+	var names: Array = ["player health", "Tower health/wave", "Scrap", "XP/level"]
 	for i in range(fields.size()):
 		var rect: Rect2 = (fields[i] as Control).get_global_rect()
 		assert_bool(bounds.encloses(rect)).append_failure_message("%s field's rect %s no longer fits the pinned viewport once pseudo-localization expanded its text" % [names[i], rect]).is_true()

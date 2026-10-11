@@ -157,10 +157,13 @@ func test_the_mobile_layout_hides_the_desktop_only_settings_rows() -> void:
 	TouchUi.set_override_for_test(1)
 	var menu: SettingsMenu = auto_free(SettingsMenu.new())
 	add_child(menu)
-	assert_object(menu.get_row_for_test(SettingsMenu.ROW_DISPLAY_MODE)).is_null()
-	assert_object(menu.get_row_for_test(SettingsMenu.ROW_VSYNC)).is_null()
-	assert_object(menu.get_row_for_test(SettingsMenu.ROW_MASTER_VOLUME)).is_not_null()
-	assert_object(menu.get_row_for_test(SettingsMenu.ROW_BACK)).is_not_null()
+	menu.show_tab_for_debug(SettingsMenu.Tab.VIDEO)
+	var shown: Array[String] = menu.get_visible_row_ids_for_test()
+	for id: String in SettingsMenu.DESKTOP_ONLY_ROWS:
+		assert_bool(shown.has(id)).append_failure_message("%s must be hidden on a phone" % id).is_false()
+	assert_bool(shown.has(SettingsMenu.ROW_FPS_LIMIT)).is_true()
+	assert_bool(shown.has(SettingsMenu.ROW_BACK)).is_true()
+	assert_bool(menu.get_tabs_for_test().has(SettingsMenu.Tab.CONTROLS)).append_failure_message("the keyboard Controls tab has no place on a phone").is_false()
 
 
 func test_the_desktop_layout_keeps_every_settings_row() -> void:

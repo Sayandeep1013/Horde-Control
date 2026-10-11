@@ -27,7 +27,7 @@ static func sync() -> void:
 			_attach.call_deferred(tree, overlay)
 	elif existing != null:
 		tree.root.remove_child(existing) # out of the tree at once, so a later sync cannot find a dying overlay
-		existing.queue_free()
+		existing.free()
 
 
 ## Deferred so the root is free to take a child; skipped if the setting flipped off meanwhile.

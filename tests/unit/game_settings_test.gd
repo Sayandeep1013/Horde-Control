@@ -18,7 +18,7 @@ const MASTER_BUS: String = "Master"
 const MUSIC_BUS: String = "Music"
 ## TowerCue is deliberately NOT in this list -- see `test_tower_cue_bus_*`
 ## below and GameSettings's own header, "TowerCue is NOT driven directly."
-const EFFECTS_BUSES: Array[String] = ["SFX", "SFX_Priority", "UI", "Ambience"]
+const EFFECTS_BUSES: Array[String] = ["SFX", "SFX_Priority", "Ambience"] # v1.0: UI has its own Interface volume
 const TOWER_CUE_BUS: String = "TowerCue"
 
 var _dir: String

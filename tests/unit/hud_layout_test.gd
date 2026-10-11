@@ -116,7 +116,7 @@ func test_wave_label_reads_from_the_hud_economy_state_seam() -> void:
 	var hud: Hud = _build_hud()
 	hud.economy_state.wave_current = 3
 	hud.economy_state.wave_total = 8
-	hud._refresh_tower_health()
+	hud._refresh_wave_line()
 
 	assert_str(hud.get_wave_label().text).contains("3/8")
 

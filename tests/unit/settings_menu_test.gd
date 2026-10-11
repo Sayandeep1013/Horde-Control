@@ -78,19 +78,19 @@ func _advance_past_lockout() -> void:
 
 func test_opens_with_master_volume_highlighted() -> void:
 	assert_int(_menu.get_highlighted_index_for_test()).is_equal(0)
-	assert_str(SettingsMenu.ROW_ORDER[_menu.get_highlighted_index_for_test()]).is_equal(SettingsMenu.ROW_MASTER_VOLUME)
+	assert_str(_menu.get_highlighted_row_id_for_test()).is_equal(SettingsMenu.ROW_MASTER_VOLUME)
 
 
 func test_down_moves_to_the_next_row() -> void:
 	_menu.press_action_once_for_test(&"move_down")
 	_menu.tick_for_test(STEP)
-	assert_str(SettingsMenu.ROW_ORDER[_menu.get_highlighted_index_for_test()]).is_equal(SettingsMenu.ROW_MUSIC_VOLUME)
+	assert_str(_menu.get_highlighted_row_id_for_test()).is_equal(SettingsMenu.ROW_MUSIC_VOLUME)
 
 
 func test_up_from_the_first_row_wraps_to_back() -> void:
 	_menu.press_action_once_for_test(&"move_up")
 	_menu.tick_for_test(STEP)
-	assert_str(SettingsMenu.ROW_ORDER[_menu.get_highlighted_index_for_test()]).is_equal(SettingsMenu.ROW_BACK)
+	assert_str(_menu.get_highlighted_row_id_for_test()).is_equal(SettingsMenu.ROW_BACK)
 
 
 # --- Left/Right changes the highlighted row's value, immediately -------------
@@ -153,10 +153,12 @@ func test_display_mode_row_cycles_forward() -> void:
 
 
 func test_screen_shake_row_toggles() -> void:
+	GameSettings.set_screen_shake_pct_for_test(10)
 	_menu.highlight_row_for_test(SettingsMenu.ROW_SCREEN_SHAKE)
 	_menu.press_action_once_for_test(&"move_left")
 	_menu.tick_for_test(STEP)
 	assert_bool(GameSettings.is_screen_shake_enabled()).is_false()
+	assert_str(_menu.get_row_for_test(SettingsMenu.ROW_SCREEN_SHAKE).get_value_label_for_test().text).is_equal(tr("SETTINGS_OFF"))
 
 
 func test_damage_numbers_row_toggles() -> void:
@@ -271,8 +273,8 @@ func test_clicking_a_value_rows_right_arrow_changes_its_value() -> void:
 
 
 func test_hovering_a_row_highlights_it() -> void:
-	_menu.get_row_for_test(SettingsMenu.ROW_VSYNC).hovered.emit()
-	assert_str(SettingsMenu.ROW_ORDER[_menu.get_highlighted_index_for_test()]).is_equal(SettingsMenu.ROW_VSYNC)
+	_menu.get_row_for_test(SettingsMenu.ROW_MUTE_ALL).hovered.emit()
+	assert_str(_menu.get_highlighted_row_id_for_test()).is_equal(SettingsMenu.ROW_MUTE_ALL)
 
 
 # --- set_active() / closed API kept for RunFlowController --------------------
@@ -300,7 +302,7 @@ func test_reopening_settings_resets_the_highlight_to_row_0() -> void:
 	_menu.set_active(false)
 	_menu.set_active(true)
 	_menu.skip_lockout_for_test()
-	assert_str(SettingsMenu.ROW_ORDER[_menu.get_highlighted_index_for_test()]).append_failure_message("reopening Settings must always start at row 0, never wherever it was left").is_equal(SettingsMenu.ROW_MASTER_VOLUME)
+	assert_str(_menu.get_highlighted_row_id_for_test()).append_failure_message("reopening Settings must always start at row 0, never wherever it was left").is_equal(SettingsMenu.ROW_MASTER_VOLUME)
 
 
 ## Item 3, reproduced directly: `PauseMenu`'s own bar runs its `_process()`
