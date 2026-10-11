@@ -150,3 +150,8 @@ static func chevron_points(centre: Vector2, dir: Vector2, size: float, thickness
 	var inner_a: Vector2 = outer_a - fwd * thickness * 1.2
 	var inner_b: Vector2 = outer_b - fwd * thickness * 1.2
 	return PackedVector2Array([tip, outer_a, inner_a, inner_tip, inner_b, outer_b])
+
+
+## Shutdown hygiene (ShutdownHygiene).
+static func release_caches() -> void:
+	_tex_cache.clear()

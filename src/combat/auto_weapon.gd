@@ -537,10 +537,11 @@ func _launch_one(origin_pos: Vector2, direction: Vector2, damage: float) -> void
 func _check_starting_weapon_reference_id() -> void:
 	if _weapon_definition == null:
 		return
-	var player: Player = get_parent() as Player
-	if player == null or player.definition == null:
+	var player: Node = get_parent() # untyped: a typed Player closes an AutoWeapon <-> Player script cycle (D256)
+	var player_def: Variant = player.get("definition") if player != null else null
+	if player_def == null:
 		return
-	var expected_id: String = player.definition.starting_weapon_reference_id
+	var expected_id: String = player_def.starting_weapon_reference_id
 	if expected_id != "" and expected_id != _weapon_definition.unique_id:
 		push_warning("AutoWeapon: parent Player's starting_weapon_reference_id '%s' does not match the assigned WeaponDefinition's unique_id '%s'" % [expected_id, _weapon_definition.unique_id])
 

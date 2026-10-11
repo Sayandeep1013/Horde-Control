@@ -26,3 +26,9 @@ func _ready() -> void:
 		)
 	else:
 		print("Boot check: Godot %s matches the pin in document 20." % running)
+
+
+## Last autoload to leave the tree: release static Resource caches before the
+## engine's leak report (D256, see ShutdownHygiene).
+func _exit_tree() -> void:
+	ShutdownHygiene.release_all(get_tree())

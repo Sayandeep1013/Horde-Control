@@ -66,3 +66,8 @@ static func has_relic(id: String) -> bool:
 ## King's Crown (docs/32 C2; Register "v1.0 Loadout"): points added to the elite chance.
 static func elite_chance_add() -> float:
 	return LoadoutCatalog.CROWN_ELITE_CHANCE_ADD if has_relic("kings_crown") else 0.0
+
+
+## Shutdown hygiene (ShutdownHygiene): drop cached DifficultyProfile resources.
+static func release_caches() -> void:
+	_cache.clear()

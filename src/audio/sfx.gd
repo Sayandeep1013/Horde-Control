@@ -87,3 +87,10 @@ static func _throttle_ok(cue: String) -> bool:
 static func clear_cache_for_test() -> void:
 	_streams.clear()
 	_last_play_ms.clear()
+
+
+## Shutdown hygiene (D256 hook, ShutdownHygiene): drop cached streams so the engine
+## leak report at quit does not list them.
+static func release_caches() -> void:
+	_streams.clear()
+	_last_play_ms.clear()

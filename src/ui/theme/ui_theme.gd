@@ -405,3 +405,11 @@ static func _build_containers(t: Theme) -> void:
 		t.set_constant("separation", hbox(step), BOX_STEPS[step])
 		t.set_type_variation(vbox(step), "VBoxContainer")
 		t.set_constant("separation", vbox(step), BOX_STEPS[step])
+
+
+## Shutdown hygiene (ShutdownHygiene): drop the cached themes and fonts.
+static func release_caches() -> void:
+	_theme = null
+	_parchment_theme = null
+	_body_font = null
+	_display_font = null
