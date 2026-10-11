@@ -103,6 +103,8 @@ Champions are archer variants picked in the War Camp, each with one rule twist. 
 | Iron Banner | Tower starts with +25% shield, and the shield regenerates at 25% rate during waves | Mason |
 | Ember Heart | Burn damage +40% | Elite Hunter |
 
+**Implemented (WP-LOADOUT, 2026-10-11):** the numbers are in the Register's "v1.0 Loadout" and the decisions are D300-D309. Deviations from the table above: Warden's look is bronze (green blends into the grass) and Iron Banner's +25% applies to the whole shield capacity.
+
 ### C3. Profile and screens
 - **Profile.** Schema 3, extended additively and reconciled like the earlier additions: `selected_champion`, `selected_relics` (an array of up to 2), and `first_kills{warchief, king}` if not already derivable from `lifetime_boss_kills`. Unlocks are derived from achievements and kills, never stored twice.
 - **War Camp.** The Run Setup card gains a Champion picker and two Relic slots. Locked items are shown with their unlock condition. RunConfig gains `champion_id` and `relic_ids`.
