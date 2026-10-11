@@ -6,7 +6,8 @@ class_name BallistaBolt
 ## Tower's "ballista" source.
 
 const SPEED_PX_PER_S: float = 1100.0 # Register: Ballista bolt speed
-const HIT_RADIUS_PX: float = 22.0 # Register: Ballista bolt hit radius
+const HIT_RADIUS_PX: float = 36.0 # Register: Ballista bolt hit radius (D351, was 22)
+const SPRITE_SCALE: float = 1.8 # Register: Ballista bolt sprite scale (D351)
 
 var direction: Vector2 = Vector2.RIGHT
 var travel_left: float = 600.0
@@ -57,10 +58,13 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(SPRITE_SCALE, SPRITE_SCALE))
 	if _tex != null:
 		draw_texture(_tex, -_tex.get_size() * 0.5)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
 	draw_line(Vector2(-26, 0), Vector2(14, 0), Color(0.45, 0.3, 0.15), 4.0)
 	draw_colored_polygon(PackedVector2Array([Vector2(14, -6), Vector2(28, 0), Vector2(14, 6)]), Color(0.85, 0.85, 0.9))
 	draw_line(Vector2(-26, 0), Vector2(-32, -5), Color(0.9, 0.9, 0.85), 2.0)
 	draw_line(Vector2(-26, 0), Vector2(-32, 5), Color(0.9, 0.9, 0.85), 2.0)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

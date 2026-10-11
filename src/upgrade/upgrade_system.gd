@@ -132,6 +132,14 @@ class_name UpgradeSystem
 	preload("res://data/upgrades/leather_armor.tres"),
 	preload("res://data/upgrades/ability_power.tres"),
 	preload("res://data/upgrades/stone_mason.tres"),
+	# PT-POWER (D350-D359): five Archero-style abilities, Rear Arrow and Shadow Step.
+	preload("res://data/upgrades/diagonal_arrows.tres"),
+	preload("res://data/upgrades/ricochet.tres"),
+	preload("res://data/upgrades/lightning_sprite.tres"),
+	preload("res://data/upgrades/meteor_shower.tres"),
+	preload("res://data/upgrades/blade_circle.tres"),
+	preload("res://data/upgrades/rear_arrow.tres"),
+	preload("res://data/upgrades/shadow_step.tres"),
 	preload("res://data/upgrades/overdrive_fallback.tres"),
 	preload("res://data/upgrades/reinforce_fallback.tres"),
 ]
@@ -217,6 +225,9 @@ const KEEN_EYE_ID: String = "keen_eye"
 const LEATHER_ARMOR_ID: String = "leather_armor"
 const ABILITY_POWER_ID: String = "ability_power"
 const STONE_MASON_ID: String = "stone_mason"
+# --- PT-POWER passives (D350, D352) ---
+const REAR_ARROW_ID: String = "rear_arrow"
+const SHADOW_STEP_ID: String = "shadow_step"
 
 
 func _ready() -> void:
@@ -582,6 +593,14 @@ func _apply_effect(def: UpgradeDefinition, rank: int, rarity_multiplier: float =
 			# Discrete count -- rarity does not scale "extra arrows fired."
 			if _player_weapon != null:
 				_player_weapon.set_multishot_extra_count(int(round(def.effect_per_rank * float(rank))))
+		REAR_ARROW_ID:
+			# Discrete count: one arrow behind at rank 1, two (a narrow pair) at rank 2.
+			if _player_weapon != null:
+				_player_weapon.set_volley_extras(AbilityIds.SOURCE_REAR_ARROW, rear_arrow_extras(rank))
+		SHADOW_STEP_ID:
+			# The dash cuts what it passes through; values by rank, not rarity-scaled (a count-style card).
+			if _player != null:
+				_player.set_shadow_step(AbilityCatalog.shadow_step_damage(rank), AbilityCatalog.shadow_step_invuln(rank))
 		FLEET_STEP_ID, BATTLE_FOCUS_ID, BLAST_RADIUS_ID, KEEN_EYE_ID, LEATHER_ARMOR_ID, ABILITY_POWER_ID, STONE_MASON_ID:
 			# v1.0 passives (docs/31 §4.4): the AbilityManager turns the summed,
 			# rarity-scaled fraction into the derived multipliers (D123 rule).
@@ -605,6 +624,16 @@ func _apply_effect(def: UpgradeDefinition, rank: int, rarity_multiplier: float =
 				_tower_health.heal(_tower_health.max_health * def.effect_per_rank)
 		_:
 			push_warning("UpgradeSystem._apply_effect(): '%s' has no routing -- effect not applied to any live component" % def.unique_id)
+
+
+## Rear Arrow (D352): the (angle in degrees, damage fraction) of each arrow fired behind the
+## player: one straight back at rank 1, a +-8 degree pair at rank 2. 70% damage like Multishot.
+static func rear_arrow_extras(rank: int) -> Array:
+	if rank <= 0:
+		return []
+	if rank == 1:
+		return [Vector2(180.0, AutoWeapon.MULTISHOT_DAMAGE_FRACTION)]
+	return [Vector2(180.0 - AutoWeapon.MULTISHOT_SPREAD_DEGREES, AutoWeapon.MULTISHOT_DAMAGE_FRACTION), Vector2(180.0 + AutoWeapon.MULTISHOT_SPREAD_DEGREES, AutoWeapon.MULTISHOT_DAMAGE_FRACTION)]
 
 
 # --- D123: per-rank rarity accumulation, shared-stat sums, honest values ---
@@ -665,7 +694,7 @@ func get_honest_card_value(upgrade_id: String, rarity_multiplier: float = 1.0) -
 			return {"kind": "heal_flat", "grant": def.effect_per_rank, "total_after": def.effect_per_rank, "rarity_scaled": false}
 		REPAIR_KIT_ID:
 			return {"kind": "heal_tower_fraction", "grant": def.effect_per_rank, "total_after": def.effect_per_rank, "rarity_scaled": false}
-		PIERCING_ARROWS_ID, MULTISHOT_ID:
+		PIERCING_ARROWS_ID, MULTISHOT_ID, REAR_ARROW_ID, SHADOW_STEP_ID:
 			return {"kind": "count", "grant": def.effect_per_rank, "total_after": def.effect_per_rank, "rarity_scaled": false}
 	var grant: float = def.effect_per_rank * rarity_multiplier
 	var existing: float = _sum_values(upgrade_id)

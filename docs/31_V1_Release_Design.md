@@ -446,3 +446,7 @@ Each package runs as one Sonnet implementer in its own git worktree, branched fr
 | WP-REVIEW | Blind Opus review → fix round | D280+ | — |
 
 The packages share three files: `scenes/prototype.tscn`, `src/integration/prototype_integration.gd` and `MASTER_SDLC.md`. Each package keeps its edits there as small and local as it can, and the orchestrator resolves conflicts at merge.
+
+## Arena note (PT-ARENA, docs/33 B)
+
+The arena is now a 2432 x 1664 px moated island with four bridges, solid rock outcrops and ruins, and a FlowField service (`src/navigation/flow_field.gd`). See the Register section "v1.0 Arena Layout" and decisions D330-D336. Enemy movement should use `direction_to` and fall back to a straight line on a zero vector.

@@ -27,6 +27,8 @@ func _ready() -> void:
 				cam_pos = Vector2(float(parts[0]), float(parts[1]))
 		elif arg.begins_with("--zoom="):
 			zoom = float(arg.trim_prefix("--zoom="))
+		elif arg == "--flow-debug": # draws the FlowField mask and both fields
+			get_tree().call_group(&"flow_field", &"set_debug_draw", true)
 
 	var camera: Camera2D = Camera2D.new()
 	camera.position = cam_pos

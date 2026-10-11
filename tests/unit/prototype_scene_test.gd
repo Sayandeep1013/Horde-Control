@@ -118,11 +118,13 @@ func test_the_game_camera_target_is_the_player_and_follows_it() -> void:
 	assert_object(_camera.target).append_failure_message("GameCamera.target is null at runtime (P0-2)").is_same(_player)
 	assert_object(_camera.get_parent()).append_failure_message("GameCamera must be a sibling of the Player, not its child (D151: physics interpolation)").is_same(_player.get_parent())
 	assert_int(_camera.physics_interpolation_mode).is_equal(Node.PHYSICS_INTERPOLATION_MODE_OFF)
-	_camera.snap_to(_player.global_position)
-	_player.global_position = Vector2(1200, 0)
+	# The arena is 2432 px wide (D330), so the camera's clamp leaves it about +/-350 px of travel at a
+	# 1920 px view: park it at the centre, move the player east, and it must follow part of the way.
+	_camera.snap_to(Vector2.ZERO)
+	_player.global_position = Vector2(340, 0)
 	await get_tree().process_frame
 	await get_tree().create_timer(1.0).timeout
-	assert_float(_camera.global_position.x).append_failure_message("camera did not follow the moved player").is_greater(900.0)
+	assert_float(_camera.global_position.x).append_failure_message("camera did not follow the moved player").is_greater(200.0)
 
 
 func test_every_required_node_is_present() -> void:
@@ -327,7 +329,7 @@ func test_arena_floor_and_water_textures_resolve_to_tiny_swords_files() -> void:
 	var floor_sprite: Sprite2D = arena.get_node("Floor") as Sprite2D
 	assert_object(floor_sprite.texture).append_failure_message("Floor.texture is null -- broken resource path").is_not_null()
 	assert_str(floor_sprite.texture.resource_path).contains("third_party/tiny_swords/Derived/grass_fill_tile.png")
-	for water_name in ["WaterNorthSprite", "WaterSouthSprite", "WaterWestSprite", "WaterEastSprite"]:
+	for water_name in ["WaterBackdrop"]: # D330: one backdrop replaces the four boundary strips
 		var water: Sprite2D = arena.get_node(water_name) as Sprite2D
 		assert_object(water.texture).append_failure_message("%s.texture is null -- broken resource path" % water_name).is_not_null()
 		assert_str(water.texture.resource_path).append_failure_message("%s does not resolve to Water.png" % water_name).contains("third_party/tiny_swords/Terrain/Water/Water.png")

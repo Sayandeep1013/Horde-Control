@@ -2,7 +2,7 @@ extends Node2D
 class_name ArenaKeg
 ## Powder Keg (Register "v1.0 Arena Interactables", docs/32 section B). Lit by a player
 ## dash into it or by any player-side explosion / area damage (including another
-## keg: chain detonation). Enemies never light it. A lit keg shows a 110 px
+## keg: chain detonation). Enemies never light it. A lit keg shows a 170 px
 ## GroundTelegraph for the 0.8 s fuse, then ExplosionFx: damage to enemies in the
 ## radius (bosses take half), a little damage to the player when inside, none to
 ## the Tower. Recorded in CombatStats under "keg".
@@ -15,10 +15,11 @@ const TELEGRAPH_COLOR: Color = Color(0.95, 0.3, 0.12)
 
 # Register "v1.0 Arena Interactables": Powder Keg
 const FUSE_SECONDS: float = 0.8
-const BLAST_RADIUS_PX: float = 110.0
-const ENEMY_DAMAGE: float = 140.0
+const BLAST_RADIUS_PX: float = 170.0
+const ENEMY_DAMAGE: float = 260.0
+const SPRITE_SCALE: float = 1.6
 const PLAYER_DAMAGE: float = 15.0
-var breakable_radius: float = 20.0 # Register: Keg radius
+var breakable_radius: float = 32.0 # Register: Keg radius (20 px x 1.6)
 
 var is_lit: bool = false
 var has_exploded: bool = false
@@ -37,6 +38,7 @@ func _ready() -> void:
 	_sprite.texture = TEX_UNLIT
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_sprite.offset = Vector2(0, -16)
+	_sprite.scale = Vector2.ONE * SPRITE_SCALE
 	add_child(_sprite)
 	_phase = fmod(global_position.x * 0.017 + global_position.y * 0.011, TAU)
 
@@ -99,7 +101,7 @@ func _draw() -> void:
 		return
 	var a: float = 0.25 + 0.2 * (0.5 + 0.5 * sin(SimClock.now * 2.4 + _phase))
 	draw_set_transform(Vector2(0, 2), 0.0, Vector2(1.0, 0.55))
-	draw_arc(Vector2.ZERO, 30.0, 0.0, TAU, 24, Color(0.95, 0.3, 0.2, a), 2.0, false)
+	draw_arc(Vector2.ZERO, 30.0 * SPRITE_SCALE, 0.0, TAU, 24, Color(0.95, 0.3, 0.2, a), 2.0, false)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 

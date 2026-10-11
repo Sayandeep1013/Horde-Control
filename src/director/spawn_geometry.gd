@@ -38,12 +38,19 @@ class_name SpawnGeometry
 ## margin" reads as expanding that rectangle uniformly.
 
 
+## PT-ARENA hook (D333): the arena's FlowField installs a Callable(Vector2) -> Vector2 here that maps
+## a raw ring point onto a walkable outer-bank cell (the 1331 px rings lie outside the 2432 x 1664 px
+## island). Unset (every unit test, any scene without a FlowField) the ring points are used as is.
+static var point_projector: Callable = Callable()
+
+
 ## One point on a ring at `angle_radians` (0 = +X / east, increasing
 ## counter-clockwise per Godot's Vector2 convention) and `radius_fraction`
 ## (0..1) of the way through the ring's width, measured from its inner edge.
 static func sample_ring_point(ring: RingDefinition, ring_center: Vector2, angle_radians: float, radius_fraction: float) -> Vector2:
 	var radius: float = float(ring.inner_radius_px) + clampf(radius_fraction, 0.0, 1.0) * float(ring.width_px)
-	return ring_center + Vector2(cos(angle_radians), sin(angle_radians)) * radius
+	var raw: Vector2 = ring_center + Vector2(cos(angle_radians), sin(angle_radians)) * radius
+	return point_projector.call(raw) if point_projector.is_valid() else raw
 
 
 ## "Reject a candidate inside view + 64 px margin" -- true when `point` is

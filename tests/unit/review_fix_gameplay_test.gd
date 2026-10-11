@@ -160,12 +160,12 @@ func _line(n: int) -> Array[EnemyController]:
 
 
 func test_conduction_adds_two_chains_when_frost_ward_is_owned() -> void:
-	var enemies: Array[EnemyController] = _line(6)
+	var enemies: Array[EnemyController] = _line(8) # PT-POWER D351: level 1 chains 4 (was 2), so the line is longer
 	_mgr.grant_ability("storm_bolt")
 	var bolt: StormBoltAbility = _mgr.get_ability_node("storm_bolt") as StormBoltAbility
-	assert_int(bolt.strike(enemies[0]).size()).is_equal(3)
+	assert_int(bolt.strike(enemies[0]).size()).is_equal(5)
 	_mgr.grant_ability("frost_ward")
-	assert_int(bolt.strike(enemies[0]).size()).append_failure_message("1 + 2 chains + 2 Conduction").is_equal(5)
+	assert_int(bolt.strike(enemies[0]).size()).append_failure_message("1 + 4 chains + 2 Conduction").is_equal(7)
 
 
 ## FALSIFICATION: with `conduction_mult` returning 1.0 the Slowed enemy took the
@@ -177,6 +177,9 @@ func test_conduction_deals_half_again_to_a_slowed_or_frozen_enemy() -> void:
 	var plain: EnemyController = _enemy_at(Vector2(100, 0))
 	var slowed: EnemyController = _enemy_at(Vector2(100, 600))
 	var frozen: EnemyController = _enemy_at(Vector2(100, 1200))
+	for e in [plain, slowed, frozen]: # PT-POWER D351: a 48 x 1.5 = 72 hit would otherwise be capped by the Seeker's 60 HP
+		e.death_state.max_hp = 5000.0
+		e.death_state.current_hp = 5000.0
 	StatusEffects.apply_slow(slowed, 0.3, 5.0)
 	StatusEffects.apply_freeze(frozen, 5.0)
 	var hp_p: float = _hp(plain)

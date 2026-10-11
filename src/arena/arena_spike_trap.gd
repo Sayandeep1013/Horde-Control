@@ -20,8 +20,9 @@ const RETRACTED_SECONDS: float = 2.2
 const TELEGRAPH_SECONDS: float = 0.6
 const RAISED_SECONDS: float = 0.5
 const DAMAGE: float = 30.0
-const HIT_RADIUS_X_PX: float = 36.0 # plate hit ellipse, half-width
-const HIT_RADIUS_Y_PX: float = 24.0 # plate hit ellipse, half-height
+const SPRITE_SCALE: float = 2.0 # Register "v1.0 Arena Interactables": Spike Trap size (a 128 x 80 px plate fills a 128 px bridge)
+const HIT_RADIUS_X_PX: float = 72.0 # plate hit ellipse, half-width (36 px x 2)
+const HIT_RADIUS_Y_PX: float = 48.0 # plate hit ellipse, half-height (24 px x 2)
 const CYCLE_SECONDS: float = RETRACTED_SECONDS + TELEGRAPH_SECONDS + RAISED_SECONDS
 const BLINK_HZ: float = 8.0
 
@@ -40,6 +41,7 @@ func _ready() -> void:
 	_sprite = Sprite2D.new()
 	_sprite.texture = TEXTURES[0]
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_sprite.scale = Vector2.ONE * SPRITE_SCALE
 	add_child(_sprite)
 
 
@@ -85,7 +87,7 @@ func step() -> void:
 
 
 func _hit_raised() -> void:
-	for e in AbilityDamage.enemies_in_radius(global_position, HIT_RADIUS_X_PX + 24.0):
+	for e in AbilityDamage.enemies_in_radius(global_position, HIT_RADIUS_X_PX + 48.0):
 		if not in_plate(e.global_position) or _hit_ids.has(e.get_instance_id()):
 			continue
 		if ArenaHits.hit_enemy(e, DAMAGE, AbilityIds.SOURCE_SPIKES) > 0.0:

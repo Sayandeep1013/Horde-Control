@@ -19,6 +19,11 @@ extends Node
 ##     [--arena-wave=N] (at frame 3: spawn wave N's arena interactables by the normal rules)
 ##     [--boons=war,haste,ward,bounty] (at frame 3: claim those Shrine boons for a tray capture)
 ##     [--light-kegs=F] (at frame F: light every Powder Keg)
+##     [--spawn-at=X,Y] (PT-ARENA: --spawn-count enemies stand round this world point instead of the player)
+##     [--stand-on-shrine=F] (PT-ARENA: at frame F the player is moved onto the Shrine, so it claims for real)
+##     [--walk-into-crate=F] (PT-ARENA: at frame F the player is put 120 px east of the first Crate and walks west into it)
+##     [--flow-debug] (PT-ARENA: at frame 2 draw the FlowField mask and both fields)
+##     [--overview=Z] (PT-ARENA: from frame 2 the camera is pinned at the arena centre at zoom Z, e.g. 0.58)
 ##   (the v1.0 flags are dev-only helpers for WP-COMBAT captures, prototype scene only)
 ##   [--event=opening|patrons_boon|sanctuary|blood_pact] [--flawless] [--armory]
 ##   [--champion=pactbound] [--relic=lucky_coin]   (docs/32 run events: at frame 1 the
@@ -57,6 +62,11 @@ var _arena_showcase: String = ""
 var _arena_wave: int = 0
 var _boons: Array[String] = []
 var _light_kegs_frame: int = -1
+var _spawn_at: Vector2 = Vector2.INF
+var _stand_on_shrine_frame: int = -1
+var _flow_debug: bool = false
+var _walk_crate_frame: int = -1
+var _overview_zoom: float = 0.0
 var _pause_frame: int = -1 # WP-LOADOUT: opens the pause menu at this frame
 var _scene: Node = null
 var _has_player_pos: bool = false
@@ -109,6 +119,18 @@ func _ready() -> void:
 				_boons.append(b)
 		elif arg.begins_with("--light-kegs="):
 			_light_kegs_frame = int(arg.trim_prefix("--light-kegs="))
+		elif arg.begins_with("--spawn-at="):
+			var sa: PackedStringArray = arg.trim_prefix("--spawn-at=").split(",")
+			if sa.size() == 2:
+				_spawn_at = Vector2(float(sa[0]), float(sa[1]))
+		elif arg.begins_with("--stand-on-shrine="):
+			_stand_on_shrine_frame = int(arg.trim_prefix("--stand-on-shrine="))
+		elif arg.begins_with("--walk-into-crate="):
+			_walk_crate_frame = int(arg.trim_prefix("--walk-into-crate="))
+		elif arg == "--flow-debug":
+			_flow_debug = true
+		elif arg.begins_with("--overview="):
+			_overview_zoom = float(arg.trim_prefix("--overview="))
 		elif arg.begins_with("--pause-frame="):
 			_pause_frame = int(arg.trim_prefix("--pause-frame="))
 		elif arg.begins_with("--champion="): # WP-LOADOUT: a run as that Champion (RunConfig is written before the scene loads)
@@ -211,6 +233,27 @@ func _drive_v1_helpers() -> void:
 		if _light_kegs_frame >= 0 and _count == _light_kegs_frame:
 			for k in arena.get_kegs():
 				k.light("capture")
+		if _walk_crate_frame >= 0 and _count == _walk_crate_frame and not arena.get_crates().is_empty():
+			var pl3: Node2D = get_tree().get_first_node_in_group(&"player") as Node2D
+			pl3.global_position = arena.get_crates()[0].global_position + Vector2(120, 0)
+			pl3.reset_physics_interpolation()
+			Input.action_press("move_left")
+		if _stand_on_shrine_frame >= 0 and _count == _stand_on_shrine_frame:
+			var shrine: Node2D = arena.get_shrine()
+			var pl2: Node2D = get_tree().get_first_node_in_group(&"player") as Node2D
+			if shrine != null and pl2 != null:
+				pl2.global_position = shrine.global_position
+				pl2.reset_physics_interpolation()
+	if _count == 2 and _flow_debug:
+		get_tree().call_group(&"flow_field", &"set_debug_draw", true)
+	if _overview_zoom > 0.0 and _count >= 2:
+		var cam: Camera2D = get_viewport().get_camera_2d()
+		if cam != null:
+			cam.set_process(false)
+			cam.set_physics_process(false)
+			cam.zoom = Vector2.ONE * _overview_zoom
+			cam.global_position = Vector2.ZERO
+			cam.reset_smoothing()
 	if _pause_frame >= 0 and _count == _pause_frame:
 		var pause_event := InputEventAction.new()
 		pause_event.action = &"pause"
@@ -243,7 +286,8 @@ func _drive_v1_helpers() -> void:
 			e.tower_path = NodePath("")
 			(entities if entities != null else _scene).add_child(e)
 			e.set_tower_reference(_scene.get_node("Main/Tower"))
-			e.global_position = player.global_position + Vector2.from_angle(TAU * float(i) / float(maxi(1, _spawn_count))) * (150.0 + 12.0 * float(i % 5))
+			var ring_center: Vector2 = _spawn_at if _spawn_at != Vector2.INF else player.global_position
+			e.global_position = ring_center + Vector2.from_angle(TAU * float(i) / float(maxi(1, _spawn_count))) * ((150.0 if _spawn_at == Vector2.INF else 40.0) + 12.0 * float(i % 5))
 			EntityRegistry.update_position(e, e.global_position)
 
 

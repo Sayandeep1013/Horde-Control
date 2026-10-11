@@ -5,16 +5,22 @@ class_name LightningBolt
 ## WP-ASSETS is a stretched texture; a drawn bolt reads cleaner at any length).
 
 const LIFETIME_SECONDS: float = 0.2
-const JAG_PX: float = 9.0
+const JAG_PX: float = 14.0 # D351: bigger bolts read at swarm scale
+const GLOW_WIDTH_PX: float = 16.0
+const CORE_WIDTH_PX: float = 6.0
 
 var points: PackedVector2Array = PackedVector2Array()
 var _start: float = 0.0
 var _jagged: PackedVector2Array = PackedVector2Array()
+var glow_color: Color = Color(0.45, 0.6, 1.0, 0.55)
+var width_scale: float = 1.0
 
 
-static func spawn(parent: Node, p_points: PackedVector2Array) -> LightningBolt:
+static func spawn(parent: Node, p_points: PackedVector2Array, p_glow: Color = Color(0.45, 0.6, 1.0, 0.55), p_width_scale: float = 1.0) -> LightningBolt:
 	var b := LightningBolt.new()
 	b.points = p_points
+	b.glow_color = p_glow
+	b.width_scale = p_width_scale
 	parent.add_child(b)
 	return b
 
@@ -51,5 +57,5 @@ func _draw() -> void:
 	if _jagged.size() < 2:
 		return
 	var k: float = 1.0 - clampf((SimClock.now - _start) / LIFETIME_SECONDS, 0.0, 1.0)
-	draw_polyline(_jagged, Color(0.45, 0.6, 1.0, 0.55 * k), 9.0, true)
-	draw_polyline(_jagged, Color(0.85, 0.92, 1.0, k), 3.0, true)
+	draw_polyline(_jagged, Color(glow_color.r, glow_color.g, glow_color.b, glow_color.a * k), GLOW_WIDTH_PX * width_scale, true)
+	draw_polyline(_jagged, Color(0.85, 0.92, 1.0, k), CORE_WIDTH_PX * width_scale, true)

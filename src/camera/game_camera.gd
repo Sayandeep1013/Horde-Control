@@ -26,8 +26,8 @@ class_name GameCamera
 ## Assumption, named rather than silently made (P2.4 owns tower.tscn and has
 ## not yet placed it): "Tower at centre" (Register > "Arena size" row) is
 ## read as the Tower sitting at world origin, so `arena_center` defaults to
-## Vector2.ZERO and the arena spans x in [-2400, 2400], y in [-1600, 1600]
-## (half of the Register's 4800x3200 "Arena size" row on each axis). This
+## Vector2.ZERO and the arena spans x in [-1216, 1216], y in [-832, 832]
+## (half of the Register's 2432x1664 "Arena size" row on each axis, D330). This
 ## must match scenes/arena.tscn's own Floor/ArenaBounds placement (it does;
 ## see that scene) and whatever world position P2.1's player.tscn and P2.4's
 ## tower.tscn are ultimately placed at. If a later task places the Tower
@@ -47,7 +47,7 @@ class_name GameCamera
 
 
 # --- Provisional Values Register > Arena & Camera (cited, not restated) ---
-const ARENA_SIZE: Vector2 = Vector2(4800.0, 3200.0) # "Arena size" row
+const ARENA_SIZE: Vector2 = Vector2(2432.0, 1664.0) # "Arena size" row (docs/33 B1, D330: 2432 x 1664 island, ArenaLayout.SIZE)
 const VIEW_SCALE_MIN: float = 0.9 # "View scale" row
 const VIEW_SCALE_MAX: float = 1.15 # "View scale" row
 const VIEWPORT_REFERENCE_SIZE: Vector2 = Vector2(1920.0, 1080.0) # "View scale" row: "1.0 = 1920x1080 world px"

@@ -31,6 +31,12 @@ const SCRIPTS: Dictionary = {
 	"catapult": preload("res://src/ability/catapult.gd"),
 	"frost_ward": preload("res://src/ability/frost_ward.gd"),
 	"spiked_palisade": preload("res://src/ability/spiked_palisade.gd"),
+	# PT-POWER (D352-D356)
+	"diagonal_arrows": preload("res://src/ability/diagonal_arrows.gd"),
+	"ricochet": preload("res://src/ability/ricochet.gd"),
+	"lightning_sprite": preload("res://src/ability/lightning_sprite.gd"),
+	"meteor_shower": preload("res://src/ability/meteor_shower.gd"),
+	"blade_circle": preload("res://src/ability/blade_circle.gd"),
 }
 
 var _owned: Dictionary = {} # id -> AbilityNode

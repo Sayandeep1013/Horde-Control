@@ -12,11 +12,13 @@ signal expired(shrine: ArenaShrine)
 const TEX: Texture2D = preload("res://assets/sprites/v1/shrine.png")
 
 # Register "v1.0 Arena Interactables": Shrine
-const CLAIM_RADIUS_PX: float = 52.0
+const SPRITE_SCALE: float = 1.5 # Register "v1.0 Arena Interactables": Shrine size
+const CLAIM_RADIUS_PX: float = 78.0 # 52 px x 1.5
 const CLAIM_SECONDS: float = 2.5
 const LIFETIME_SECONDS: float = 25.0
 const BLINK_SECONDS: float = 5.0
-const ICON_FLOAT_PX: float = 104.0
+const ICON_FLOAT_PX: float = 156.0 # 104 px x 1.5
+const PILLAR_HEIGHT_PX: float = 360.0 # idle pillar of light
 const FADE_SECONDS: float = 0.5
 
 var boon_id: String = ArenaBoon.WAR
@@ -40,11 +42,13 @@ func _ready() -> void:
 	_sprite.texture = TEX
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_sprite.offset = Vector2(0, -36)
+	_sprite.scale = Vector2.ONE * SPRITE_SCALE
 	add_child(_sprite)
 	_icon = Sprite2D.new()
 	_icon.texture = load(ArenaBoon.icon_path(boon_id)) as Texture2D
 	_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_icon.position = Vector2(0, -ICON_FLOAT_PX)
+	_icon.scale = Vector2.ONE * SPRITE_SCALE
 	add_child(_icon)
 
 
@@ -103,6 +107,7 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if is_claimed or is_expired:
 		return
+	_draw_pillar()
 	draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.55))
 	# Dark underline then a bright ring, so it reads on sand and on grass.
 	draw_arc(Vector2.ZERO, CLAIM_RADIUS_PX, 0.0, TAU, 40, Color(0.09, 0.11, 0.18, 0.7), 5.0, false)
@@ -111,3 +116,29 @@ func _draw() -> void:
 	if f > 0.0:
 		draw_arc(Vector2.ZERO, CLAIM_RADIUS_PX, -PI * 0.5, -PI * 0.5 + TAU * f, 40, Color(1.0, 0.85, 0.3, 1.0), 5.0, false)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Idle pillar of light (docs/33 B5): a column that fades out upward, breathing slowly, with a few
+## motes rising through it, so an unclaimed Shrine reads from across the arena. Pure SimClock draw.
+func _draw_pillar() -> void:
+	var now: float = SimClock.now
+	var breathe: float = 0.75 + 0.25 * sin(now * 2.2)
+	var tint: Color = Color(0.6, 0.92, 1.0)
+	var bands: int = 12
+	for i in bands:
+		var t0: float = float(i) / float(bands)
+		var y0: float = -t0 * PILLAR_HEIGHT_PX
+		var half_w: float = lerpf(34.0, 14.0, t0) * SPRITE_SCALE * 0.75
+		var a: float = (1.0 - t0) * 0.30 * breathe
+		draw_rect(Rect2(-half_w, y0 - PILLAR_HEIGHT_PX / float(bands), half_w * 2.0, PILLAR_HEIGHT_PX / float(bands) + 1.0), Color(tint.r, tint.g, tint.b, a))
+	# A brighter core.
+	for i in bands:
+		var t0: float = float(i) / float(bands)
+		var half_w: float = lerpf(12.0, 5.0, t0) * SPRITE_SCALE * 0.75
+		draw_rect(Rect2(-half_w, -(t0 + 1.0 / float(bands)) * PILLAR_HEIGHT_PX, half_w * 2.0, PILLAR_HEIGHT_PX / float(bands) + 1.0), Color(1.0, 1.0, 1.0, (1.0 - t0) * 0.35 * breathe))
+	# Motes rising through the column.
+	for k in 6:
+		var phase: float = fmod(now * 0.45 + float(k) * 0.37, 1.0)
+		var x: float = sin(float(k) * 2.3 + now * 0.9) * 14.0
+		var y: float = -phase * PILLAR_HEIGHT_PX
+		draw_rect(Rect2(x - 2.0, y - 2.0, 4.0, 4.0), Color(1.0, 1.0, 0.9, (1.0 - phase) * 0.9))

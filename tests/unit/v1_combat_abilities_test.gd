@@ -40,16 +40,17 @@ func test_new_ability_starts_at_level_one_and_levels_to_five_then_refuses() -> v
 	assert_int(_mgr.get_level("flame_arrows")).is_equal(5)
 
 
-func test_player_slot_limit_is_four_and_tower_limit_is_three_and_independent() -> void:
-	for id in ["flame_arrows", "frost_arrows", "whirling_axes", "dynamite_satchel"]:
+func test_player_slot_limit_is_six_and_tower_limit_is_three_and_independent() -> void:
+	assert_int(AbilityIds.MAX_PLAYER_ABILITIES).is_equal(6) # PT-POWER D350: was 4
+	for id in ["flame_arrows", "frost_arrows", "whirling_axes", "dynamite_satchel", "caltrops", "blade_circle"]:
 		assert_int(_mgr.grant_ability(id)).is_equal(1)
-	assert_bool(_mgr.can_grant("caltrops")).is_false()
-	assert_int(_mgr.grant_ability("caltrops")).is_equal(0)
+	assert_bool(_mgr.can_grant("storm_bolt")).is_false()
+	assert_int(_mgr.grant_ability("storm_bolt")).is_equal(0)
 	assert_bool(_mgr.can_grant("flame_arrows")).is_true() # owned abilities still level
 	for id in ["ballista", "catapult", "frost_ward"]:
 		assert_int(_mgr.grant_ability(id)).is_equal(1)
 	assert_bool(_mgr.can_grant("spiked_palisade")).is_false()
-	assert_int(_mgr.get_owned_abilities("player").size()).is_equal(4)
+	assert_int(_mgr.get_owned_abilities("player").size()).is_equal(6)
 	assert_int(_mgr.get_owned_abilities("tower").size()).is_equal(3)
 
 
@@ -74,11 +75,11 @@ func test_leveling_emits_ability_changed() -> void:
 func test_describe_next_says_new_ability_then_level_arrow_and_honest_values() -> void:
 	var first: Dictionary = _mgr.describe_next("whirling_axes")
 	assert_str(first["level_text"]).is_equal("NEW ABILITY")
-	assert_str(first["effect_text"]).contains("14 damage")
+	assert_str(first["effect_text"]).contains("30 damage") # PT-POWER D351: was 14
 	_mgr.grant_ability("whirling_axes")
 	var second: Dictionary = _mgr.describe_next("whirling_axes")
 	assert_str(second["level_text"]).is_equal("Lv 1 → 2")
-	assert_str(second["effect_text"]).contains("2 orbiting axes")
+	assert_str(second["effect_text"]).contains("3 big orbiting axes") # was "2 orbiting axes"
 
 
 func test_rarity_scales_ability_damage_but_not_cooldown() -> void:
@@ -97,13 +98,13 @@ func test_upgrade_system_levels_abilities_through_cards_and_text_is_honest() -> 
 	assert_int(_us.get_current_rank("ballista")).is_equal(1)
 	var honest: Dictionary = _us.get_honest_card_value("ballista", 1.5)
 	assert_str(honest["level_text"]).is_equal("Lv 1 → 2")
-	assert_str(honest["effect_text"]).contains("67") # Ballista level 2 = 44.5 (34 to 76 over five levels, WP-BALANCE), x1.5 rarity = 66.75: the text must show the scaled value
+	assert_str(honest["effect_text"]).contains("135") # Ballista level 2 = 90 (70 to 150 over five levels, PT-POWER D351), x1.5 rarity = 135: the text must show the scaled value
 	assert_bool(_us.apply_rank("ballista", 1.5)).is_true()
 	assert_int(_mgr.get_level("ballista")).is_equal(2)
 
 
 func test_full_slots_hide_unowned_ability_cards_from_the_draft_pool() -> void:
-	for id in ["flame_arrows", "whirling_axes", "dynamite_satchel", "caltrops"]:
+	for id in ["flame_arrows", "whirling_axes", "dynamite_satchel", "caltrops", "diagonal_arrows", "blade_circle"]:
 		_us.apply_rank(id, 1.0)
 	var ids: Array[String] = []
 	for d in _us.get_offerable_upgrades(ContractEnums.PoolOwnership.Player):
@@ -119,7 +120,9 @@ func test_full_slots_hide_unowned_ability_cards_from_the_draft_pool() -> void:
 func test_unlock_gating_flags() -> void:
 	for id in ["frost_arrows", "storm_bolt", "sacred_ground", "catapult", "spiked_palisade", "tower_volley"]:
 		assert_bool(_us.get_definition(id).is_unlock).append_failure_message(id).is_true()
-	for id in ["multishot", "piercing_arrows", "flame_arrows", "whirling_axes", "dynamite_satchel", "caltrops", "ballista", "frost_ward"]:
+	for id in ["ricochet", "lightning_sprite", "meteor_shower"]: # PT-POWER D357: the three achievement / tree unlocks
+		assert_bool(_us.get_definition(id).is_unlock).append_failure_message(id).is_true()
+	for id in ["multishot", "piercing_arrows", "flame_arrows", "whirling_axes", "dynamite_satchel", "caltrops", "ballista", "frost_ward", "diagonal_arrows", "blade_circle", "rear_arrow", "shadow_step"]:
 		assert_bool(_us.get_definition(id).is_unlock).append_failure_message(id).is_false()
 
 
@@ -178,7 +181,7 @@ func test_grant_free_random_ability_picks_an_unlocked_player_ability() -> void:
 
 func test_storm_bolt_chains_to_the_requested_number_of_enemies() -> void:
 	var enemies: Array[EnemyController] = []
-	for i in 5:
+	for i in 7:
 		var e: EnemyController = TowerSeekerScene.instantiate() as EnemyController
 		e.driven_externally = true
 		add_child(e)
@@ -189,7 +192,7 @@ func test_storm_bolt_chains_to_the_requested_number_of_enemies() -> void:
 	_mgr.grant_ability("storm_bolt") # tolerated here: the manager does not check unlocks, the Draft does
 	var bolt: StormBoltAbility = _mgr.get_ability_node("storm_bolt") as StormBoltAbility
 	var struck: Array[Node2D] = bolt.strike(enemies[0])
-	assert_int(struck.size()).is_equal(3) # first target + 2 chains at level 1
+	assert_int(struck.size()).is_equal(5) # first target + 4 chains at level 1 (PT-POWER D351: was 2), with 7 enemies in reach
 	var total: float = 0.0
 	for row in CombatStats.get_damage_by_source():
 		if row["source_id"] == "storm_bolt":
@@ -235,7 +238,7 @@ func test_ability_cards_are_picked_about_45_percent_of_the_time_while_a_slot_is_
 
 
 func test_with_full_slots_the_pick_is_uniform_over_the_pool_again() -> void:
-	for id in ["flame_arrows", "whirling_axes", "dynamite_satchel", "caltrops"]:
+	for id in ["flame_arrows", "whirling_axes", "dynamite_satchel", "caltrops", "diagonal_arrows", "blade_circle"]:
 		_us.apply_rank(id, 1.0)
 	var draft: DraftController = _make_draft()
 	var pool: Array[UpgradeDefinition] = _us.get_offerable_upgrades(ContractEnums.PoolOwnership.Player)

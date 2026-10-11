@@ -1,7 +1,7 @@
 extends AbilityNode
 class_name SacredGroundAbility
-## Sacred Ground (docs/31 §4.2): an aura of radius 85-130 px around the player
-## dealing 6-20 dps. At level 5 each enemy killed inside heals the player 0.5%
+## Sacred Ground (docs/31 §4.2; PT-POWER D351): an aura of radius 150-230 px around the player
+## dealing 14-45 dps. At level 5 each enemy killed inside heals the player 0.5%
 ## of max HP.
 
 const TICK_SECONDS: float = 0.25 # Register: Sacred Ground tick interval
@@ -80,9 +80,9 @@ func _draw() -> void:
 	var pulse: float = 0.5 + 0.5 * sin(SimClock.now * 3.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.55))
 	draw_circle(Vector2.ZERO, r, Color(1.0, 0.92, 0.55, 0.14 + 0.05 * pulse))
-	draw_arc(Vector2.ZERO, r - 9.0, 0.0, TAU, 56, Color(1.0, 0.97, 0.75, 0.30 + 0.10 * pulse), 14.0, false) # inner band
-	draw_arc(Vector2.ZERO, r, 0.0, TAU, 56, Color(0.42, 0.27, 0.04, 0.95), 8.0, false) # dark-gold outline
-	draw_arc(Vector2.ZERO, r, 0.0, TAU, 56, Color(1.0, 0.86, 0.35, 0.85 + 0.15 * pulse), 4.0, false) # bright rim
+	draw_arc(Vector2.ZERO, r - 9.0, 0.0, TAU, 56, Color(1.0, 0.97, 0.75, 0.30 + 0.10 * pulse), 20.0, false) # inner band
+	draw_arc(Vector2.ZERO, r, 0.0, TAU, 56, Color(0.42, 0.27, 0.04, 0.95), 11.0, false) # dark-gold outline
+	draw_arc(Vector2.ZERO, r, 0.0, TAU, 56, Color(1.0, 0.86, 0.35, 0.85 + 0.15 * pulse), 6.0, false) # bright rim
 	draw_arc(Vector2.ZERO, r * 0.6, 0.0, TAU, 40, Color(0.42, 0.27, 0.04, 0.45), 3.0, false)
 	draw_arc(Vector2.ZERO, r * 0.6, 0.0, TAU, 40, Color(1.0, 0.95, 0.7, 0.45), 1.5, false)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

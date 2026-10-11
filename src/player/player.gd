@@ -760,11 +760,12 @@ func get_regen_fraction_per_second_for_test() -> float:
 
 # --- v1.0 Dash (docs/31 §3.1; Register "v1.0 Combat & Abilities" > Dash) ----
 
-const DASH_DISTANCE_PX: float = 190.0 # Register: Dash distance
+const DASH_DISTANCE_PX: float = 220.0 # Register: Dash distance (D350, was 190)
 const DASH_DURATION_SECONDS: float = 0.16 # Register: Dash duration
 const DASH_IFRAME_EXTRA_SECONDS: float = 0.12 # Register: Dash invulnerability tail
-const DASH_COOLDOWN_SECONDS: float = 2.8 # Register: Dash recharge
-const DASH_BASE_CHARGES: int = 1 # Register: Dash charges
+const DASH_COOLDOWN_SECONDS: float = 1.5 # Register: Dash recharge (D350, was 2.8)
+const DASH_BASE_CHARGES: int = 2 # Register: Dash charges (D350, was 1)
+const SHADOW_STEP_RADIUS_PX: float = 48.0 # Register: Shadow Step contact radius around the dashing player
 const DASH_COOLDOWN_FLOOR: float = 0.4 # Register: Dash cooldown multiplier floor
 const DASH_AFTERIMAGES: int = 3 # docs/31 §3.1: "3 fading sprite copies"
 
@@ -777,6 +778,9 @@ var _dash_end_at: float = 0.0
 var _dash_started_at: float = 0.0
 var _dash_direction: Vector2 = Vector2.RIGHT
 var _dash_afterimages_spawned: int = 0
+var _shadow_step_damage: float = 0.0 # Shadow Step (D350): contact damage per enemy per dash, 0 = card not held
+var _shadow_step_invuln: float = 0.0 # and the extra invulnerability seconds it grants
+var _shadow_step_hit: Dictionary = {} # enemy instance id -> true, cleared at dash start
 var _dash_buffer_until: float = -INF
 var _invulnerable_until: float = -INF
 var _facing: Vector2 = Vector2.RIGHT
@@ -831,6 +835,7 @@ func _dash_step(raw_direction: Vector2) -> void:
 			_dash_recharge_ready_at = now + _dash_cooldown_total()
 	if _dash_active:
 		_spawn_dash_afterimages(now)
+		_shadow_step_contact()
 		if now >= _dash_end_at:
 			_end_dash()
 	if now < _dash_buffer_until and not _dash_active and _dash_charges > 0 and not is_dead():
@@ -854,13 +859,33 @@ func _start_dash(raw_direction: Vector2, now: float) -> void:
 	_dash_active = true
 	_dash_started_at = now
 	_dash_end_at = now + DASH_DURATION_SECONDS
-	_invulnerable_until = _dash_end_at + DASH_IFRAME_EXTRA_SECONDS
+	_invulnerable_until = _dash_end_at + DASH_IFRAME_EXTRA_SECONDS + _shadow_step_invuln
+	_shadow_step_hit.clear()
 	_dash_afterimages_spawned = 0
 	_set_pass_through(true)
 	_spawn_dash_afterimages(now)
 	Sfx.play("dash", global_position)
 	CombatStats.add_run_counter("dashes")
 	EventBus.emit_dash_used(_dash_charges)
+
+
+## Shadow Step: every enemy the dashing body overlaps takes the card's damage once per dash,
+## scaled by the player's ability damage terms (Heavy Rounds, Valor, boons, meta) and able to crit.
+func _shadow_step_contact() -> void:
+	if _shadow_step_damage <= 0.0:
+		return
+	for e in AbilityDamage.enemies_in_radius(global_position, SHADOW_STEP_RADIUS_PX):
+		var id: int = e.get_instance_id()
+		if _shadow_step_hit.has(id):
+			continue
+		if AbilityDamage.hit(e, _shadow_step_damage * AbilityDamage.player_ability_mult(), AbilityIds.SOURCE_SHADOW_STEP, &"player", true) > 0.0:
+			_shadow_step_hit[id] = true
+
+
+## Shadow Step card (UpgradeSystem). ABSOLUTE: replaces both values; (0, 0) removes the card.
+func set_shadow_step(damage: float, extra_invulnerable_seconds: float) -> void:
+	_shadow_step_damage = maxf(0.0, damage)
+	_shadow_step_invuln = maxf(0.0, extra_invulnerable_seconds)
 
 
 func _end_dash() -> void:
@@ -890,6 +915,7 @@ func set_dash_extra_charges(extra: int) -> void:
 	_dash_extra_charges = maxi(0, extra)
 	if _dash_max_charges() > before:
 		_dash_charges += _dash_max_charges() - before # a bought charge starts full
+	_dash_charges = mini(_dash_charges, _dash_max_charges())
 
 
 func set_dash_cooldown_multiplier(multiplier: float) -> void:

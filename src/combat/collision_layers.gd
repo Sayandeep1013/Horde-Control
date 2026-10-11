@@ -37,13 +37,16 @@ const LAYER_HAZARD: int = 1 << 12 # 13 Hazard
 const LAYER_INTERACTION_RADIUS: int = 1 << 13 # 14 InteractionRadius
 const LAYER_ARENA_BOUNDS: int = 1 << 14 # 15 ArenaBounds
 const LAYER_PLAYER_COLLECTOR: int = 1 << 15 # 16 PlayerCollector
+## Layer 17 extends the binding table (D331): moat and pond water. Bodies mask it, projectiles do not,
+## so water blocks walking but not shots (docs/33 section B2).
+const LAYER_WATER: int = 1 << 16 # 17 Water
 
 ## Pre-composed masks, one per binding-table row that has a non-"none" Masks
 ## column. Ground enemies only (P1.5's placeholder is a ground enemy; the
 ## table's "flying enemies drop 4" carve-out is not implemented here since
 ## no flying enemy exists yet -- named rather than silently assumed).
-const MASK_PLAYER_BODY: int = LAYER_ENEMY_BODY | LAYER_TOWER_BODY | LAYER_WORLD | LAYER_ARENA_BOUNDS # masks 2,3,4,15
-const MASK_ENEMY_BODY_GROUND: int = LAYER_PLAYER_BODY | LAYER_ENEMY_BODY | LAYER_TOWER_BODY | LAYER_WORLD | LAYER_ARENA_BOUNDS # masks 1,2,3,4,15
+const MASK_PLAYER_BODY: int = LAYER_ENEMY_BODY | LAYER_TOWER_BODY | LAYER_WORLD | LAYER_ARENA_BOUNDS | LAYER_WATER # masks 2,3,4,15,17
+const MASK_ENEMY_BODY_GROUND: int = LAYER_PLAYER_BODY | LAYER_ENEMY_BODY | LAYER_TOWER_BODY | LAYER_WORLD | LAYER_ARENA_BOUNDS | LAYER_WATER # masks 1,2,3,4,15,17
 const MASK_PLAYER_PROJECTILE: int = LAYER_ENEMY_HURTBOX | LAYER_WORLD | LAYER_ARENA_BOUNDS # masks 9,4,15
 const MASK_TOWER_PROJECTILE: int = LAYER_ENEMY_HURTBOX | LAYER_WORLD | LAYER_ARENA_BOUNDS # masks 9,4,15
 const MASK_ENEMY_PROJECTILE: int = LAYER_PLAYER_HURTBOX | LAYER_TOWER_HURTBOX | LAYER_WORLD | LAYER_ARENA_BOUNDS # masks 8,10,4,15

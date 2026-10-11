@@ -1,7 +1,7 @@
 extends AbilityNode
 class_name FrostWardAbility
-## Frost Ward (docs/31 §4.3): every 4.0-2.5 s the Tower pulses within 210-280 px:
-## 8-20 damage and a 30-45% slow for 2 s.
+## Frost Ward (docs/31 §4.3; PT-POWER D351): every 3.2-2.0 s the Tower pulses within 300-400 px:
+## 30-64 damage and a 35-50% slow for 2 s.
 
 func _physics_process(_delta: float) -> void:
 	var tower: Node2D = owner_node()
@@ -18,7 +18,7 @@ func _physics_process(_delta: float) -> void:
 
 
 func pulse(radius: float) -> void:
-	PulseRing.spawn(fx_parent(), global_position, radius, 0.55, Color(0.6, 0.85, 1.0), 5.0)
+	PulseRing.spawn(fx_parent(), global_position, radius, 0.55, Color(0.6, 0.85, 1.0), 9.0)
 	Sfx.play("frost", global_position)
 	var amount: float = dmg()
 	for e in AbilityDamage.enemies_in_radius(global_position, radius):
