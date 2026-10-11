@@ -73,9 +73,9 @@ func _use_real_map() -> void:
 
 func test_crate_breaks_when_the_player_walks_into_it() -> void:
 	var crate: ArenaCrate = _mgr.add_crate(Vector2(500, 500))
-	_player.global_position = Vector2(500 + 22 + 14 + 2, 500) # one reach plus 2 px: not touching
+	_player.global_position = Vector2(500 + 33 + 14 + 2, 500) # one reach plus 2 px: not touching
 	assert_bool(crate.check_player(_player, _player.global_position)).is_false()
-	_player.global_position = Vector2(500 + 22 + 14 - 2, 500) # inside the reach (crate 22 + body 14)
+	_player.global_position = Vector2(500 + 33 + 14 - 2, 500) # inside the reach (crate 33 + body 14)
 	assert_bool(crate.check_player(_player, Vector2(600, 500))).is_true()
 	assert_bool(crate.is_broken).is_true()
 	assert_float(CombatStats.get_run_counter("crates_broken")).is_equal(1.0)
@@ -93,7 +93,7 @@ func test_crate_breaks_when_a_dash_passes_through_it_even_between_ticks() -> voi
 func test_crate_breaks_on_player_side_area_damage_only_within_radius() -> void:
 	var crate: ArenaCrate = _mgr.add_crate(Vector2(500, 500))
 	AbilityDamage.hit_area(Vector2(500 + 100, 500), 60.0, 20.0, "dynamite_satchel", &"player", false)
-	assert_bool(crate.is_broken).is_false() # 100 px away, radius 60 + crate 22 = 82
+	assert_bool(crate.is_broken).is_false() # 100 px away, radius 60 + crate 33 = 93
 	AbilityDamage.hit_area(Vector2(500 + 70, 500), 60.0, 20.0, "dynamite_satchel", &"player", false)
 	assert_bool(crate.is_broken).is_true()
 
@@ -197,32 +197,32 @@ func test_keg_fuse_is_0_8_seconds_then_explodes() -> void:
 	assert_float(CombatStats.get_run_counter("kegs_detonated")).is_equal(1.0)
 
 
-func test_keg_blast_hits_enemies_within_110_px_boss_half_and_never_the_tower() -> void:
+func test_keg_blast_hits_enemies_within_170_px_for_260_boss_half_and_never_the_tower() -> void:
 	_tower.global_position = Vector2(500, 500) # the keg sits on the Tower footprint: no Tower damage
 	var keg: ArenaKeg = _mgr.add_keg(Vector2(500, 500))
-	var inside: EnemyController = _enemy_at(Vector2(500 + 100, 500))
-	var outside: EnemyController = _enemy_at(Vector2(500 + 120, 500))
+	var inside: EnemyController = _enemy_at(Vector2(500 + 150, 500))
+	var outside: EnemyController = _enemy_at(Vector2(500 + 200, 500))
 	var boss: EnemyController = _enemy_at(Vector2(500, 500 + 60))
 	boss.boss_id = "warchief"
 	var tower_hp: float = _tower.health.get_current_health()
 	var tower_shield: float = _tower.health.current_shield
 	keg.detonate()
-	assert_float(1000.0 - inside.death_state.current_hp).is_equal_approx(140.0, 0.01)
+	assert_float(1000.0 - inside.death_state.current_hp).is_equal_approx(260.0, 0.01)
 	assert_float(outside.death_state.current_hp).is_equal(1000.0)
-	assert_float(1000.0 - boss.death_state.current_hp).is_equal_approx(70.0, 0.01)
+	assert_float(1000.0 - boss.death_state.current_hp).is_equal_approx(130.0, 0.01)
 	assert_float(_tower.health.get_current_health()).is_equal(tower_hp)
 	assert_float(_tower.health.current_shield).is_equal(tower_shield)
-	assert_float(_damage_of("keg")).is_equal_approx(210.0, 0.01)
+	assert_float(_damage_of("keg")).is_equal_approx(390.0, 0.01)
 
 
 func test_keg_blast_hurts_the_player_for_15_only_when_inside() -> void:
 	var keg: ArenaKeg = _mgr.add_keg(Vector2(500, 500))
-	_player.global_position = Vector2(500 + 80, 500)
+	_player.global_position = Vector2(500 + 150, 500)
 	var hp: float = _player.death_state.current_hp
 	keg.detonate()
 	assert_float(hp - _player.death_state.current_hp).is_equal_approx(15.0, 0.01)
 	var keg2: ArenaKeg = _mgr.add_keg(Vector2(500, 500))
-	_player.global_position = Vector2(500 + 200, 500)
+	_player.global_position = Vector2(500 + 220, 500)
 	hp = _player.death_state.current_hp
 	keg2.detonate()
 	assert_float(_player.death_state.current_hp).is_equal(hp)
@@ -270,14 +270,14 @@ func test_shrine_fills_in_2_5_seconds_of_standing_and_claims() -> void:
 	assert_float(CombatStats.get_run_counter("shrines_claimed")).is_equal(1.0)
 
 
-func test_shrine_progress_pauses_outside_52_px_and_is_kept() -> void:
+func test_shrine_progress_pauses_outside_78_px_and_is_kept() -> void:
 	var s: ArenaShrine = _mgr.add_shrine(Vector2(500, 500), "war")
 	s.check_player(_player) # prime the clock at the current sim time
 	_player.global_position = Vector2(500, 500 + 40)
 	_advance(1.0)
 	s.check_player(_player)
 	assert_float(s.progress_seconds).is_equal_approx(1.0, 0.02)
-	_player.global_position = Vector2(500, 500 + 53) # just outside
+	_player.global_position = Vector2(500, 500 + 80) # just outside
 	_advance(3.0)
 	s.check_player(_player)
 	assert_float(s.progress_seconds).is_equal_approx(1.0, 0.02) # kept, not drained, not reset
@@ -370,7 +370,7 @@ func test_spikes_hit_an_enemy_and_the_player_once_per_cycle_for_30() -> void:
 
 func test_spikes_ignore_an_entity_outside_the_plate_and_halve_boss_damage() -> void:
 	var t: ArenaSpikeTrap = _trap_at(Vector2(500, 500))
-	var off_plate: EnemyController = _enemy_at(Vector2(500 + 40, 500)) # plate half-width 36
+	var off_plate: EnemyController = _enemy_at(Vector2(500 + 80, 500)) # plate half-width 72 (2x)
 	var boss: EnemyController = _enemy_at(Vector2(500, 500 + 10))
 	boss.boss_id = "king"
 	_to_phase_time(t, 2.9)
@@ -392,24 +392,42 @@ func test_spikes_never_hurt_the_tower() -> void:
 
 # --- Placement, caps and determinism -----------------------------------------------
 
-func test_the_four_spike_plates_sit_on_sand_away_from_the_tower() -> void:
+func test_the_eight_spike_plates_sit_at_the_bridges() -> void:
 	var mgr: ArenaInteractables = auto_free(ArenaInteractables.new())
 	add_child(mgr)
 	var arena: Node2D = auto_free(ArenaScene.instantiate()) as Node2D
 	add_child(arena)
-	var map: ArenaSpawnMap = ArenaSpawnMap.from_arena(arena)
+	var field: FlowField = arena.get_node("FlowField") as FlowField
 	var traps: Array[ArenaSpikeTrap] = mgr.get_traps()
-	assert_int(traps.size()).is_equal(4)
-	for tr in traps:
-		var d: float = tr.global_position.length()
-		assert_bool(d >= 380.0 and d <= 650.0).append_failure_message("plate at %s is %.0f px from the Tower" % [tr.global_position, d]).is_true()
-		assert_bool(d - 36.0 > 106.0).is_true() # clear of the Tower footprint (radius 106)
-		for corner in [Vector2(-30, -18), Vector2(30, -18), Vector2(-30, 18), Vector2(30, 18)]:
-			assert_bool(map.is_sand(tr.global_position + corner)).append_failure_message("plate at %s: corner %s is not sand" % [tr.global_position, corner]).is_true()
-		assert_bool(map.in_water_or_plateau(tr.global_position)).is_false()
+	assert_int(traps.size()).is_equal(8)
+	# Literal positions: a deck plate at each bridge centre (north, east, south, west) and a road
+	# plate 140 px towards the Tower from it.
+	var expected: Array[Vector2] = [Vector2(-384, -576), Vector2(896, -128), Vector2(384, 576), Vector2(-896, 128), Vector2(-384, -436), Vector2(756, -128), Vector2(384, 436), Vector2(-756, 128)]
+	for i in 8:
+		assert_vector(traps[i].global_position).is_equal(expected[i])
+		assert_bool(field.is_walkable(traps[i].global_position)).append_failure_message("plate %d at %s is not on walkable ground" % [i, traps[i].global_position]).is_true()
+		assert_float(traps[i].global_position.length()).is_greater(106.0 + 72.0) # clear of the Tower footprint
 	for i in traps.size():
 		for j in range(i + 1, traps.size()):
-			assert_bool(traps[i].global_position.distance_to(traps[j].global_position) >= 90.0).is_true()
+			assert_bool(traps[i].global_position.distance_to(traps[j].global_position) >= 120.0).is_true()
+
+
+func test_interactable_sizes_match_the_register() -> void:
+	# Register "v1.0 Arena Interactables": keg 1.6x, radius 170, 260 damage; spike plate 2x; shrine 1.5x; crate 1.5x.
+	var keg: ArenaKeg = _mgr.add_keg(Vector2(500, 500))
+	var crate: ArenaCrate = _mgr.add_crate(Vector2(700, 500))
+	var shrine: ArenaShrine = _mgr.add_shrine(Vector2(900, 500), "war")
+	var trap: ArenaSpikeTrap = _trap_at(Vector2(1100, 500))
+	await get_tree().process_frame
+	assert_float(keg._sprite.scale.x).is_equal_approx(1.6, 0.001)
+	assert_float(ArenaKeg.BLAST_RADIUS_PX).is_equal(170.0)
+	assert_float(ArenaKeg.ENEMY_DAMAGE).is_equal(260.0)
+	assert_float(crate._sprite.scale.x).is_equal_approx(1.5, 0.001)
+	assert_float(shrine._sprite.scale.x).is_equal_approx(1.5, 0.001)
+	assert_float(ArenaShrine.CLAIM_RADIUS_PX).is_equal(78.0)
+	assert_float(trap._sprite.scale.x).is_equal_approx(2.0, 0.001)
+	assert_float(ArenaSpikeTrap.HIT_RADIUS_X_PX).is_equal(72.0)
+	assert_float(ArenaSpikeTrap.HIT_RADIUS_Y_PX).is_equal(48.0)
 
 
 func test_wave_start_spawns_by_the_register_rules() -> void:
@@ -419,18 +437,20 @@ func test_wave_start_spawns_by_the_register_rules() -> void:
 	assert_int(_mgr.get_crates().size()).is_equal(0)
 	assert_object(_mgr.get_shrine()).is_null()
 	_mgr.spawn_for_wave(2)
-	assert_int(_mgr.get_crates().size()).is_equal(3)
+	var after_2: int = _mgr.get_crates().size()
+	assert_bool(after_2 >= 4 and after_2 <= 6).append_failure_message("wave 2 spawned %d crates, expected 4-6" % after_2).is_true()
 	assert_int(_mgr.get_kegs().size()).is_equal(0)
 	assert_object(_mgr.get_shrine()).is_not_null()
 	_mgr.spawn_for_wave(3)
-	assert_int(_mgr.get_crates().size()).is_equal(6)
+	var after_3: int = _mgr.get_crates().size()
+	assert_bool(after_3 - after_2 >= 4 and after_3 - after_2 <= 6).append_failure_message("wave 3 added %d crates" % (after_3 - after_2)).is_true()
 	assert_int(_mgr.get_kegs().size()).is_equal(1)
 	_mgr.spawn_for_wave(4)
-	assert_int(_mgr.get_crates().size()).is_equal(6) # cap 6
+	assert_int(_mgr.get_crates().size()).is_equal(12) # cap 12
 	assert_int(_mgr.get_kegs().size()).is_equal(2)
 	_mgr.spawn_for_wave(5)
 	_mgr.spawn_for_wave(6)
-	assert_int(_mgr.get_kegs().size()).is_equal(3) # cap 3
+	assert_int(_mgr.get_kegs().size()).is_equal(4) # cap 4
 	for k in _mgr.get_kegs():
 		k.free()
 	_mgr.get_kegs() # prune
@@ -441,7 +461,7 @@ func test_wave_start_spawns_by_the_register_rules() -> void:
 func test_wave_started_signal_drives_spawning() -> void:
 	_use_real_map()
 	EventBus.emit_wave_started(2, 15, "standard", false)
-	assert_int(_mgr.get_crates().size()).is_equal(3)
+	assert_int(_mgr.get_crates().size()).is_greater_equal(4)
 
 
 func test_spawned_positions_are_walkable_and_obey_the_distance_rules() -> void:
@@ -474,7 +494,7 @@ func test_spawned_positions_are_walkable_and_obey_the_distance_rules() -> void:
 		everything.append(shrine.global_position)
 		for i in everything.size():
 			for j in range(i + 1, everything.size()):
-				assert_bool(everything[i].distance_to(everything[j]) >= 90.0).append_failure_message("seed %d: two objects %.0f px apart" % [seed_value, everything[i].distance_to(everything[j])]).is_true()
+				assert_bool(everything[i].distance_to(everything[j]) >= 120.0).append_failure_message("seed %d: two objects %.0f px apart" % [seed_value, everything[i].distance_to(everything[j])]).is_true()
 		mgr.free()
 
 
@@ -508,6 +528,6 @@ func test_placement_and_boon_roll_are_deterministic_by_run_seed() -> void:
 	var a: Array[Vector2] = _positions_for(777)
 	var b: Array[Vector2] = _positions_for(777)
 	var c: Array[Vector2] = _positions_for(778)
-	assert_int(a.size()).is_greater(8)
+	assert_int(a.size()).is_greater(12)
 	assert_array(a).is_equal(b)
 	assert_bool(a == c).is_false()

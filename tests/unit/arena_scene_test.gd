@@ -3,8 +3,9 @@ extends GdUnitTestSuite
 ## Verification (Phase 02 carried lesson 5: "Verify by reading the artifact
 ## back; a tool reporting success is not evidence") that scenes/arena.tscn,
 ## as built, actually matches MASTER_SDLC.md > Provisional Values Register
-## > Arena & Camera > "Arena size" row (4800x3200, hard walls on
-## ArenaBounds, no interior obstacles) and docs/20_Technical_Architecture.md
+## > Arena & Camera > "Arena size" row (2432x1664 since D330, hard walls on
+## ArenaBounds; the interior water and solids are ArenaCollision's, tested below and in
+## flow_field_test.gd / arena_collision_test.gd) and docs/20_Technical_Architecture.md
 ## > Collision Layers table row 15 (ArenaBounds, static body, no mask). Not
 ## itself the named Camera bounds test (camera_bounds_test.gd is), but a
 ## defect in the arena's own geometry -- a wall placed at the wrong
@@ -15,7 +16,7 @@ extends GdUnitTestSuite
 
 const ArenaScene: PackedScene = preload("res://scenes/arena.tscn")
 
-const ARENA_SIZE: Vector2 = Vector2(4800.0, 3200.0) # Register > "Arena size" row
+const ARENA_SIZE: Vector2 = Vector2(2432.0, 1664.0) # Register > "Arena size" row (v1.0 Arena Layout, D330)
 const ARENA_BOUNDS_LAYER_BIT: int = 1 << 14 # docs/20 Collision Layers table, layer 15 (1-indexed) = bit 14
 
 var _arena: Node2D
@@ -31,7 +32,7 @@ func test_floor_covers_exactly_the_registers_arena_size() -> void:
 	assert_object(floor_sprite).append_failure_message("scenes/arena.tscn has no Floor node").is_not_null()
 	assert_bool(floor_sprite.region_enabled).append_failure_message("Floor must use region_rect to tile the seamless texture across the arena").is_true()
 	assert_vector(floor_sprite.region_rect.size).append_failure_message(
-		"Floor.region_rect.size %s does not match the Register's 4800x3200 Arena size row" % floor_sprite.region_rect.size
+		"Floor.region_rect.size %s does not match the Register's 2432x1664 Arena size row" % floor_sprite.region_rect.size
 	).is_equal(ARENA_SIZE)
 	assert_int(floor_sprite.texture_repeat).append_failure_message(
 		"Floor.texture_repeat must be ENABLED (2) for the region to tile the floor_tile.png texture instead of stretching it"
@@ -53,7 +54,7 @@ func test_arena_bounds_body_is_on_the_arenabounds_layer_with_no_mask() -> void:
 	).is_equal(0)
 
 
-func test_arena_bounds_has_exactly_four_wall_shapes_and_no_interior_obstacles() -> void:
+func test_arena_bounds_has_exactly_four_wall_shapes_and_interior_collision_is_only_in_arena_collision() -> void:
 	var bounds: Node = _arena.get_node("ArenaBounds")
 	var wall_names: Array[String] = []
 	for child in bounds.get_children():
@@ -63,24 +64,30 @@ func test_arena_bounds_has_exactly_four_wall_shapes_and_no_interior_obstacles() 
 		"expected exactly 4 wall CollisionShape2D children (N/S/E/W), found %s" % str(wall_names)
 	).has_size(4)
 
-	# "no interior obstacles in the prototype" (Register > "Arena size" row):
-	# nothing under Arena besides Floor and ArenaBounds should carry a
-	# collision shape.
+	# Interior collision (water, rock outcrops, ruins; D331, D332) is built by ArenaCollision as its
+	# own children, so no direct child of Arena other than ArenaBounds is a physics body.
 	for child in _arena.get_children():
-		if child.name != "Floor" and child.name != "ArenaBounds":
+		if child.name != "ArenaBounds":
 			assert_bool(child is CollisionObject2D).append_failure_message(
-				"unexpected node '%s' under Arena; the Register requires no interior obstacles in the prototype" % child.name
+				"unexpected physics body '%s' directly under Arena; interior collision belongs to ArenaCollision" % child.name
 			).is_false()
+	var coll: Node = _arena.get_node("ArenaCollision")
+	var water: StaticBody2D = coll.get_node("WaterBody") as StaticBody2D
+	var solid: StaticBody2D = coll.get_node("SolidBody") as StaticBody2D
+	assert_int(water.collision_layer).append_failure_message("water must be on layer 17 (Water)").is_equal(1 << 16)
+	assert_int(solid.collision_layer).append_failure_message("solids must be on layer 4 (World)").is_equal(1 << 3)
+	assert_int(water.collision_mask).is_equal(0)
+	assert_int(solid.collision_mask).is_equal(0)
 
 
 func test_walls_fully_enclose_the_registers_arena_rectangle_with_no_gap() -> void:
 	# Each wall's own rectangle, in Arena-local space, must cover the full
 	# outer boundary on its side with its inner face flush at the Register's
-	# +/-2400 / +/-1600 edges, and corners must not gap (Register: "hard
+	# +/-1216 / +/-832 edges, and corners must not gap (Register: "hard
 	# walls on ArenaBounds, so nothing escapes"; this task's brief: "hard
 	# StaticBody2D walls ... so nothing escapes").
 	var bounds: Node2D = _arena.get_node("ArenaBounds") as Node2D
-	var half: Vector2 = ARENA_SIZE / 2.0 # (2400, 1600)
+	var half: Vector2 = ARENA_SIZE / 2.0 # (1216, 832)
 
 	var walls: Dictionary = {}
 	for child in bounds.get_children():

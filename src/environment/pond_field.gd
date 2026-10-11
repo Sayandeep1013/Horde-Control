@@ -27,8 +27,10 @@ class_name PondField
 ## Water and shore are rasterised to the 64 px grid, so every edge is a
 ## pack tile. Ponds that are too small for any water keep one water cell.
 ##
-## No collision anywhere: purely visual, like every other biome-pass
-## placement (the Register's arena has no interior obstacles).
+## MOAT MODE (D330). With `use_arena_moat` the water is ArenaLayout's moat ring
+## instead of ellipses; the pond arrays are then ignored. The collision for it
+## lives in ArenaCollision (water blocks walking, not shots), built from
+## `get_water_cells()` minus the bridge openings; this node stays visual.
 
 const TILE_SIZE: int = 64
 const ANGLE_SAMPLES: int = 24
@@ -58,6 +60,7 @@ const MIN_WATER_AXIS_PX: float = 56.0
 @export var pond_centers: Array[Vector2] = []
 @export var pond_axes: Array[Vector2] = []
 @export var seed_key: String = "arena_biome"
+@export var use_arena_moat: bool = false
 
 var _water_cells: Dictionary = {} # all ponds
 var _shore_cells: Dictionary = {}
@@ -86,7 +89,16 @@ func _ready() -> void:
 	add_child(_shore_layer)
 
 	var per_pond_water: Array[Array] = []
+	if use_arena_moat:
+		var ring: Array[Vector2i] = []
+		for c: Vector2i in ArenaLayout.moat_cells().keys():
+			ring.append(c)
+			_water_cells[c] = true
+		per_pond_water.append(ring)
+		_add_shore_for(ring)
 	for i in pond_centers.size():
+		if use_arena_moat:
+			break
 		var axes: Vector2 = pond_axes[i] if i < pond_axes.size() else Vector2(180.0, 180.0)
 		var rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "pond", i])
 		var jitter: Array[float] = _make_jitter(rng)
@@ -95,6 +107,8 @@ func _ready() -> void:
 		for c in water:
 			_water_cells[c] = true
 	for i in pond_centers.size():
+		if use_arena_moat:
+			break
 		_add_shore_for(per_pond_water[i])
 
 	# Water under every water cell and under the shore cells that touch one.
@@ -107,7 +121,7 @@ func _ready() -> void:
 
 	if foam_texture != null:
 		_build_foam()
-	if not rock_textures.is_empty():
+	if not rock_textures.is_empty() and not use_arena_moat:
 		for i in pond_centers.size():
 			var rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "pond_rocks", i])
 			_place_rocks(per_pond_water[i], rng)

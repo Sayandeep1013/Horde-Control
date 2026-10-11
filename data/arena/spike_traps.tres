@@ -2,11 +2,12 @@
 
 [ext_resource type="Script" path="res://src/arena/arena_spike_layout.gd" id="1_layout"]
 
-; Four plates on the sand paths (Register "v1.0 Arena Interactables"): east path, south path
-; (towards the bridge), north path (towards the knights' house), north-west
-; plaza edge. Distances from the Tower: 520, 591, 504, 608 px. Verified to sit
-; on sand and clear of the Tower footprint by tests/unit/arena_interactables_test.gd.
+; Eight plates at the chokepoints (Register "v1.0 Arena Layout", docs/33 B5, D335): one on the deck of each
+; bridge and one on the Tower-side road 140 px from the bridge centre. Order: north deck, east deck,
+; south deck, west deck, then the four road plates (north, east, south, west). Phase offsets stagger the
+; cycles so a bridge's two plates never raise together. tests/unit/arena_interactables_test.gd checks
+; each plate against ArenaLayout.
 [resource]
 script = ExtResource("1_layout")
-positions = PackedVector2Array(520, 24, 190, 560, 60, -500, -440, -420)
-phase_offsets = PackedFloat32Array(0.0, 0.8, 1.6, 2.4)
+positions = PackedVector2Array(-384, -576, 896, -128, 384, 576, -896, 128, -384, -436, 756, -128, 384, 436, -756, 128)
+phase_offsets = PackedFloat32Array(0.0, 0.8, 1.6, 2.4, 1.1, 1.9, 2.7, 0.3)

@@ -3,7 +3,7 @@ class_name ArenaInteractables
 ## Arena interactables manager (Register "v1.0 Arena Interactables", docs/32 section B). Group
 ## "arena_interactables". On EventBus.wave_started it spawns Supply Crates, Powder
 ## Kegs and a Shrine within the caps, at positions sampled with KeyedRng on the run
-## seed (`[run_seed, "arena", wave, serial]`) on walkable ground, and it owns the four
+## seed (`[run_seed, "arena", wave, serial]`) on walkable ground, and it owns the eight
 ## fixed Spike Traps (data/arena/spike_traps.tres). It drives player contact for
 ## crates, kegs and the shrine, rolls crate drops, and owns the active Shrine
 ## boons: they multiply with Draft / meta values (separate boon terms on the
@@ -14,17 +14,23 @@ class_name ArenaInteractables
 ## ground under the entities.
 
 const CRATE_FIRST_WAVE: int = 2 # Register "v1.0 Arena Interactables": every spawn rule below
-const CRATES_PER_WAVE: int = 3
-const CRATE_CAP: int = 6
+const CRATES_MIN_PER_WAVE: int = 4 # docs/33 B5: 4-6 per wave
+const CRATES_MAX_PER_WAVE: int = 6
+const CRATE_CAP: int = 12
 const KEG_FIRST_WAVE: int = 3
 const KEG_LATE_WAVE: int = 9
 const KEGS_PER_WAVE: int = 1
 const KEGS_PER_WAVE_LATE: int = 2
-const KEG_CAP: int = 3
+const KEG_CAP: int = 4
+const KEG_NEAR_BRIDGE_CHANCE: float = 0.75 # docs/33 B5: kegs sit mostly near bridges
+const KEG_BRIDGE_MIN_PX: float = 150.0 # distance from the bridge centre along its axis (the deck is 192 long)
+const KEG_BRIDGE_MAX_PX: float = 300.0
+const KEG_BRIDGE_LATERAL_PX: float = 80.0
+const KEG_KEEP_SIDE_CHANCE: float = 0.65 # of bridge kegs, the share on the Tower side of the moat
 const SHRINE_FIRST_WAVE: int = 2
 const MIN_TOWER_DISTANCE_PX: float = 180.0
 const MIN_PLAYER_DISTANCE_PX: float = 120.0
-const MIN_SPACING_PX: float = 90.0
+const MIN_SPACING_PX: float = 120.0
 const FIELD_MAX_RADIUS_PX: float = 1100.0 # crates and kegs sample within this of the Tower
 const SHRINE_MIN_RADIUS_PX: float = 400.0
 const SHRINE_MAX_RADIUS_PX: float = 850.0
@@ -97,7 +103,7 @@ func _container() -> Node:
 	return _entities if _entities != null else self
 
 
-## Builds the four plates from the layout (positions are world coordinates; the arena sits at the origin).
+## Builds the plates from the layout (positions are world coordinates; the arena sits at the origin).
 func spawn_traps() -> void:
 	if spike_layout == null or not _traps.is_empty():
 		return
@@ -144,18 +150,41 @@ func sample_position(rng: RandomNumberGenerator, min_radius: float, max_radius: 
 		var angle: float = rng.randf() * TAU
 		var radius: float = lerpf(min_radius, max_radius, sqrt(rng.randf()))
 		var p: Vector2 = tower_position + Vector2.from_angle(angle) * radius
-		if not map.is_walkable(p):
-			continue
-		if player_pos != Vector2.INF and p.distance_to(player_pos) < MIN_PLAYER_DISTANCE_PX:
-			continue
-		var ok: bool = true
-		for o in others:
-			if p.distance_to(o) < MIN_SPACING_PX:
-				ok = false
-				break
-		if ok:
+		if _placement_ok(map, p, player_pos, others):
 			return p
 	return Vector2.INF
+
+
+## One placement near a bridge (docs/33 B5): 150-300 px from the bridge centre along its axis,
+## mostly on the Tower side, up to 80 px off the axis. Vector2.INF when none was valid.
+func sample_bridge_position(rng: RandomNumberGenerator) -> Vector2:
+	var map: ArenaSpawnMap = get_map()
+	if map == null:
+		return Vector2.INF
+	var player_pos: Vector2 = _player_position()
+	var others: Array[Vector2] = _all_positions()
+	for _i in PLACEMENT_ATTEMPTS:
+		var b: int = rng.randi_range(0, ArenaLayout.BRIDGES.size() - 1)
+		var side: float = -1.0 if rng.randf() < KEG_KEEP_SIDE_CHANCE else 1.0
+		var along: float = side * rng.randf_range(KEG_BRIDGE_MIN_PX, KEG_BRIDGE_MAX_PX)
+		var out: Vector2 = ArenaLayout.bridge_outward(b)
+		var p: Vector2 = ArenaLayout.bridge_point(b, along) + Vector2(-out.y, out.x) * rng.randf_range(-KEG_BRIDGE_LATERAL_PX, KEG_BRIDGE_LATERAL_PX)
+		if _placement_ok(map, p, player_pos, others):
+			return p
+	return Vector2.INF
+
+
+func _placement_ok(map: ArenaSpawnMap, p: Vector2, player_pos: Vector2, others: Array[Vector2]) -> bool:
+	if not map.is_walkable(p):
+		return false
+	if player_pos != Vector2.INF and p.distance_to(player_pos) < MIN_PLAYER_DISTANCE_PX:
+		return false
+	if p.distance_to(tower_position) < MIN_TOWER_DISTANCE_PX:
+		return false
+	for o in others:
+		if p.distance_to(o) < MIN_SPACING_PX:
+			return false
+	return true
 
 
 func _rng_for(wave: int) -> RandomNumberGenerator:
@@ -209,7 +238,8 @@ func spawn_for_wave(wave: int) -> void:
 		if not towers.is_empty() and is_instance_valid(towers[0]):
 			tower_position = towers[0].global_position
 	if wave >= CRATE_FIRST_WAVE:
-		for _i in mini(CRATES_PER_WAVE, CRATE_CAP - _crates.size()):
+		var crate_count: int = _rng_for(wave).randi_range(CRATES_MIN_PER_WAVE, CRATES_MAX_PER_WAVE)
+		for _i in mini(crate_count, CRATE_CAP - _crates.size()):
 			var rng: RandomNumberGenerator = _rng_for(wave)
 			var p: Vector2 = sample_position(rng, MIN_TOWER_DISTANCE_PX, FIELD_MAX_RADIUS_PX)
 			if p != Vector2.INF:
@@ -218,7 +248,9 @@ func spawn_for_wave(wave: int) -> void:
 		var per_wave: int = KEGS_PER_WAVE_LATE if wave >= KEG_LATE_WAVE else KEGS_PER_WAVE
 		for _i in mini(per_wave, KEG_CAP - _kegs.size()):
 			var rng: RandomNumberGenerator = _rng_for(wave)
-			var p: Vector2 = sample_position(rng, MIN_TOWER_DISTANCE_PX, FIELD_MAX_RADIUS_PX)
+			var p: Vector2 = sample_bridge_position(rng) if rng.randf() < KEG_NEAR_BRIDGE_CHANCE else Vector2.INF
+			if p == Vector2.INF:
+				p = sample_position(rng, MIN_TOWER_DISTANCE_PX, FIELD_MAX_RADIUS_PX)
 			if p != Vector2.INF:
 				add_keg(p)
 	if wave >= SHRINE_FIRST_WAVE:
@@ -262,6 +294,7 @@ func add_shrine(world_position: Vector2, boon_id: String) -> ArenaShrine:
 func dev_spawn_showcase(center: Vector2, boon_id: String = ArenaBoon.WAR) -> void:
 	add_crate(center + Vector2(-190, 90))
 	add_crate(center + Vector2(-120, 150))
+	add_crate(center + Vector2(-170, 0)) # straight ahead of a player walking west (capture: walk into a crate)
 	add_keg(center + Vector2(190, 90))
 	add_shrine(center + Vector2(0, 200), boon_id)
 

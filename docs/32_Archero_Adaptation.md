@@ -51,6 +51,9 @@ All events pause the simulation and reuse the Level-Up Draft's card UI and input
 
 ## B. Arena interactables (WP-ARENA)
 
+> **Superseded in part by docs/33 B (PT-ARENA, D330-D336).** The arena is now a 2432 x 1664 px island with a moat and four bridges. Placement uses the FlowField walkable mask, not ponds or plateaus. Kegs are 1.6x with radius 170 and 260 damage and sit mostly near bridges, there are 8 spike plates at the bridges and their roads (2x), the Shrine is 1.5x with a pillar of light and claim radius 78, and crates are 1.5x, 4-6 per wave. The Register sections "v1.0 Arena Interactables" and "v1.0 Arena Layout" hold the numbers.
+
+
 Every object needs:
 - a readable silhouette;
 - an idle affordance, visible on both sand and grass;
