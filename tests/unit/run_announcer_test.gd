@@ -65,7 +65,7 @@ func test_wave_one_shows_the_objective_line() -> void:
 	var director: FakeDirector = parts[0]
 	var announcer: RunAnnouncer = parts[1]
 	director.wave_opened.emit("t1", 0)
-	assert_array(_texts(announcer.get_toast_box_for_test())).contains(["Protect yourself and the Tower - survive 8 waves"])
+	assert_array(_texts(announcer.get_toast_box_for_test())).contains(["Protect yourself and the Tower - hold 8 waves and slay the Bombardier King"])
 
 
 func test_hints_run_on_a_fresh_profile_and_are_skipped_once_seen() -> void:
