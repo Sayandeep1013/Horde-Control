@@ -120,15 +120,54 @@ func test_kills_counter_reads_combat_stats() -> void:
 	assert_str(_hud.get_kills_label().text).is_equal("312")
 
 
-func test_boss_bar_follows_boss_events_and_marks_the_phase() -> void:
+class FakeBehavior extends Node:
+	var phase_two_fraction: float = 0.4
+
+
+class FakeBoss extends Node2D:
+	var behavior: Node = null
+
+
+func _boss(fraction: float) -> FakeBoss:
+	var boss: FakeBoss = auto_free(FakeBoss.new())
+	boss.behavior = auto_free(FakeBehavior.new())
+	(boss.behavior as FakeBehavior).phase_two_fraction = fraction
+	return boss
+
+
+func test_boss_bar_follows_boss_events_and_marks_the_phase_the_boss_reports() -> void:
 	assert_bool(_hud.get_boss_box().visible).is_false()
-	EventBus.emit_boss_spawned(null, "warchief", "Goblin Warchief", 2600.0)
+	EventBus.emit_boss_spawned(_boss(0.4), "warchief", "Goblin Warchief", 2600.0)
 	assert_bool(_hud.get_boss_box().visible).is_true()
 	assert_float(_hud.get_boss_bar().marker_fraction).is_equal_approx(0.4, 0.001)
 	EventBus.emit_boss_health_changed("warchief", 1300.0, 2600.0)
 	assert_float(_hud.get_boss_bar().get_fraction()).is_equal_approx(0.5, 0.001)
+	# A retuned boss moves its own mark: the HUD holds no table of fractions.
+	EventBus.emit_boss_spawned(_boss(0.65), "king", "Bombardier King", 7000.0)
+	assert_float(_hud.get_boss_bar().marker_fraction).is_equal_approx(0.65, 0.001)
 	EventBus.emit_boss_spawned(null, "king", "Bombardier King", 7000.0)
-	assert_float(_hud.get_boss_bar().marker_fraction).is_equal_approx(0.5, 0.001)
+	assert_float(_hud.get_boss_bar().marker_fraction).append_failure_message("no boss node, no mark").is_less(0.0)
+
+
+func test_the_real_boss_scripts_expose_the_fraction_the_hud_reads() -> void:
+	assert_float(Hud.boss_phase_fraction(_holder_with(WarchiefBehavior.new()))).is_equal_approx(0.4, 0.001)
+	assert_float(Hud.boss_phase_fraction(_holder_with(KingBehavior.new()))).is_equal_approx(0.5, 0.001)
+
+
+func _holder_with(behavior: BossBehavior) -> FakeBoss:
+	var boss: FakeBoss = auto_free(FakeBoss.new())
+	boss.behavior = auto_free(behavior)
+	return boss
+
+
+func test_the_wave_progress_bar_hides_on_boss_waves_and_returns_after() -> void:
+	EventBus.emit_wave_started(8, 15, "boss", true)
+	_fakes["director"].remove_from_group(&"wave_director")
+	_hud._refresh_wave_line()
+	assert_bool(_hud.get_wave_progress_bar().visible).append_failure_message("the boss bar already shows the fight").is_false()
+	EventBus.emit_wave_started(9, 15, "standard", false)
+	_hud._refresh_wave_line()
+	assert_bool(_hud.get_wave_progress_bar().visible).is_true()
 
 
 func test_siege_warning_pulses_the_tower_pill_for_its_seconds_only() -> void:

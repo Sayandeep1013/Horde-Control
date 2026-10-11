@@ -54,9 +54,6 @@ const HUD_MIN_EFFECTIVE_SCALE: float = 0.6
 const SIEGE_PULSE_HZ: float = 2.0
 const REPAIR_TAG_HOLD_SECONDS: float = 0.5
 const BOSS_FADE_SECONDS: float = 1.2
-## Boss phase marks, as a fraction of boss HP (docs/31 §5.3: the Warchief enrages
-## below 40%, the King changes pattern below 50%).
-const BOSS_PHASE_MARKS: Dictionary = {"warchief": 0.4, "king": 0.5}
 
 const WAVE_TYPE_KEYS: Dictionary = {
 	"standard": "WAVE_TYPE_STANDARD", "split": "WAVE_TYPE_SPLIT", "siege": "WAVE_TYPE_SIEGE",
@@ -393,10 +390,10 @@ func _refresh_wave_line() -> void:
 			elapsed = float(director.get_run_elapsed_seconds())
 	_wave_label.text = format_wave_line(number, count, type_id)
 	_timer_label.text = format_time(elapsed)
-	if is_boss and _boss_bar.get_max_value() > 0.0 and _boss_box.visible:
-		progress = 1.0 - _boss_bar.get_fraction() # the boss wave fills as the boss falls
-	_wave_progress_bar.fill_color = UiPalette.DANGER if is_boss else UiPalette.ACCENT
+	_wave_progress_bar.fill_color = UiPalette.ACCENT
 	_wave_progress_bar.set_value(clampf(progress, 0.0, 1.0), 1.0)
+	# Boss waves: the boss bar already shows the fight, so the wave bar steps aside.
+	_wave_progress_bar.visible = not is_boss
 
 
 ## "WAVE 6/15 · SPLIT"; Endless (count < 0) drops the total; an unknown type
@@ -521,14 +518,26 @@ func _on_siege_warning(seconds: float, _timestamp: float) -> void:
 	_siege_remaining = maxf(_siege_remaining, seconds)
 
 
-func _on_boss_spawned(_boss: Node2D, boss_id: String, display_name: String, max_health: float, _timestamp: float) -> void:
+func _on_boss_spawned(boss: Node2D, boss_id: String, display_name: String, max_health: float, _timestamp: float) -> void:
 	_boss_id = boss_id
 	_boss_name_label.text = display_name.to_upper()
-	_boss_bar.marker_fraction = float(BOSS_PHASE_MARKS.get(boss_id, -1.0))
+	_boss_bar.marker_fraction = boss_phase_fraction(boss)
 	_boss_bar.set_value(max_health, max_health)
 	_boss_bar.set_text("")
 	_boss_box.modulate.a = 1.0
 	_boss_box.visible = true
+
+
+## The boss's own phase threshold (BossBehavior.phase_two_fraction, set by the
+## Warchief and King scripts from the Register), read off the spawned node so a
+## retuned boss moves its mark with it. -1 (no mark) when the node has none.
+static func boss_phase_fraction(boss: Object) -> float:
+	if boss == null or not is_instance_valid(boss):
+		return -1.0
+	var behavior: Variant = boss.get("behavior")
+	if behavior is Object and (behavior as Object).get("phase_two_fraction") != null:
+		return float((behavior as Object).get("phase_two_fraction"))
+	return -1.0
 
 
 func _on_boss_health_changed(boss_id: String, current_health: float, max_health: float, _timestamp: float) -> void:
@@ -591,6 +600,8 @@ func _build_run_announcer() -> void:
 	var parent: Node = get_parent()
 	if parent != null:
 		_announcer.bind_wave_director(parent.get_node_or_null("Main/WaveDirector"))
+	if _announcer.get_hints_for_test() != null:
+		_announcer.get_hints_for_test().scrap_source = func() -> int: return economy_state.scrap_current
 
 
 func _build_ui() -> void:

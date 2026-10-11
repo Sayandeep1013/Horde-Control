@@ -52,9 +52,16 @@ const MESSAGES: Dictionary = {
 	# UX review items 4 and 9 (D129/D130): run objective, first-run hints, wave banners.
 	"HINT_OBJECTIVE": "Protect yourself and the Tower - hold %d waves and slay the Bombardier King",
 	"HINT_OBJECTIVE_NO_COUNT": "Protect yourself and the Tower - survive every wave",
-	"HINT_AUTOFIRE": "Your bow fires automatically at the nearest goblin. Just move (WASD).",
-	"HINT_PICKUPS": "Walk over crystals (XP) and gold sacks (Scrap) to collect them.",
-	"HINT_ENEMIES": "Red torch goblins attack the Tower. Yellow TNT goblins hunt you. Purple barrels go for whichever is exposed.",
+	# Review fix (D241): contextual, once-per-profile hints. A `%s` slot holds a live
+	# binding; the touch table drops it (RunHints keeps only as many args as the text has slots).
+	"HINT_START": "Your bow fires on its own. Move with %s.",
+	"HINT_DASH": "Press %s to dash through danger",
+	"HINT_SKILL_READY": "%s: %s is ready",
+	"HINT_TOWER_REPAIR": "Stand by the Tower to repair it with Scrap",
+	"HINT_BOMBER": "Bomber: dodge the red circles",
+	"HINT_BRUTE": "Brute: slow Tower-breaker - focus it",
+	"HINT_ELITE": "Elite: gold glow, tougher, drops Cores",
+	"HINT_BOSS": "Boss: keep moving, dodge the red warnings, burn it down",
 	"BANNER_WAVE": "Wave %d",
 	"BANNER_SIEGE": "Siege incoming",
 	"BANNER_WAVE_TYPED": "WAVE %d · %s",
@@ -181,6 +188,17 @@ const MESSAGES: Dictionary = {
 	# named as a follow-up seam for whoever next owned this file (its own
 	# header, "cause_text = 'Run abandoned'") -- now a real key.
 	"RUN_END_CAUSE_ABANDONED": "Run abandoned",
+	# Review fix (D247): the killer is named; the generic lines above remain the fallback.
+	"RUN_END_CAUSE_PLAYER_BY": "Slain by %s",
+	"RUN_END_CAUSE_TOWER_BY": "The Tower fell to %s",
+	"ENEMY_NAME_TOWER_SEEKER": "a Torch Goblin",
+	"ENEMY_NAME_PLAYER_HUNTER": "a TNT Goblin",
+	"ENEMY_NAME_OPPORTUNIST": "a Barrel Goblin",
+	"ENEMY_NAME_BOMBER": "a Bomber",
+	"ENEMY_NAME_BRUTE": "a Brute",
+	"ENEMY_NAME_GOBLIN_WARCHIEF": "the Goblin Warchief",
+	"ENEMY_NAME_BOMBARDIER_KING": "the Bombardier King",
+	"ENEMY_NAME_ELITE_PREFIX": "an elite %s",
 	"RUN_END_WAVE_REACHED": "Wave reached",
 	"RUN_END_SCRAP_HELD": "Scrap held",
 	"RUN_END_SEED": "Seed: %d",
@@ -193,9 +211,9 @@ const MESSAGES: Dictionary = {
 	# key now that this session owns this file.
 	"RUN_END_CONTINUE": "Continue",
 	"RUN_END_SETTLEMENT_TOTAL": "Cores earned",
-	"RUN_END_NEW_BEST_WAVES": "NEW BEST -- waves cleared",
-	"RUN_END_NEW_BEST_KILLS": "NEW BEST -- enemies defeated",
-	"RUN_END_NEW_BEST_TIME": "NEW BEST -- time survived",
+	"RUN_END_NEW_BEST_WAVES": "NEW BEST: waves cleared",
+	"RUN_END_NEW_BEST_KILLS": "NEW BEST: enemies defeated",
+	"RUN_END_NEW_BEST_TIME": "NEW BEST: time survived",
 	"RUN_END_ALREADY_SETTLED": "Already settled",
 	# Blind review of the meta layer, finding #6: shown instead of a Cores
 	# total when `MetaProgress.settle_run()`'s own breakdown reports
@@ -377,7 +395,7 @@ const MESSAGES: Dictionary = {
 	"RESULTS_DAMAGE_TITLE": "Damage by source",
 	"RESULTS_NO_DAMAGE": "No damage recorded this run.",
 	"RESULTS_SETTLEMENT_TITLE": "Cores earned",
-	"RESULTS_NEW_BEST_ENDLESS": "NEW BEST -- Endless wave",
+	"RESULTS_NEW_BEST_ENDLESS": "NEW BEST: Endless wave",
 	"RESULTS_UNLOCKED_DIFFICULTY": "%s difficulty unlocked",
 	"RESULTS_UNLOCKED_ENDLESS": "Endless mode unlocked",
 	"RESULTS_WARLORD_TITLE": "Warlord",
@@ -390,7 +408,9 @@ const MOBILE_MESSAGES: Dictionary = {
 	"DRAFT_HOW_TO_PICK": "Tap a card to pick it",
 	"DRAFT_HOLD_CAPTION": "Or hold up to pick",
 	"DRAFT_REROLL": "Reroll (%d left)",
-	"HINT_AUTOFIRE": "Your bow fires automatically at the nearest goblin. Just move: drag on the left side of the screen.",
+	"HINT_START": "Your bow fires on its own. Drag on the left to move.",
+	"HINT_DASH": "Tap the Dash button to dash through danger",
+	"HINT_SKILL_READY": "%s is ready: tap the big Battle Skill button",
 	"HOWTO_1_BODY": "You and the Tower each have a health bar, and losing either ends the run. Your bow fires on its own, so just drag on the left side of the screen to move.",
 	"HOWTO_2_BODY": "Tap the Dash button to dash; you cannot be hurt mid-dash. Tap the big Battle Skill button to cast it. It recharges, and Auto-cast in Settings uses it for you.",
 	"SKILL_TREE_ROOT_EXPLANATION": "Earn Cores by playing runs. Tap a node, then tap it again (or press and hold) to buy it -- buying reveals its neighbours. Reset Tree refunds every Core spent, any time, in the Hub only.",

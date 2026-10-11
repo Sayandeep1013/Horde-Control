@@ -211,6 +211,8 @@ func test_wave_started_shows_the_typed_banner_and_boss_waves_say_boss() -> void:
 func test_siege_warning_boss_entrance_and_elite_callout_are_announced_once_each() -> void:
 	var announcer: RunAnnouncer = auto_free(RunAnnouncer.new())
 	add_child(announcer)
+	MetaProgress.mark_hint_seen(RunHints.ID_ELITE) # a seen hint leaves the plain callout
+	MetaProgress.mark_hint_seen(RunHints.ID_BOSS)
 	EventBus.emit_siege_warning(3.0)
 	EventBus.emit_boss_spawned(null, "warchief", "Goblin Warchief", 2600.0)
 	assert_array(_texts(announcer.get_banner_box_for_test())).contains(["SIEGE INCOMING", "GOBLIN WARCHIEF"])

@@ -1,38 +1,34 @@
 extends GdUnitTestSuite
 
-## UX review items 4 and 9 (D129/D130): wave banner, Siege warning, run
-## objective and first-run hints gated by a MetaProgress flag.
+## Wave banners (exactly one per wave, D240) and the contextual once-per-profile
+## hints (D241): queue, pause, per-profile persistence and wording.
 
 var _dir: String
 
 
-class FakeDirector extends Node:
-	signal wave_opened(wave_id: String, wave_index: int)
-	var siege: bool = false
+class FakeSkill extends Node:
+	var is_ready: bool = false
 
-	func get_wave_total_count() -> int:
-		return 8
-
-	func is_current_wave_siege() -> bool:
-		return siege
+	func get_state() -> Dictionary:
+		return {"skill_id": "arrow_storm", "ready": is_ready, "cooldown_remaining": 0.0, "cooldown_total": 10.0}
 
 
 func before_test() -> void:
 	_dir = "user://__run_announcer_test_%d_%d/" % [Time.get_ticks_usec(), randi()]
 	MetaProgress.set_base_path_for_test(_dir)
+	TouchUi.set_override_for_test(0)
 
 
 func after_test() -> void:
+	TouchUi.set_override_for_test(-1)
 	MetaProgress.set_base_path_for_test("user://")
+	get_tree().paused = false
 
 
-func _make() -> Array:
-	var director: FakeDirector = auto_free(FakeDirector.new())
-	add_child(director)
+func _make() -> RunAnnouncer:
 	var announcer: RunAnnouncer = auto_free(RunAnnouncer.new())
 	add_child(announcer)
-	announcer.bind_wave_director(director)
-	return [director, announcer]
+	return announcer
 
 
 func _texts(box: Control) -> Array[String]:
@@ -42,73 +38,177 @@ func _texts(box: Control) -> Array[String]:
 	return out
 
 
-func test_each_wave_start_shows_a_wave_banner() -> void:
-	var parts: Array = _make()
-	var director: FakeDirector = parts[0]
-	var announcer: RunAnnouncer = parts[1]
-	director.wave_opened.emit("wave_combat_1", 4)
-	assert_array(_texts(announcer.get_banner_box_for_test())).contains(["Wave 5"])
-	assert_array(_texts(announcer.get_banner_box_for_test())).not_contains(["Siege incoming"])
+func _banner_count(announcer: RunAnnouncer, text: String) -> int:
+	return _texts(announcer.get_banner_box_for_test()).count(text)
 
 
-func test_a_siege_wave_adds_the_siege_warning() -> void:
-	var parts: Array = _make()
-	var director: FakeDirector = parts[0]
-	var announcer: RunAnnouncer = parts[1]
-	director.siege = true
-	director.wave_opened.emit("wave_combat_2", 5)
-	assert_array(_texts(announcer.get_banner_box_for_test())).contains(["Wave 6", "Siege incoming"])
+# --- one banner per wave -------------------------------------------------------------
+
+func test_wave_started_shows_exactly_one_banner_even_when_emitted_twice() -> void:
+	var announcer: RunAnnouncer = _make()
+	EventBus.emit_wave_started(1, 15, "standard", false)
+	EventBus.emit_wave_started(1, 15, "standard", false)
+	assert_int(_banner_count(announcer, "WAVE 1 · STANDARD")).is_equal(1)
+	assert_int(announcer.get_banner_box_for_test().get_child_count()).append_failure_message("no second banner of any kind at wave 1").is_equal(1)
 
 
-func test_wave_one_shows_the_objective_line() -> void:
-	var parts: Array = _make()
-	var director: FakeDirector = parts[0]
-	var announcer: RunAnnouncer = parts[1]
+func test_a_legacy_wave_opened_signal_never_adds_a_banner() -> void:
+	var announcer: RunAnnouncer = _make()
+	var director: Node = auto_free(Node.new())
+	director.set_script(_director_script())
+	add_child(director)
+	announcer.bind_wave_director(director)
+	# Order A: legacy first, then the v1 signal.
 	director.wave_opened.emit("t1", 0)
-	assert_array(_texts(announcer.get_toast_box_for_test())).contains(["Protect yourself and the Tower - hold 8 waves and slay the Bombardier King"])
+	EventBus.emit_wave_started(1, 15, "standard", false)
+	assert_int(announcer.get_banner_box_for_test().get_child_count()).is_equal(1)
+	# Order B: v1 first, then legacy.
+	EventBus.emit_wave_started(2, 15, "standard", false)
+	director.wave_opened.emit("t2", 1)
+	assert_int(announcer.get_banner_box_for_test().get_child_count()).is_equal(2)
+	assert_int(announcer.get_last_banner_wave_for_test()).is_equal(2)
 
 
-func test_hints_run_on_a_fresh_profile_and_are_skipped_once_seen() -> void:
-	var parts: Array = _make()
-	var director: FakeDirector = parts[0]
-	var announcer: RunAnnouncer = parts[1]
-	director.wave_opened.emit("t1", 0)
-	assert_bool(announcer.is_hint_sequence_running_for_test()).is_true()
-	MetaProgress.mark_first_run_hints_seen()
-	assert_bool(MetaProgress.is_first_run_hints_seen()).is_true()
-
-	var parts2: Array = _make()
-	var director2: FakeDirector = parts2[0]
-	var announcer2: RunAnnouncer = parts2[1]
-	director2.wave_opened.emit("t1", 0)
-	assert_bool(announcer2.is_hint_sequence_running_for_test()).append_failure_message("hints must not repeat once seen").is_false()
+func _director_script() -> GDScript:
+	var script := GDScript.new()
+	script.source_code = "extends Node\nsignal wave_opened(wave_id: String, wave_index: int)\n"
+	script.reload()
+	return script
 
 
-func test_the_seen_flag_defaults_false_and_persists() -> void:
-	MetaProgress.ensure_loaded()
-	assert_bool(MetaProgress.is_first_run_hints_seen()).is_false()
-	MetaProgress.mark_first_run_hints_seen()
-	MetaProgress.set_base_path_for_test(_dir) # drop memory, reload from disk
-	MetaProgress.ensure_loaded()
-	assert_bool(MetaProgress.is_first_run_hints_seen()).is_true()
+func test_each_new_wave_number_gets_its_own_banner() -> void:
+	var announcer: RunAnnouncer = _make()
+	EventBus.emit_wave_started(5, 15, "standard", false)
+	EventBus.emit_wave_started(6, 15, "siege", false)
+	assert_array(_texts(announcer.get_banner_box_for_test())).contains(["WAVE 5 · STANDARD", "WAVE 6 · SIEGE"])
 
 
-func test_hints_do_not_advance_or_complete_while_paused() -> void:
-	var parts: Array = _make()
-	var director: FakeDirector = parts[0]
-	var announcer: RunAnnouncer = parts[1]
-	director.wave_opened.emit("t1", 0)
-	await get_tree().process_frame
+# --- objective and hints ---------------------------------------------------------------
+
+func test_wave_one_shows_the_objective_first_then_the_start_hint_never_together() -> void:
+	var announcer: RunAnnouncer = _make()
+	EventBus.emit_wave_started(1, 15, "standard", false)
+	var toasts: Array[String] = _texts(announcer.get_toast_box_for_test())
+	assert_array(toasts).contains(["Protect yourself and the Tower - hold 15 waves and slay the Bombardier King"])
+	assert_int(toasts.size()).append_failure_message("one toast at a time").is_equal(1)
+	assert_int(announcer.get_hints_for_test().queued_count()).is_equal(1)
+
+
+func test_start_hint_names_the_live_move_keys_and_is_remembered() -> void:
+	var hints: RunHints = _make().get_hints_for_test()
+	var text: String = hints.text_for(RunHints.ID_START, ["W A S D"])
+	assert_str(text).is_equal("Your bow fires on its own. Move with W A S D.")
+	assert_bool(hints.wants(RunHints.ID_DASH)).is_true()
+	hints.request(RunHints.ID_DASH, ["Space"])
+	assert_array(_texts(hints.get_parent().get_toast_box_for_test())).contains(["Press Space to dash through danger"])
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_DASH)).is_true()
+	assert_bool(hints.wants(RunHints.ID_DASH)).is_false()
+
+
+func test_a_seen_hint_never_shows_again_even_in_a_new_run() -> void:
+	MetaProgress.mark_hint_seen(RunHints.ID_BOMBER)
+	var hints: RunHints = _make().get_hints_for_test()
+	hints.request(RunHints.ID_BOMBER)
+	assert_int(hints.queued_count()).is_equal(0)
+	assert_bool(hints.is_showing()).is_false()
+
+
+func test_hints_never_stack_a_second_waits_in_the_queue() -> void:
+	var announcer: RunAnnouncer = _make()
+	var hints: RunHints = announcer.get_hints_for_test()
+	hints.request(RunHints.ID_BOMBER)
+	hints.request(RunHints.ID_BRUTE)
+	hints.request(RunHints.ID_ELITE)
+	assert_int(_texts(announcer.get_toast_box_for_test()).size()).is_equal(1)
+	assert_array(_texts(announcer.get_toast_box_for_test())).contains(["Bomber: dodge the red circles"])
+	assert_int(hints.queued_count()).is_equal(2)
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_BRUTE)).append_failure_message("queued hints are not marked seen until shown").is_false()
+
+
+func test_hint_wording_names_the_threat_and_the_answer() -> void:
+	var hints: RunHints = _make().get_hints_for_test()
+	assert_str(hints.text_for(RunHints.ID_BRUTE, [])).is_equal("Brute: slow Tower-breaker - focus it")
+	assert_str(hints.text_for(RunHints.ID_ELITE, [])).is_equal("Elite: gold glow, tougher, drops Cores")
+	assert_str(hints.text_for(RunHints.ID_TOWER_REPAIR, [])).is_equal("Stand by the Tower to repair it with Scrap")
+	assert_str(hints.text_for(RunHints.ID_SKILL_READY, ["Q", "Arrow Storm"])).is_equal("Q: Arrow Storm is ready")
+	assert_float(RunHints.HINT_SECONDS).is_less_equal(6.0)
+
+
+func test_hints_do_not_start_or_run_down_while_paused() -> void:
+	var announcer: RunAnnouncer = _make()
+	var hints: RunHints = announcer.get_hints_for_test()
+	get_tree().paused = true
+	hints.request(RunHints.ID_BOMBER)
+	assert_bool(hints.is_showing()).append_failure_message("a paused game shows no hint").is_false()
+	assert_int(hints.queued_count()).is_equal(1)
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_BOMBER)).is_false()
+	get_tree().paused = false
+	hints._pump()
+	assert_bool(hints.is_showing()).is_true()
 	await get_tree().process_frame
 	get_tree().paused = true
 	await get_tree().process_frame
-	var before: float = announcer.get_hint_time_left_for_test()
-	for i in 20:
-		await get_tree().process_frame
-	var after: float = announcer.get_hint_time_left_for_test()
-	var hidden_while_paused: bool = not announcer.visible
+	assert_bool(announcer.visible).append_failure_message("the announcer hides behind a menu").is_false()
 	get_tree().paused = false
-	assert_float(after).is_equal_approx(before, 0.0001)
-	assert_bool(hidden_while_paused).is_true()
-	assert_bool(MetaProgress.is_first_run_hints_seen()).is_false()
 	assert_bool(announcer.visible).is_true()
+
+
+func test_the_skill_ready_hint_fires_once_when_the_skill_first_reads_ready() -> void:
+	var announcer: RunAnnouncer = _make()
+	var hints: RunHints = announcer.get_hints_for_test()
+	var skill: FakeSkill = auto_free(FakeSkill.new())
+	skill.add_to_group(&"battle_skill")
+	add_child(skill)
+	hints._poll_skill()
+	assert_bool(hints.is_showing()).is_false()
+	skill.is_ready = true
+	hints._poll_skill()
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_SKILL_READY)).is_true()
+	assert_array(_texts(announcer.get_toast_box_for_test()).filter(func(t: String) -> bool: return t.ends_with("is ready"))).is_not_empty()
+	skill.remove_from_group(&"battle_skill")
+
+
+func test_tower_repair_hint_needs_scrap_in_hand() -> void:
+	var hints: RunHints = _make().get_hints_for_test()
+	var scrap: Array[int] = [0]
+	hints.scrap_source = func() -> int: return scrap[0]
+	hints._on_tower_damaged(30.0, null, 400.0)
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_TOWER_REPAIR)).append_failure_message("no Scrap, no repair hint").is_false()
+	scrap[0] = 12
+	hints._on_tower_damaged(30.0, null, 370.0)
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_TOWER_REPAIR)).is_true()
+
+
+func test_first_player_damage_asks_for_the_dash_hint() -> void:
+	var hints: RunHints = _make().get_hints_for_test()
+	hints._on_player_damaged(0.0, null, 100.0)
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_DASH)).is_false()
+	hints._on_player_damaged(8.0, null, 92.0)
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_DASH)).is_true()
+
+
+func test_touch_builds_use_touch_wording_with_no_key_slots() -> void:
+	var hints: RunHints = _make().get_hints_for_test()
+	# The touch table is chosen once per process, so check the table itself and the slot rule.
+	assert_str(UiStrings.MOBILE_MESSAGES["HINT_DASH"]).is_equal("Tap the Dash button to dash through danger")
+	assert_str(UiStrings.MOBILE_MESSAGES["HINT_START"]).not_contains("%s")
+	var template: String = UiStrings.MOBILE_MESSAGES["HINT_SKILL_READY"]
+	assert_int(template.count("%s")).is_equal(1)
+	assert_str(template % ["Arrow Storm"]).is_equal("Arrow Storm is ready: tap the big Battle Skill button")
+	assert_object(hints).is_not_null()
+
+
+func test_elite_and_boss_events_queue_their_hints_once() -> void:
+	var announcer: RunAnnouncer = _make()
+	EventBus.emit_elite_spawned(null, "swift")
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_ELITE)).is_true()
+	assert_array(_texts(announcer.get_toast_box_for_test())).contains(["Elite: gold glow, tougher, drops Cores"])
+	EventBus.emit_boss_spawned(null, "warchief", "Goblin Warchief", 2600.0)
+	assert_int(announcer.get_hints_for_test().queued_count()).append_failure_message("the boss hint waits behind the elite hint").is_equal(1)
+
+
+func test_hints_seen_survives_a_reload_of_the_profile() -> void:
+	MetaProgress.mark_hint_seen(RunHints.ID_BRUTE)
+	MetaProgress.set_base_path_for_test(_dir)
+	MetaProgress.ensure_loaded()
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_BRUTE)).is_true()
