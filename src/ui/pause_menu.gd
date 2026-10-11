@@ -249,6 +249,26 @@ func _fill_build_column() -> void:
 	_add_owned(_build_column, manager, "player")
 	_build_column.add_child(_label(tr("PAUSE_BUILD_TOWER_ABILITIES"), UiTheme.DIM_PARCHMENT))
 	_add_owned(_build_column, manager, "tower")
+	_add_boons_and_pacts(_build_column)
+
+
+## docs/32 §A: the Blood Pacts taken and the Sanctuary blessings chosen, under the build.
+## Nothing is added until the first one is taken.
+func _add_boons_and_pacts(list: Container) -> void:
+	var tree: SceneTree = get_tree()
+	var events: Node = tree.get_first_node_in_group(&"run_events") if tree != null else null
+	if events == null or not events.has_method("get_summary"):
+		return
+	var entries: Array = events.get_summary()
+	if entries.is_empty():
+		return
+	list.add_child(_label(tr("PAUSE_BUILD_BOONS"), UiTheme.DIM_PARCHMENT))
+	for entry: Dictionary in entries:
+		var id: String = str(entry.get("id", ""))
+		if str(entry.get("type", "")) == "pact":
+			_pair_row(list, tr("PAUSE_BUILD_BOON_PACT"), EventDraftController.pact_name(id))
+		else:
+			_pair_row(list, tr("PAUSE_BUILD_BOON_SANCT"), tr("SANCT_%s_NAME" % id.to_upper()))
 
 
 func _fill_passives_column() -> void:

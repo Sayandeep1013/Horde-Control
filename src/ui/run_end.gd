@@ -114,6 +114,7 @@ var _wave_label: Label
 var _scrap_label: Label
 var _time_label: Label
 var _seed_label: Label
+var _boons_label: Label ## docs/32 §A: Pacts and the Sanctuary choice, under the seed
 var _frame: MenuFrame.Parts
 var _outcome_glyph: OutcomeGlyph
 var _kills_label: Label
@@ -189,6 +190,10 @@ func show_summary(summary: Dictionary) -> void:
 	_seed_label.visible = run_seed >= 0
 	if _seed_label.visible:
 		_seed_label.text = tr("RUN_END_SEED") % run_seed
+
+	var boons_text: String = String(summary.get("boons_text", ""))
+	_boons_label.visible = boons_text != ""
+	_boons_label.text = boons_text
 
 	_kills_label.text = tr("RESULTS_KILLS") % int(summary.get("kills", 0))
 	_elites_label.text = tr("RESULTS_ELITES") % int(summary.get("elite_kills", 0))
@@ -699,6 +704,10 @@ func _build_ui() -> void:
 	_seed_label.theme_type_variation = UiTheme.DIM_PARCHMENT
 	_seed_label.visible = false
 	body.add_child(_seed_label)
+	_boons_label = _make_field_label("BoonsLabel", 800.0)
+	_boons_label.theme_type_variation = UiTheme.DIM_PARCHMENT
+	_boons_label.visible = false
+	body.add_child(_boons_label)
 
 	_bar = PausedChoiceBar.new()
 	_bar.name = "ChoiceBar"

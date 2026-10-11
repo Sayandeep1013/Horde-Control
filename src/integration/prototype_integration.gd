@@ -115,6 +115,8 @@ var _upgrade_system: Node = null
 var _draft_controller: Node = null
 var _run_flow_controller: Node = null
 var _debug_overlay: Node = null
+var _run_events: RunEvents = null
+var _event_controller: EventDraftController = null
 
 
 func _ready() -> void:
@@ -153,6 +155,9 @@ func _ready() -> void:
 	_wire_enemies()
 	_wire_sim_loop()
 	_wire_run_seed()
+	if _player != null:
+		_player.set_focus_enabled(Player.champion_has_focus(RunConfig.champion_id)) # docs/32 §C1: Skirmisher has no Focus
+	_wire_run_events()
 	_wire_pickup_system()
 	_wire_run_flow_controller()
 	_wire_wave_director_capacity_and_overlay()
@@ -176,6 +181,7 @@ func _ready() -> void:
 func _apply_meta_loadout() -> void:
 	CombatStats.reset_run_stats() # D173/D254: the damage report and run counters start from zero every run (Retry included)
 	var loadout: MetaLoadout = MetaProgress.build_run_loadout()
+	_loadout_armory = loadout.armory_enabled
 	var pickup_system: PickupSystem = _pickup_system as PickupSystem
 	var run_inventory: RunInventory = pickup_system.run_inventory if pickup_system != null else null
 	var hooks: Dictionary = MetaLoadoutApplier.apply(loadout, _player, _tower, _auto_weapon as AutoWeapon, run_inventory, _draft_controller as DraftController, _wave_director)
@@ -190,6 +196,38 @@ func _apply_meta_loadout() -> void:
 	var upgrade_system: UpgradeSystem = _upgrade_system as UpgradeSystem
 	if upgrade_system != null:
 		upgrade_system.set_unlocked_card_ids(MetaProgress.get_unlocked_card_ids())
+
+
+var _loadout_armory: bool = false
+
+
+## docs/32 §A (v1.0 Run Events): builds the RunEvents logic node and its card UI in
+## code (no scene edit), queues the Opening Pick and opens it at once, so the run is
+## paused before the first tick. Skipped in a headless process unless
+## `RunConfig.run_events_forced` (the balance bot); the scene-level tests are unchanged.
+func _wire_run_events() -> void:
+	if not RunEvents.is_enabled_by_default():
+		return
+	_run_events = RunEvents.new()
+	_run_events.name = "RunEvents"
+	_run_events.run_seed = run_seed
+	_run_events.armory_enabled = _loadout_armory
+	add_child(_run_events)
+	_event_controller = EventDraftController.new()
+	_event_controller.name = "EventDraftInstance"
+	_event_controller.run_seed = run_seed
+	add_child(_event_controller)
+	_event_controller.setup(_run_events, _draft_controller as DraftController, _upgrade_system as UpgradeSystem, _wave_director)
+	_run_events.begin_run()
+	_event_controller.poll_open()
+
+
+func get_run_events() -> RunEvents:
+	return _run_events
+
+
+func get_event_controller() -> EventDraftController:
+	return _event_controller
 
 
 func _reapply_group_hooks(loadout: MetaLoadout, armory_done: bool) -> void:
