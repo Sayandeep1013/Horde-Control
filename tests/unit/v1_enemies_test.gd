@@ -377,3 +377,26 @@ func test_a_boss_death_drops_a_war_chest_and_collecting_it_opens_the_draft() -> 
 	assert_int(opened[0]).is_equal(0)
 	system._on_pickup_entered_collector(chests[0])
 	assert_int(opened[0]).append_failure_message("collecting the chest emits war_chest_opened").is_equal(1)
+
+
+# --- Pool release (D215) ---------------------------------------------------------------------
+
+func test_a_finished_enemy_is_freed_and_gives_its_pool_slot_back() -> void:
+	var root: Node = auto_free(Node.new())
+	add_child(root)
+	var entities := Node2D.new()
+	entities.name = "Entities"
+	root.add_child(entities)
+	var spawner: Node = EntitySpawnerScript.new()
+	spawner.entities_container_path = NodePath("../Entities")
+	root.add_child(spawner)
+	_spawners.append(spawner)
+	var e: EnemyController = spawner.spawn_enemy(Vector2.ZERO, func() -> Node2D: return HunterScene.instantiate()) as EnemyController
+	assert_int(spawner.get_enemy_count()).is_equal(1)
+	assert_object(e.get_parent()).is_same(entities)
+	e.death_state.kill("test")
+	assert_int(spawner.get_enemy_count()).append_failure_message("a corpse keeps its slot until its visual death ends").is_equal(1)
+	e.death_state.visual_death_finished.emit(e)
+	assert_int(spawner.get_enemy_count()).append_failure_message("the slot is returned when the visual death finishes").is_equal(0)
+	assert_bool(e.is_queued_for_deletion()).is_true()
+	assert_int(spawner._enemy_pool.get_free_count()).append_failure_message("never parked on the archetype-blind free list").is_equal(0)

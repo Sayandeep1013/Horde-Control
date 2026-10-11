@@ -244,7 +244,7 @@ func _apply_type_geometry() -> void:
 	var sprite_scale: float = 1.0
 	if kind == ContractEnums.PickupType.Health:
 		touch_radius = 14.0
-		sprite_scale = 0.6
+		sprite_scale = 1.0
 	elif kind == ContractEnums.PickupType.WarChest:
 		touch_radius = 26.0
 		sprite_scale = 2.0

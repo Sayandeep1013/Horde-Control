@@ -201,7 +201,17 @@ static func resolve_start_wave(user_args: PackedStringArray) -> int:
 	return 0
 
 
+func _wire_dev_godmode() -> void:
+	# v1.0 dev flag `--dev-godmode`: huge player health, so scene captures of
+	# late waves survive long enough to look at. Never read outside this method.
+	if not OS.get_cmdline_user_args().has("--dev-godmode") or _player == null or _player.death_state == null:
+		return
+	_player.death_state.max_hp = 100000.0
+	_player.death_state.current_hp = 100000.0
+
+
 func _wire_run_seed() -> void:
+	_wire_dev_godmode()
 	if _pickup_system != null:
 		_pickup_system.run_seed = run_seed
 	if _wave_director != null:

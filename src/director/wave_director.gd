@@ -11,6 +11,17 @@ class_name WaveDirector
 ## (T1-T4, combat waves 1-4; no boss waves) and spawns their authored spawn
 ## groups on the two Spawn Rings, off-screen, on schedule.
 ##
+## ## v1.0 (WP-ENEMIES; docs/31 §5-§6; Register "v1.0 Enemies, Bosses & Waves")
+## The default `waves`/`encounter_definitions` are now the 15-wave release
+## sequence (data/waves/w01..w15; D171, D221). The paragraphs below describe the
+## original eight-wave prototype build and remain accurate for the mechanisms
+## (rings, Siege formula, Overtime, Pressure), which the suites still exercise
+## through `use_legacy_prototype_sequence_for_test()`. v1.0 adds: boss waves
+## (`has_maximum_duration == false`, ending on the boss's death, no Overtime or
+## Pressure), difficulty at spawn (D219), elites (D214), Endless looping (D217),
+## boss summons (`spawn_summons()`), spawn markers and the Siege warning
+## (emission only), and the `wave_director` group query API.
+##
 ## ## Scope, named per this task's own binding brief
 ## P2.8 (phases/PHASE_03_.../evidence/p28_report.md, "Deferred") named eight
 ## items it deliberately left out. This task (P2.8b,

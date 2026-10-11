@@ -10,8 +10,8 @@ uniform float pulse_speed = 0.0;
 uniform float pulse_amount = 0.0;
 
 void fragment() {
-	vec4 base = COLOR; // vertex colour including the node's modulate
-	vec4 tex = texture(TEXTURE, UV);
+	// In Godot 4 COLOR already holds texture x modulate when fragment() starts.
+	vec4 body = COLOR;
 	vec2 px = TEXTURE_PIXEL_SIZE * outline_width;
 	float a = 0.0;
 	a = max(a, texture(TEXTURE, UV + vec2(px.x, 0.0)).a);
@@ -23,7 +23,6 @@ void fragment() {
 	a = max(a, texture(TEXTURE, UV + vec2(px.x, -px.y)).a);
 	a = max(a, texture(TEXTURE, UV + vec2(-px.x, px.y)).a);
 	float pulse = 1.0 - pulse_amount * (0.5 + 0.5 * sin(TIME * pulse_speed));
-	float out_a = outline_color.a * pulse * a * (1.0 - tex.a) * base.a;
-	vec4 body = tex * base;
+	float out_a = outline_color.a * pulse * a * (1.0 - body.a);
 	COLOR = vec4(mix(outline_color.rgb, body.rgb, body.a), max(body.a, out_a));
 }

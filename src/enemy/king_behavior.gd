@@ -5,7 +5,7 @@ class_name KingBehavior
 ## (circling when inside the band). Attacks: Barrage (5 dynamite on rings
 ## around the player, 1.1 s, 26 dmg each, every 6 s), Siege Bomb (1.6 s large
 ## ring on the Tower, 110 dmg to the Tower only, every 10 s), Call the Horde
-## (8 Seekers + 2 Bombers every 16 s). Below 50% HP: Barrage throws 8 and the
+## (8 Seekers + 2 Bombers every 16 s). Barrage blasts hurt the player only. Below 50% HP: Barrage throws 8 and the
 ## Siege Bomb comes every 7 s. Killing him wins the run (WaveDirector ends
 ## the sequence); in Endless he only ends wave 15.
 
@@ -103,4 +103,5 @@ func _barrage(parent: Node, player: Node2D) -> void:
 		if i > 0:
 			var a: float = base_angle + TAU * float(i) / float(n)
 			target += Vector2.from_angle(a) * rng.randf_range(BARRAGE_SCATTER_MIN_PX, BARRAGE_SCATTER_MAX_PX)
-		EnemyBomb.launch(parent, controller.global_position, target, BARRAGE_FLIGHT_SECONDS, BARRAGE_RADIUS_PX, scaled_damage(BARRAGE_DAMAGE), true, controller, controller.get_clock(), controller.get_registry())
+		var bomb: EnemyBomb = EnemyBomb.launch(parent, controller.global_position, target, BARRAGE_FLIGHT_SECONDS, BARRAGE_RADIUS_PX, scaled_damage(BARRAGE_DAMAGE), true, controller, controller.get_clock(), controller.get_registry())
+		bomb.hit_tower = false # the Barrage is aimed at the player; the Siege Bomb is the Tower attack

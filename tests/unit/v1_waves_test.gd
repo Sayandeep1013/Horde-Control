@@ -16,12 +16,14 @@ const WaveDirectorScript: GDScript = preload("res://src/director/wave_director.g
 const DummyEnemy: GDScript = preload("res://tests/unit/v1_dummy_enemy.gd")
 const DummyBoss: GDScript = preload("res://tests/unit/v1_dummy_boss.gd")
 
-## docs/31 §6.1: [wave id, hp x, damage x, max duration (0 = boss)]
+## docs/31 §6.1 HP multipliers and durations; damage multipliers are the
+## authored ramp (D221), lower than docs/31's 0.6-1.35 in waves 1-7 and
+## 10-13 after the first bot runs (Register "Wave sequence").
 const TABLE: Array = [
-	["wave_01", 1.0, 0.6, 30.0], ["wave_02", 1.0, 0.7, 35.0], ["wave_03", 1.0, 0.8, 40.0], ["wave_04", 1.0, 0.9, 45.0],
-	["wave_05", 1.1, 0.9, 60.0], ["wave_06", 1.2, 1.0, 60.0], ["wave_07", 1.3, 1.0, 70.0], ["wave_08", 1.0, 1.0, 0.0],
-	["wave_09", 1.5, 1.1, 70.0], ["wave_10", 1.6, 1.1, 75.0], ["wave_11", 1.75, 1.2, 75.0], ["wave_12", 1.9, 1.2, 75.0],
-	["wave_13", 2.1, 1.3, 80.0], ["wave_14", 2.3, 1.35, 85.0], ["wave_15", 1.0, 1.0, 0.0],
+	["wave_01", 1.0, 0.3, 30.0], ["wave_02", 1.0, 0.35, 35.0], ["wave_03", 1.0, 0.4, 40.0], ["wave_04", 1.0, 0.6, 45.0],
+	["wave_05", 1.1, 0.65, 60.0], ["wave_06", 1.2, 0.7, 60.0], ["wave_07", 1.3, 0.8, 70.0], ["wave_08", 1.0, 1.0, 0.0],
+	["wave_09", 1.5, 1.0, 70.0], ["wave_10", 1.6, 1.05, 75.0], ["wave_11", 1.75, 1.1, 75.0], ["wave_12", 1.9, 1.15, 75.0],
+	["wave_13", 2.1, 1.25, 80.0], ["wave_14", 2.3, 1.35, 85.0], ["wave_15", 1.0, 1.0, 0.0],
 ]
 
 var _registry: Node
@@ -363,7 +365,7 @@ func test_difficulty_scales_spawn_count_hp_damage_and_boss_hp() -> void:
 	_step(2.0, 0.1, 2.0, false)
 	var first: Node2D = _spawned[0]
 	assert_float(first.scaling[0][0]).append_failure_message("hp 1.0 x 1.35").is_equal_approx(1.35, 0.0001)
-	assert_float(first.scaling[0][2]).append_failure_message("hunter damage 0.35 x 1.4").is_equal_approx(0.49, 0.0001)
+	assert_float(first.scaling[0][2]).append_failure_message("hunter damage 0.25 x 1.4").is_equal_approx(0.35, 0.0001)
 	_spawned.clear()
 	_director.open_wave_for_test(8)
 	_step(1.0, 0.5, 2.0, false)
@@ -376,7 +378,7 @@ func test_soldier_leaves_counts_and_scaling_at_the_wave_values() -> void:
 	_director.open_wave_for_test(1)
 	assert_int(_director.get_effective_group_count_for_test(_director.encounter_definitions[0], 0)).is_equal(4)
 	_step(1.0, 0.1, 2.0, false)
-	assert_float(_spawned[0].scaling[0][2]).is_equal_approx(0.35, 0.0001)
+	assert_float(_spawned[0].scaling[0][2]).is_equal_approx(0.25, 0.0001)
 
 
 # --- Elites ------------------------------------------------------------------------------

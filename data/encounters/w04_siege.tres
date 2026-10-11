@@ -12,15 +12,15 @@
 [sub_resource type="Resource" id="Resource_group_1"]
 script = ExtResource("2_group")
 enemy_definition_id = "tower_seeker"
-count = 24
+count = 16
 start_offset_seconds = 3.0
 spawn_interval_seconds = 1.5
-burst_size = 6
+burst_size = 1
 
 [sub_resource type="Resource" id="Resource_group_2"]
 script = ExtResource("2_group")
 enemy_definition_id = "player_hunter"
-count = 3
+count = 2
 start_offset_seconds = 10.0
 spawn_interval_seconds = 0.5
 burst_size = 1
