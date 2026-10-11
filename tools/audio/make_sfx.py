@@ -427,6 +427,28 @@ def ui_confirm(rng):
     return mix(place(a, 0, sec), place(b, 0.06, sec), scale(wood, 0.3))
 
 
+def wood_break(rng):
+    """WP-ARENA crate break: a dry crack, a low wooden thump and falling splinters."""
+    sec = 0.32
+    crack = mul(bandpass(noise(rng, sec), 900, 4200), env_adr(sec, 0.0005, 0.03))
+    thump = mul(osc(sweep(190, 80, 0.12), sec, "tri"), env_adr(sec, 0.001, 0.06))
+    out = mix(scale(crack, 0.9), scale(thump, 0.8))
+    for at in (0.07, 0.12, 0.19):
+        tick = mul(bandpass(noise(rng, 0.06), 1500, 5000), env_adr(0.06, 0.0005, 0.012))
+        out = mix(out, place(scale(tick, 0.4), at, sec))
+    return out
+
+
+def shrine_claim(rng):
+    """WP-ARENA shrine boon: a rising three-note chime over a soft low swell."""
+    sec = 0.8
+    out = silence(sec)
+    for i, f in enumerate((659.3, 987.8, 1318.5)):
+        out = mix(out, place(note(f, 0.5, 0.2, ((1, 1.0), (2, 0.25), (3, 0.08))), i * 0.09, sec))
+    swell = mul(lp2(osc(const(196.0), sec, "tri"), 600), env_shape(sec, [(0, 0), (0.12, 0.6), (sec, 0)]))
+    return mix(out, scale(swell, 0.5))
+
+
 CUES = {  # name: (function, seed, fade_out_seconds)
     "bow_shot": (bow_shot, 101, 0.03), "tower_bolt": (tower_bolt, 102, 0.04),
     "dash": (dash, 103, 0.04), "explosion": (explosion, 104, 0.06),
@@ -441,6 +463,7 @@ CUES = {  # name: (function, seed, fade_out_seconds)
     "skill_ready": (skill_ready, 121, 0.05), "victory": (victory, 122, 0.25),
     "defeat": (defeat, 123, 0.3), "ui_hover": (ui_hover, 124, 0.01),
     "ui_confirm": (ui_confirm, 125, 0.03),
+    "wood_break": (wood_break, 130, 0.06), "shrine_claim": (shrine_claim, 131, 0.15),
 }
 
 
@@ -490,7 +513,10 @@ def main():
     if "--analyse" in sys.argv:
         analyse()
         return
+    only = [a for a in sys.argv[1:] if not a.startswith("--")]  # optional: regenerate just these cues
     for name, (fn, seed, fo) in CUES.items():
+        if only and name not in only:
+            continue
         x = finalise(fn(random.Random(seed)), fade_out=fo)
         p = write_wav(name, x)
         print("wrote %s (%.2f s)" % (os.path.normpath(p), len(x) / SR))

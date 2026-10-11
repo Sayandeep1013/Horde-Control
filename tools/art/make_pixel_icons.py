@@ -819,6 +819,41 @@ V1_ICONS = {
 }
 
 
+# --- Arena boon icons (WP-ARENA, docs/32 section B) -------------------------------
+# War: crossed blades over red; Haste: winged boot; Ward: kite shield; Bounty: coin stack.
+
+def ic_boon_war():
+    parts = [Part(lambda d: d.line([(6, 26), (24, 6)], fill=255, width=4), STEEL, 1),
+             Part(lambda d: d.line([(26, 26), (8, 6)], fill=255, width=4), STEEL, 1),
+             Part(lambda d: d.ellipse([10, 10, 22, 22], fill=255), RED)]
+    return compose(parts, [(lambda d, c: d.polygon([(16, 12), (19, 17), (16, 21), (13, 17)], fill=c), RED[1])])
+
+
+def ic_boon_haste():
+    parts = [Part(lambda d: d.polygon([(10, 8), (18, 8), (18, 17), (27, 21), (27, 27), (8, 27), (8, 17)], fill=255), BLUE),
+             Part(lambda d: d.polygon([(4, 12), (11, 9), (9, 16), (3, 17)], fill=255), BONE, 1),
+             Part(lambda d: d.polygon([(2, 18), (9, 17), (8, 23), (1, 22)], fill=255), BONE, 1)]
+    return compose(parts, [(lambda d, c: d.rectangle([9, 24, 26, 26], fill=c), BLUE[2])])
+
+
+def ic_boon_ward():
+    parts = [Part(lambda d: d.polygon([(5, 5), (27, 5), (27, 17), (16, 29), (5, 17)], fill=255), BLUE),
+             Part(lambda d: d.polygon([(9, 9), (23, 9), (23, 16), (16, 24), (9, 16)], fill=255), STEEL, 1)]
+    return compose(parts, [(lambda d, c: d.rectangle([15, 10, 17, 22], fill=c), BLUE[0]),
+                           (lambda d, c: d.rectangle([10, 13, 22, 15], fill=c), BLUE[0])])
+
+
+def ic_boon_bounty():
+    parts = [Part(lambda d: d.ellipse([3, 17, 20, 29], fill=255), GOLD),
+             Part(lambda d: d.ellipse([12, 14, 29, 26], fill=255), GOLD),
+             Part(lambda d: d.ellipse([8, 4, 25, 16], fill=255), GOLD)]
+    return compose(parts, [(lambda d, c: d.rectangle([15, 7, 17, 13], fill=c), GOLD[2]),
+                           (lambda d, c: d.rectangle([13, 8, 19, 9], fill=c), GOLD[2])])
+
+
+ARENA_ICONS = {"boon_war": ic_boon_war, "boon_haste": ic_boon_haste, "boon_ward": ic_boon_ward, "boon_bounty": ic_boon_bounty}
+
+
 def make_contact_sheet(icons, path, cols=8, zoom=4):
     from PIL import ImageFont
     cw, ch = S * zoom + 16, S * zoom + 38
@@ -860,3 +895,8 @@ if __name__ == "__main__":
         v1[name] = fn()
         save(v1[name], "assets/ui/icons/icon_%s.png" % name)
     make_contact_sheet(v1, "assets/ui/icons/_contact_sheet_v1.png")
+    arena = {}
+    for name, fn in ARENA_ICONS.items():
+        arena[name] = fn()
+        save(arena[name], "assets/ui/icons/icon_%s.png" % name)
+    make_contact_sheet(arena, "assets/ui/icons/_contact_sheet_arena.png", cols=4)
