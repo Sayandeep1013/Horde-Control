@@ -175,3 +175,16 @@ static func clear_for_test() -> void:
 	_pool.clear()
 	_tweens.clear()
 	_next_index = 0
+
+
+## Shutdown hygiene (ShutdownHygiene): free unparented pool nodes, kill tweens.
+static func release_caches() -> void:
+	for n in _pool:
+		if is_instance_valid(n) and n.get_parent() == null:
+			n.free()
+	for t in _tweens:
+		if t != null and t.is_valid():
+			t.kill()
+	_pool.clear()
+	_tweens.clear()
+	_next_index = 0

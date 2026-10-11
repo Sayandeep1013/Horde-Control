@@ -54,3 +54,8 @@ static func _rect(img: Image, x: int, y: int, w: int, h: int, c: Color) -> void:
 		for xx in range(x, x + w):
 			if xx >= 0 and yy >= 0 and xx < SIZE and yy < SIZE:
 				img.set_pixel(xx, yy, c)
+
+
+## Shutdown hygiene (ShutdownHygiene).
+static func release_caches() -> void:
+	_cache = null

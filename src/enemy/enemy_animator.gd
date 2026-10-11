@@ -100,7 +100,7 @@ const FACING_FLIP_MIN_INTERVAL_SECONDS: float = 0.2
 const HIT_SQUASH_DURATION_SECONDS: float = 0.12
 const HIT_SQUASH_SCALE: Vector2 = Vector2(1.18, 0.82)
 
-var _controller: EnemyController = null
+var _controller: Node = null # untyped on purpose: see ShutdownHygiene / D256 (script cycle)
 var _death_state: DeathState = null
 var _sprite: AnimatedSprite2D = null
 var _shadow: CanvasItem = null
@@ -129,7 +129,7 @@ var _base_scale: Vector2 = Vector2.ONE
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE # pauses with the enemy it decorates, matching telegraph_visual.gd's own convention
 
-	_controller = get_node_or_null(controller_path) as EnemyController
+	_controller = get_node_or_null(controller_path)
 	_death_state = get_node_or_null(death_state_path) as DeathState
 	_sprite = get_node_or_null(sprite_path) as AnimatedSprite2D
 	_shadow = get_node_or_null(shadow_path) as CanvasItem

@@ -376,3 +376,25 @@ static func clear_for_test() -> void:
 	_splat_pool.clear()
 	_splat_tweens.clear()
 	_splat_next_index = 0
+
+
+## Shutdown hygiene (ShutdownHygiene): free unparented pool nodes, kill tweens,
+## drop generated textures.
+static func release_caches() -> void:
+	for n in _burst_pool:
+		if is_instance_valid(n) and n.get_parent() == null:
+			n.free()
+	for n in _splat_pool:
+		if is_instance_valid(n) and n.get_parent() == null:
+			n.free()
+	for t in _splat_tweens:
+		if t != null and t.is_valid():
+			t.kill()
+	_burst_pool.clear()
+	_splat_pool.clear()
+	_splat_tweens.clear()
+	_burst_next_index = 0
+	_splat_next_index = 0
+	_particle_texture = null
+	_blood_ramp = null
+	_splat_textures.clear()

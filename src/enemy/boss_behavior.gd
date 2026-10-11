@@ -26,7 +26,7 @@ func is_boss() -> bool:
 	return true
 
 
-func bind(owner_controller: EnemyController) -> void:
+func bind(owner_controller: Node) -> void:
 	super.bind(owner_controller)
 	owner_controller.boss_id = boss_id
 	if owner_controller.death_state != null:

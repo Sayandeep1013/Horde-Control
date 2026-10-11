@@ -410,3 +410,8 @@ static func _draw_lock(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
 	var keyhole_center: Vector2 = o + Vector2(w * 0.5, h * 0.60)
 	canvas.draw_circle(keyhole_center, w * 0.05, color.lightened(0.5), true, -1.0, true)
 	canvas.draw_rect(Rect2(keyhole_center + Vector2(-w * 0.02, 0.0), Vector2(w * 0.04, h * 0.10)), color.lightened(0.5), true)
+
+
+## Shutdown hygiene (ShutdownHygiene).
+static func release_caches() -> void:
+	_icon_cache.clear()

@@ -177,3 +177,9 @@ static func _ensure_runner() -> void:
 	_runner = StatusEffectsRunner.new()
 	_runner.name = "StatusEffectsRunner"
 	tree.root.add_child.call_deferred(_runner)
+
+
+## Shutdown hygiene (ShutdownHygiene): also drops the runner node reference.
+static func release_caches() -> void:
+	reset()
+	_runner = null

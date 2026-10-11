@@ -42,3 +42,8 @@ static func icon(id: String) -> Texture2D:
 			break
 	_icon_cache[id] = tex
 	return tex
+
+
+## Shutdown hygiene (ShutdownHygiene).
+static func release_caches() -> void:
+	_icon_cache.clear()

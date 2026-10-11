@@ -10,11 +10,11 @@ class_name EnemyBehavior
 ## project's state-machine idiom; no per-frame timers, no scene Timers).
 ## Bomber, Goblin Warchief and Bombardier King are the three subclasses.
 
-var controller: EnemyController = null
+var controller: Node = null # untyped on purpose: typing it as EnemyController closes a script cycle that leaks at exit (D256)
 
 
 ## Called once from EnemyController._ready().
-func bind(owner_controller: EnemyController) -> void:
+func bind(owner_controller: Node) -> void:
 	controller = owner_controller
 
 
