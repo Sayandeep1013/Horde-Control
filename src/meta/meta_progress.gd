@@ -125,7 +125,7 @@ const SETTLEMENT_VICTORY_CORES: int = 10
 ## docs/31 §5.3/§7.4: boss bounties (Register "v1.0 Meta Progression" >
 ## settlement). Paid at settlement from the run's boss kills, since bosses drop
 ## no Core pickup (D255).
-const SETTLEMENT_BOSS_CORES: Dictionary = {"warchief": 8, "king": 20}
+const SETTLEMENT_BOSS_CORES: Dictionary = {"warchief": 8, "juggernaut": 14, "king": 20}
 
 ## Register > "v1.0 Meta Progression": the v2 -> v3 refund table. The v2 tree's
 ## own tier price table and each v2 node's tier, so the refund is exact even
@@ -138,7 +138,7 @@ const V2_NODE_TIERS: Dictionary = {
 	"prospector": 2, "lucky_charm": 2, "deep_pockets": 3, "war_chest": 4,
 }
 const DIFFICULTY_IDS: Array[String] = ["recruit", "soldier", "veteran", "warlord"]
-const BOSS_IDS: Array[String] = ["warchief", "king"]
+const BOSS_IDS: Array[String] = ["warchief", "juggernaut", "king"]
 
 ## D115 (no in-run shop): Scrap has no in-run sink any more -- Register >
 ## "Meta: Run-End Settlement (prototype)": "Scrap line: floor(scrap_carried
@@ -673,7 +673,7 @@ func _fresh_profile() -> Dictionary:
 		"endless_unlocked": false,
 		"best_endless_wave": 0,
 		"lifetime_elite_kills": 0,
-		"lifetime_boss_kills": {"warchief": 0, "king": 0},
+		"lifetime_boss_kills": {"warchief": 0, "juggernaut": 0, "king": 0},
 		"lifetime_repair": 0,
 		"runs_played": 0,
 		"tree_migrated_v3_notice": false,
@@ -1467,7 +1467,7 @@ func preview_settlement(run_summary: Dictionary) -> Dictionary:
 		var count: int = int(boss_kills.get(boss_id, 0))
 		if count > 0:
 			var boss_cores: int = count * int(SETTLEMENT_BOSS_CORES[boss_id])
-			var boss_name: String = "Goblin Warchief" if boss_id == "warchief" else "Bombardier King"
+			var boss_name: String = {"warchief": "Goblin Warchief", "juggernaut": "Gutbarrel the Juggernaut", "king": "Bombardier King"}.get(boss_id, boss_id)
 			lines.append({"label": "%s defeated (%d)" % [boss_name, count], "amount": boss_cores})
 			subtotal += boss_cores
 

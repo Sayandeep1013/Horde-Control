@@ -83,22 +83,26 @@ def tres_tree():
 # --- Achievements ---------------------------------------------------------
 # (id, name, description, metric, threshold, unlocks_card_id, perk_id, icon_id)
 A = [
-    ("goblin_slayer", "Goblin Slayer", "Defeat 300 enemies over your lifetime.", "lifetime_kills", 300, "frost_arrows", "", "kills"),
+    ("goblin_slayer", "Goblin Slayer", "Defeat 1500 enemies over your lifetime.", "lifetime_kills", 1500, "frost_arrows", "", "kills"),
     ("veteran", "Veteran", "Reach wave 8 in a single run.", "run_wave_reached", 8, "storm_bolt", "", "veteran"),
     ("keeper_of_the_keep", "Keeper of the Keep", "Win a run with the Tower above 50% health.", "run_victory_tower_fraction", 0.5, "spiked_palisade", "", "tower"),
     ("warchief_slayer", "Warchief Slayer", "Defeat the Goblin Warchief.", "lifetime_boss_kills_warchief", 1, "catapult", "", "boss"),
     ("sanctified", "Sanctified", "Win a run on any difficulty.", "victories_total", 1, "sacred_ground", "", "sacred_ground"),
     ("hoarder", "Hoarder", "Collect 1000 Scrap over your lifetime.", "lifetime_scrap_collected", 1000, "", "bonus_reroll", "coin"),
     ("founder", "Founder", "Win your first run.", "victories_total", 1, "", "settlement_cores_bonus", "core"),
-    ("marksman", "Marksman", "Defeat 2000 enemies over your lifetime.", "lifetime_kills", 2000, "", "weapon_damage_bonus", "caliber"),
+    ("marksman", "Marksman", "Defeat 10000 enemies over your lifetime.", "lifetime_kills", 10000, "", "weapon_damage_bonus", "caliber"),
     ("regicide", "Regicide", "Defeat the Bombardier King on Veteran or Warlord.", "run_king_killed_hard", 1, "", "settlement_cores_bonus_regicide", "war_horn"),
     ("warlord", "Warlord", "Win a run on Warlord.", "difficulty_victories_warlord", 1, "", "warlord_title", "warlord"),
     ("untouchable", "Untouchable", "Clear wave 5 or later without taking damage.", "run_untouchable_wave", 1, "", "move_speed_bonus", "shield_matrix"),
     ("mason", "Mason", "Repair 2000 Tower health in total.", "lifetime_repair", 2000, "", "repair_bonus", "repair"),
     ("elite_hunter", "Elite Hunter", "Defeat 50 elite enemies.", "lifetime_elite_kills", 50, "", "luck_bonus", "elite"),
     ("endless_20", "Endless Marathon", "Reach wave 20 in Endless mode.", "best_endless_wave", 20, "", "xp_bonus", "timer"),
-    ("full_arsenal", "Full Arsenal", "Hold 4 player abilities in one run.", "run_player_abilities", 4, "", "ability_damage_bonus", "ability_power"),
+    ("full_arsenal", "Full Arsenal", "Hold 6 player abilities in one run.", "run_player_abilities", 6, "", "ability_damage_bonus", "ability_power"),
     ("survivor", "Survivor", "Play 10 runs.", "runs_played", 10, "", "start_scrap_bonus", "heart"),
+    # Playtest round (D360): one card unlock each for the three gated PT-POWER abilities.
+    ("swarm_breaker", "Swarm Breaker", "Defeat 5000 enemies over your lifetime.", "lifetime_kills", 5000, "meteor_shower", "", "meteor_shower"),
+    ("holdout", "Holdout", "Reach wave 10 in a single run.", "run_wave_reached", 10, "lightning_sprite", "", "lightning_sprite"),
+    ("elite_breaker", "Elite Breaker", "Defeat 100 elite enemies.", "lifetime_elite_kills", 100, "ricochet", "", "ricochet"),
 ]
 
 

@@ -102,11 +102,11 @@ func test_every_row_shows_its_reward_and_unlocked_rows_are_tinted() -> void:
 	assert_str(AchievementsPanel.reward_text(RealAchievementList.get_achievement("mason"))).contains("10%")
 
 
-func test_sixteen_real_rows_each_with_an_icon_and_a_bar() -> void:
+func test_nineteen_real_rows_each_with_an_icon_and_a_bar() -> void:
 	var panel: AchievementsPanel = auto_free(AchievementsPanel.new())
 	add_child(panel)
 	panel.set_active(true)
-	assert_int(panel.get_row_count_for_test()).is_equal(16)
+	assert_int(panel.get_row_count_for_test()).is_equal(19) # D360
 	for a in RealAchievementList.achievements:
 		assert_object(panel.get_row_bar_for_test(a.id)).append_failure_message("%s has no progress bar" % a.id).is_not_null()
 		assert_object(panel._icons[a.id].texture).append_failure_message("%s has no icon" % a.id).is_not_null()

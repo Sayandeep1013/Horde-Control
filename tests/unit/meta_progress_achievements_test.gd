@@ -165,8 +165,8 @@ func _grant_prospector_rank_1() -> void:
 
 # --- Falsification 8: the six real authored achievements -------------------
 
-func test_the_sixteen_real_achievements_reference_the_five_unlock_gated_cards_and_eleven_perks() -> void:
-	assert_int(RealAchievementList.achievements.size()).is_equal(16)
+func test_the_nineteen_real_achievements_reference_the_eight_unlock_gated_cards_and_eleven_perks() -> void:
+	assert_int(RealAchievementList.achievements.size()).is_equal(19) # D360
 	var card_ids: Array[String] = []
 	var perk_ids: Array[String] = []
 	var seen: Dictionary = {}
@@ -183,7 +183,7 @@ func test_the_sixteen_real_achievements_reference_the_five_unlock_gated_cards_an
 			perk_ids.append(a.perk_id)
 	card_ids.sort()
 	perk_ids.sort()
-	assert_array(card_ids).is_equal(["catapult", "frost_arrows", "sacred_ground", "spiked_palisade", "storm_bolt"])
+	assert_array(card_ids).is_equal(["catapult", "frost_arrows", "lightning_sprite", "meteor_shower", "ricochet", "sacred_ground", "spiked_palisade", "storm_bolt"])
 	assert_array(perk_ids).is_equal(["ability_damage_bonus", "bonus_reroll", "luck_bonus", "move_speed_bonus", "repair_bonus", "settlement_cores_bonus", "settlement_cores_bonus_regicide", "start_scrap_bonus", "warlord_title", "weapon_damage_bonus", "xp_bonus"])
 
 

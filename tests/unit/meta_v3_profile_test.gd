@@ -296,8 +296,8 @@ func test_each_run_scoped_achievement_unlocks_on_its_condition_only() -> void:
 	assert_array(_unlocked_after({"victory": true, "tower_health_fraction": 0.6})).contains(["keeper_of_the_keep"])
 	assert_array(_unlocked_after({"untouchable_wave": true})).contains(["untouchable"])
 	assert_array(_unlocked_after({"untouchable_wave": false})).not_contains(["untouchable"])
-	assert_array(_unlocked_after({"player_abilities": 3})).not_contains(["full_arsenal"])
-	assert_array(_unlocked_after({"player_abilities": 4})).contains(["full_arsenal"])
+	assert_array(_unlocked_after({"player_abilities": 5})).not_contains(["full_arsenal"])
+	assert_array(_unlocked_after({"player_abilities": 6})).contains(["full_arsenal"]) # D360
 
 
 func test_victory_achievements_and_the_difficulty_gated_ones() -> void:
@@ -317,7 +317,11 @@ func test_cumulative_achievements_read_the_profile_counters() -> void:
 	assert_array(_unlocked_after({"repair_total": 2000})).contains(["mason"])
 	assert_array(_unlocked_after({"endless": true, "wave_reached": 20})).contains(["endless_20"])
 	assert_array(_unlocked_after({"endless": false, "wave_reached": 20})).append_failure_message("Endless wave 20 needs an Endless run").not_contains(["endless_20"])
-	assert_array(_unlocked_after({"kills": 2000})).contains(["marksman", "goblin_slayer"])
+	assert_array(_unlocked_after({"kills": 1499})).not_contains(["goblin_slayer"]) # D360 thresholds
+	assert_array(_unlocked_after({"kills": 1500})).contains(["goblin_slayer"])
+	assert_array(_unlocked_after({"kills": 10000})).contains(["marksman", "goblin_slayer", "swarm_breaker"])
+	assert_array(_unlocked_after({"elite_kills": 100})).contains(["elite_breaker"])
+	assert_array(_unlocked_after({"wave_reached": 10})).contains(["holdout"])
 	assert_array(_unlocked_after({"scrap_carried": 1000})).contains(["hoarder"])
 
 	_new_profile_dir()
@@ -341,7 +345,7 @@ func test_progress_reports_current_target_and_fraction_per_achievement() -> void
 
 ## Each of the five card-unlocking achievements opens exactly its card for the Draft.
 func test_card_unlocking_achievements_feed_the_draft_unlock_list() -> void:
-	MetaProgress.settle_run({"run_id": "cards", "sim_time_seconds": 60.0, "wave_reached": 8, "victory": true, "tower_health_fraction": 0.9, "boss_kills": {"warchief": 1}, "kills": 300})
+	MetaProgress.settle_run({"run_id": "cards", "sim_time_seconds": 60.0, "wave_reached": 8, "victory": true, "tower_health_fraction": 0.9, "boss_kills": {"warchief": 1}, "kills": 1500})
 	var cards: Array[String] = MetaProgress.get_unlocked_card_ids()
 	for expected in ["frost_arrows", "storm_bolt", "spiked_palisade", "catapult", "sacred_ground"]:
 		assert_array(cards).append_failure_message("%s should be unlocked by this run" % expected).contains([expected])

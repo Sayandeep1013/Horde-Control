@@ -283,14 +283,14 @@ func test_repair_and_player_ability_tallies_reach_the_profile() -> void:
 	var c: RunFlowController = _controller(_clock(), _director(), bus)
 	bus.emit_signal("tower_repaired", 300.0, 100, 0.0)
 	bus.emit_signal("tower_repaired", 450.0, 150, 0.0)
-	for id in ["flame_arrows", "whirling_axes", "caltrops", "storm_bolt"]:
+	for id in ["flame_arrows", "whirling_axes", "caltrops", "storm_bolt", "blade_circle", "diagonal_arrows"]: # D360: Full Arsenal = 6
 		bus.emit_signal("ability_leveled", id, 1, "player", 0.0)
 	bus.emit_signal("ability_leveled", "ballista", 1, "tower", 0.0)
 	bus.emit_signal("ability_leveled", "flame_arrows", 2, "player", 0.0) # a level-up, not a new ability
 	c.simulate_tower_destroyed_for_test()
 	await get_tree().process_frame
 	assert_int(MetaProgress.get_lifetime_repair()).is_equal(750)
-	assert_bool(MetaProgress.is_achievement_unlocked("full_arsenal")).append_failure_message("four distinct player abilities; the Tower one does not count").is_true()
+	assert_bool(MetaProgress.is_achievement_unlocked("full_arsenal")).append_failure_message("six distinct player abilities; the Tower one does not count").is_true()
 
 
 func test_a_defeat_unlocks_nothing_and_settles_at_the_difficulty_multiplier() -> void:

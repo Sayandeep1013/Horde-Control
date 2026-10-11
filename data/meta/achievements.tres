@@ -12,9 +12,9 @@
 script = ExtResource("2_def")
 id = "goblin_slayer"
 display_name = "Goblin Slayer"
-description = "Defeat 300 enemies over your lifetime."
+description = "Defeat 1500 enemies over your lifetime."
 metric = "lifetime_kills"
-threshold = 300.0
+threshold = 1500.0
 unlocks_card_id = "frost_arrows"
 perk_id = ""
 icon_id = "kills"
@@ -89,9 +89,9 @@ icon_id = "core"
 script = ExtResource("2_def")
 id = "marksman"
 display_name = "Marksman"
-description = "Defeat 2000 enemies over your lifetime."
+description = "Defeat 10000 enemies over your lifetime."
 metric = "lifetime_kills"
-threshold = 2000.0
+threshold = 10000.0
 unlocks_card_id = ""
 perk_id = "weapon_damage_bonus"
 icon_id = "caliber"
@@ -166,9 +166,9 @@ icon_id = "timer"
 script = ExtResource("2_def")
 id = "full_arsenal"
 display_name = "Full Arsenal"
-description = "Hold 4 player abilities in one run."
+description = "Hold 6 player abilities in one run."
 metric = "run_player_abilities"
-threshold = 4.0
+threshold = 6.0
 unlocks_card_id = ""
 perk_id = "ability_damage_bonus"
 icon_id = "ability_power"
@@ -184,6 +184,39 @@ unlocks_card_id = ""
 perk_id = "start_scrap_bonus"
 icon_id = "heart"
 
+[sub_resource type="Resource" id="Resource_swarm_breaker"]
+script = ExtResource("2_def")
+id = "swarm_breaker"
+display_name = "Swarm Breaker"
+description = "Defeat 5000 enemies over your lifetime."
+metric = "lifetime_kills"
+threshold = 5000.0
+unlocks_card_id = "meteor_shower"
+perk_id = ""
+icon_id = "meteor_shower"
+
+[sub_resource type="Resource" id="Resource_holdout"]
+script = ExtResource("2_def")
+id = "holdout"
+display_name = "Holdout"
+description = "Reach wave 10 in a single run."
+metric = "run_wave_reached"
+threshold = 10.0
+unlocks_card_id = "lightning_sprite"
+perk_id = ""
+icon_id = "lightning_sprite"
+
+[sub_resource type="Resource" id="Resource_elite_breaker"]
+script = ExtResource("2_def")
+id = "elite_breaker"
+display_name = "Elite Breaker"
+description = "Defeat 100 elite enemies."
+metric = "lifetime_elite_kills"
+threshold = 100.0
+unlocks_card_id = "ricochet"
+perk_id = ""
+icon_id = "ricochet"
+
 [resource]
 script = ExtResource("1_list")
-achievements = Array[AchievementDefinition]([SubResource("Resource_goblin_slayer"), SubResource("Resource_veteran"), SubResource("Resource_keeper_of_the_keep"), SubResource("Resource_warchief_slayer"), SubResource("Resource_sanctified"), SubResource("Resource_hoarder"), SubResource("Resource_founder"), SubResource("Resource_marksman"), SubResource("Resource_regicide"), SubResource("Resource_warlord"), SubResource("Resource_untouchable"), SubResource("Resource_mason"), SubResource("Resource_elite_hunter"), SubResource("Resource_endless_20"), SubResource("Resource_full_arsenal"), SubResource("Resource_survivor")])
+achievements = Array[AchievementDefinition]([SubResource("Resource_goblin_slayer"), SubResource("Resource_veteran"), SubResource("Resource_keeper_of_the_keep"), SubResource("Resource_warchief_slayer"), SubResource("Resource_sanctified"), SubResource("Resource_hoarder"), SubResource("Resource_founder"), SubResource("Resource_marksman"), SubResource("Resource_regicide"), SubResource("Resource_warlord"), SubResource("Resource_untouchable"), SubResource("Resource_mason"), SubResource("Resource_elite_hunter"), SubResource("Resource_endless_20"), SubResource("Resource_full_arsenal"), SubResource("Resource_survivor"), SubResource("Resource_swarm_breaker"), SubResource("Resource_holdout"), SubResource("Resource_elite_breaker")])

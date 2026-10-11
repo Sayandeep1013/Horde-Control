@@ -196,7 +196,7 @@ var _kill_count: int = 0
 ## based (EventBus v1.0 contract signals), with the matching CombatStats
 ## counter read as a floor when the emitter only writes the counter.
 var _elite_kills: int = 0
-var _boss_kills: Dictionary = {"warchief": 0, "king": 0}
+var _boss_kills: Dictionary = {"warchief": 0, "juggernaut": 0, "king": 0}
 var _repair_total: float = 0.0
 var _player_ability_ids: Dictionary = {} # ability id -> true (slot_kind "player")
 var _untouchable_wave: bool = false ## cleared a wave >= 5 with no player damage taken
@@ -846,7 +846,7 @@ func _build_run_summary(victory: bool, abandoned: bool) -> Dictionary:
 	var repair_total: int = maxi(int(round(_repair_total)), int(round(CombatStats.get_run_counter("tower_repaired"))))
 	var boss_kills: Dictionary = _boss_kills.duplicate()
 	var counter_bosses: int = int(CombatStats.get_run_counter("boss_kills"))
-	if counter_bosses > int(boss_kills["warchief"]) + int(boss_kills["king"]) and not _king_killed and counter_bosses > 0:
+	if counter_bosses > int(boss_kills["warchief"]) + int(boss_kills["juggernaut"]) + int(boss_kills["king"]) and not _king_killed and counter_bosses > 0:
 		boss_kills["warchief"] = counter_bosses # a counter-only emitter cannot say which boss; never counts for the King
 	return {
 		"run_id": _run_id,
