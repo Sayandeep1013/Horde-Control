@@ -10,9 +10,15 @@ func _ready() -> void:
 	UiStrings.ensure_registered()
 	var victory: bool = false
 	var endless: bool = false
+	var champion_id: String = "warden"
+	var relic_ids: Array = ["quiver_of_echoes", "masons_trowel"]
 	for arg in OS.get_cmdline_user_args():
 		victory = victory or arg == "--victory"
 		endless = endless or arg == "--endless"
+		if arg.begins_with("--champion="): # WP-LOADOUT: sample loadout for the capture
+			champion_id = arg.trim_prefix("--champion=")
+		elif arg.begins_with("--relics="):
+			relic_ids = Array(arg.trim_prefix("--relics=").split(","))
 	var screen: RunEndScreen = (load("res://scenes/ui/run_end.tscn") as PackedScene).instantiate() as RunEndScreen
 	add_child(screen)
 	var report: Array[Dictionary] = []
@@ -22,6 +28,7 @@ func _ready() -> void:
 		"outcome_title": "Victory" if victory else "Defeated", "cause_text": "" if victory else "You were defeated",
 		"wave_reached": 15 if victory else 22 if endless else 11, "wave_total": 15, "scrap_held": 140, "time_survived_seconds": 905.0 if victory else 640.0,
 		"kills": 512, "elite_kills": 9, "difficulty_name": "Veteran", "endless": endless, "run_seed": 4242, "damage_report": report,
+		"champion_id": champion_id, "relic_ids": relic_ids,
 	})
 	screen.set_settlement({
 		"lines": [

@@ -143,6 +143,11 @@ const PICKER_ICON_SIDE: int = 40
 const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 60.0)
 const HUB_MENU_BAND_TOP: float = 250.0 # 1080-base px; UX review P0-1
 const HUB_MENU_BAND_BOTTOM: float = 1050.0
+const RELIC_BUTTON_MIN_SIZE: Vector2 = Vector2(150.0, 72.0) # icon-only tablets, 4 per row
+const RELIC_ICON_SIDE: int = 56
+const PICKER_HINT_MIN_HEIGHT: float = 130.0 # three lines at the 37 px floor
+const PAGE_RUN: String = "run"
+const PAGE_LOADOUT: String = "loadout"
 const START_RUN_MIN_SIZE: Vector2 = Vector2(360.0, 84.0) # the primary action, visibly larger
 ## D147: the mobile layout draws the Hub on a 720 px tall logical canvas; the
 ## card (which already carries its own "War Camp" ribbon) takes the whole band
@@ -180,6 +185,13 @@ var _setup_card: PanelContainer
 var _difficulty_buttons: Dictionary = {} # difficulty id -> Button
 var _skill_buttons: Dictionary = {} # Battle Skill id -> Button
 var _endless_button: Button
+## WP-LOADOUT (docs/32 C): the Run Setup card has two pages, "Run" and "Loadout".
+var _run_page: VBoxContainer
+var _loadout_page: VBoxContainer
+var _tab_buttons: Dictionary = {} # page name ("run" / "loadout") -> Button
+var _champion_buttons: Dictionary = {} # Champion id -> Button
+var _relic_buttons: Dictionary = {} # Relic id -> Button
+var _relics_heading: Label
 var _picker_hint: Label
 var _v3_banner: PanelContainer
 var _v3_label: Label
@@ -254,6 +266,8 @@ func _apply_debug_panel_flag() -> void:
 		_on_achievements_pressed()
 	elif requested == "settings":
 		_on_settings_pressed()
+	elif requested == "loadout":
+		_show_page(PAGE_LOADOUT) # WP-LOADOUT capture helper: opens the Loadout tab
 
 
 func _on_cores_changed(_new_total: int) -> void:
@@ -662,13 +676,18 @@ func _build_setup_card(parent: Container) -> void:
 	column.name = "SetupColumn"
 	card.add_child(column)
 
-	column.add_child(_make_picker_heading(tr("HUB_DIFFICULTY")))
+	column.add_child(_build_tab_row())
+
+	_run_page = VBoxContainer.new()
+	_run_page.name = "RunPage"
+	column.add_child(_run_page)
+	_run_page.add_child(_make_picker_heading(tr("HUB_DIFFICULTY")))
 	var diff_grid := GridContainer.new()
 	diff_grid.name = "DifficultyGrid"
 	diff_grid.columns = 2
 	diff_grid.add_theme_constant_override("h_separation", UiPalette.SPACE_M)
 	diff_grid.add_theme_constant_override("v_separation", UiPalette.SPACE_S)
-	column.add_child(diff_grid)
+	_run_page.add_child(diff_grid)
 	for profile in RunConfig.get_all_difficulties():
 		var button: Button = _make_picker_button(profile.display_name, AbilityIds.icon_path(profile.id))
 		button.name = "Difficulty_%s" % profile.id
@@ -678,13 +697,13 @@ func _build_setup_card(parent: Container) -> void:
 		diff_grid.add_child(button)
 		_difficulty_buttons[profile.id] = button
 
-	column.add_child(_make_picker_heading(tr("HUB_BATTLE_SKILL")))
+	_run_page.add_child(_make_picker_heading(tr("HUB_BATTLE_SKILL")))
 	var skill_grid := GridContainer.new()
 	skill_grid.name = "SkillGrid"
 	skill_grid.columns = 2
 	skill_grid.add_theme_constant_override("h_separation", UiPalette.SPACE_M)
 	skill_grid.add_theme_constant_override("v_separation", UiPalette.SPACE_S)
-	column.add_child(skill_grid)
+	_run_page.add_child(skill_grid)
 	for skill_id in AbilityIds.BATTLE_SKILLS:
 		var button: Button = _make_picker_button(AbilityDisplay.display_name(skill_id), AbilityIds.icon_path(skill_id))
 		button.name = "Skill_%s" % skill_id
@@ -700,14 +719,18 @@ func _build_setup_card(parent: Container) -> void:
 	_endless_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_endless_button.toggled.connect(_on_endless_toggled)
 	_endless_button.focus_entered.connect(_on_endless_focused)
-	column.add_child(_endless_button)
+	_run_page.add_child(_endless_button)
+
+
+	_loadout_page = _build_loadout_page()
+	column.add_child(_loadout_page)
 
 	_picker_hint = Label.new()
 	_picker_hint.name = "PickerHint"
 	_picker_hint.theme_type_variation = UiTheme.DIM_PARCHMENT
 	_picker_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_picker_hint.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_picker_hint.custom_minimum_size = Vector2(SETUP_CARD_MIN_WIDTH - 60.0, 80.0)
+	_picker_hint.custom_minimum_size = Vector2(SETUP_CARD_MIN_WIDTH - 60.0, PICKER_HINT_MIN_HEIGHT)
 	column.add_child(_picker_hint)
 
 	_start_run_button = Button.new()
@@ -719,6 +742,91 @@ func _build_setup_card(parent: Container) -> void:
 	_start_run_button.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
 	_start_run_button.pressed.connect(_on_start_run_pressed)
 	column.add_child(_start_run_button)
+
+
+## The "Run | Loadout" tab strip. Plain toggle Buttons in a ButtonGroup, so focus,
+## mouse and touch all work like every other picker.
+func _build_tab_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.name = "SetupTabs"
+	row.add_theme_constant_override("separation", UiPalette.SPACE_M)
+	var group := ButtonGroup.new()
+	for page in [PAGE_RUN, PAGE_LOADOUT]:
+		var button := Button.new()
+		button.name = "Tab_%s" % page
+		button.text = tr("HUB_TAB_RUN") if page == PAGE_RUN else tr("HUB_TAB_LOADOUT")
+		button.toggle_mode = true
+		button.button_group = group
+		button.focus_mode = Control.FOCUS_ALL
+		button.custom_minimum_size = TouchUi.touch_size(Vector2(0.0, 64.0))
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.add_theme_color_override("font_pressed_color", UiPalette.ACCENT)
+		button.add_theme_color_override("font_hover_pressed_color", UiPalette.ACCENT)
+		button.pressed.connect(_show_page.bind(page))
+		row.add_child(button)
+		_tab_buttons[page] = button
+	(_tab_buttons[PAGE_RUN] as Button).set_pressed_no_signal(true)
+	return row
+
+
+## Champion picker (2 x 2, icon + name) and the Relic grid (4 x 2 icon tablets).
+func _build_loadout_page() -> VBoxContainer:
+	var page := VBoxContainer.new()
+	page.name = "LoadoutPage"
+	page.visible = false
+	page.add_child(_make_picker_heading(tr("HUB_CHAMPION")))
+	var champion_grid := GridContainer.new()
+	champion_grid.name = "ChampionGrid"
+	champion_grid.columns = 2
+	champion_grid.add_theme_constant_override("h_separation", UiPalette.SPACE_M)
+	champion_grid.add_theme_constant_override("v_separation", UiPalette.SPACE_S)
+	page.add_child(champion_grid)
+	for id in LoadoutCatalog.CHAMPION_IDS:
+		var button: Button = _make_picker_button(LoadoutCatalog.display_name(id), LoadoutCatalog.icon_path(id))
+		button.name = "Champion_%s" % id
+		button.pressed.connect(_on_champion_pressed.bind(id))
+		button.focus_entered.connect(_set_hint_for_champion.bind(id))
+		button.mouse_entered.connect(_set_hint_for_champion.bind(id))
+		champion_grid.add_child(button)
+		_champion_buttons[id] = button
+
+	_relics_heading = _make_picker_heading("")
+	_relics_heading.name = "RelicsHeading"
+	page.add_child(_relics_heading)
+	var relic_grid := GridContainer.new()
+	relic_grid.name = "RelicGrid"
+	relic_grid.columns = 4
+	relic_grid.add_theme_constant_override("h_separation", UiPalette.SPACE_M)
+	relic_grid.add_theme_constant_override("v_separation", UiPalette.SPACE_S)
+	page.add_child(relic_grid)
+	for id in LoadoutCatalog.RELIC_IDS:
+		var button := Button.new()
+		button.name = "Relic_%s" % id
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_ALL
+		button.custom_minimum_size = TouchUi.touch_size(RELIC_BUTTON_MIN_SIZE)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.expand_icon = true
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.add_theme_constant_override("icon_max_width", RELIC_ICON_SIDE)
+		if ResourceLoader.exists(LoadoutCatalog.icon_path(id)):
+			button.icon = load(LoadoutCatalog.icon_path(id)) as Texture2D
+		button.pressed.connect(_on_relic_pressed.bind(id))
+		button.focus_entered.connect(_set_hint_for_relic.bind(id))
+		button.mouse_entered.connect(_set_hint_for_relic.bind(id))
+		relic_grid.add_child(button)
+		_relic_buttons[id] = button
+	return page
+
+
+func _show_page(page: String) -> void:
+	_run_page.visible = page == PAGE_RUN
+	_loadout_page.visible = page == PAGE_LOADOUT
+	(_tab_buttons[page] as Button).button_pressed = true # the ButtonGroup releases the other tab; only `pressed` is connected, so this does not recurse
+	if page == PAGE_LOADOUT:
+		_set_hint_for_champion(MetaProgress.get_selected_champion())
+	else:
+		_set_hint_for_difficulty(MetaProgress.get_selected_difficulty())
 
 
 func _make_picker_heading(text: String) -> Label:
@@ -768,7 +876,25 @@ func _refresh_pickers() -> void:
 	_endless_button.visible = endless_open
 	_endless_button.set_pressed_no_signal(MetaProgress.get_selected_endless())
 	_endless_button.text = tr("HUB_ENDLESS_ON") if _endless_button.button_pressed else tr("HUB_ENDLESS_OFF")
+	_refresh_loadout_pickers()
 	_set_hint_for_difficulty(difficulty)
+
+
+## Champions and Relics: the chosen ones are pressed, locked ones are greyed tablets.
+func _refresh_loadout_pickers() -> void:
+	var champion: String = MetaProgress.get_selected_champion()
+	for id in _champion_buttons.keys():
+		var button: Button = _champion_buttons[id]
+		var unlocked: bool = MetaProgress.is_champion_unlocked(id)
+		button.set_pressed_no_signal(unlocked and id == champion)
+		_style_locked(button, not unlocked)
+	var equipped: Array[String] = MetaProgress.get_selected_relics()
+	for id in _relic_buttons.keys():
+		var button: Button = _relic_buttons[id]
+		var unlocked: bool = MetaProgress.is_relic_unlocked(id)
+		button.set_pressed_no_signal(unlocked and equipped.has(id))
+		_style_locked(button, not unlocked)
+	_relics_heading.text = tr("HUB_RELICS") % [equipped.size(), MetaProgress.get_relic_slot_count()]
 
 
 func _style_locked(button: Button, locked: bool) -> void:
@@ -803,6 +929,42 @@ func _on_skill_pressed(id: String) -> void:
 
 func _on_skill_focused(id: String) -> void:
 	_set_hint_for_skill(id)
+
+
+func _on_champion_pressed(id: String) -> void:
+	MetaProgress.set_selected_champion(id)
+	_refresh_loadout_pickers() # a refused (locked) toggle snaps back
+	_set_hint_for_champion(id)
+
+
+func _on_relic_pressed(id: String) -> void:
+	MetaProgress.toggle_selected_relic(id)
+	_refresh_loadout_pickers()
+	_set_hint_for_relic(id)
+
+
+## Twist, then the downside; a locked Champion says how to earn it.
+func _set_hint_for_champion(id: String) -> void:
+	if _picker_hint == null:
+		return
+	if MetaProgress.is_champion_unlocked(id):
+		_picker_hint.text = "%s: %s\n%s" % [LoadoutCatalog.display_name(id), LoadoutCatalog.twist_text(id), tr("LOADOUT_DOWNSIDE") % LoadoutCatalog.downside_text(id)]
+	else:
+		_picker_hint.text = "%s. %s" % [LoadoutCatalog.display_name(id), LoadoutCatalog.unlock_text(id)]
+
+
+## A Relic's effect, or what unlocks it. With one slot open, the hint also says when the second opens.
+func _set_hint_for_relic(id: String) -> void:
+	if _picker_hint == null:
+		return
+	var text: String
+	if MetaProgress.is_relic_unlocked(id):
+		text = "%s: %s" % [LoadoutCatalog.display_name(id), LoadoutCatalog.twist_text(id)]
+	else:
+		text = "%s. %s" % [LoadoutCatalog.display_name(id), LoadoutCatalog.unlock_text(id)]
+	if MetaProgress.get_relic_slot_count() < LoadoutCatalog.RELIC_SLOTS_MAX:
+		text += "\n" + tr("HUB_RELIC_SLOT2")
+	_picker_hint.text = text
 
 
 func _on_endless_toggled(on: bool) -> void:
@@ -1034,6 +1196,42 @@ func get_difficulty_button_for_test(id: String) -> Button:
 
 func get_skill_button_for_test(id: String) -> Button:
 	return _skill_buttons.get(id)
+
+
+func get_champion_button_for_test(id: String) -> Button:
+	return _champion_buttons.get(id) as Button
+
+
+func get_relic_button_for_test(id: String) -> Button:
+	return _relic_buttons.get(id) as Button
+
+
+func get_relics_heading_for_test() -> Label:
+	return _relics_heading
+
+
+func get_tab_button_for_test(page: String) -> Button:
+	return _tab_buttons.get(page) as Button
+
+
+func get_run_page_for_test() -> Control:
+	return _run_page
+
+
+func get_loadout_page_for_test() -> Control:
+	return _loadout_page
+
+
+func show_page_for_test(page: String) -> void:
+	_show_page(page)
+
+
+func press_champion_for_test(id: String) -> void:
+	_on_champion_pressed(id)
+
+
+func press_relic_for_test(id: String) -> void:
+	_on_relic_pressed(id)
 
 
 func get_endless_button_for_test() -> Button:

@@ -93,6 +93,7 @@ const OPTION_MAIN_MENU: int = 2
 const DAMAGE_REPORT_ROWS: int = 6
 const RESULTS_CARD_WIDTH: float = 1500.0
 const RESULTS_CARD_WIDTH_COMPACT: float = 1180.0
+const LOADOUT_ICON_SIDE: float = 40.0 # a chip in the Loadout row (WP-LOADOUT)
 const DAMAGE_NAME_MIN_WIDTH: float = 250.0
 const DAMAGE_BAR_MIN_WIDTH: float = 200.0
 const DAMAGE_VALUE_MIN_WIDTH: float = 130.0
@@ -120,6 +121,8 @@ var _kills_label: Label
 var _elites_label: Label
 var _difficulty_label: Label
 var _damage_box: VBoxContainer
+var _loadout_panel: PanelContainer # WP-LOADOUT: Champion and Relics used
+var _loadout_box: HFlowContainer
 var _damage_heading: Label
 var _wave_cell: PanelContainer ## the Wave stat cell; kept in sync with _wave_label's own visibility (UI pass) -- see show_summary(). A cell with no visible child sizes to ~0 in the grid rather than leaving an empty panel.
 
@@ -200,9 +203,49 @@ func show_summary(summary: Dictionary) -> void:
 			tag += "  |  " + tr("RESULTS_ENDLESS_TAG")
 		_difficulty_label.text = tag
 	_set_damage_report(summary.get("damage_report", []))
+	_set_loadout(summary)
 
 	_wave_cell.visible = _wave_label.visible # the wrapping cell (UI pass) tracks the SAME visibility flag, never a second decision -- an invisible child alone would leave an empty panel showing
 	_apply_outcome_style(cause_text.is_empty())
+
+
+## WP-LOADOUT (docs/32 C3): the Champion and Relics this run used, icon plus name, in a
+## wrapping row under the stats. Hidden when the summary carries no `champion_id`.
+func _set_loadout(summary: Dictionary) -> void:
+	for child in _loadout_box.get_children():
+		_loadout_box.remove_child(child)
+		child.queue_free()
+	var champion_id: String = String(summary.get("champion_id", ""))
+	_loadout_panel.visible = LoadoutCatalog.is_champion(champion_id)
+	if not _loadout_panel.visible:
+		return
+	_loadout_box.add_child(_loadout_chip(champion_id))
+	var relics: Variant = summary.get("relic_ids", [])
+	if relics is Array:
+		for id in (relics as Array):
+			if LoadoutCatalog.is_relic(String(id)):
+				_loadout_box.add_child(_loadout_chip(String(id)))
+
+
+func _loadout_chip(id: String) -> HBoxContainer:
+	var chip := HBoxContainer.new()
+	chip.name = "Chip_%s" % id
+	chip.add_theme_constant_override("separation", UiPalette.SPACE_S)
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.custom_minimum_size = Vector2(LOADOUT_ICON_SIDE, LOADOUT_ICON_SIDE)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if ResourceLoader.exists(LoadoutCatalog.icon_path(id)):
+		icon.texture = load(LoadoutCatalog.icon_path(id)) as Texture2D
+	chip.add_child(icon)
+	var label := Label.new()
+	label.name = "Name"
+	label.text = LoadoutCatalog.display_name(id)
+	label.theme_type_variation = UiTheme.HUD_VALUE
+	chip.add_child(label)
+	return chip
 
 
 ## Colours and marks the outcome title from the SAME data `show_summary()`
@@ -556,6 +599,14 @@ func get_elites_label_for_test() -> Label:
 	return _elites_label
 
 
+func get_loadout_box_for_test() -> HFlowContainer:
+	return _loadout_box
+
+
+func get_loadout_panel_for_test() -> PanelContainer:
+	return _loadout_panel
+
+
 func get_difficulty_label_for_test() -> Label:
 	return _difficulty_label
 
@@ -655,6 +706,18 @@ func _build_ui() -> void:
 	_difficulty_label = _make_field_label("DifficultyLabel", STAT_CELL_MIN_WIDTH)
 	_difficulty_label.theme_type_variation = UiTheme.HUD_VALUE
 	difficulty_cell.add_child(_difficulty_label)
+
+	# WP-LOADOUT: the Champion and Relics used, one wrapping row.
+	_loadout_panel = PanelContainer.new()
+	_loadout_panel.name = "LoadoutPanel"
+	_loadout_panel.theme_type_variation = UiTheme.ROW
+	_loadout_panel.visible = false
+	body.add_child(_loadout_panel)
+	_loadout_box = HFlowContainer.new()
+	_loadout_box.name = "LoadoutBox"
+	_loadout_box.add_theme_constant_override("h_separation", UiPalette.SPACE_XL)
+	_loadout_box.add_theme_constant_override("v_separation", UiPalette.SPACE_S)
+	_loadout_panel.add_child(_loadout_box)
 
 	# Two columns under the stats: damage report left, Cores settlement right.
 	var columns := HBoxContainer.new()

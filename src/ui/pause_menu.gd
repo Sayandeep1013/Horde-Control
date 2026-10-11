@@ -39,6 +39,7 @@ const ABANDON_OPTION_CONFIRM: int = 1
 const HOWTO_OPTION_BACK: int = 0
 const HOWTO_CHROME_PX: float = 400.0 ## title, rule, Back row, hold ring and card padding
 
+const LOADOUT_ICON_SIDE_PX: float = 40.0 ## WP-LOADOUT: Champion / Relic icon in the build panel
 const CARD_MIN_WIDTH_PX: float = 1320.0
 const PANEL_COLUMN_MIN_WIDTH_PX: float = 390.0
 
@@ -242,6 +243,7 @@ func _fill_build_column() -> void:
 	_build_column.add_child(_label(tr("PAUSE_BUILD_TITLE"), UiTheme.HEADING))
 	_pair_row(_build_column, tr("PAUSE_BUILD_SKILL"), AbilityNames.display(_battle_skill_id()))
 	_pair_row(_build_column, tr("PAUSE_BUILD_DIFFICULTY"), RunConfig.get_difficulty().display_name)
+	_add_loadout_rows(_build_column)
 	var seed_value: int = _run_seed()
 	if seed_value >= 0:
 		_pair_row(_build_column, tr("PAUSE_BUILD_SEED"), str(seed_value))
@@ -249,6 +251,38 @@ func _fill_build_column() -> void:
 	_add_owned(_build_column, manager, "player")
 	_build_column.add_child(_label(tr("PAUSE_BUILD_TOWER_ABILITIES"), UiTheme.DIM_PARCHMENT))
 	_add_owned(_build_column, manager, "tower")
+
+
+## WP-LOADOUT (docs/32 C3): the run's Champion and Relics, icon plus name, from RunConfig.
+func _add_loadout_rows(list: Container) -> void:
+	_loadout_row(list, tr("PAUSE_BUILD_CHAMPION"), RunConfig.champion_id)
+	for i in RunConfig.relic_ids.size():
+		_loadout_row(list, tr("PAUSE_BUILD_RELICS") if i == 0 else "", RunConfig.relic_ids[i])
+
+
+func _loadout_row(list: Container, key_text: String, id: String) -> void:
+	if not (LoadoutCatalog.is_champion(id) or LoadoutCatalog.is_relic(id)):
+		return
+	var row := HBoxContainer.new()
+	row.name = "Loadout_%s" % id
+	row.theme_type_variation = UiTheme.hbox("M")
+	var k := _label(key_text, UiTheme.DIM_PARCHMENT)
+	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(k)
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.custom_minimum_size = Vector2(LOADOUT_ICON_SIDE_PX, LOADOUT_ICON_SIDE_PX)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if ResourceLoader.exists(LoadoutCatalog.icon_path(id)):
+		icon.texture = load(LoadoutCatalog.icon_path(id)) as Texture2D
+	row.add_child(icon)
+	var v := _label(LoadoutCatalog.display_name(id), UiTheme.HUD_VALUE)
+	v.name = "Name"
+	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(v)
+	list.add_child(row)
 
 
 func _fill_passives_column() -> void:

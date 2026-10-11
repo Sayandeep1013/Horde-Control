@@ -47,7 +47,26 @@ func _ready() -> void:
 				if id != "":
 					wins.append(id)
 
+	var achievements: Array[String] = []
+	var boss_kills: Array[String] = []
+	var champion: String = ""
+	var relics: Array[String] = []
+	for arg in OS.get_cmdline_user_args():
+		# WP-LOADOUT capture helpers: --achievements=a,b  --boss-kills=warchief,king  --champion=id  --relics=a,b
+		if arg.begins_with("--achievements="):
+			achievements.assign(Array(arg.trim_prefix("--achievements=").split(",")))
+		elif arg.begins_with("--boss-kills="):
+			boss_kills.assign(Array(arg.trim_prefix("--boss-kills=").split(",")))
+		elif arg.begins_with("--champion="):
+			champion = arg.trim_prefix("--champion=")
+		elif arg.begins_with("--relics="):
+			relics.assign(Array(arg.trim_prefix("--relics=").split(",")))
+
 	MetaProgress.ensure_loaded()
+	for id in achievements:
+		MetaProgress.set_achievement_unlocked_for_test(id)
+	for id in boss_kills:
+		MetaProgress.set_boss_kills_for_test(id, 1)
 	for id in wins:
 		MetaProgress.settle_run({"run_id": "seed_win_%s_%d" % [id, Time.get_ticks_usec()], "sim_time_seconds": 900.0, "waves_cleared": 15, "kills": 400, "victory": true, "difficulty_id": id, "wave_reached": 15, "elite_kills": 6})
 	if cores > 0:
@@ -70,5 +89,9 @@ func _ready() -> void:
 		# afford, is simply skipped rather than failing the whole seed.
 		MetaProgress.buy(id)
 
+	if champion != "":
+		MetaProgress.set_selected_champion(champion)
+	for i in relics.size():
+		MetaProgress.set_selected_relic(i, relics[i])
 	print("SEEDED profile at ", MetaProgress.get_base_path_for_test(), " cores=", MetaProgress.get_cores())
 	get_tree().quit()
