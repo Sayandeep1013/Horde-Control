@@ -3,7 +3,7 @@ class_name CaltropsAbility
 ## Caltrops (docs/31 §4.2): while moving, drop a spike patch every 0.9-0.5 s.
 ## Each patch lasts 4 s, deals 10-20 damage per 0.5 s and slows 25%.
 
-const MAX_LIVE_PATCHES: int = 40 # Register: Caltrops live patch cap (performance)
+const MAX_LIVE_PATCHES: int = 60 # Register: Caltrops live patch cap (performance)
 const MOVING_SPEED_PX_PER_S: float = 30.0 # Register: Caltrops "moving" threshold
 
 var _last_pos: Vector2 = Vector2.ZERO
@@ -26,5 +26,5 @@ func _physics_process(delta: float) -> void:
 	var patches: Array = get_tree().get_nodes_in_group(&"caltrop_patch")
 	if patches.size() >= MAX_LIVE_PATCHES:
 		(patches[0] as Node).queue_free()
-	CaltropPatch.spawn(parent, pos, dmg(), v("tick"), v("slow"), v("lifetime"))
+	CaltropPatch.spawn(parent, pos, dmg(), v("tick"), v("slow"), v("lifetime"), v("radius") * AbilityDamage.area_scale())
 	Sfx.play("caltrops", pos)

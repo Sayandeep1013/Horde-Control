@@ -1,7 +1,7 @@
 extends AbilityNode
 class_name CatapultAbility
-## Catapult (docs/31 §4.3): every 5.0-3.0 s the Tower lobs a rock (0.9 s flight,
-## telegraphed) at the densest cluster within 620 px: 50-110 damage in 90 px.
+## Catapult (docs/31 §4.3): every 4.0-2.4 s the Tower lobs a rock (0.9 s flight,
+## telegraphed) at the densest cluster within 620 px: 110-230 damage in 140-180 px (PT-POWER D351).
 
 func _physics_process(_delta: float) -> void:
 	var tower: Node2D = owner_node()

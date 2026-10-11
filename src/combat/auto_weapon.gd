@@ -378,6 +378,25 @@ func get_full_extra_arrows() -> int:
 	return _full_extra_arrows
 
 
+## PT-POWER (D352): extra arrows fired with every volley by one source (Diagonal Arrows, Rear
+## Arrow). `extras` is an Array of Vector2(angle in degrees from the aim line, damage fraction
+## of the effective arrow damage); each arrow is tagged with the source id in the damage report
+## and fires the arrow-hit hooks (Flame / Frost Arrows, Ricochet) like any arrow. ABSOLUTE:
+## replaces that source's previous set; an empty array removes it.
+var _volley_extras: Dictionary = {} # source id (String) -> Array[Vector2]
+
+
+func set_volley_extras(source: String, extras: Array) -> void:
+	if extras.is_empty():
+		_volley_extras.erase(source)
+	else:
+		_volley_extras[source] = extras
+
+
+func get_volley_extras(source: String) -> Array:
+	return _volley_extras.get(source, [])
+
+
 func _on_arrow_hit(enemy: Node, damage: float) -> void:
 	for hook in arrow_hit_hooks:
 		if hook.is_valid():
@@ -502,6 +521,9 @@ func _fire_at(target: Node2D) -> void:
 		var step: float = float(i / 2 + 1)
 		var angle_offset: float = deg_to_rad(MULTISHOT_SPREAD_DEGREES * step * side)
 		_launch_one(origin_pos, direction.rotated(angle_offset), multishot_damage if i < _multishot_extra else get_effective_damage_per_shot())
+	for source: String in _volley_extras:
+		for extra: Vector2 in _volley_extras[source]:
+			_launch_one(origin_pos, direction.rotated(deg_to_rad(extra.x)), get_effective_damage_per_shot() * extra.y, source)
 	if _echo_every_shots > 0:
 		_echo_counter += 1
 		if _echo_counter >= _echo_every_shots:
@@ -516,7 +538,7 @@ func _fire_at(target: Node2D) -> void:
 ## D115/D117 pool expansion: factored out of `_fire_at()` so the primary
 ## shot and every Multishot extra go through the identical pool-acquire/
 ## launch/pierce path.
-func _launch_one(origin_pos: Vector2, direction: Vector2, damage: float) -> void:
+func _launch_one(origin_pos: Vector2, direction: Vector2, damage: float, p_source_id: String = AbilityIds.SOURCE_BOW) -> void:
 	var projectile: PlayerProjectile = _pool.acquire() as PlayerProjectile
 	if projectile == null:
 		return # pool at cap under THROTTLE-equivalent conditions -- RECYCLE_OLDEST means this should not happen, but never crash if it does
@@ -525,7 +547,7 @@ func _launch_one(origin_pos: Vector2, direction: Vector2, damage: float) -> void
 	# header.
 	if AbilityDamage.roll_crit():
 		damage *= AbilityDamage.CRIT_MULTIPLIER # Keen Eye (docs/31 §4.4)
-	projectile.launch(origin_pos, direction * _projectile_speed, damage, &"player", _projectile_lifetime_seconds, _pierce_bonus, AbilityIds.SOURCE_BOW, _on_arrow_hit)
+	projectile.launch(origin_pos, direction * _projectile_speed, damage, &"player", _projectile_lifetime_seconds, _pierce_bonus, p_source_id, _on_arrow_hit)
 
 
 ## Read-only consistency check against F03-09's other half (data/player/

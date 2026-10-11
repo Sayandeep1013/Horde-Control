@@ -1,8 +1,8 @@
 extends AbilityNode
 class_name DynamiteSatchelAbility
-## Dynamite Satchel (docs/31 §4.2): every 3.2-2.2 s throw dynamite at a random
-## enemy within 320 px. Fuse 0.5 s, then 30-60 damage in a 70-95 px radius.
-## Two sticks from level 4. The explosion is the shared ExplosionFx.
+## Dynamite Satchel (docs/31 §4.2; PT-POWER D351): every 2.4-1.4 s throw 2-4 dynamite at random
+## enemies within 420 px (2 at levels 1-2, 3 at 3-4, 4 at 5). Fuse 0.5 s, then 70-140 damage
+## in a 130-170 px radius. The explosion is the shared ExplosionFx.
 
 const FLIGHT_SECONDS: float = 0.45 # Register: Dynamite Satchel flight time
 var _rng := RandomNumberGenerator.new()

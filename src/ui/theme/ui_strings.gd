@@ -493,6 +493,15 @@ const MESSAGES: Dictionary = {
 	"ABILITY_NAME_BURN": "Burning",
 	"ABILITY_NAME_KEG": "Powder Keg",
 	"ABILITY_NAME_SPIKES": "Spike Traps",
+	# --- PT-POWER (D350-D359): names of the new abilities and damage sources ---
+	"ABILITY_NAME_DIAGONAL_ARROWS": "Diagonal Arrows",
+	"ABILITY_NAME_RICOCHET": "Ricochet",
+	"ABILITY_NAME_LIGHTNING_SPRITE": "Lightning Sprite",
+	"ABILITY_NAME_METEOR_SHOWER": "Meteor Shower",
+	"ABILITY_NAME_BLADE_CIRCLE": "Blade Circle",
+	"ABILITY_NAME_REAR_ARROW": "Rear Arrow",
+	"ABILITY_NAME_SHADOW_STEP": "Shadow Step",
+	# --- end PT-POWER ---
 	"ABILITY_DESC_ARROW_STORM": "Arrows rain on the thickest crowd near you.",
 	"ABILITY_DESC_FROST_NOVA": "A freezing burst around you slows everything.",
 	"ABILITY_DESC_FIREBOMB": "Lob dynamite and leave burning ground.",

@@ -3,24 +3,27 @@ class_name CaltropPatch
 ## One Caltrops spike patch (docs/31 §4.2): lasts `lifetime`, deals `damage` per
 ## `tick` to enemies standing on it and slows them. Source id "caltrops".
 
-const RADIUS_PX: float = 30.0 # Register: Caltrop patch radius
+const RADIUS_PX: float = 60.0 # Register: Caltrop patch radius default (the ability passes its level's radius)
+const SPIKE_SCALE: float = 2.0 # Register: Caltrop spike sprite scale (D351)
 const SLOW_REFRESH_SECONDS: float = 0.6
 
 var damage: float = 10.0
 var tick: float = 0.5
 var slow_fraction: float = 0.25
 var lifetime: float = 4.0
+var radius: float = RADIUS_PX
 var _start: float = 0.0
 var _next_tick: float = 0.0
 var _tex: Texture2D = null
 
 
-static func spawn(parent: Node, world_position: Vector2, p_damage: float, p_tick: float, p_slow: float, p_lifetime: float) -> CaltropPatch:
+static func spawn(parent: Node, world_position: Vector2, p_damage: float, p_tick: float, p_slow: float, p_lifetime: float, p_radius: float = RADIUS_PX) -> CaltropPatch:
 	var c := CaltropPatch.new()
 	c.damage = p_damage
 	c.tick = p_tick
 	c.slow_fraction = p_slow
 	c.lifetime = p_lifetime
+	c.radius = p_radius
 	parent.add_child(c)
 	c.global_position = world_position
 	return c
@@ -33,6 +36,7 @@ func _ready() -> void:
 	_start = SimClock.now
 	_next_tick = _start + tick
 	_tex = AbilityNode.load_v1_texture("caltrop")
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_to_group(&"caltrop_patch")
 
 
@@ -43,7 +47,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	if now >= _next_tick:
 		_next_tick = now + tick
-		for e in AbilityDamage.enemies_in_radius(global_position, RADIUS_PX):
+		for e in AbilityDamage.enemies_in_radius(global_position, radius):
 			var amount: float = damage * AbilitySynergy.kindling_mult(e) # Kindling: +25% vs burning
 			if AbilityDamage.hit(e, amount, AbilityIds.CALTROPS, &"player", true) > 0.0:
 				StatusEffects.apply_slow(e, slow_fraction, SLOW_REFRESH_SECONDS)
@@ -67,11 +71,22 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	var fade: float = clampf((_start + lifetime - SimClock.now) / 0.8, 0.0, 1.0)
 	var tint := Color(1, 1, 1, fade)
-	if _tex != null:
-		for off in [Vector2(-10, 3), Vector2(8, -4), Vector2(2, 9)]:
-			draw_texture(_tex, off - _tex.get_size() * 0.5, tint)
-		return
-	for off in [Vector2(-11, 3), Vector2(9, -4), Vector2(1, 9), Vector2(-2, -8)]:
-		var pts := PackedVector2Array([off + Vector2(0, -7), off + Vector2(6, 4), off + Vector2(-6, 4)])
-		draw_colored_polygon(pts, Color(0.62, 0.62, 0.68, fade))
-		draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.1, 0.1, 0.12, fade), 1.5)
+	# A readable footprint: a dark disc with a light rim, squashed to the ground plane.
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.7))
+	draw_circle(Vector2.ZERO, radius, Color(0.12, 0.12, 0.16, 0.30 * fade))
+	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 40, Color(0.85, 0.88, 0.95, 0.55 * fade), 3.0, true)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var spikes: int = clampi(roundi(radius / 12.0), 4, 10)
+	for i in spikes:
+		var ang: float = float(i) * 2.399963 # golden angle: an even scatter with no repeats
+		var dist: float = radius * 0.78 * sqrt((float(i) + 0.5) / float(spikes))
+		var off: Vector2 = Vector2.from_angle(ang) * dist * Vector2(1.0, 0.7)
+		if _tex != null:
+			draw_set_transform(off, 0.0, Vector2(SPIKE_SCALE, SPIKE_SCALE))
+			draw_texture(_tex, -_tex.get_size() * 0.5, tint)
+		else:
+			draw_set_transform(off, 0.0, Vector2(SPIKE_SCALE, SPIKE_SCALE))
+			var pts := PackedVector2Array([Vector2(0, -7), Vector2(6, 4), Vector2(-6, 4)])
+			draw_colored_polygon(pts, Color(0.62, 0.62, 0.68, fade))
+			draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.1, 0.1, 0.12, fade), 1.5)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

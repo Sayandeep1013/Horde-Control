@@ -20,7 +20,13 @@ const DYNAMITE_SATCHEL: String = "dynamite_satchel"
 const STORM_BOLT: String = "storm_bolt"
 const CALTROPS: String = "caltrops"
 const SACRED_GROUND: String = "sacred_ground"
-const PLAYER_ABILITIES: Array[String] = [FLAME_ARROWS, FROST_ARROWS, WHIRLING_AXES, DYNAMITE_SATCHEL, STORM_BOLT, CALTROPS, SACRED_GROUND]
+# PT-POWER (D350-D359): Archero-style additions
+const DIAGONAL_ARROWS: String = "diagonal_arrows"
+const RICOCHET: String = "ricochet"
+const LIGHTNING_SPRITE: String = "lightning_sprite"
+const METEOR_SHOWER: String = "meteor_shower"
+const BLADE_CIRCLE: String = "blade_circle"
+const PLAYER_ABILITIES: Array[String] = [FLAME_ARROWS, FROST_ARROWS, WHIRLING_AXES, DYNAMITE_SATCHEL, STORM_BOLT, CALTROPS, SACRED_GROUND, DIAGONAL_ARROWS, RICOCHET, LIGHTNING_SPRITE, METEOR_SHOWER, BLADE_CIRCLE]
 
 # Tower abilities (docs/31 §4.3)
 const BALLISTA: String = "ballista"
@@ -37,9 +43,12 @@ const KEEN_EYE: String = "keen_eye"
 const LEATHER_ARMOR: String = "leather_armor"
 const ABILITY_POWER: String = "ability_power"
 const STONE_MASON: String = "stone_mason"
+# PT-POWER passives: Rear Arrow (a bow card) and Shadow Step (a dash card)
+const REAR_ARROW: String = "rear_arrow"
+const SHADOW_STEP: String = "shadow_step"
 
 # Slot limits (docs/31 §4.1) -- Register "Ability slots" owns the numbers.
-const MAX_PLAYER_ABILITIES: int = 4
+const MAX_PLAYER_ABILITIES: int = 6 # D350: was 4
 const MAX_TOWER_ABILITIES: int = 3
 const MAX_ABILITY_LEVEL: int = 5
 
@@ -48,6 +57,8 @@ const SOURCE_BOW: String = "bow"
 const SOURCE_TOWER_BOW: String = "tower_bow"
 const SOURCE_REFLECT: String = "spiked_palisade"
 const SOURCE_STATUS_BURN: String = "burn"
+const SOURCE_SHADOW_STEP: String = "shadow_step" # dash contact damage (D350)
+const SOURCE_REAR_ARROW: String = "rear_arrow" # the arrow(s) fired behind the player (D352)
 # Arena interactables (Register "v1.0 Arena Interactables")
 const SOURCE_KEG: String = "keg"
 const SOURCE_SPIKES: String = "spikes"

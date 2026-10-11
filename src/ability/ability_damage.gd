@@ -83,25 +83,56 @@ static func nearest_enemy(center: Vector2, radius: float, exclude: Array = []) -
 	return best
 
 
+## Cluster centres examined per search (D358): with 300+ enemies a full O(n^2) scan is a
+## frame spike, so at most this many evenly strided candidates act as centres, each counted
+## against every candidate. Up to this many enemies the result is exact.
+const CLUSTER_CENTER_SAMPLES: int = 40
+
+
 ## Densest cluster centre: the enemy within `search_radius` of `origin` with the
 ## most enemies inside `cluster_radius`. Returns {} when there are none.
 static func densest_cluster(origin: Vector2, search_radius: float, cluster_radius: float) -> Dictionary:
-	var candidates: Array[Node2D] = enemies_in_radius(origin, search_radius)
+	return densest_in(enemies_in_radius(origin, search_radius), cluster_radius)
+
+
+## densest_cluster over an explicit candidate list (Meteor Shower re-queries as it removes hit
+## clusters). Cost is bounded by CLUSTER_CENTER_SAMPLES x candidates.
+static func densest_in(candidates: Array[Node2D], cluster_radius: float) -> Dictionary:
 	var best_pos: Vector2 = Vector2.ZERO
 	var best_count: int = 0
-	for c in candidates:
+	var r2: float = cluster_radius * cluster_radius
+	var stride: int = maxi(1, ceili(float(candidates.size()) / float(CLUSTER_CENTER_SAMPLES)))
+	var i: int = 0
+	while i < candidates.size():
+		var c: Node2D = candidates[i]
+		i += stride
 		if not is_instance_valid(c):
 			continue
 		var count: int = 0
+		var cp: Vector2 = c.global_position
 		for o in candidates:
-			if is_instance_valid(o) and o.global_position.distance_squared_to(c.global_position) <= cluster_radius * cluster_radius:
+			if is_instance_valid(o) and o.global_position.distance_squared_to(cp) <= r2:
 				count += 1
 		if count > best_count:
 			best_count = count
-			best_pos = c.global_position
+			best_pos = cp
 	if best_count == 0:
 		return {}
 	return {"position": best_pos, "count": best_count}
+
+
+## The struck list of a chain bolt: `first`, then up to `chains` more, each the nearest
+## unstruck enemy within `chain_range` of the previous one (Storm Bolt, Lightning Sprite).
+static func chain_targets(first: Node2D, chains: int, chain_range: float) -> Array[Node2D]:
+	var hit_list: Array[Node2D] = [first]
+	var last: Node2D = first
+	for i in chains:
+		var nxt: Node2D = nearest_enemy(last.global_position, chain_range, hit_list)
+		if nxt == null:
+			break
+		hit_list.append(nxt)
+		last = nxt
+	return hit_list
 
 
 static func is_enemy_alive(enemy: Node) -> bool:
