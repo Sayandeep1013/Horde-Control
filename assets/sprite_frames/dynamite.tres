@@ -1,0 +1,53 @@
+[gd_resource type="SpriteFrames" load_steps=8 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Goblins/Troops/TNT/Dynamite/Dynamite.png" id="1_sheet"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spin_0"]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spin_1"]
+atlas = ExtResource("1_sheet")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spin_2"]
+atlas = ExtResource("1_sheet")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spin_3"]
+atlas = ExtResource("1_sheet")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spin_4"]
+atlas = ExtResource("1_sheet")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spin_5"]
+atlas = ExtResource("1_sheet")
+region = Rect2(320, 0, 64, 64)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spin_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spin_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spin_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spin_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spin_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spin_5")
+}],
+"loop": true,
+"name": &"spin",
+"speed": 12.0
+}]

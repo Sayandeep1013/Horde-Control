@@ -31,7 +31,10 @@ def _res_path(rel: str) -> str:
 
 
 class SheetAnim:
-    def __init__(self, name: str, row: int, frame_count: int, loop: bool) -> None:
+    def __init__(self, name: str, row: int, frame_count: int, loop: bool, sheet: str | None = None) -> None:
+        # `sheet` (optional) overrides the resource's default sheet for this
+        # animation, so one SpriteFrames can mix sheets (meat: spawn + idle).
+        self.sheet = sheet
         self.name = name
         self.row = row
         self.frame_count = frame_count
@@ -39,18 +42,26 @@ class SheetAnim:
 
 
 def build_sprite_frames(out_name: str, sheet_res_path: str, frame_size: int, anims: list[SheetAnim], fps: float = 10.0) -> None:
-    ext_id = "1_sheet"
+    sheets: list[str] = [sheet_res_path]
+    for a in anims:
+        if a.sheet is not None and a.sheet not in sheets:
+            sheets.append(a.sheet)
+
+    def ext_for(a: "SheetAnim") -> str:
+        return "%d_sheet" % (sheets.index(a.sheet or sheet_res_path) + 1)
+
     lines: list[str] = []
     sub_ids: dict[tuple[int, int], str] = {}
 
     load_steps = 1  # the main [resource] itself
-    load_steps += 1  # the sheet ExtResource
+    load_steps += len(sheets)  # the sheet ExtResource(s)
     total_frames = sum(a.frame_count for a in anims)
     load_steps += total_frames
 
     lines.append(f'[gd_resource type="SpriteFrames" load_steps={load_steps} format=3]')
     lines.append("")
-    lines.append(f'[ext_resource type="Texture2D" path="{sheet_res_path}" id="{ext_id}"]')
+    for i, sp in enumerate(sheets):
+        lines.append(f'[ext_resource type="Texture2D" path="{sp}" id="{i + 1}_sheet"]')
     lines.append("")
 
     for anim in anims:
@@ -60,7 +71,7 @@ def build_sprite_frames(out_name: str, sheet_res_path: str, frame_size: int, ani
             x = col * frame_size
             y = anim.row * frame_size
             lines.append(f'[sub_resource type="AtlasTexture" id="{sub_id}"]')
-            lines.append(f'atlas = ExtResource("{ext_id}")')
+            lines.append(f'atlas = ExtResource("{ext_for(anim)}")')
             lines.append(f'region = Rect2({x}, {y}, {frame_size}, {frame_size})')
             lines.append("")
 
@@ -159,6 +170,38 @@ def main() -> None:
             SheetAnim("skull_fall", 0, 7, False),
             SheetAnim("skull_dissolve", 1, 7, False),
         ],
+    )
+
+    # --- v1.0 additions (decision D183) -------------------------------------
+    # Dynamite.png: 384x64 = 6 frames of 64x64, one row. Thrown dynamite spin.
+    build_sprite_frames(
+        "dynamite.tres",
+        _res_path("Factions/Goblins/Troops/TNT/Dynamite/Dynamite.png"),
+        64,
+        [SheetAnim("spin", 0, 6, True)],
+        fps=12.0,
+    )
+
+    # Explosions.png: 1728x192 = 9 frames of 192x192, one row. One-shot.
+    build_sprite_frames(
+        "explosion.tres",
+        _res_path("Effects/Explosion/Explosions.png"),
+        192,
+        [SheetAnim("explode", 0, 9, False)],
+        fps=14.0,
+    )
+
+    # Meat pickup: M_Spawn.png 896x128 = 7 frames of 128 (one-shot);
+    # M_Idle.png 128x128 = 1 frame (loop, holds the resting pose).
+    build_sprite_frames(
+        "meat.tres",
+        _res_path("Resources/Resources/M_Spawn.png"),
+        128,
+        [
+            SheetAnim("spawn", 0, 7, False),
+            SheetAnim("idle", 0, 1, True, sheet=_res_path("Resources/Resources/M_Idle.png")),
+        ],
+        fps=14.0,
     )
 
 

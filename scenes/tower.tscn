@@ -11,7 +11,7 @@
 [ext_resource type="Script" path="res://src/tower/tower_interaction_radius.gd" id="10_interaction"]
 [ext_resource type="Script" path="res://src/tower/tower_evolution_stage.gd" id="11_stage"]
 [ext_resource type="Texture2D" path="res://assets/sprite_frames/arrow_projectile.tres" id="16_projtower"]
-[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/tower_fire.ogg" id="17_towerfire"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/tower_bolt.wav" id="17_towerfire"]
 [ext_resource type="Script" path="res://src/tower/tower_overhead_bar.gd" id="28_overheadbar"]
 
 ; Art pass (D102): Tiny Swords Knights buildings replace the Kenney 64px

@@ -364,7 +364,7 @@ func test_tower_weapon_projectile_texture_and_fire_sfx_are_non_null() -> void:
 	assert_object(_tower.weapon.projectile_texture).append_failure_message("TowerWeapon.projectile_texture is null").is_not_null()
 	assert_str(_tower.weapon.projectile_texture.resource_path).contains("sprite_frames/arrow_projectile.tres")
 	assert_object(_tower.weapon.fire_sfx).append_failure_message("TowerWeapon.fire_sfx is null").is_not_null()
-	assert_str(_tower.weapon.fire_sfx.resource_path).contains("third_party/kenney/audio/sfx/tower_fire.ogg")
+	assert_str(_tower.weapon.fire_sfx.resource_path).contains("audio/sfx/tower_bolt.wav")
 
 
 func test_a_real_fired_tower_projectile_carries_the_wired_sprite() -> void:
@@ -380,7 +380,7 @@ func test_a_real_fired_tower_projectile_carries_the_wired_sprite() -> void:
 func test_player_autoweapon_fire_sfx_and_projectile_texture_are_non_null() -> void:
 	var auto_weapon: Node = _player.get_node("AutoWeapon")
 	assert_object(auto_weapon.get("fire_sfx")).append_failure_message("AutoWeapon.fire_sfx is null").is_not_null()
-	assert_str((auto_weapon.get("fire_sfx") as AudioStream).resource_path).contains("third_party/kenney/audio/sfx/player_fire.ogg")
+	assert_str((auto_weapon.get("fire_sfx") as AudioStream).resource_path).contains("audio/sfx/bow_shot.wav")
 
 
 ## Art session: PlayerProjectile's default `projectile_texture` moved from
