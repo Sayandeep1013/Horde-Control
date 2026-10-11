@@ -487,7 +487,8 @@ func _on_close_requested() -> void:
 
 
 func _on_focus_out() -> void:
-	if _focus_pause_disabled or _state == State.ENDED:
+	# The "Pause when unfocused" setting (docs/31 8.4) and the --no-focus-pause flag both turn this off.
+	if _focus_pause_disabled or _state == State.ENDED or not GameSettings.is_pause_when_unfocused():
 		return
 	_pause_authority.push_reason_immediate(PauseAuthority.REASON_FOCUS_LOSS)
 

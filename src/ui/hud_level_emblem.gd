@@ -4,7 +4,7 @@ class_name HudLevelEmblem
 ## Round level emblem (Tiny Swords restyle, second UI pass; task
 ## instruction: "the level shown in a round emblem"). A small, custom-drawn
 ## circular badge (wood fill, bronze/gold ring) sitting BEHIND
-## `Hud._level_label` -- see `Hud._build_xp_field()`, which reparents the
+## `Hud._level_label` -- see `Hud._build_player_cluster()`, which parents the
 ## existing `LevelLabel` node (same name, same object, same
 ## `get_level_label()` seam) inside this Control's full rect. Nothing about
 ## the label's identity, text, or visibility changes; this only adds a
@@ -42,6 +42,8 @@ func _process(delta: float) -> void:
 ## level-up is ready"). Idempotent to call again mid-burst -- always resets
 ## to full intensity rather than stacking.
 func trigger_burst() -> void:
+	if GameSettings.is_reduce_flashing():
+		return
 	_burst = 1.0
 	queue_redraw()
 

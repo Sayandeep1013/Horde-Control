@@ -64,8 +64,8 @@ const SHAKE_NOISE_FREQUENCY_HZ: float = 30.0
 ## "Camera HUD margin" row (D141): screen px (1920x1080 canvas) the camera may
 ## scroll past each arena wall, so a player standing at the wall clears the
 ## HUD panels instead of sitting under them. Scaled to world px by view scale.
-const HUD_MARGIN_TOP: float = 200.0
-const HUD_MARGIN_BOTTOM: float = 140.0
+const HUD_MARGIN_TOP: float = 230.0 # v1.0: clears the Tower cluster plus the boss bar
+const HUD_MARGIN_BOTTOM: float = 160.0 # v1.0: clears the action cluster with its key-hint strip
 const HUD_MARGIN_SIDE: float = 96.0
 
 ## "Arena size" row: "Tower at centre" -- see header assumption note.
@@ -225,7 +225,7 @@ func snap_to(pos: Vector2) -> void:
 func add_trauma(amount: float) -> void:
 	if not GameSettings.is_screen_shake_enabled():
 		return
-	_trauma = clampf(_trauma + amount, 0.0, 1.0)
+	_trauma = clampf(_trauma + amount * GameSettings.get_screen_shake_scale(), 0.0, 1.0) # Screen shake setting: 0-100%
 
 
 func get_trauma_for_test() -> float:
@@ -300,8 +300,10 @@ func _clamp_to_arena_bounds(pos: Vector2) -> Vector2:
 	var arena_max: Vector2 = arena_center + ARENA_SIZE / 2.0
 	# HUD margins: the view may extend past each wall by the HUD band (D141).
 	var view_scale_now: float = get_view_scale()
-	var margin_min: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_TOP) * view_scale_now * _applied_content_scale
-	var margin_max: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_BOTTOM) * view_scale_now * _applied_content_scale
+	# The HUD Scale setting grows the HUD, so the band grows with it (never below 100%).
+	var hud_grow: float = maxf(1.0, GameSettings.get_hud_scale())
+	var margin_min: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_TOP) * hud_grow * view_scale_now * _applied_content_scale
+	var margin_max: Vector2 = Vector2(HUD_MARGIN_SIDE, HUD_MARGIN_BOTTOM) * hud_grow * view_scale_now * _applied_content_scale
 
 	var clamped: Vector2 = pos
 	if half_extent.x * 2.0 <= ARENA_SIZE.x:

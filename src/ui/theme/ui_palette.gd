@@ -146,6 +146,10 @@ const XP: Color = Color("a78bfa")             ## XP bar, level
 const SCRAP: Color = Color("d9894a")          ## Scrap, prices
 const GOLD: Color = Color("f4c430")           ## the Scrap icon's own coin colour; punch/glow accents that read as "treasure" rather than the cooler ACCENT gold
 const SUCCESS: Color = Color("7be08a")        ## victory, affordable
+## Enemy intent colours (docs/09): the spawn chevrons (v1.0 HUD) and the enemy outlines use them.
+const INTENT_TOWER: Color = Color("e5484d")       ## Tower Seeker (red torch goblins)
+const INTENT_PLAYER: Color = Color("f4c430")      ## Player Hunter (yellow TNT goblins)
+const INTENT_OPPORTUNIST: Color = Color("c26bff") ## Opportunist (purple barrels)
 ## Meta layer core (Hub/Skill Tree screen): the Cores currency's own colour, a
 ## bright gold (D142; it was amethyst, which collided with the XP crystal's
 ## lavender). Cores are told apart from the in-run Scrap pouch by SHAPE: a hex

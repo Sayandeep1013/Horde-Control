@@ -33,7 +33,7 @@ const SCRAP_CAP_DEFAULT: int = 200
 
 ## docs/19_UI_UX.md > "HUD": "'Wave n/8' shows wave progress"; Register >
 ## Onboarding & Session names 8 combat waves per biome.
-const WAVE_TOTAL_DEFAULT: int = 8
+const WAVE_TOTAL_DEFAULT: int = 15 # v1.0 campaign length (docs/31 section 6.1); the director overrides it
 
 ## Register > Progression & Upgrades > "Level-Up Draft": "Reroll 1 per run
 ## (prototype)."
