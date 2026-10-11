@@ -20,12 +20,15 @@ const DummyBoss: GDScript = preload("res://tests/unit/v1_dummy_boss.gd")
 ## docs/reviews/2026-10-11_V1_BALANCE_PASS.md): HP and damage multipliers are the
 ## authored ramp, below docs/31 6.1's starting values from wave 6 on. Transcribed
 ## as literals on purpose: they must not follow the data files.
+## PT-SWARM (docs/33 C1-C3, D344-D346): ~10x counts with low fodder HP, a boss
+## every 5th wave (5 Warchief, 10 Juggernaut, 15 King). Literals, not data reads.
 const TABLE: Array = [
-	["wave_01", 1.0, 0.3, 30.0], ["wave_02", 1.0, 0.35, 35.0], ["wave_03", 1.0, 0.4, 40.0], ["wave_04", 1.0, 0.6, 45.0],
-	["wave_05", 1.1, 0.65, 60.0], ["wave_06", 1.2, 0.55, 60.0], ["wave_07", 1.2, 0.65, 70.0], ["wave_08", 1.0, 1.0, 0.0],
-	["wave_09", 1.5, 1.0, 70.0], ["wave_10", 1.3, 0.75, 75.0], ["wave_11", 1.7, 0.95, 75.0], ["wave_12", 1.8, 1.05, 75.0],
-	["wave_13", 1.8, 0.95, 80.0], ["wave_14", 1.9, 0.9, 85.0], ["wave_15", 1.0, 1.0, 0.0],
+	["wave_01", 0.45, 0.35, 35.0], ["wave_02", 0.5, 0.4, 40.0], ["wave_03", 0.5, 0.45, 45.0], ["wave_04", 0.45, 0.55, 50.0],
+	["wave_05", 0.55, 0.6, 0.0], ["wave_06", 0.6, 0.36, 60.0], ["wave_07", 0.6, 0.36, 65.0], ["wave_08", 0.7, 0.42, 70.0],
+	["wave_09", 0.75, 0.45, 70.0], ["wave_10", 0.8, 0.8, 0.0], ["wave_11", 0.85, 0.51, 75.0], ["wave_12", 0.9, 0.54, 80.0],
+	["wave_13", 0.95, 0.57, 80.0], ["wave_14", 1.0, 0.6, 85.0], ["wave_15", 1.0, 1.0, 0.0],
 ]
+const BEFORE_BOSS_INDICES: Array[int] = [3, 8, 13]
 
 var _registry: Node
 var _clock: Node
@@ -62,6 +65,8 @@ func before_test() -> void:
 	_director.brute_scene = dummy
 	_director.warchief_scene = boss
 	_director.king_scene = boss
+	_director.juggernaut_scene = boss
+	_director.shaman_scene = dummy
 	_director.rebuild_lookups_for_test()
 	_director.enemy_spawned.connect(func(instance: Node2D, _id: String, _p: Vector2) -> void:
 		_pending_kills.append({"instance": instance, "at": _clock.now})
@@ -188,14 +193,16 @@ func test_default_sequence_matches_the_docs_31_table() -> void:
 			if e.unique_id == w.encounter_sequence[0]:
 				enc = e
 		var gap: float = maxf(w.inter_wave_gap_seconds, enc.minimum_recovery_gap_seconds)
-		var before_boss: bool = i == 6 or i == 13
+		var before_boss: bool = BEFORE_BOSS_INDICES.has(i)
 		assert_float(gap).append_failure_message("%s gap" % row[0]).is_equal_approx(12.0 if before_boss else 8.0, 0.0001)
-	assert_str(waves[7].encounter_sequence[0]).is_equal("w08_boss")
+	assert_str(waves[4].encounter_sequence[0]).is_equal("w05_boss")
+	assert_str(waves[9].encounter_sequence[0]).is_equal("w10_boss")
+	assert_str(waves[14].encounter_sequence[0]).is_equal("w15_boss")
 	assert_str(_director.get_current_wave_type()).is_equal("")
 
 
 func test_wave_types_follow_the_encounter_types() -> void:
-	var expected: Array[String] = ["standard", "standard", "split", "siege", "hunt", "split", "siege", "boss", "hunt", "siege", "split", "hunt", "siege", "grand_assault", "boss"]
+	var expected: Array[String] = ["standard", "standard", "split", "siege", "boss", "split", "siege", "standard", "hunt", "boss", "split", "hunt", "siege", "grand_assault", "boss"]
 	for i in expected.size():
 		_director.open_wave_for_test(i + 1)
 		assert_str(_director.get_current_wave_type()).append_failure_message("wave %d" % (i + 1)).is_equal(expected[i])
@@ -220,7 +227,7 @@ func test_full_sequence_runs_with_correct_gaps_and_completes_when_the_king_dies(
 		return
 	for i in 14:
 		var gap: float = float(opened[i + 1]["t"]) - float(ended[i]["t"])
-		var want: float = 12.0 if (i == 6 or i == 13) else 8.0
+		var want: float = 12.0 if BEFORE_BOSS_INDICES.has(i) else 8.0
 		assert_float(gap).append_failure_message("gap after wave %d" % (i + 1)).is_equal_approx(want, 0.6)
 
 
@@ -267,16 +274,18 @@ func test_endless_loops_the_boss_wave_and_the_waves_after_it_with_scaling_per_lo
 		guard += 1
 	assert_bool(completed[0]).append_failure_message("Endless never completes the sequence").is_false()
 	assert_int(_director.get_wave_count()).is_equal(-1)
-	assert_array(_director.get_loop_wave_indices_for_test()).is_equal([1, 2])
-	# Waves 5, 6, 7 are the loop: boss wave "b", wave "c", boss wave "b" again.
+	# PT-SWARM (D346): the loop is every wave after the first boss wave up to and
+	# including the final one, so here it alternates a wave and a boss wave.
+	assert_array(_director.get_loop_wave_indices_for_test()).is_equal([2, 3])
+	# Waves 5, 6, 7 are the loop: wave "c", boss wave "d", wave "c" again.
 	var numbers: Array = started.map(func(e: Array) -> int: return e[0])
 	assert_array(numbers).contains([5, 6, 7])
-	assert_array(started.filter(func(e: Array) -> bool: return e[0] == 5)[0]).is_equal([5, -1, "boss", true])
-	assert_array(started.filter(func(e: Array) -> bool: return e[0] == 6)[0]).is_equal([6, -1, "standard", false])
-	# Loop 1 scaling: +15% HP and +10% damage on the boss spawned in wave 5.
+	assert_array(started.filter(func(e: Array) -> bool: return e[0] == 5)[0]).is_equal([5, -1, "standard", false])
+	assert_array(started.filter(func(e: Array) -> bool: return e[0] == 6)[0]).is_equal([6, -1, "boss", true])
+	# Loop 1 scaling: +15% HP and +10% damage on what the loop spawns.
 	var applied: Array = []
 	for inst in _spawned:
-		if is_instance_valid(inst) and inst.behavior != null and inst.scaling.size() > 0:
+		if is_instance_valid(inst) and inst.scaling.size() > 0:
 			applied.append(inst.scaling[0])
 	assert_bool(applied.any(func(s: Array) -> bool: return is_equal_approx(s[0], 1.15) and is_equal_approx(s[1], 1.1))).append_failure_message("no loop-1 spawn carried x1.15 HP / x1.10 damage; got %s" % [applied]).is_true()
 
@@ -361,36 +370,37 @@ func test_spawn_warning_precedes_a_group_by_0_75_s_at_most_one_per_30_degree_sec
 
 func test_difficulty_scales_spawn_count_hp_damage_and_boss_hp() -> void:
 	RunConfig.difficulty_id = "veteran"
-	_director.open_wave_for_test(1) # wave_01: 3 groups of 4 Hunters; hp 1.0, damage 0.6, hunter damage 0.35
-	assert_int(_director.get_effective_group_count_for_test(_director.encounter_definitions[0], 0)).append_failure_message("4 x 1.2 = 4.8 rounds to 5").is_equal(5)
+	_director.open_wave_for_test(1) # wave_01: first group 12 Hunters; hp 0.45, hunter damage 0.3
+	assert_int(_director.get_effective_group_count_for_test(_director.encounter_definitions[0], 0)).append_failure_message("12 x 1.2 = 14.4 rounds to 14").is_equal(14)
 	_step(2.0, 0.1, 2.0, false)
 	var first: Node2D = _spawned[0]
-	assert_float(first.scaling[0][0]).append_failure_message("hp 1.0 x 1.25").is_equal_approx(1.25, 0.0001)
-	assert_float(first.scaling[0][2]).append_failure_message("hunter damage 0.25 x 1.3").is_equal_approx(0.325, 0.0001)
+	assert_float(first.scaling[0][0]).append_failure_message("hp 0.45 x 1.25").is_equal_approx(0.5625, 0.0001)
+	assert_float(first.scaling[0][2]).append_failure_message("hunter damage 0.3 x 1.3").is_equal_approx(0.39, 0.0001)
 	_spawned.clear()
-	_director.open_wave_for_test(8)
+	_director.open_wave_for_test(5)
 	_step(1.0, 0.5, 2.0, false)
 	var boss: Node2D = _director.get_boss_instance_for_test()
 	assert_float(boss.scaling[0][0]).append_failure_message("boss hp uses the boss multiplier (1.3), not the enemy one (1.25)").is_equal_approx(1.3, 0.0001)
-	assert_int(_director.get_effective_group_count_for_test(_director.encounter_definitions[7], 0)).append_failure_message("a boss is never multiplied").is_equal(1)
+	assert_int(_director.get_effective_group_count_for_test(_director.encounter_definitions[4], 0)).append_failure_message("a boss is never multiplied").is_equal(1)
 
 
 func test_soldier_leaves_counts_and_scaling_at_the_wave_values() -> void:
 	_director.open_wave_for_test(1)
-	assert_int(_director.get_effective_group_count_for_test(_director.encounter_definitions[0], 0)).is_equal(4)
+	assert_int(_director.get_effective_group_count_for_test(_director.encounter_definitions[0], 0)).is_equal(12)
 	_step(1.0, 0.1, 2.0, false)
-	assert_float(_spawned[0].scaling[0][2]).is_equal_approx(0.25, 0.0001)
+	assert_float(_spawned[0].scaling[0][2]).is_equal_approx(0.3, 0.0001)
 
 
 # --- Elites ------------------------------------------------------------------------------
 
-func test_elite_chance_curve_is_4_percent_at_wave_5_rising_1_point_per_wave_to_12() -> void:
+func test_elite_chance_curve_is_8_percent_at_wave_5_rising_2_points_per_wave_to_24() -> void:
+	# PT-SWARM (D348): doubled from 4% + 1 point per wave, capped at 12%.
 	assert_float(_director.get_elite_chance_for_test(4)).is_equal(0.0)
-	assert_float(_director.get_elite_chance_for_test(5)).is_equal_approx(0.04, 0.00001)
-	assert_float(_director.get_elite_chance_for_test(9)).is_equal_approx(0.08, 0.00001)
-	assert_float(_director.get_elite_chance_for_test(13)).is_equal_approx(0.12, 0.00001)
-	assert_float(_director.get_elite_chance_for_test(40)).is_equal_approx(0.12, 0.00001)
-	assert_float(_director.get_elite_chance_for_test(12, 0.06, 0.04)).is_equal_approx(0.11 + 0.06 + 0.04, 0.00001)
+	assert_float(_director.get_elite_chance_for_test(5)).is_equal_approx(0.08, 0.00001)
+	assert_float(_director.get_elite_chance_for_test(9)).is_equal_approx(0.16, 0.00001)
+	assert_float(_director.get_elite_chance_for_test(13)).is_equal_approx(0.24, 0.00001)
+	assert_float(_director.get_elite_chance_for_test(40)).is_equal_approx(0.24, 0.00001)
+	assert_float(_director.get_elite_chance_for_test(12, 0.12, 0.04)).is_equal_approx(0.22 + 0.12 + 0.04, 0.00001)
 	assert_float(_director.get_elite_chance_for_test(3, 0.5, 0.5)).append_failure_message("nothing before wave 5").is_equal(0.0)
 
 
@@ -405,7 +415,7 @@ func test_every_spawn_rolls_an_elite_with_a_valid_affix_from_wave_5_and_none_bef
 	for inst in _spawned:
 		assert_str(inst.elite_affix).append_failure_message("wave 4 is before the first elite wave").is_equal("")
 	assert_int(elites.size()).is_equal(0)
-	_director.open_wave_for_test(5)
+	_director.open_wave_for_test(6) # wave 5 is a boss wave and bosses never roll
 	_spawned.clear()
 	_step(8.0, 0.1, 2.0, false)
 	assert_bool(_spawned.size() > 0).is_true()

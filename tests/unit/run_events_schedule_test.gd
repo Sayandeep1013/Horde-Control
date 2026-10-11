@@ -18,8 +18,9 @@ func after_test() -> void:
 
 # --- the pure schedule ------------------------------------------------------------
 
-func test_campaign_events_fire_after_exactly_waves_4_7_11_and_14() -> void:
-	var expected: Dictionary = {4: ["patrons_boon"], 7: ["sanctuary"], 11: ["patrons_boon"], 14: ["sanctuary"]}
+func test_campaign_events_fire_after_exactly_waves_4_9_11_and_14() -> void:
+	# PT-SWARM (D346): bosses at 5/10/15, so a Sanctuary follows waves 4, 9 and 14.
+	var expected: Dictionary = {4: ["patrons_boon", "sanctuary"], 9: ["sanctuary"], 11: ["patrons_boon"], 14: ["sanctuary"]}
 	for wave in range(1, 16):
 		var got: Array[String] = RunEvents.events_after_wave(wave, false)
 		assert_array(got).append_failure_message("campaign wave %d" % wave).is_equal(expected.get(wave, []))
@@ -27,30 +28,28 @@ func test_campaign_events_fire_after_exactly_waves_4_7_11_and_14() -> void:
 
 func test_pactbound_adds_a_blood_pact_after_wave_11_between_the_boon_and_nothing_else() -> void:
 	assert_array(RunEvents.events_after_wave(11, false, true)).is_equal(["patrons_boon", "blood_pact"])
-	assert_array(RunEvents.events_after_wave(4, false, true)).is_equal(["patrons_boon"])
+	assert_array(RunEvents.events_after_wave(4, false, true)).is_equal(["patrons_boon", "sanctuary"])
 	assert_array(RunEvents.events_after_wave(11, false, false)).is_equal(["patrons_boon"])
 
 
-func test_endless_repeats_a_patron_every_7th_wave_past_15_and_a_sanctuary_before_every_warchief() -> void:
-	assert_array(RunEvents.events_after_wave(15, true)).is_equal(["sanctuary"]) # the Warchief of wave 16 follows
-	assert_array(RunEvents.events_after_wave(22, true)).is_equal(["patrons_boon", "sanctuary"]) # Patron first, blessing last
-	assert_array(RunEvents.events_after_wave(29, true)).is_equal(["patrons_boon", "sanctuary"])
-	for wave in [16, 17, 18, 19, 20, 21, 23, 24, 28]:
+func test_endless_repeats_a_patron_every_10th_wave_past_15_and_a_sanctuary_before_every_boss() -> void:
+	assert_array(RunEvents.events_after_wave(19, true)).is_equal(["sanctuary"]) # the Juggernaut of wave 20 follows
+	assert_array(RunEvents.events_after_wave(24, true)).is_equal(["sanctuary"]) # the King of wave 25
+	assert_array(RunEvents.events_after_wave(25, true)).is_equal(["patrons_boon"])
+	for wave in [15, 16, 17, 18, 20, 21, 22, 23, 26, 28]:
 		assert_array(RunEvents.events_after_wave(wave, true)).append_failure_message("endless wave %d" % wave).is_empty()
-	# Sanctuary comes right before each Warchief wave: 16, 23, 30.
-	for warchief in [16, 23, 30]:
-		assert_bool(RunEvents.is_warchief_wave(warchief, true)).is_true()
-		assert_bool(RunEvents.events_after_wave(warchief - 1, true).has("sanctuary")).append_failure_message("no Sanctuary before wave %d" % warchief).is_true()
-	assert_bool(RunEvents.is_warchief_wave(16, false)).is_false()
+	assert_bool(RunEvents.is_warchief_wave(5, false)).is_true()
+	for wave in [8, 16, 20, 23]:
+		assert_bool(RunEvents.is_warchief_wave(wave, true)).append_failure_message("wave %d" % wave).is_false()
 
 
 func test_the_gap_after_an_event_wave_is_at_least_8_seconds() -> void:
-	for wave in [4, 7, 8, 11, 14]:
+	for wave in [4, 5, 9, 11, 14]:
 		assert_float(RunEvents.gap_floor_after_wave(wave, false)).append_failure_message("wave %d" % wave).is_equal(8.0)
-	for wave in [1, 2, 3, 5, 6, 9, 10, 12, 13]:
+	for wave in [1, 2, 3, 6, 7, 8, 10, 12, 13]:
 		assert_float(RunEvents.gap_floor_after_wave(wave, false)).append_failure_message("wave %d" % wave).is_equal(0.0)
-	assert_float(RunEvents.gap_floor_after_wave(23, true)).is_equal(8.0) # the endless Warchief wave: its Blood Pact follows
-	assert_float(RunEvents.gap_floor_after_wave(22, true)).is_equal(8.0)
+	assert_float(RunEvents.gap_floor_after_wave(19, true)).is_equal(8.0)
+	assert_float(RunEvents.gap_floor_after_wave(21, true)).is_equal(0.0)
 
 
 func test_the_wave_director_honours_the_gap_floor_provider() -> void:
@@ -88,7 +87,8 @@ func test_a_wave_end_queues_its_events_in_order_and_other_waves_queue_nothing() 
 	events.on_wave_ended(3)
 	assert_bool(events.has_pending()).is_false()
 	events.on_wave_ended(4)
-	assert_array(events.get_pending_kinds()).is_equal(["patrons_boon"])
+	assert_array(events.get_pending_kinds()).is_equal(["patrons_boon", "sanctuary"]) # PT-SWARM D346: the Warchief is wave 5
+	events.pop_next(0.0)
 	events.pop_next(0.0)
 	events.on_wave_ended(14)
 	assert_array(events.get_pending_kinds()).is_equal(["sanctuary"])

@@ -150,8 +150,10 @@ func test_boss_bar_follows_boss_events_and_marks_the_phase_the_boss_reports() ->
 
 
 func test_the_real_boss_scripts_expose_the_fraction_the_hud_reads() -> void:
-	assert_float(Hud.boss_phase_fraction(_holder_with(WarchiefBehavior.new()))).is_equal_approx(0.4, 0.001)
-	assert_float(Hud.boss_phase_fraction(_holder_with(KingBehavior.new()))).is_equal_approx(0.5, 0.001)
+	# PT-SWARM (D340): Warchief enrages below 50%, the King's first phase mark is 60%.
+	assert_float(Hud.boss_phase_fraction(_holder_with(WarchiefBehavior.new()))).is_equal_approx(0.5, 0.001)
+	assert_float(Hud.boss_phase_fraction(_holder_with(KingBehavior.new()))).is_equal_approx(0.6, 0.001)
+	assert_float(Hud.boss_phase_fraction(_holder_with(JuggernautBehavior.new()))).is_equal_approx(0.5, 0.001)
 
 
 func _holder_with(behavior: BossBehavior) -> FakeBoss:
