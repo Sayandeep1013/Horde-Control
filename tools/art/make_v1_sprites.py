@@ -247,6 +247,41 @@ ARENA_SPRITES = {
 }
 
 
+# --- PT-POWER (D350-D359): Archero-style ability sprites, kept apart so every output above stays byte-identical.
+
+def make_lightning_sprite():
+    """24x24 storm wisp: a pale-blue orb with a bright core and two spark tips."""
+    size = (24, 24)
+    parts = [Part(lambda d: d.ellipse([5, 5, 18, 18], fill=255), ICE),
+             Part(lambda d: d.polygon([(11, 1), (14, 6), (9, 6)], fill=255), YELLOW, 1),
+             Part(lambda d: d.polygon([(11, 22), (14, 17), (9, 17)], fill=255), YELLOW, 1)]
+    return compose(parts, [(lambda d, c: d.ellipse([9, 9, 14, 14], fill=c), (255, 255, 255, 255)),
+                           (lambda d, c: d.line([(7, 11), (4, 9)], fill=c, width=1), YELLOW[1])], size=size)
+
+
+def make_meteor():
+    """40x40 falling rock wrapped in flame, drawn point-down by the ability and rotated."""
+    size = (40, 40)
+    pts = [(20, 12), (28, 15), (32, 23), (29, 31), (21, 36), (12, 33), (8, 24), (11, 16)]
+    parts = [Part(lambda d: d.polygon([(10, 20), (12, 7), (17, 13), (20, 1), (24, 13), (28, 7), (30, 20)], fill=255), FLAME, 1),
+             Part(lambda d: d.polygon(pts, fill=255), STONE)]
+    return compose(parts, [(lambda d, c: d.polygon([(17, 18), (22, 20), (20, 25), (15, 23)], fill=c), STONE[1]),
+                           (lambda d, c: d.line([(24, 29), (28, 25)], fill=c, width=1), ORANGE[0]),
+                           (lambda d, c: d.line([(14, 29), (17, 32)], fill=c, width=1), ORANGE[1])], size=size)
+
+
+def make_blade():
+    """32x32 spinning blade: a steel crescent with an iron hub."""
+    size = (32, 32)
+    parts = [Part(lambda d: d.polygon([(16, 2), (26, 8), (30, 16), (24, 15), (20, 12), (16, 12), (12, 15), (8, 12)], fill=255), STEEL),
+             Part(lambda d: d.polygon([(16, 30), (6, 24), (2, 16), (8, 17), (12, 20), (16, 20), (20, 17), (24, 20)], fill=255), STEEL),
+             Part(lambda d: d.ellipse([12, 12, 20, 20], fill=255), IRON, 1)]
+    return compose(parts, [(lambda d, c: d.ellipse([15, 15, 17, 17], fill=c), GOLD[1])], size=size)
+
+
+POWER_SPRITES = {"lightning_sprite": make_lightning_sprite, "meteor": make_meteor, "blade": make_blade}
+
+
 SPRITES = {
     "axe": make_axe, "caltrop": make_caltrop, "frost_shard": make_frost_shard,
     "lightning_segment": make_lightning_segment, "ballista_bolt": make_ballista_bolt,
@@ -297,3 +332,10 @@ if __name__ == "__main__":
         arena[name] = im
         print("wrote", os.path.join(OUT, name + ".png"), im.size)
     contact_sheet(arena, os.path.join(OUT, "_contact_sheet_arena.png"))
+    power = {}
+    for name, fn in POWER_SPRITES.items():
+        im = fn()
+        im.save(os.path.join(OUT, name + ".png"))
+        power[name] = im
+        print("wrote", os.path.join(OUT, name + ".png"), im.size)
+    contact_sheet(power, os.path.join(OUT, "_contact_sheet_power.png"))
