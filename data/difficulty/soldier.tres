@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DifficultyProfile" format=3]
+
+[ext_resource type="Script" path="res://src/data/difficulty_profile.gd" id="1_diff"]
+
+[resource]
+script = ExtResource("1_diff")
+id = "soldier"
+display_name = "Soldier"
+description = "The intended challenge."
+sort_order = 1
+enemy_hp_multiplier = 1.0
+enemy_damage_multiplier = 1.0
+spawn_count_multiplier = 1.0
+elite_chance_add = 0.0
+boss_hp_multiplier = 1.0
+cores_multiplier = 1.0
+unlocked_by_victory_on = ""

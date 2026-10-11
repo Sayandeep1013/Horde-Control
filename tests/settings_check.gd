@@ -49,6 +49,7 @@ const ACTIONS := [
 	"draft_cycle_left", "draft_cycle_right",
 	"draft_select_1", "draft_select_2", "draft_select_3",
 	"confirm", "reroll", "pause",
+	"dash", "battle_skill",
 	"debug_overlay_toggle", "debug_pseudoloc_toggle",
 ]
 
@@ -175,6 +176,9 @@ const ACTION_EVENTS := {
 	"confirm": ["key:32:0:0:0:0", "key:4194309:0:0:0:0", "mouse:1:0:0:0:0", "joybutton:0"],
 	"reroll": ["key:82:0:0:0:0", "joybutton:2"],
 	"pause": ["key:4194305:0:0:0:0", "joybutton:6"],
+	# v1.0 (D176; docs/31 §3.1-§3.2).
+	"dash": ["key:32:0:0:0:0", "key:4194325:0:0:0:0", "joybutton:1", "joybutton:9"],
+	"battle_skill": ["key:69:0:0:0:0", "key:81:0:0:0:0", "mouse:2:0:0:0:0", "joybutton:3", "joybutton:10"],
 	"debug_overlay_toggle": ["key:4194332:0:0:0:0"],
 	"debug_pseudoloc_toggle": ["key:4194333:0:0:0:0"],
 }

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DifficultyProfile" format=3]
+
+[ext_resource type="Script" path="res://src/data/difficulty_profile.gd" id="1_diff"]
+
+[resource]
+script = ExtResource("1_diff")
+id = "warlord"
+display_name = "Warlord"
+description = "For those who have mastered the horde."
+sort_order = 3
+enemy_hp_multiplier = 1.8
+enemy_damage_multiplier = 1.9
+spawn_count_multiplier = 1.4
+elite_chance_add = 0.08
+boss_hp_multiplier = 1.9
+cores_multiplier = 1.85
+unlocked_by_victory_on = "veteran"

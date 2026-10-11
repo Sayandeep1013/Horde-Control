@@ -116,6 +116,7 @@ const DEFAULT_PATH: String = "user://settings.cfg"
 const SECTION_AUDIO: String = "audio"
 const SECTION_VIDEO: String = "video"
 const SECTION_GAMEPLAY: String = "gameplay"
+const SECTION_ACCESSIBILITY: String = "accessibility"
 
 ## Register > "Settings" row defaults.
 const DEFAULT_MASTER_VOLUME_PCT: int = 100
@@ -127,6 +128,18 @@ const DEFAULT_VSYNC_ENABLED: bool = true
 const DEFAULT_SCREEN_SHAKE_ENABLED: bool = true
 const DEFAULT_DAMAGE_NUMBERS_ENABLED: bool = true
 const DEFAULT_MOVEMENT_ONLY_ENABLED: bool = false
+# v1.0 shared contract keys (WP0, decision D174; docs/31 §8.4). Readers:
+# WP-COMBAT (auto-cast), WP-ENEMIES (enemy outlines), WP-UI (HUD scale,
+# overhead bars, reduce flashing). WP-UI adds the Settings rows for them.
+const DEFAULT_AUTO_CAST_DESKTOP: bool = false
+const DEFAULT_AUTO_CAST_TOUCH: bool = true
+const DEFAULT_SHOW_OVERHEAD_BARS: bool = true
+const DEFAULT_REDUCE_FLASHING: bool = false
+const DEFAULT_ENEMY_OUTLINES: bool = false
+const DEFAULT_HUD_SCALE_PCT: int = 100
+const HUD_SCALE_MIN_PCT: int = 75
+const HUD_SCALE_MAX_PCT: int = 150
+const HUD_SCALE_STEP_PCT: int = 5
 
 ## Register > "Settings" row: "each 0-100% in 10% steps".
 const VOLUME_STEP_PCT: int = 10
@@ -162,6 +175,12 @@ static var _vsync_enabled: bool = DEFAULT_VSYNC_ENABLED
 static var _screen_shake_enabled: bool = DEFAULT_SCREEN_SHAKE_ENABLED
 static var _damage_numbers_enabled: bool = DEFAULT_DAMAGE_NUMBERS_ENABLED
 static var _movement_only_controls_enabled: bool = DEFAULT_MOVEMENT_ONLY_ENABLED
+static var _auto_cast_set: bool = false # false = never chosen; default follows the device
+static var _auto_cast_enabled: bool = DEFAULT_AUTO_CAST_DESKTOP
+static var _show_overhead_bars: bool = DEFAULT_SHOW_OVERHEAD_BARS
+static var _reduce_flashing: bool = DEFAULT_REDUCE_FLASHING
+static var _enemy_outlines: bool = DEFAULT_ENEMY_OUTLINES
+static var _hud_scale_pct: int = DEFAULT_HUD_SCALE_PCT
 
 
 # --- Persistence -------------------------------------------------------------
@@ -185,6 +204,13 @@ static func load_from_disk() -> void:
 	_screen_shake_enabled = bool(cfg.get_value(SECTION_GAMEPLAY, "screen_shake_enabled", _screen_shake_enabled))
 	_damage_numbers_enabled = bool(cfg.get_value(SECTION_GAMEPLAY, "damage_numbers_enabled", _damage_numbers_enabled))
 	_movement_only_controls_enabled = bool(cfg.get_value(SECTION_GAMEPLAY, "movement_only_controls_enabled", _movement_only_controls_enabled))
+	if cfg.has_section_key(SECTION_GAMEPLAY, "auto_cast_enabled"):
+		_auto_cast_set = true
+		_auto_cast_enabled = bool(cfg.get_value(SECTION_GAMEPLAY, "auto_cast_enabled", _auto_cast_enabled))
+	_show_overhead_bars = bool(cfg.get_value(SECTION_GAMEPLAY, "show_overhead_bars", _show_overhead_bars))
+	_reduce_flashing = bool(cfg.get_value(SECTION_ACCESSIBILITY, "reduce_flashing", _reduce_flashing))
+	_enemy_outlines = bool(cfg.get_value(SECTION_ACCESSIBILITY, "enemy_outlines", _enemy_outlines))
+	_hud_scale_pct = _clamp_hud_scale(int(cfg.get_value(SECTION_ACCESSIBILITY, "hud_scale_pct", _hud_scale_pct)))
 
 
 ## Writes every field to `_path`, creating its parent directory first (a
@@ -204,6 +230,12 @@ static func save() -> void:
 	cfg.set_value(SECTION_GAMEPLAY, "screen_shake_enabled", _screen_shake_enabled)
 	cfg.set_value(SECTION_GAMEPLAY, "damage_numbers_enabled", _damage_numbers_enabled)
 	cfg.set_value(SECTION_GAMEPLAY, "movement_only_controls_enabled", _movement_only_controls_enabled)
+	if _auto_cast_set:
+		cfg.set_value(SECTION_GAMEPLAY, "auto_cast_enabled", _auto_cast_enabled)
+	cfg.set_value(SECTION_GAMEPLAY, "show_overhead_bars", _show_overhead_bars)
+	cfg.set_value(SECTION_ACCESSIBILITY, "reduce_flashing", _reduce_flashing)
+	cfg.set_value(SECTION_ACCESSIBILITY, "enemy_outlines", _enemy_outlines)
+	cfg.set_value(SECTION_ACCESSIBILITY, "hud_scale_pct", _hud_scale_pct)
 	cfg.save(_path)
 
 
@@ -256,6 +288,82 @@ static func are_damage_numbers_enabled() -> bool:
 
 static func get_movement_only_controls_enabled() -> bool:
 	return _movement_only_controls_enabled
+
+
+## docs/31 §3.3: the effective auto-cast flag. Movement-only controls force it
+## on (the movement-alone input floor, MASTER_SDLC.md:242). Never chosen ->
+## the device default (on for touch, off for desktop).
+static func is_auto_cast_enabled() -> bool:
+	if _movement_only_controls_enabled:
+		return true
+	if not _auto_cast_set:
+		return DEFAULT_AUTO_CAST_TOUCH if _is_touch_device() else DEFAULT_AUTO_CAST_DESKTOP
+	return _auto_cast_enabled
+
+
+static func get_auto_cast_setting_raw() -> bool:
+	if not _auto_cast_set:
+		return DEFAULT_AUTO_CAST_TOUCH if _is_touch_device() else DEFAULT_AUTO_CAST_DESKTOP
+	return _auto_cast_enabled
+
+
+static func is_show_overhead_bars() -> bool:
+	return _show_overhead_bars
+
+
+static func is_reduce_flashing() -> bool:
+	return _reduce_flashing
+
+
+static func is_enemy_outlines() -> bool:
+	return _enemy_outlines
+
+
+static func get_hud_scale_pct() -> int:
+	return _hud_scale_pct
+
+
+static func get_hud_scale() -> float:
+	return float(_hud_scale_pct) / 100.0
+
+
+static func set_auto_cast_enabled(enabled: bool) -> void:
+	_auto_cast_set = true
+	_auto_cast_enabled = enabled
+	save()
+
+
+static func set_show_overhead_bars(enabled: bool) -> void:
+	_show_overhead_bars = enabled
+	save()
+
+
+static func set_reduce_flashing(enabled: bool) -> void:
+	_reduce_flashing = enabled
+	save()
+
+
+static func set_enemy_outlines(enabled: bool) -> void:
+	_enemy_outlines = enabled
+	save()
+
+
+static func set_hud_scale_pct(pct: int) -> void:
+	_hud_scale_pct = _clamp_hud_scale(pct)
+	save()
+
+
+static func adjust_hud_scale(direction: int) -> void:
+	set_hud_scale_pct(_hud_scale_pct + direction * HUD_SCALE_STEP_PCT)
+
+
+static func _clamp_hud_scale(pct: int) -> int:
+	var snapped: int = int(round(float(pct) / HUD_SCALE_STEP_PCT)) * HUD_SCALE_STEP_PCT
+	return clampi(snapped, HUD_SCALE_MIN_PCT, HUD_SCALE_MAX_PCT)
+
+
+static func _is_touch_device() -> bool:
+	return DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 
 
 # --- Production setters (apply + save immediately) --------------------------
@@ -406,6 +514,12 @@ static func reset_state_for_test() -> void:
 	_screen_shake_enabled = DEFAULT_SCREEN_SHAKE_ENABLED
 	_damage_numbers_enabled = DEFAULT_DAMAGE_NUMBERS_ENABLED
 	_movement_only_controls_enabled = DEFAULT_MOVEMENT_ONLY_ENABLED
+	_auto_cast_set = false
+	_auto_cast_enabled = DEFAULT_AUTO_CAST_DESKTOP
+	_show_overhead_bars = DEFAULT_SHOW_OVERHEAD_BARS
+	_reduce_flashing = DEFAULT_REDUCE_FLASHING
+	_enemy_outlines = DEFAULT_ENEMY_OUTLINES
+	_hud_scale_pct = DEFAULT_HUD_SCALE_PCT
 
 
 # --- Internals -----------------------------------------------------------

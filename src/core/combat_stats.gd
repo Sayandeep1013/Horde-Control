@@ -111,3 +111,46 @@ func get_sheet_dps(subject: StringName) -> float:
 
 func has_reported_sheet_dps(subject: StringName) -> bool:
 	return _sheet_dps_by_subject.has(subject)
+
+
+# --- v1.0: per-run damage by source and run counters (WP0, decision D173) ----
+# docs/31 §4.6. Every damage-dealing hit that lands on an enemy is recorded
+# once, under the `source_id` its emitter tagged it with (an AbilityIds value,
+# or AbilityIds.SOURCE_BOW / SOURCE_TOWER_BOW). Writers: WP-COMBAT at hit
+# resolution. Readers: the Results screen (WP-META) and the pause build panel
+# (WP-UI). Reset at run start by PrototypeIntegration. Counters are plain
+# run statistics with the same lifetime.
+
+var _damage_by_source: Dictionary = {} # String -> float
+var _run_counters: Dictionary = {} # String -> float
+
+
+func record_damage(source_id: String, amount: float) -> void:
+	if amount <= 0.0 or source_id == "":
+		return
+	_damage_by_source[source_id] = float(_damage_by_source.get(source_id, 0.0)) + amount
+
+
+## Sorted descending: [{"source_id": String, "damage": float}, ...]
+func get_damage_by_source() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for k in _damage_by_source.keys():
+		out.append({"source_id": String(k), "damage": float(_damage_by_source[k])})
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["damage"] > b["damage"])
+	return out
+
+
+## Counter names used by v1.0: "kills", "elite_kills", "boss_kills",
+## "damage_taken", "tower_damage_taken", "tower_repaired", "scrap_repaired",
+## "dashes", "skills_cast".
+func add_run_counter(counter: String, amount: float = 1.0) -> void:
+	_run_counters[counter] = float(_run_counters.get(counter, 0.0)) + amount
+
+
+func get_run_counter(counter: String) -> float:
+	return float(_run_counters.get(counter, 0.0))
+
+
+func reset_run_stats() -> void:
+	_damage_by_source.clear()
+	_run_counters.clear()

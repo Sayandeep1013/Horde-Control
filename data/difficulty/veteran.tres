@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DifficultyProfile" format=3]
+
+[ext_resource type="Script" path="res://src/data/difficulty_profile.gd" id="1_diff"]
+
+[resource]
+script = ExtResource("1_diff")
+id = "veteran"
+display_name = "Veteran"
+description = "Tougher, more numerous, more elites."
+sort_order = 2
+enemy_hp_multiplier = 1.35
+enemy_damage_multiplier = 1.4
+spawn_count_multiplier = 1.2
+elite_chance_add = 0.04
+boss_hp_multiplier = 1.4
+cores_multiplier = 1.4
+unlocked_by_victory_on = "soldier"

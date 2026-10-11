@@ -87,6 +87,47 @@ signal draft_opened(timestamp: float)
 ## Tower Console itself -- nothing emits them and nothing in this codebase
 ## ever subscribed to them (verified by grep before removal).
 
+# --- v1.0 shared contract signals (WP0, decision D172; docs/31) -------------
+# Same rule as every signal above: announce a change the emitter has ALREADY
+# made to its own data; never a request. Emitters/consumers per docs/31 §10.
+
+## WP-ENEMIES (WaveDirector) when a wave opens. `wave_type` is one of
+## "standard", "split", "siege", "hunt", "grand_assault", "boss".
+## `wave_count` is 15 in the campaign; in Endless it is -1.
+signal wave_started(wave_number: int, wave_count: int, wave_type: String, is_boss: bool, timestamp: float)
+
+## WP-ENEMIES: a Siege's first Seeker arrives in `seconds` (Register 3310).
+signal siege_warning(seconds: float, timestamp: float)
+
+## WP-ENEMIES: an off-screen spawn will happen at `world_position` after
+## `lead_seconds`. `intent` is ContractEnums.TargetIntent as int.
+signal spawn_warning(world_position: Vector2, intent: int, lead_seconds: float, timestamp: float)
+
+## WP-ENEMIES: boss lifecycle. `boss_id` is "warchief" or "king".
+signal boss_spawned(boss: Node2D, boss_id: String, display_name: String, max_health: float, timestamp: float)
+signal boss_health_changed(boss_id: String, current_health: float, max_health: float, timestamp: float)
+signal boss_defeated(boss_id: String, position: Vector2, timestamp: float)
+
+## WP-ENEMIES: an elite spawned with `affix` ("swift", "armored",
+## "volatile", "vampiric").
+signal elite_spawned(entity: Node2D, affix: String, timestamp: float)
+signal elite_killed(entity: Node2D, affix: String, timestamp: float)
+
+## WP-COMBAT: an ability (docs/31 §4) reached `level` (1 on acquire).
+## `slot_kind` is "player" or "tower".
+signal ability_leveled(ability_id: String, level: int, slot_kind: String, timestamp: float)
+
+## WP-COMBAT: the player dashed / cast the Battle Skill.
+signal dash_used(charges_left: int, timestamp: float)
+signal battle_skill_cast(skill_id: String, timestamp: float)
+
+## WP-COMBAT: Scrap drained into Tower health this tick (docs/31 §3.4).
+signal tower_repaired(health_restored: float, scrap_spent: int, timestamp: float)
+
+## WP-ENEMIES: a War Chest pickup was collected; the Draft that follows rolls
+## every card at least Rare (docs/31 §5.3). WP-COMBAT/DraftController reads it.
+signal war_chest_opened(timestamp: float)
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -114,3 +155,57 @@ func emit_tower_damaged(amount: float, new_health: float, new_shield: float) -> 
 ## Typed emit wrapper.
 func emit_draft_opened() -> void:
 	draft_opened.emit(SimClock.now)
+
+
+# --- v1.0 emit wrappers (D172) -------------------------------------------------
+
+func emit_wave_started(wave_number: int, wave_count: int, wave_type: String, is_boss: bool) -> void:
+	wave_started.emit(wave_number, wave_count, wave_type, is_boss, SimClock.now)
+
+
+func emit_siege_warning(seconds: float) -> void:
+	siege_warning.emit(seconds, SimClock.now)
+
+
+func emit_spawn_warning(world_position: Vector2, intent: int, lead_seconds: float) -> void:
+	spawn_warning.emit(world_position, intent, lead_seconds, SimClock.now)
+
+
+func emit_boss_spawned(boss: Node2D, boss_id: String, display_name: String, max_health: float) -> void:
+	boss_spawned.emit(boss, boss_id, display_name, max_health, SimClock.now)
+
+
+func emit_boss_health_changed(boss_id: String, current_health: float, max_health: float) -> void:
+	boss_health_changed.emit(boss_id, current_health, max_health, SimClock.now)
+
+
+func emit_boss_defeated(boss_id: String, position: Vector2) -> void:
+	boss_defeated.emit(boss_id, position, SimClock.now)
+
+
+func emit_elite_spawned(entity: Node2D, affix: String) -> void:
+	elite_spawned.emit(entity, affix, SimClock.now)
+
+
+func emit_elite_killed(entity: Node2D, affix: String) -> void:
+	elite_killed.emit(entity, affix, SimClock.now)
+
+
+func emit_ability_leveled(ability_id: String, level: int, slot_kind: String) -> void:
+	ability_leveled.emit(ability_id, level, slot_kind, SimClock.now)
+
+
+func emit_dash_used(charges_left: int) -> void:
+	dash_used.emit(charges_left, SimClock.now)
+
+
+func emit_battle_skill_cast(skill_id: String) -> void:
+	battle_skill_cast.emit(skill_id, SimClock.now)
+
+
+func emit_tower_repaired(health_restored: float, scrap_spent: int) -> void:
+	tower_repaired.emit(health_restored, scrap_spent, SimClock.now)
+
+
+func emit_war_chest_opened() -> void:
+	war_chest_opened.emit(SimClock.now)
