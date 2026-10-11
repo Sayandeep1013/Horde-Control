@@ -55,7 +55,7 @@ func pre_step(_delta: float) -> bool:
 		state = State.HOLD # hysteresis: a retreating Bomber keeps backing off to mid-band before it plants
 	match state:
 		State.APPROACH:
-			controller.drive_toward(player.global_position)
+			controller.drive_toward(player.global_position, 1.0, &"player") # PT-SWARM: FlowField around the moat
 		State.RETREAT:
 			var away: Vector2 = -to_player.normalized() if dist > 0.01 else Vector2.RIGHT
 			controller.drive_toward(controller.global_position + away * 100.0, RETREAT_SPEED_SCALE)

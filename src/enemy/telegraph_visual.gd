@@ -95,6 +95,11 @@ func _ready() -> void:
 	add_child(_ring)
 
 	visible = false
+	# PT-SWARM (D341): idle until a wind-up starts; the tick below switches
+	# itself off again once the marker is hidden, so 350 idle enemies cost nothing.
+	if _controller != null and _controller.has_signal(&"windup_started"):
+		_controller.windup_started.connect(func() -> void: set_physics_process(true))
+		set_physics_process(false)
 
 
 # Driven in physics ticks (not _process) so the pulse stays inside the interpolated
@@ -102,7 +107,9 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	var active: bool = _controller != null and _controller.is_windup_active()
 	visible = active
-	if active:
+	if not active:
+		set_physics_process(false)
+	else:
 		var pulse: float = 1.0 - MARKER_PULSE_ALPHA * (0.5 + 0.5 * sin(SimClock.now * TAU * MARKER_PULSE_HZ))
 		_sprite.modulate = Color(DANGER_COLOUR, pulse)
 		var progress: float = _controller.get_windup_progress()

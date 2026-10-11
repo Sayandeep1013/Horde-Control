@@ -8,7 +8,8 @@ class_name EnemyBehavior
 ##
 ## State is an explicit enum + SimClock timestamps in each subclass (the
 ## project's state-machine idiom; no per-frame timers, no scene Timers).
-## Bomber, Goblin Warchief and Bombardier King are the three subclasses.
+## Subclasses: Bomber, Goblin Shaman, and the bosses (Goblin Warchief, Gutbarrel
+## the Juggernaut, Bombardier King) through BossBehavior.
 
 var controller: Node = null # untyped on purpose: typing it as EnemyController closes a script cycle that leaks at exit (D256)
 

@@ -2,7 +2,8 @@ extends RefCounted
 class_name EntityCaps
 
 ## EntityCaps (P1.3; MASTER_SDLC.md > Provisional Values Register >
-## Technical Caps & Performance > "Entity caps" row: "Enemies 300 (never
+## Technical Caps & Performance > "Entity caps" row (PT-SWARM D345: enemies
+## 400 desktop / 180 mobile, enemy bullets 320; the quote below is the P1.3 text): "Enemies 300 (never
 ## exceeded; Overtime finishers count against it and throttle like any
 ## spawn, C-OVERTIME-CAP), pickups 150, projectiles 400 (oldest recycled),
 ## damage numbers 30, simultaneous telegraphs 40 (player-aimed telegraphs
