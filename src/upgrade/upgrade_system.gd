@@ -113,6 +113,25 @@ class_name UpgradeSystem
 	preload("res://data/upgrades/watchtower_upgrade.tres"),
 	preload("res://data/upgrades/tower_volley.tres"),
 	preload("res://data/upgrades/repair_kit.tres"),
+	# v1.0 (docs/31 §4): Draft abilities and the seven new passives.
+	preload("res://data/upgrades/flame_arrows.tres"),
+	preload("res://data/upgrades/frost_arrows.tres"),
+	preload("res://data/upgrades/whirling_axes.tres"),
+	preload("res://data/upgrades/dynamite_satchel.tres"),
+	preload("res://data/upgrades/storm_bolt.tres"),
+	preload("res://data/upgrades/caltrops.tres"),
+	preload("res://data/upgrades/sacred_ground.tres"),
+	preload("res://data/upgrades/ballista.tres"),
+	preload("res://data/upgrades/catapult.tres"),
+	preload("res://data/upgrades/frost_ward.tres"),
+	preload("res://data/upgrades/spiked_palisade.tres"),
+	preload("res://data/upgrades/fleet_step.tres"),
+	preload("res://data/upgrades/battle_focus.tres"),
+	preload("res://data/upgrades/blast_radius.tres"),
+	preload("res://data/upgrades/keen_eye.tres"),
+	preload("res://data/upgrades/leather_armor.tres"),
+	preload("res://data/upgrades/ability_power.tres"),
+	preload("res://data/upgrades/stone_mason.tres"),
 	preload("res://data/upgrades/overdrive_fallback.tres"),
 	preload("res://data/upgrades/reinforce_fallback.tres"),
 ]
@@ -167,6 +186,7 @@ var _player: Player = null
 var _tower_weapon: TowerWeapon = null
 var _tower_health: TowerHealth = null
 var _tower_evolution_stage: TowerEvolutionStage = null
+var _ability_manager: Node = null
 
 # --- unique_id routing constants (match the .tres files' own unique_id) ---
 const RAPID_FIRE_ID: String = "rapid_fire"
@@ -189,9 +209,18 @@ const REINFORCED_PLATING_ID: String = "reinforced_plating"
 const WATCHTOWER_UPGRADE_ID: String = "watchtower_upgrade"
 const TOWER_VOLLEY_ID: String = "tower_volley"
 const REPAIR_KIT_ID: String = "repair_kit"
+# --- v1.0 passives (docs/31 §4.4) ---
+const FLEET_STEP_ID: String = "fleet_step"
+const BATTLE_FOCUS_ID: String = "battle_focus"
+const BLAST_RADIUS_ID: String = "blast_radius"
+const KEEN_EYE_ID: String = "keen_eye"
+const LEATHER_ARMOR_ID: String = "leather_armor"
+const ABILITY_POWER_ID: String = "ability_power"
+const STONE_MASON_ID: String = "stone_mason"
 
 
 func _ready() -> void:
+	add_to_group(&"upgrade_system") # v1.0: AbilityManager reads passive ranks from here
 	_build_definition_index()
 	if player_weapon_path != NodePath():
 		_player_weapon = get_node_or_null(player_weapon_path) as AutoWeapon
@@ -296,12 +325,38 @@ func is_card_unlocked_for_test(upgrade_id: String) -> bool:
 ## them through get_fallback_card() below, only once is_pool_exhausted() is
 ## true, never as one of the normal three random draws that consult this
 ## list.
+## v1.0 (docs/31 §4.1): the AbilityManager that enforces slot limits. Null in
+## isolated unit tests, in which case ability cards are not slot-limited.
+func _get_ability_manager() -> Node:
+	if _ability_manager == null or not is_instance_valid(_ability_manager):
+		_ability_manager = get_tree().get_first_node_in_group(&"ability_manager") if is_inside_tree() else null
+	return _ability_manager
+
+
+func set_ability_manager_for_test(manager: Node) -> void:
+	_ability_manager = manager
+
+
+## True when an ability card may be offered / taken right now (slot rules).
+func is_ability_card_takeable(def: UpgradeDefinition) -> bool:
+	if def == null or not def.is_ability_card():
+		return true
+	var mgr: Node = _get_ability_manager()
+	return mgr == null or mgr.can_grant(def.ability_id)
+
+
+## True if `ability_id`'s card exists, is unlocked and not yet owned (Armory pick).
+func is_ability_available(ability_id: String) -> bool:
+	var def: UpgradeDefinition = get_definition(ability_id)
+	return def != null and def.is_ability_card() and _is_live(def)
+
+
 func get_offerable_upgrades(pool_ownership: ContractEnums.PoolOwnership) -> Array[UpgradeDefinition]:
 	var result: Array[UpgradeDefinition] = []
 	for def in upgrade_definitions:
 		if def == null or def.pool_ownership != pool_ownership or not _is_live(def):
 			continue
-		if not is_maxed(def.unique_id):
+		if not is_maxed(def.unique_id) and is_ability_card_takeable(def):
 			result.append(def)
 	return result
 
@@ -336,7 +391,7 @@ func is_pool_exhausted(pool_ownership: ContractEnums.PoolOwnership) -> bool:
 		if def == null or def.pool_ownership != pool_ownership or not _is_live(def):
 			continue
 		ranked_found = true
-		if not is_maxed(def.unique_id):
+		if not is_maxed(def.unique_id) and is_ability_card_takeable(def):
 			return false
 	return ranked_found
 
@@ -425,6 +480,9 @@ func apply_rank(upgrade_id: String, rarity_multiplier: float = 1.0) -> bool:
 		push_warning("UpgradeSystem.apply_rank(): '%s' is already at max rank -- refusing to exceed it" % upgrade_id)
 		return false
 
+	if not is_ability_card_takeable(def):
+		push_warning("UpgradeSystem.apply_rank(): ability '%s' refused (slots full)" % upgrade_id)
+		return false
 	var new_rank: int = get_current_rank(upgrade_id) + 1
 	_ranks[upgrade_id] = new_rank
 	var values: Array = _rank_values.get(upgrade_id, [])
@@ -476,6 +534,12 @@ func apply_rank(upgrade_id: String, rarity_multiplier: float = 1.0) -> bool:
 func _apply_effect(def: UpgradeDefinition, rank: int, rarity_multiplier: float = 1.0) -> void:
 	# C-STACK (D123): sum every rank's own rarity-scaled value, apply once.
 	var total_fraction: float = _sum_values(def.unique_id)
+	if def.is_ability_card():
+		# v1.0: ranks == levels; the manager creates or levels the ability node.
+		var mgr: Node = _get_ability_manager()
+		if mgr != null:
+			mgr.grant_ability(def.ability_id, rarity_multiplier)
+		return
 	match def.unique_id:
 		RAPID_FIRE_ID:
 			if _player_weapon != null:
@@ -518,6 +582,12 @@ func _apply_effect(def: UpgradeDefinition, rank: int, rarity_multiplier: float =
 			# Discrete count -- rarity does not scale "extra arrows fired."
 			if _player_weapon != null:
 				_player_weapon.set_multishot_extra_count(int(round(def.effect_per_rank * float(rank))))
+		FLEET_STEP_ID, BATTLE_FOCUS_ID, BLAST_RADIUS_ID, KEEN_EYE_ID, LEATHER_ARMOR_ID, ABILITY_POWER_ID, STONE_MASON_ID:
+			# v1.0 passives (docs/31 §4.4): the AbilityManager turns the summed,
+			# rarity-scaled fraction into the derived multipliers (D123 rule).
+			var mgr2: Node = _get_ability_manager()
+			if mgr2 != null:
+				mgr2.set_passive_total(def.unique_id, total_fraction)
 		PATCH_KIT_ID:
 			# Not a persistent multiplier -- "restores 30 health per rank
 			# TAKEN" fires once, per rank-taking event, using
@@ -579,6 +649,17 @@ func get_honest_card_value(upgrade_id: String, rarity_multiplier: float = 1.0) -
 	var def: UpgradeDefinition = get_definition(upgrade_id)
 	if def == null:
 		return {}
+	if def.is_ability_card():
+		# v1.0: "NEW ABILITY" / "Lv 2 → 3" and the honest next-level numbers.
+		var mgr: Node = _get_ability_manager()
+		var info: Dictionary
+		if mgr != null:
+			info = mgr.describe_next(def.ability_id, rarity_multiplier)
+		else:
+			var lvl: int = get_current_rank(upgrade_id)
+			var nxt: int = mini(lvl + 1, AbilityIds.MAX_ABILITY_LEVEL)
+			info = {"level_text": "NEW ABILITY" if lvl <= 0 else "Lv %d → %d" % [lvl, nxt], "effect_text": AbilityCatalog.describe(def.ability_id, nxt, rarity_multiplier)}
+		return {"kind": "ability", "level_text": info["level_text"], "effect_text": info["effect_text"], "rarity_scaled": false}
 	match upgrade_id:
 		PATCH_KIT_ID:
 			return {"kind": "heal_flat", "grant": def.effect_per_rank, "total_after": def.effect_per_rank, "rarity_scaled": false}
@@ -595,3 +676,24 @@ func get_honest_card_value(upgrade_id: String, rarity_multiplier: float = 1.0) -
 	elif TOWER_RANGE_IDS.has(upgrade_id):
 		existing = _stat_fraction(TOWER_RANGE_IDS)
 	return {"kind": "fraction", "grant": grant, "total_after": existing + grant, "rarity_scaled": not is_equal_approx(rarity_multiplier, 1.0)}
+
+
+## v1.0: the passives held this run, for the pause Build panel and
+## AbilityManager.get_passive_summary(): [{id, display_name, rank, max_rank, pool}].
+func get_passive_ranks() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for def in upgrade_definitions:
+		if def == null or def.is_ability_card() or def.get_kind() == UpgradeDefinition.Kind.HEAL or not def.has_max_rank:
+			continue
+		var rank: int = get_current_rank(def.unique_id)
+		if rank <= 0:
+			continue
+		var name_part: String = def.effect_description.split(":", true, 1)[0].strip_edges()
+		out.append({
+			"id": def.unique_id,
+			"display_name": name_part,
+			"rank": rank,
+			"max_rank": def.max_rank,
+			"pool": "tower" if def.pool_ownership == ContractEnums.PoolOwnership.Tower else "player",
+		})
+	return out

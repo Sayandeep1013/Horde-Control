@@ -239,6 +239,28 @@ func heal(amount: float) -> void:
 
 ## D136: called by PrototypeIntegration on the Wave Director's wave_opened
 ## (true) and wave_ended (false) signals.
+## v1.0 Spiked Palisade hooks (set by the ability node; REPLACE semantics).
+var _damage_reduction: float = 0.0
+var _reflect_damage: float = 0.0
+
+
+func set_palisade(damage_reduction: float, reflect_damage: float) -> void:
+	_damage_reduction = clampf(damage_reduction, 0.0, 0.9)
+	_reflect_damage = maxf(0.0, reflect_damage)
+
+
+func get_damage_reduction() -> float:
+	return _damage_reduction
+
+
+## v1.0 War Horn (docs/31 §3.2): the shield returns to full. Health is untouched.
+func restore_shield() -> void:
+	if not _configured:
+		return
+	current_shield = max_shield
+	shield_changed.emit(current_shield, max_shield)
+
+
 func set_wave_open(open: bool) -> void:
 	_wave_open = open
 
@@ -258,11 +280,17 @@ func _physics_process(_delta: float) -> void:
 ## Shield-then-health split (Register: "The shield absorbs damage before
 ## health"). Called from the real TowerHurtbox's damage_received signal,
 ## NOT from DeathState's own auto-wiring -- see header.
-func _on_hurtbox_damage_received(amount: float, source: Variant, _hitbox: Node) -> void:
+func _on_hurtbox_damage_received(amount: float, source: Variant, hitbox: Node) -> void:
 	if not _configured or _death_state == null or _death_state.is_dead:
 		return
 	if amount <= 0.0:
 		return
+	# v1.0 Spiked Palisade (docs/31 §4.3): the Tower takes less and the attacker
+	# takes damage back. Reflect is a Tower-side hit recorded as the ability.
+	if _reflect_damage > 0.0 and hitbox is Hitbox and (hitbox as Hitbox).owner_entity is Node2D:
+		AbilityDamage.hit((hitbox as Hitbox).owner_entity, _reflect_damage, AbilityIds.SOURCE_REFLECT, &"tower", false)
+	amount *= (1.0 - _damage_reduction)
+	CombatStats.add_run_counter("tower_damage_taken", amount)
 	_last_damage_sim_time = _now() # restarts the regen delay -- "including the hit that breaks it"
 	var absorbed: float = minf(current_shield, amount)
 	current_shield -= absorbed

@@ -427,7 +427,7 @@ func _now() -> float:
 func _current_speed() -> float:
 	var multiplier: float = definition.movement_profile.speed_multiplier if definition != null and definition.movement_profile != null else 0.0
 	var base_speed: float = player_definition_for_speed_reference.base_speed_px_per_second if player_definition_for_speed_reference != null else 0.0
-	return base_speed * multiplier
+	return base_speed * multiplier * StatusEffects.speed_multiplier_for(self) # v1.0 status hook (WP-COMBAT)
 
 
 func _body_radius() -> float:
@@ -548,6 +548,11 @@ func physics_step(delta: float) -> void:
 		return
 	if death_state != null and death_state.is_dead:
 		return
+
+	if StatusEffects.is_frozen(self): # v1.0 status hook (WP-COMBAT): frozen = no movement, no attack
+		velocity = Vector2.ZERO # v1.0 status hook (WP-COMBAT)
+		move_and_slide() # v1.0 status hook (WP-COMBAT)
+		return # v1.0 status hook (WP-COMBAT)
 
 	_resolve_player_reference()
 	_resolve_tower_reference()

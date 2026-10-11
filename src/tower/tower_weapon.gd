@@ -101,6 +101,7 @@ var _range_multiplier: float = 1.0
 ## multipliers above; this file's own header note ("no Tower upgrade
 ## changes fire rate") predates this card and is superseded by it.
 var _fire_rate_multiplier: float = 1.0
+var _buff_fire_rate_multiplier: float = 1.0 ## v1.0 War Horn buff, separate from Tower Volley
 
 var _origin: Node2D = null
 var _current_target: Node2D = null
@@ -237,6 +238,14 @@ func get_effective_range_px() -> float:
 	return _range_px * _range_multiplier
 
 
+func set_buff_fire_rate_multiplier(multiplier: float) -> void:
+	_buff_fire_rate_multiplier = multiplier
+
+
+func get_damage_multiplier() -> float:
+	return _damage_multiplier
+
+
 func get_damage_multiplier_for_test() -> float:
 	return _damage_multiplier
 
@@ -254,7 +263,8 @@ func get_fire_rate_multiplier_for_test() -> float:
 ## matching AutoWeapon.get_effective_fire_interval_seconds()'s identical
 ## convention.
 func get_effective_fire_interval_seconds() -> float:
-	return (_fire_interval_seconds / _fire_rate_multiplier) if _fire_rate_multiplier > 0.0 else INF
+	var rate: float = _fire_rate_multiplier * _buff_fire_rate_multiplier
+	return (_fire_interval_seconds / rate) if rate > 0.0 else INF
 
 
 ## Integration task -- mirrors src/combat/auto_weapon.gd's own

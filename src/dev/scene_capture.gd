@@ -9,6 +9,9 @@ extends Node
 ##     res://src/dev/scene_capture.tscn -- --scene=res://scenes/prototype.tscn \
 ##     --frames=240,600 --out=sandbox/captures/shot [--size=1920x1080] [--hold_move=right] \
 ##     [--player_pos=X,Y] [--meta-profile-dir=<dir>] [--debug-panel=skill_tree]
+##     [--grant=flame_arrows:3,ballista:2] [--skill=firebomb] [--cast-frames=F,F]
+##     [--dash-frames=F,F] [--spawn-frame=F --spawn-count=N] [--tower-hp=0.4 --scrap=100]
+##   (the v1.0 flags are dev-only helpers for WP-COMBAT captures, prototype scene only)
 ## Writes <out>_<frame>.png for each listed frame.
 ##
 ## `--player_pos=X,Y` and `--meta-profile-dir=`/`--debug-panel=` are not
@@ -29,6 +32,15 @@ var _out: String = "sandbox/captures/shot"
 var _count: int = 0
 var _hold_action: String = ""
 var _dump_filter: String = ""
+var _grants: Array[String] = []
+var _cast_frames: Array[int] = []
+var _dash_frames: Array[int] = []
+var _spawn_frame: int = -1
+var _spawn_count: int = 0
+var _tower_hp_fraction: float = -1.0
+var _scrap: int = -1
+var _skill_id: String = ""
+var _scene: Node = null
 var _has_player_pos: bool = false
 var _player_pos: Vector2 = Vector2.ZERO
 
@@ -49,6 +61,25 @@ func _ready() -> void:
 			size = Vector2i(int(p[0]), int(p[1]))
 		elif arg.begins_with("--dump-tree="):
 			_dump_filter = arg.trim_prefix("--dump-tree=")
+		elif arg.begins_with("--grant="):
+			for g in arg.trim_prefix("--grant=").split(","):
+				_grants.append(g)
+		elif arg.begins_with("--skill="):
+			_skill_id = arg.trim_prefix("--skill=")
+		elif arg.begins_with("--cast-frames="):
+			for f in arg.trim_prefix("--cast-frames=").split(","):
+				_cast_frames.append(int(f))
+		elif arg.begins_with("--dash-frames="):
+			for f in arg.trim_prefix("--dash-frames=").split(","):
+				_dash_frames.append(int(f))
+		elif arg.begins_with("--spawn-frame="):
+			_spawn_frame = int(arg.trim_prefix("--spawn-frame="))
+		elif arg.begins_with("--spawn-count="):
+			_spawn_count = int(arg.trim_prefix("--spawn-count="))
+		elif arg.begins_with("--tower-hp="):
+			_tower_hp_fraction = float(arg.trim_prefix("--tower-hp="))
+		elif arg.begins_with("--scrap="):
+			_scrap = int(arg.trim_prefix("--scrap="))
 		elif arg.begins_with("--hold_move="):
 			_hold_action = "move_" + arg.trim_prefix("--hold_move=")
 		elif arg.begins_with("--player_pos="):
@@ -61,8 +92,11 @@ func _ready() -> void:
 	_frames.sort()
 	get_window().size = size
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://").path_join(_out.get_base_dir()))
+	if _skill_id != "":
+		RunConfig.battle_skill_id = _skill_id
 	var packed: PackedScene = load(scene_path)
 	var instance: Node = packed.instantiate()
+	_scene = instance
 	add_child(instance)
 	if _has_player_pos:
 		var player: Node2D = instance.get_node_or_null("Main/Player") as Node2D
@@ -72,8 +106,53 @@ func _ready() -> void:
 	if _hold_action != "" and InputMap.has_action(_hold_action):
 		Input.action_press(_hold_action)
 
+## v1.0 dev helpers (WP-COMBAT captures): grants abilities, edits the Tower's
+## health and Scrap, spawns a ring of Seekers and presses the dash / skill actions.
+func _drive_v1_helpers() -> void:
+	if _scene == null:
+		return
+	if _count == 2:
+		var mgr: Node = get_tree().get_first_node_in_group(&"ability_manager")
+		var us: Node = _scene.get_node_or_null("Main/UpgradeSystem")
+		for g in _grants:
+			var parts: PackedStringArray = g.split(":")
+			var levels: int = int(parts[1]) if parts.size() > 1 else 1
+			for i in levels:
+				if us != null and us.get_definition(parts[0]) != null:
+					us.apply_rank(parts[0], 1.0)
+				elif mgr != null:
+					mgr.grant_ability(parts[0], 1.0)
+		var tower: Node = _scene.get_node_or_null("Main/Tower")
+		if tower != null and _tower_hp_fraction >= 0.0:
+			tower.death_state.current_hp = tower.health.max_health * _tower_hp_fraction
+		var ps: Node = _scene.get_node_or_null("Main/PickupSystem")
+		if ps != null and _scrap >= 0:
+			ps.run_inventory.scrap_current = _scrap
+	if _cast_frames.has(_count):
+		var sk: Node = get_tree().get_first_node_in_group(&"battle_skill")
+		if sk != null:
+			print("CAST ", sk.get_state(), " -> ", sk.try_cast())
+	if _dash_frames.has(_count):
+		var pl: Node = get_tree().get_first_node_in_group(&"player")
+		if pl != null:
+			pl.press_dash_for_test()
+	if _spawn_frame >= 0 and _count == _spawn_frame:
+		var player: Node2D = get_tree().get_first_node_in_group(&"player") as Node2D
+		var entities: Node = _scene.get_node_or_null("Main/Entities")
+		var scene: PackedScene = load("res://scenes/entities/tower_seeker.tscn")
+		for i in _spawn_count:
+			var e: EnemyController = scene.instantiate() as EnemyController
+			e.driven_externally = true
+			e.tower_path = NodePath("")
+			(entities if entities != null else _scene).add_child(e)
+			e.set_tower_reference(_scene.get_node("Main/Tower"))
+			e.global_position = player.global_position + Vector2.from_angle(TAU * float(i) / float(maxi(1, _spawn_count))) * (150.0 + 12.0 * float(i % 5))
+			EntityRegistry.update_position(e, e.global_position)
+
+
 func _process(_delta: float) -> void:
 	_count += 1
+	_drive_v1_helpers()
 	if not _frames.is_empty() and _count >= _frames[0]:
 		var f: int = _frames.pop_front()
 		var tex: ViewportTexture = get_viewport().get_texture()

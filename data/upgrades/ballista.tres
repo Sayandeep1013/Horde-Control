@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TowerUpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/tower_upgrade_definition.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+evolution_stage_contribution = 0
+draft_weight = 1
+unique_id = "ballista"
+pool_ownership = 1
+rarity = 0
+max_rank = 5
+has_max_rank = true
+prerequisites = Array[String]([])
+exclusions = Array[String]([])
+effect_description = "Ballista: the Tower fires a piercing bolt"
+effect_target = 1
+effect_per_rank = 0.0
+console_price_per_rank = 30
+recursive_interaction_guard = ""
+has_recursive_interaction_guard = false
+visual_readability_impact = 0
+performance_cost_category = 0
+kind = 1
+ability_id = "ballista"

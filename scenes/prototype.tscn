@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=28 format=3]
 
 [ext_resource type="Script" path="res://src/integration/prototype_integration.gd" id="1_integration"]
 [ext_resource type="PackedScene" path="res://scenes/main.tscn" id="2_main"]
@@ -25,6 +25,9 @@
 [ext_resource type="Script" path="res://src/audio/music_player.gd" id="24_musicplayer"]
 [ext_resource type="AudioStream" path="res://assets/third_party/opengameart/music/battle_theme_a.ogg" id="25_musicstream"]
 [ext_resource type="Script" path="res://src/ui/touch_controls.gd" id="26_touch"]
+[ext_resource type="Script" path="res://src/ability/ability_manager.gd" id="v10_abilitymanager"]
+[ext_resource type="Script" path="res://src/ability/battle_skill_controller.gd" id="v10_battleskill"]
+[ext_resource type="Script" path="res://src/ability/tower_repair.gd" id="v10_towerrepair"]
 
 [node name="Prototype" type="Node2D"]
 script = ExtResource("1_integration")
@@ -160,4 +163,20 @@ player_path = NodePath("../Player")
 tower_weapon_path = NodePath("../Tower/TowerWeapon")
 tower_health_path = NodePath("../Tower/TowerHealth")
 tower_evolution_stage_path = NodePath("../Tower/TowerEvolutionStage")
+
+; v1.0 WP-COMBAT (docs/31 §3-§4). AbilityManager owns the Draft abilities and
+; the derived multipliers; BattleSkillController casts the run's Battle Skill
+; (RunConfig.battle_skill_id); TowerRepair drains Scrap into the Tower while
+; the player stands in its Interaction Radius. All three find the player and
+; Tower by group ("player", "tower"), so only TowerRepair needs paths.
+[node name="AbilityManager" type="Node" parent="Main"]
+script = ExtResource("v10_abilitymanager")
+
+[node name="BattleSkillController" type="Node" parent="Main"]
+script = ExtResource("v10_battleskill")
+
+[node name="TowerRepair" type="Node2D" parent="Main"]
+script = ExtResource("v10_towerrepair")
+tower_path = NodePath("../Tower")
+pickup_system_path = NodePath("../PickupSystem")
 

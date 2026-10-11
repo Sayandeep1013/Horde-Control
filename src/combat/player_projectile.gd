@@ -146,6 +146,9 @@ const TRAIL_OFFSET_PX: float = 10.0
 signal hit_landed(hurtbox: Hurtbox, damage: float, source: Variant)
 signal expired(projectile: PlayerProjectile)
 
+## v1.0 damage-source tag (AbilityIds.SOURCE_BOW) and per-hit hook, set by launch().
+var source_id: String = "bow"
+var hit_hook: Callable = Callable()
 var _velocity: Vector2 = Vector2.ZERO
 var _damage: float = 0.0
 var _source: Variant = null
@@ -246,7 +249,9 @@ func _now() -> float:
 ## simulation time even if it never hits anything (out-of-range shots do
 ## not fly forever). `source` is a value (StringName), never a live Node
 ## reference -- see this file's header, "Projectile Orphans."
-func launch(origin: Vector2, velocity: Vector2, damage: float, source: Variant, lifetime_seconds: float, pierce_count: int = 0) -> void:
+func launch(origin: Vector2, velocity: Vector2, damage: float, source: Variant, lifetime_seconds: float, pierce_count: int = 0, p_source_id: String = "bow", p_hit_hook: Callable = Callable()) -> void:
+	source_id = p_source_id
+	hit_hook = p_hit_hook
 	global_position = origin
 	rotation = velocity.angle()
 	reset_physics_interpolation() # pooled: no streak from the previous shot
@@ -346,19 +351,34 @@ func _sweep_and_resolve(from: Vector2, to: Vector2) -> bool:
 ## by both call sites (the sweep and the discrete area_entered fallback) so
 ## the routing decision is made in exactly one place.
 func _deliver_hit(hurtbox: Hurtbox) -> void:
+	var dmg: float = _damage
+	var src: Variant = _source
+	var sid: String = source_id
+	var hook: Callable = hit_hook
+	var target_ds: Variant = hurtbox.get_parent().get("death_state") if hurtbox.get_parent() != null else null
+	var applied: float = minf(dmg, maxf(0.0, target_ds.current_hp)) if target_ds != null else dmg # no overkill in the report
+	var on_accept: Callable = func() -> void:
+		_record_and_notify(hurtbox, dmg, applied, src, sid, hook)
 	if _sim_loop != null and _sim_loop.has_method(&"enqueue_hit"):
 		var attacker_serial: int = _sim_loop.get_combat_serial(_source)
 		var target_serial: int = _sim_loop.get_combat_serial(hurtbox.get_parent())
-		_sim_loop.enqueue_hit(attacker_serial, target_serial, _damage, _source, hurtbox, self, func() -> void: hit_landed.emit(hurtbox, _damage, _source))
+		_sim_loop.enqueue_hit(attacker_serial, target_serial, _damage, _source, hurtbox, self, on_accept)
 		return
 	var accepted: bool = hurtbox.receive_hit(self, _damage, _source)
 	if accepted:
-		hit_landed.emit(hurtbox, _damage, _source)
+		on_accept.call()
 
 
-## Fallback for the general-purpose (never reached at this weapon's 1000
-## px/s, since every tick's travel exceeds SWEEP_THRESHOLD_PX) case where a
-## single tick's travel does not trigger the sweep above.
+## v1.0 (docs/31 §4.6): damage is recorded once, when the hit is accepted,
+## under this arrow's source id ("bow"); then the optional arrow-hit hook
+## (Flame / Frost Arrows) runs with the accepted hurtbox.
+func _record_and_notify(hurtbox: Hurtbox, dmg: float, applied: float, src: Variant, sid: String, hook: Callable) -> void:
+	CombatStats.record_damage(sid, applied)
+	hit_landed.emit(hurtbox, dmg, src)
+	if hook.is_valid() and is_instance_valid(hurtbox):
+		hook.call(hurtbox.get_parent(), dmg)
+
+
 func _on_area_entered(area: Area2D) -> void:
 	if not _active:
 		return

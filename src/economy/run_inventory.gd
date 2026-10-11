@@ -119,6 +119,15 @@ func credit_scrap(amount: int) -> void:
 	scrap_current = mini(scrap_current + amount, scrap_cap)
 
 
+## v1.0 Tower repair (docs/31 §3.4, revises D115): spend carried Scrap. Spends
+## exactly `amount` or nothing; returns whether it did.
+func spend_scrap(amount: int) -> bool:
+	if amount <= 0 or amount > scrap_current:
+		return false
+	scrap_current -= amount
+	return true
+
+
 func is_scrap_full() -> bool:
 	return scrap_current >= scrap_cap
 

@@ -499,6 +499,10 @@ func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnum
 	_effect_label.text = _scaled_effect_text(effect_text, float(DraftController.RARITY_VALUE_MULTIPLIER.get(_rarity, 1.0)), honest)
 
 	_rank_label.text = _rank_change_text(def, current_rank)
+	if String(honest.get("kind", "")) == "ability":
+		# v1.0 (docs/31 §4.1): "NEW ABILITY" / "Lv 2 -> 3" and the honest next-level numbers.
+		_effect_label.text = String(honest.get("effect_text", effect_text))
+		_rank_label.text = String(honest.get("level_text", _rank_label.text))
 	# Second UI pass: pips only make sense for a ranked upgrade -- a no-max-
 	# rank fallback card (C-FALLBACK-CONSOLE) has no "of N" to show progress
 	# against, so the row is hidden rather than drawn with zero pips.

@@ -264,6 +264,11 @@ var _rerolls_remaining: int = 1
 ## shape exactly).
 var _rarity_luck_points: int = 0
 
+## v1.0: the rarity floor of the Draft on screen (War Chest = Rare; level-ups = Common).
+var _current_min_rarity: int = ContractEnums.Rarity.Common
+## v1.0 (docs/31 §4.1; Register "v1.0 Combat & Abilities" > Ability card chance):
+## while a slot is free, each offered card rolls this chance to be an ability card.
+const ABILITY_CARD_CHANCE: float = 0.45
 var _draft_session_active: bool = false # true across a whole back-to-back queue, false once fully closed
 var _draft_showing: bool = false # true while one card set is on screen awaiting a decision
 
@@ -314,6 +319,8 @@ var _test_just_pressed: Dictionary = {} # StringName -> bool, consumed on read
 
 
 func _ready() -> void:
+	if _event_bus != null and _event_bus.has_signal("war_chest_opened") and not _event_bus.is_connected("war_chest_opened", _on_war_chest_opened):
+		_event_bus.connect("war_chest_opened", _on_war_chest_opened)
 	layer = DRAFT_CANVAS_LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_resolve_dependencies()
@@ -619,15 +626,28 @@ func _check_for_new_level_up_requests() -> void:
 ## SEPARATE mechanism) is unaffected and still wired below.
 
 
-func _enqueue_draft_request(forced: bool) -> void:
-	_pending_draft_requests.append({"forced": forced})
+func _enqueue_draft_request(forced: bool, min_rarity: int = ContractEnums.Rarity.Common) -> void:
+	_pending_draft_requests.append({"forced": forced, "min_rarity": min_rarity})
 
 
 func _try_open_next_draft() -> void:
 	if _draft_showing or _pending_draft_requests.is_empty():
 		return
 	var request: Dictionary = _pending_draft_requests.pop_front()
+	_current_min_rarity = int(request.get("min_rarity", ContractEnums.Rarity.Common))
 	_open_one_draft(bool(request.get("forced", false)))
+
+
+## v1.0 War Chest (docs/31 §5.3): a chest opens an immediate Draft whose cards
+## roll at least Rare. Queued like a level-up Draft, so it cannot stack on one.
+func _on_war_chest_opened(_timestamp: float) -> void:
+	_enqueue_draft_request(false, ContractEnums.Rarity.Rare)
+	_try_open_next_draft()
+
+
+func _exit_tree() -> void:
+	if _event_bus != null and _event_bus.has_signal("war_chest_opened") and _event_bus.is_connected("war_chest_opened", _on_war_chest_opened):
+		_event_bus.disconnect("war_chest_opened", _on_war_chest_opened)
 
 
 func _open_one_draft(forced: bool) -> void:
@@ -760,25 +780,24 @@ func _roll_rarity_for_card() -> int:
 	var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "draft_rarity", _rarity_roll_serial])
 	_rarity_roll_serial += 1
 	var roll: float = rng.randf() * 100.0
+	var rolled: int = ContractEnums.Rarity.Common
 	if roll < float(odds["epic"]):
-		return ContractEnums.Rarity.Epic
-	if roll < float(odds["epic"]) + float(odds["rare"]):
-		return ContractEnums.Rarity.Rare
-	return ContractEnums.Rarity.Common
+		rolled = ContractEnums.Rarity.Epic
+	elif roll < float(odds["epic"]) + float(odds["rare"]):
+		rolled = ContractEnums.Rarity.Rare
+	return maxi(rolled, _current_min_rarity)
 
 
 func _pick_guaranteed(pool: Array[UpgradeDefinition], pool_ownership: int) -> UpgradeDefinition:
 	if not pool.is_empty():
-		var idx: int = _next_rng().randi_range(0, pool.size() - 1)
-		return pool[idx]
+		return _pick_with_ability_weight(pool)
 	# Pool exhausted (is_pool_exhausted() would be true) -- C-FALLBACK-CONSOLE.
 	return _upgrade_system.get_fallback_card(pool_ownership)
 
 
 func _pick_wildcard(remaining: Array[UpgradeDefinition]) -> UpgradeDefinition:
 	if not remaining.is_empty():
-		var idx: int = _next_rng().randi_range(0, remaining.size() - 1)
-		return remaining[idx]
+		return _pick_with_ability_weight(remaining)
 	var fallback_pool: Array[UpgradeDefinition] = []
 	var fb_p: UpgradeDefinition = _upgrade_system.get_fallback_card(ContractEnums.PoolOwnership.Player)
 	var fb_t: UpgradeDefinition = _upgrade_system.get_fallback_card(ContractEnums.PoolOwnership.Tower)
@@ -802,6 +821,29 @@ func _pick_wildcard(remaining: Array[UpgradeDefinition]) -> UpgradeDefinition:
 ## used for drops/spawns (a per-roll identifier that never resets per
 ## draft), which is what makes every roll across a whole run distinct and
 ## still fully reproducible from the same run_seed.
+## Ability weighting (docs/31 §4.1). A slot is "free" when the pool holds an
+## ability the run does not own yet (UpgradeSystem only lists new abilities
+## while a slot of their kind is free). In that case the pick is an ability card
+## with ABILITY_CARD_CHANCE, rolled before the uniform pool pick. Slots full:
+## the pool already holds only owned abilities, picked uniformly with the rest.
+func _pick_with_ability_weight(pool: Array[UpgradeDefinition]) -> UpgradeDefinition:
+	var abilities: Array[UpgradeDefinition] = []
+	var others: Array[UpgradeDefinition] = []
+	var slot_free: bool = false
+	for d in pool:
+		if d.is_ability_card():
+			abilities.append(d)
+			if _upgrade_system.get_current_rank(d.unique_id) <= 0:
+				slot_free = true
+		else:
+			others.append(d)
+	var chosen_from: Array[UpgradeDefinition] = pool
+	if slot_free and not others.is_empty():
+		chosen_from = abilities if _next_rng().randf() < ABILITY_CARD_CHANCE else others
+	var idx: int = _next_rng().randi_range(0, chosen_from.size() - 1)
+	return chosen_from[idx]
+
+
 func _next_rng() -> RandomNumberGenerator:
 	var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "draft", _draft_card_serial])
 	_draft_card_serial += 1

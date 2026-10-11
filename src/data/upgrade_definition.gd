@@ -60,3 +60,24 @@ class_name UpgradeDefinition
 ## achievement itself (`AchievementDefinition.unlocks_card_id`,
 ## data/meta/achievements.tres), not duplicated here.
 @export var is_unlock: bool = false
+
+## v1.0 (docs/31 §4.1): what a card IS. ABILITY and TOWER_ABILITY cards own an
+## ability node (5 levels, slot-limited); PASSIVE / TOWER_PASSIVE are stat lines
+## as before; HEAL is a one-shot restore (Patch Kit, Repair Kit). The default
+## PASSIVE keeps every pre-v1.0 .tres loading unchanged; use `get_kind()` so a
+## Tower-pool PASSIVE reads as TOWER_PASSIVE.
+enum Kind { ABILITY, TOWER_ABILITY, PASSIVE, TOWER_PASSIVE, HEAL }
+
+@export var kind: Kind = Kind.PASSIVE
+## The AbilityIds value an ABILITY / TOWER_ABILITY card grants or levels ("" otherwise).
+@export var ability_id: String = ""
+
+
+func get_kind() -> Kind:
+	if kind == Kind.PASSIVE and pool_ownership == ContractEnums.PoolOwnership.Tower:
+		return Kind.TOWER_PASSIVE
+	return kind
+
+
+func is_ability_card() -> bool:
+	return kind == Kind.ABILITY or kind == Kind.TOWER_ABILITY
