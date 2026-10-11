@@ -5,10 +5,10 @@
 [ext_resource type="Script" path="res://src/data/finisher_spawn_rate.gd" id="3_rate"]
 [ext_resource type="Script" path="res://src/data/drop_table.gd" id="4_drop"]
 
-; v1.0 wave 6, split (docs/31 6.1; decision D171). Multipliers, durations and
-; gaps are Register "v1.0 Enemies, Bosses & Waves" > "Wave sequence" starting
-; values. hunter_damage_multiplier is the Register's Hunter damage share of the
-; wave damage multiplier (Hunters hit a 100 HP pool). 
+; PT-SWARM wave 6, split (docs/33 C1-C3). Multipliers, durations and gaps are
+; Register "v1.0 Enemies, Bosses & Waves" > "Wave sequence". Fodder HP is low and
+; counts are high: threat comes from numbers and the speed ramp (D343).
+
 [sub_resource type="Resource" id="Resource_finisher_rate"]
 script = ExtResource("3_rate")
 count = 2
@@ -42,6 +42,6 @@ inter_wave_gap_seconds = 8.0
 overtime_condition = SubResource("Resource_overtime")
 pressure_metric_constants = null
 boss_overlap_rules = 0
-enemy_hp_multiplier = 1.2
-enemy_damage_multiplier = 0.55
+enemy_hp_multiplier = 0.6
+enemy_damage_multiplier = 0.6
 hunter_damage_multiplier = 0.5

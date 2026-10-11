@@ -200,9 +200,25 @@ const SPAWN_WARNING_LEAD_SECONDS: float = 0.75
 const SPAWN_WARNING_SECTOR_DEGREES: float = 30.0
 const SIEGE_WARNING_LEAD_SECONDS: float = 3.0
 const ELITE_FIRST_WAVE: int = 5
-const ELITE_BASE_CHANCE: float = 0.04
-const ELITE_CHANCE_PER_WAVE: float = 0.01
-const ELITE_MAX_BASE_CHANCE: float = 0.12
+## PT-SWARM (D348): the per-wave elite chance doubled (was 4% + 1%/wave, cap 12%).
+const ELITE_BASE_CHANCE: float = 0.08
+const ELITE_CHANCE_PER_WAVE: float = 0.02
+const ELITE_MAX_BASE_CHANCE: float = 0.24
+## PT-SWARM speed ramp (D343): move speed x (1 + 0.04 x (wave - 1)), capped so
+## deep Endless waves stay outrunnable with Dash. Bosses are exempt (their
+## patterns carry their own speeds).
+const SPEED_RAMP_PER_WAVE: float = 0.04
+const SPEED_RAMP_MAX: float = 2.0
+## PT-SWARM (D344): on a boss wave the minion groups re-arm while the boss lives,
+## so "normal spawns continue during a boss fight" for as long as it lasts.
+const BOSS_MINION_SERIAL_STRIDE: int = 10_000
+## PT-SWARM mobile cap (D345): with the 180 mobile alive cap, standard enemies
+## take this HP multiplier so a wave's total HP stays comparable.
+const MOBILE_HP_MULTIPLIER: float = 1.6
+## PT-SWARM (D345): with ~10x the bodies, this share of fodder (entity cap weight
+## 1, non-elite, non-boss) carries the usual drop; the rest drop nothing.
+const FODDER_DROP_SHARE: float = 0.3
+var _empty_drop: DropTable = null # instance-owned: a static Resource would outlive the scene (D256)
 const ENDLESS_HP_PER_LOOP: float = 0.15
 const ENDLESS_DAMAGE_PER_LOOP: float = 0.10
 const SUMMON_RING_MIN_PX: float = 90.0
@@ -255,12 +271,12 @@ const SUMMON_RING_MAX_PX: float = 170.0
 	preload("res://data/encounters/w02_standard.tres"),
 	preload("res://data/encounters/w03_split.tres"),
 	preload("res://data/encounters/w04_siege.tres"),
-	preload("res://data/encounters/w05_hunt.tres"),
+	preload("res://data/encounters/w05_boss.tres"),
 	preload("res://data/encounters/w06_split.tres"),
 	preload("res://data/encounters/w07_siege.tres"),
-	preload("res://data/encounters/w08_boss.tres"),
+	preload("res://data/encounters/w08_standard.tres"),
 	preload("res://data/encounters/w09_hunt.tres"),
-	preload("res://data/encounters/w10_siege.tres"),
+	preload("res://data/encounters/w10_boss.tres"),
 	preload("res://data/encounters/w11_split.tres"),
 	preload("res://data/encounters/w12_hunt.tres"),
 	preload("res://data/encounters/w13_siege.tres"),
@@ -280,6 +296,9 @@ const SUMMON_RING_MAX_PX: float = 170.0
 @export var brute_scene: PackedScene
 @export var warchief_scene: PackedScene
 @export var king_scene: PackedScene
+## PT-SWARM: the wave 10 boss and the ranged Shaman.
+@export var juggernaut_scene: PackedScene = preload("res://scenes/entities/gutbarrel_juggernaut.tscn")
+@export var shaman_scene: PackedScene = preload("res://scenes/entities/goblin_shaman.tscn")
 
 ## The three prototype enemies' own authored data, read for
 ## `target_intent` (ring routing) and `unique_id` (the enemy_lookup key a
@@ -295,6 +314,8 @@ const SUMMON_RING_MAX_PX: float = 170.0
 @export var brute_definition: EnemyDefinition = preload("res://data/enemies/brute.tres")
 @export var warchief_definition: EnemyDefinition = preload("res://data/enemies/goblin_warchief.tres")
 @export var king_definition: EnemyDefinition = preload("res://data/enemies/bombardier_king.tres")
+@export var juggernaut_definition: EnemyDefinition = preload("res://data/enemies/gutbarrel_juggernaut.tres")
+@export var shaman_definition: EnemyDefinition = preload("res://data/enemies/goblin_shaman.tres")
 
 ## Fallback source for the Tower's Interaction Radius when no live Tower is
 ## wired (`tower_path` unset and `set_tower_reference()` never called) --
@@ -451,6 +472,7 @@ var _warning_last_time_by_sector: Dictionary = {} # sector (int) -> SimClock tim
 var _siege_warning_pending: bool = false
 var _siege_warning_time: float = 0.0
 var _summon_serial: int = 0
+var _group_cycles: Dictionary = {} # PT-SWARM: group_index -> times a boss wave's minion group re-armed
 
 
 func _ready() -> void:
@@ -509,7 +531,7 @@ func _build_enemy_lookup() -> void:
 		_enemy_lookup[opportunist_definition.unique_id] = {"definition": opportunist_definition, "scene": opportunist_scene}
 	# v1.0 roster. A definition whose scene is unwired is still looked up so the
 	# "no PackedScene wired" error names it instead of "unknown enemy id".
-	for pair in [[bomber_definition, bomber_scene], [brute_definition, brute_scene], [warchief_definition, warchief_scene], [king_definition, king_scene]]:
+	for pair in [[bomber_definition, bomber_scene], [brute_definition, brute_scene], [warchief_definition, warchief_scene], [king_definition, king_scene], [juggernaut_definition, juggernaut_scene], [shaman_definition, shaman_scene]]:
 		if pair[0] != null:
 			_enemy_lookup[(pair[0] as EnemyDefinition).unique_id] = {"definition": pair[0], "scene": pair[1]}
 	# P2.8b: the Overtime finisher reuses player_hunter_scene (same
@@ -591,6 +613,9 @@ func _spawn_serial_for(group_index: int, spawn_index: int) -> int:
 	var base: int = int(_serial_base.get(key, 0))
 	var loop_offset: int = _endless_loop_number(_current_wave_index) * ENDLESS_LOOP_SERIAL_STRIDE
 	var encounter: EncounterDefinition = _current_encounter()
+	var cycle: int = int(_group_cycles.get(group_index, 0))
+	if cycle > 0:
+		return EXTRA_SPAWN_SERIAL_BASE + base + cycle * BOSS_MINION_SERIAL_STRIDE + spawn_index + loop_offset
 	if encounter != null and group_index < encounter.spawn_groups.size() and spawn_index >= encounter.spawn_groups[group_index].count:
 		return EXTRA_SPAWN_SERIAL_BASE + base + (spawn_index - encounter.spawn_groups[group_index].count) + loop_offset
 	return base + spawn_index + loop_offset
@@ -938,6 +963,8 @@ func physics_step(delta: float) -> void:
 			_warned_not_configured = true
 			push_error("WaveDirector: physics_step() called while not configured -- entity_spawner=%s waves=%d encounters=%d. Wire entity_spawner_path (or call set_entity_spawner_for_test()) before driving this node." % [_entity_spawner, waves.size(), _encounter_lookup.size()])
 		return
+	if _registry != null:
+		EnemyController.swarm_alive_count = _registry.get_live_enemy_count() # PT-SWARM LOD (D341)
 	if _state == State.IDLE:
 		_run_start_time = _now()
 		_open_wave(clampi(dev_start_wave_number - 1, 0, waves.size() - 1) if dev_start_wave_number > 0 else 0)
@@ -1023,6 +1050,7 @@ func _start_encounter_tracking(encounter: EncounterDefinition) -> void:
 	_group_fail_counts.clear()
 	_group_start_offset_override.clear() # P2.9: group indices are per-encounter and reused across encounters/waves, like the clears above
 	_group_count_override.clear()
+	_group_cycles.clear()
 	_current_wave_spawned.clear()
 	_warned_bursts.clear()
 	_siege_warning_pending = false
@@ -1104,6 +1132,13 @@ func _process_spawn_groups(encounter: EncounterDefinition) -> void:
 		# earlier if the Escalation Trigger starts it"). Absent for every
 		# group nothing has ever escalated -- see _find_next_pending_group_
 		# index() / _process_pressure_metric().
+		if emitted >= effective_count and effective_count > 0 and _boss_minions_should_rearm(group):
+			# PT-SWARM (D344): the boss lives on, so this minion group starts again
+			# one interval from now with fresh serials.
+			_group_cycles[group_index] = int(_group_cycles.get(group_index, 0)) + 1
+			_group_start_offset_override[group_index] = now - _encounter_open_time + maxf(group.spawn_interval_seconds, 1.0)
+			emitted = 0
+			_group_emitted_counts[group_index] = 0
 		var start_offset: float = float(_group_start_offset_override.get(group_index, group.start_offset_seconds))
 		while emitted < effective_count:
 			var burst: int = maxi(1, group.burst_size)
@@ -1116,6 +1151,25 @@ func _process_spawn_groups(encounter: EncounterDefinition) -> void:
 				break # throttled or invalid this tick -- retries next tick WITHOUT consuming budget (Register: both throttle and "no valid candidate" share this rule)
 			emitted += 1
 			_group_emitted_counts[group_index] = emitted
+
+
+## PT-SWARM (D344): a boss wave's non-boss group re-arms once the boss has
+## spawned and is still alive.
+func _boss_minions_should_rearm(group: SpawnGroup) -> bool:
+	if not _is_boss_wave(_current_wave()) or not _boss_wave_spawned or not _boss_is_alive():
+		return false
+	var info: Dictionary = _enemy_lookup.get(group.enemy_definition_id, {})
+	var def: EnemyDefinition = info.get("definition")
+	return def != null and not _is_boss_definition(def)
+
+
+func _is_boss_definition(def: EnemyDefinition) -> bool:
+	return def != null and def.readability_profile != null and def.readability_profile.silhouette_class == ContractEnums.SilhouetteClass.Boss
+
+
+## PT-SWARM speed ramp (D343): 1 + 0.04 x (wave - 1), capped at 2.0.
+static func speed_ramp_for_wave(wave_number: int) -> float:
+	return minf(SPEED_RAMP_MAX, 1.0 + SPEED_RAMP_PER_WAVE * float(maxi(1, wave_number) - 1))
 
 
 ## P2.8b. `group.count` as authored, UNLESS `_maybe_scale_siege_spawn_
@@ -1392,6 +1446,7 @@ func _attempt_spawn(encounter: EncounterDefinition, group: SpawnGroup, group_ind
 	_current_wave_spawned.append(instance)
 	_apply_wave_scaling(instance, definition)
 	_maybe_make_elite(instance, definition, serial)
+	_apply_fodder_drop_share(instance, definition, serial)
 	_track_boss(instance, definition)
 	enemy_spawned.emit(instance, group.enemy_definition_id, spawn_position)
 	return true
@@ -1415,9 +1470,13 @@ func _apply_wave_scaling(instance: Node2D, definition: EnemyDefinition = null) -
 	var loop_dmg: float = 1.0 + ENDLESS_DAMAGE_PER_LOOP * float(loop)
 	var is_boss: bool = definition != null and definition.readability_profile != null and definition.readability_profile.silhouette_class == ContractEnums.SilhouetteClass.Boss
 	var hp_mult: float = wave.enemy_hp_multiplier * (diff.boss_hp_multiplier if is_boss else diff.enemy_hp_multiplier) * loop_hp
+	if not is_boss and EntityCaps.is_mobile():
+		hp_mult *= MOBILE_HP_MULTIPLIER # PT-SWARM (D345): fewer bodies on mobile, each tougher
 	var dmg_mult: float = wave.enemy_damage_multiplier * diff.enemy_damage_multiplier * loop_dmg
 	var hunter_mult: float = wave.hunter_damage_multiplier * diff.enemy_damage_multiplier * loop_dmg
 	instance.call("set_wave_scaling", hp_mult, dmg_mult, hunter_mult)
+	if not is_boss and instance.has_method("set_speed_ramp"):
+		instance.call("set_speed_ramp", speed_ramp_for_wave(get_current_wave_number()))
 
 
 ## docs/31 §5.2 / Register "Elite chance": from wave 5, 4% rising 1% per wave to
@@ -1453,6 +1512,20 @@ func _maybe_make_elite(instance: Node2D, definition: EnemyDefinition, serial: in
 	Sfx.play("elite_spawn", instance.global_position)
 
 
+## PT-SWARM (D345): keyed per spawn serial, so a seed always drops the same.
+func _apply_fodder_drop_share(instance: Node2D, definition: EnemyDefinition, serial: int) -> void:
+	if definition == null or definition.entity_cap_weight > 1 or _is_boss_definition(definition):
+		return
+	if String(instance.get("elite_affix")) != "":
+		return
+	var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "drop_share", serial, _current_wave_index])
+	if rng.randf() < FODDER_DROP_SHARE:
+		return
+	if _empty_drop == null:
+		_empty_drop = DropTable.new()
+	instance.set("drop_table_override", _empty_drop)
+
+
 func _track_boss(instance: Node2D, definition: EnemyDefinition) -> void:
 	var behavior: Variant = instance.get("behavior")
 	if behavior == null or not (behavior as Object).has_method("is_boss") or not behavior.call("is_boss"):
@@ -1473,7 +1546,7 @@ func spawn_summons(enemy_id: String, count: int, near: Vector2) -> int:
 		return 0
 	var made: int = 0
 	for i in count:
-		if _registry != null and _registry.get_live_enemy_count() >= EntityCaps.MAX_ENEMIES:
+		if _registry != null and _registry.get_live_enemy_count() >= EntityCaps.max_enemies():
 			break
 		_summon_serial += 1
 		var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "summon", _summon_serial])
@@ -1488,6 +1561,7 @@ func spawn_summons(enemy_id: String, count: int, near: Vector2) -> int:
 			_registry.update_position(instance, position)
 		_current_wave_spawned.append(instance)
 		_apply_wave_scaling(instance, definition)
+		_apply_fodder_drop_share(instance, definition, SUMMON_SERIAL_BASE + _summon_serial)
 		enemy_spawned.emit(instance, enemy_id, position)
 		made += 1
 	return made
@@ -1559,8 +1633,10 @@ func _is_final_wave() -> bool:
 	return not endless and _current_wave_index >= waves.size() - 1
 
 
-## Endless loop: [the first boss wave, then every wave strictly between it and
-## the final wave] (docs/31 §2: waves 9-14 repeat with a Warchief each loop).
+## Endless loop (PT-SWARM, D346): every wave after the first boss wave up to and
+## including the final one (waves 6-15), so the loop keeps a boss every 5th wave
+## (Juggernaut at 20, 30, ...; King at 25, 35, ...). With no boss wave at all the
+## loop is empty and the sequence simply ends.
 func _build_endless_loop() -> void:
 	_loop_wave_indices.clear()
 	var boss_index: int = -1
@@ -1570,8 +1646,10 @@ func _build_endless_loop() -> void:
 			break
 	if boss_index < 0:
 		return
-	_loop_wave_indices.append(boss_index)
-	for i in range(boss_index + 1, waves.size() - 1):
+	if boss_index + 1 >= waves.size():
+		_loop_wave_indices.append(boss_index)
+		return
+	for i in range(boss_index + 1, waves.size()):
 		_loop_wave_indices.append(i)
 
 
@@ -2025,11 +2103,18 @@ func _all_own_spawned_dead_or_removed() -> bool:
 		return true
 	if _registry == null:
 		return true
-	var live: Array[Node2D] = _registry.get_entities_with_tag(TowerWeapon.ENEMY_TAG)
+	# PT-SWARM (D341): "live" = registered and not dead, checked per instance with
+	# an early exit, instead of Array.has() over the whole live list per instance
+	# (O(n^2) at 350 enemies, every tick).
 	for instance in _current_wave_spawned:
-		if is_instance_valid(instance) and live.has(instance):
+		if is_instance_valid(instance) and _registry.is_registered(instance) and not _is_dead_entity(instance):
 			return false
 	return true
+
+
+static func _is_dead_entity(entity: Node) -> bool:
+	var ds: Variant = entity.get("death_state")
+	return ds is DeathState and (ds as DeathState).is_dead
 
 
 ## P2.8b. Register > "Wave end / STALLED": "kills in the last 30 seconds,

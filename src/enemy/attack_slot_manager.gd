@@ -57,11 +57,15 @@ class_name AttackSlotManager
 
 ## target (Node2D) -> Dictionary[int slot_index -> Node2D claimant]
 static var _claims_by_target: Dictionary = {}
+## PT-SWARM (D341): reverse index claimant -> {target: slot} so current_claim()
+## is O(1) instead of a scan of every claimed slot, per enemy per tick.
+static var _claims_by_claimant: Dictionary = {}
 
 
 ## Test-only teardown. Never called by gameplay code.
 static func clear_all_for_test() -> void:
 	_claims_by_target.clear()
+	_claims_by_claimant.clear()
 
 
 ## N = floor(2pi x (target_radius + attacker_body_radius + reach) /
@@ -97,23 +101,45 @@ static func release_claim(target: Variant, claimant: Variant) -> void:
 	if target == null or not is_instance_valid(target) or not _claims_by_target.has(target):
 		return
 	var slots: Dictionary = _claims_by_target[target]
-	for slot_index in slots.keys().duplicate():
-		if slots[slot_index] == claimant:
-			slots.erase(slot_index)
+	var slot: int = _indexed_slot(target, claimant)
+	if slot < 0:
+		return # every claim is indexed at claim time, so no index entry = no claim
+	if slots.get(slot) == claimant:
+		slots.erase(slot)
+	_unindex(target, claimant)
 	if slots.is_empty():
 		_claims_by_target.erase(target)
 	else:
 		_claims_by_target[target] = slots
 
 
-## The slot index `claimant` currently holds against `target`, or -1.
+static func _indexed_slot(target: Variant, claimant: Variant) -> int:
+	if claimant == null or not _claims_by_claimant.has(claimant):
+		return -1
+	return int((_claims_by_claimant[claimant] as Dictionary).get(target, -1))
+
+
+static func _index(target: Variant, claimant: Variant, slot: int) -> void:
+	var m: Dictionary = _claims_by_claimant.get(claimant, {})
+	m[target] = slot
+	_claims_by_claimant[claimant] = m
+
+
+static func _unindex(target: Variant, claimant: Variant) -> void:
+	if claimant == null or not _claims_by_claimant.has(claimant):
+		return
+	var m: Dictionary = _claims_by_claimant[claimant]
+	m.erase(target)
+	if m.is_empty():
+		_claims_by_claimant.erase(claimant)
+
+
 static func current_claim(target: Variant, claimant: Variant) -> int:
 	if target == null or not is_instance_valid(target) or not _claims_by_target.has(target):
 		return -1
-	var slots: Dictionary = _claims_by_target[target]
-	for slot_index in slots.keys():
-		if slots[slot_index] == claimant:
-			return slot_index
+	var slot: int = _indexed_slot(target, claimant)
+	if slot >= 0 and (_claims_by_target[target] as Dictionary).get(slot) == claimant:
+		return slot
 	return -1
 
 
@@ -128,9 +154,13 @@ static func claim_nearest_free_slot(target: Variant, claimant: Variant, slot_cou
 		return -1
 	var t: Node2D = target as Node2D
 	var c: Node2D = claimant as Node2D
-	_reap_stale_claims(target)
 	release_claim(target, claimant)
 	var slots: Dictionary = _claims_by_target.get(target, {})
+	if slots.size() >= slot_count:
+		_reap_stale_claims(target) # only a full ring can be hiding a dead claimant worth reaping
+		slots = _claims_by_target.get(target, {})
+		if slots.size() >= slot_count:
+			return -1
 	var claimant_bearing: float = (c.global_position - t.global_position).angle()
 	var best_slot: int = -1
 	var best_angular_delta: float = INF
@@ -146,6 +176,7 @@ static func claim_nearest_free_slot(target: Variant, claimant: Variant, slot_cou
 		return -1
 	slots[best_slot] = claimant
 	_claims_by_target[target] = slots
+	_index(target, claimant, best_slot)
 	return best_slot
 
 
@@ -172,6 +203,7 @@ static func _reap_stale_claims(target: Variant) -> void:
 		var claimant: Variant = slots[slot_index]
 		if claimant == null or not is_instance_valid(claimant):
 			slots.erase(slot_index)
+			_claims_by_claimant.erase(claimant)
 	if slots.is_empty():
 		_claims_by_target.erase(target)
 	else:

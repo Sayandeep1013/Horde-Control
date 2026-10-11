@@ -80,7 +80,7 @@ func _build_pools() -> void:
 	# oldest ("recycle[d]", "culled", "merge or expire" -- P1.3's closest
 	# read of the pickup row, named as an interpretation in the evidence
 	# report).
-	_enemy_pool = Pool.new(_default_factory, entities_container, EntityCaps.MAX_ENEMIES, Pool.OverflowPolicy.THROTTLE)
+	_enemy_pool = Pool.new(_default_factory, entities_container, EntityCaps.max_enemies(), Pool.OverflowPolicy.THROTTLE) # PT-SWARM: 400 desktop / 180 mobile (D345)
 	_pickup_pool = Pool.new(_default_factory, pickups_container, EntityCaps.MAX_PICKUPS, Pool.OverflowPolicy.RECYCLE_OLDEST)
 	_projectile_pool = Pool.new(_default_factory, projectiles_container, EntityCaps.MAX_PROJECTILES, Pool.OverflowPolicy.RECYCLE_OLDEST)
 	_damage_number_pool = Pool.new(_default_factory, effects_container, EntityCaps.MAX_DAMAGE_NUMBERS, Pool.OverflowPolicy.RECYCLE_OLDEST)

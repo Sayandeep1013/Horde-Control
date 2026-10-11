@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" path="res://src/data/wave_definition.gd" id="1_wave"]
 
-; v1.0 wave 15, boss (docs/31 6.1; decision D171). Multipliers, durations and
-; gaps are Register "v1.0 Enemies, Bosses & Waves" > "Wave sequence" starting
-; values. hunter_damage_multiplier is the Register's Hunter damage share of the
-; wave damage multiplier (Hunters hit a 100 HP pool). Boss wave: has_maximum_duration = false, it ends when the boss dies.
+; PT-SWARM wave 15, boss (docs/33 C1-C3). Multipliers, durations and gaps are
+; Register "v1.0 Enemies, Bosses & Waves" > "Wave sequence". Fodder HP is low and
+; counts are high: threat comes from numbers and the speed ramp (D343). Boss wave:
+; has_maximum_duration = false, it ends when the boss dies.
 
 [resource]
 script = ExtResource("1_wave")
@@ -24,4 +24,4 @@ pressure_metric_constants = null
 boss_overlap_rules = 0
 enemy_hp_multiplier = 1.0
 enemy_damage_multiplier = 1.0
-hunter_damage_multiplier = 0.6
+hunter_damage_multiplier = 0.8

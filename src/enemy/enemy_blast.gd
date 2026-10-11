@@ -40,6 +40,18 @@ static func detonate(registry: Node, center: Vector2, radius: float, damage: flo
 	return result
 
 
+## PT-SWARM: one hit on `target` (the player or the Tower) through the SimLoop
+## hit queue, e.g. an enemy bullet. Returns true when queued or applied.
+static func hit_target(target: Node, damage: float, attacker: Node = null) -> bool:
+	if target == null or damage <= 0.0:
+		return false
+	var loop: Node = null
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null:
+		loop = tree.get_first_node_in_group(&"sim_loop")
+	return _hit(loop, target.get("hurtbox"), damage, attacker, target)
+
+
 static func _hit(loop: Node, hurtbox: Variant, damage: float, attacker: Node, target: Node) -> bool:
 	if not (hurtbox is Hurtbox) or (hurtbox as Hurtbox).is_dead:
 		return false

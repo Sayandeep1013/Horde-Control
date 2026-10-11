@@ -1,0 +1,87 @@
+[gd_resource type="Resource" script_class="EncounterDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="1_enc"]
+[ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
+
+; PT-SWARM wave 8, standard (docs/33 C1-C3; decisions D344, D346). Group counts,
+; offsets, intervals, bursts and the encounter alive cap are Register "v1.0
+; Enemies, Bosses & Waves" > "Wave sequence" (about 10x the v1.0 counts;
+; difficulty scales counts at spawn).
+
+[sub_resource type="Resource" id="Resource_group_1"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 50
+start_offset_seconds = 0.0
+spawn_interval_seconds = 0.3
+burst_size = 10
+
+[sub_resource type="Resource" id="Resource_group_2"]
+script = ExtResource("2_group")
+enemy_definition_id = "tower_seeker"
+count = 60
+start_offset_seconds = 5.0
+spawn_interval_seconds = 0.3
+burst_size = 10
+
+[sub_resource type="Resource" id="Resource_group_3"]
+script = ExtResource("2_group")
+enemy_definition_id = "opportunist"
+count = 30
+start_offset_seconds = 15.0
+spawn_interval_seconds = 0.4
+burst_size = 6
+
+[sub_resource type="Resource" id="Resource_group_4"]
+script = ExtResource("2_group")
+enemy_definition_id = "goblin_shaman"
+count = 12
+start_offset_seconds = 20.0
+spawn_interval_seconds = 2.0
+burst_size = 3
+
+[sub_resource type="Resource" id="Resource_group_5"]
+script = ExtResource("2_group")
+enemy_definition_id = "bomber"
+count = 12
+start_offset_seconds = 28.0
+spawn_interval_seconds = 2.0
+burst_size = 3
+
+[sub_resource type="Resource" id="Resource_group_6"]
+script = ExtResource("2_group")
+enemy_definition_id = "brute"
+count = 4
+start_offset_seconds = 35.0
+spawn_interval_seconds = 6.0
+burst_size = 1
+
+[sub_resource type="Resource" id="Resource_group_7"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 50
+start_offset_seconds = 40.0
+spawn_interval_seconds = 0.25
+burst_size = 10
+
+[resource]
+script = ExtResource("1_enc")
+unique_id = "w08_standard"
+encounter_type = 0
+design_intent = "standard wave 8"
+pressure_target = 0.0
+player_answer = ""
+failure_signature = ""
+spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("Resource_group_2"), SubResource("Resource_group_3"), SubResource("Resource_group_4"), SubResource("Resource_group_5"), SubResource("Resource_group_6"), SubResource("Resource_group_7")])
+intent_budget_overrides = Array[IntentBudgetOverride]([])
+directional_weighting_override = null
+telegraph_requirements = Array[TelegraphData]([])
+minimum_recovery_gap_seconds = 8.0
+priority = 20
+entity_cap_behavior = 0
+encounter_alive_cap = 200
+allowed_encounter_tags = Array[String]([])
+excluded_encounter_tags = Array[String]([])
+reward = null
+failure_resolution = 0
+partial_reward_rules = null

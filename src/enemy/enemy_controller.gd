@@ -124,6 +124,21 @@ const ELITE_GOLD: Color = Color(1.0, 0.82, 0.2, 1.0)
 const ELITE_RED: Color = Color(1.0, 0.2, 0.15, 1.0)
 const STATUS_EFFECTS_PATH: String = "res://src/combat/status_effects.gd"
 
+# --- PT-SWARM constants: Register "v1.0 Enemies, Bosses & Waves" > "Swarm AI LOD"
+# and "Speed ramp" (D341, D343) -------------------------------------------------
+## With at least this many enemies alive, a plain enemy (no behaviour) re-plans
+## (target, slots, stuck rule, separation, flow field) every
+## SWARM_THINK_INTERVAL_TICKS physics ticks, staggered by instance, and coasts on
+## its last velocity in between. Below it every enemy plans every tick, exactly
+## as before, so the small-count suites see no change.
+const SWARM_LOD_MIN_ALIVE: int = 60
+const SWARM_THINK_INTERVAL_TICKS: int = 3
+## Beyond this distance from its target an enemy steers by the FlowField
+## (group "flow_field") when one exists; closer in, slots and straight seeking.
+const FLOW_FIELD_MIN_DISTANCE_PX: float = 96.0
+## How often a missing FlowField lookup is retried (SimClock seconds).
+const FLOW_FIELD_LOOKUP_SECONDS: float = 1.0
+
 ## Set true by a future SimLoop integration task once sim_loop.gd's step 3
 ## calls into this controller directly; see header.
 @export var driven_externally: bool = false
@@ -193,8 +208,25 @@ var behavior: EnemyBehavior = null
 ## v1.0 elite / boss identity. "" = not an elite / not a boss.
 var elite_affix: String = ""
 var boss_id: String = ""
+## PT-SWARM (D345): set by the Wave Director on the share of fodder that drops
+## nothing, so 10x the bodies is not 10x the XP. Read by PickupSystem.
+var drop_table_override: DropTable = null
 var _speed_multiplier: float = 1.0
+## PT-SWARM speed ramp (D343): 1 + 0.04 x (wave - 1), pushed by the Wave Director.
+var _wave_speed_multiplier: float = 1.0
 var _pool_released: bool = false
+
+## PT-SWARM swarm LOD (D341). Pushed once per tick by the Wave Director.
+static var swarm_alive_count: int = 0
+static var _flow_field: Node = null
+static var _flow_field_next_lookup: float = -INF
+var _think_phase: int = 0
+var _coast_velocity: Vector2 = Vector2.ZERO
+var _coast_in_range: bool = false
+var _coast_target: Node2D = null
+## Definition-derived scalars cached by _apply_definition() (hot path).
+var _body_radius_cached: float = 0.0
+var _reach_cached: float = 0.0
 
 var current_intent: ContractEnums.TargetIntent = ContractEnums.TargetIntent.TowerSeeker
 
@@ -268,7 +300,10 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_to_group(&"pool_body")
 	collision_layer = CollisionLayers.LAYER_ENEMY_BODY
-	collision_mask = CollisionLayers.MASK_ENEMY_BODY_GROUND
+	# PT-SWARM (D342): enemies no longer collide with each other physically;
+	# spacing comes from the spatial-hash separation in _apply_movement().
+	collision_mask = CollisionLayers.MASK_ENEMY_BODY_GROUND & ~CollisionLayers.LAYER_ENEMY_BODY
+	_think_phase = int(get_instance_id() % SWARM_THINK_INTERVAL_TICKS)
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 
 	body_shape = get_node_or_null(body_shape_path) as CollisionShape2D
@@ -372,6 +407,8 @@ func _apply_definition(preserved_hp: float = -1.0) -> void:
 		return
 
 	var body_radius: float = float(definition.movement_profile.body_radius_px) if definition.movement_profile != null else 0.0
+	_body_radius_cached = body_radius
+	_reach_cached = float(definition.attack_profile.reach_or_range_px) if definition.attack_profile != null else 0.0
 	_set_circle_radius(body_shape, body_radius)
 	_set_circle_radius(hurtbox_shape, body_radius) # "hurtbox equals the body" -- placeholder_enemy.gd's own extension of the Player-only Contract wording, reused here for consistency.
 
@@ -475,15 +512,25 @@ func _now() -> float:
 func _current_speed() -> float:
 	var multiplier: float = definition.movement_profile.speed_multiplier if definition != null and definition.movement_profile != null else 0.0
 	var base_speed: float = player_definition_for_speed_reference.base_speed_px_per_second if player_definition_for_speed_reference != null else 0.0
-	return base_speed * multiplier * _speed_multiplier * StatusEffects.speed_multiplier_for(self) # v1.0 status hook (WP-COMBAT)
+	return base_speed * multiplier * _speed_multiplier * _wave_speed_multiplier * StatusEffects.speed_multiplier_for(self) # v1.0 status hook (WP-COMBAT)
 
 
 func _body_radius() -> float:
-	return float(definition.movement_profile.body_radius_px) if definition != null and definition.movement_profile != null else 0.0
+	return _body_radius_cached
 
 
 func _reach() -> float:
-	return float(definition.attack_profile.reach_or_range_px) if definition != null and definition.attack_profile != null else 0.0
+	return _reach_cached
+
+
+## PT-SWARM speed ramp (D343): the Wave Director pushes 1 + 0.04 x (wave - 1)
+## at spawn; it multiplies every move speed, elite Swift included.
+func set_speed_ramp(multiplier: float) -> void:
+	_wave_speed_multiplier = maxf(0.1, multiplier)
+
+
+func get_speed_ramp() -> float:
+	return _wave_speed_multiplier
 
 
 # --- Test-only seams (never called by gameplay code) ----------------------
@@ -602,6 +649,10 @@ func physics_step(delta: float) -> void:
 		move_and_slide() # v1.0 status hook (WP-COMBAT)
 		return # v1.0 status hook (WP-COMBAT)
 
+	if behavior == null and swarm_alive_count >= SWARM_LOD_MIN_ALIVE and (Engine.get_physics_frames() + _think_phase) % SWARM_THINK_INTERVAL_TICKS != 0:
+		_coast_step()
+		return
+
 	_resolve_player_reference()
 	_resolve_tower_reference()
 
@@ -647,7 +698,13 @@ func physics_step(delta: float) -> void:
 			_registry.update_position(self, global_position)
 	else:
 		var desired: Vector2 = _desired_position(target, plan)
-		_apply_movement(desired, _current_speed())
+		var flow_kind: StringName = &""
+		if not _direct_approach and int(plan.get("claimed_slot", -1)) == -1 and not bool(plan.get("is_waiting_for_slot", false)):
+			flow_kind = _flow_kind_for(target)
+		_apply_movement(desired, _current_speed(), flow_kind)
+	_coast_velocity = velocity
+	_coast_in_range = in_attack_range
+	_coast_target = target
 
 	if behavior == null or not behavior.suppress_default_attack():
 		_process_attack_cycle(in_attack_range, target)
@@ -846,9 +903,13 @@ func _desired_position(target: Node2D, plan: Dictionary) -> Vector2:
 ## `separation_neighbor_radius_px` (C-SLOTS: "separation from EntityRegistry
 ## neighbours within 32 px"), computed here inside the controller's own
 ## per-tick step -- no NavigationAgent2D (see header).
-func _apply_movement(desired_position: Vector2, speed: float) -> void:
+func _apply_movement(desired_position: Vector2, speed: float, flow_kind: StringName = &"") -> void:
 	var to_desired: Vector2 = desired_position - global_position
 	var seek: Vector2 = to_desired.normalized() if to_desired.length_squared() > 1.0 else Vector2.ZERO
+	if flow_kind != &"" and to_desired.length_squared() > FLOW_FIELD_MIN_DISTANCE_PX * FLOW_FIELD_MIN_DISTANCE_PX:
+		var flow: Vector2 = flow_direction(flow_kind, global_position)
+		if flow != Vector2.ZERO:
+			seek = flow
 	var separation: Vector2 = Vector2.ZERO
 	if _registry != null and tuning.separation_neighbor_radius_px > 0.0:
 		var neighbors: Array[Node2D] = _registry.get_entities_in_radius(global_position, tuning.separation_neighbor_radius_px, TowerWeapon.ENEMY_TAG)
@@ -866,6 +927,65 @@ func _apply_movement(desired_position: Vector2, speed: float) -> void:
 	move_and_slide()
 	if _registry != null:
 		_registry.update_position(self, global_position)
+
+
+## PT-SWARM swarm LOD (D341): a tick between two plans. Keeps the last planned
+## heading (re-scaled for slows), keeps the attack cycle on time and the
+## registry position current. No queries, no allocations.
+func _coast_step() -> void:
+	if _coast_in_range:
+		velocity = Vector2.ZERO
+	else:
+		velocity = _coast_velocity.normalized() * _current_speed() if _coast_velocity.length_squared() > 0.0001 else Vector2.ZERO
+	move_and_slide()
+	if _registry != null:
+		_registry.update_position(self, global_position)
+	if _coast_target != null and is_instance_valid(_coast_target) and (behavior == null or not behavior.suppress_default_attack()):
+		_process_attack_cycle(_coast_in_range, _coast_target)
+
+
+## "tower" / "player" for the FlowField contract, "" for anything else.
+func _flow_kind_for(target: Node2D) -> StringName:
+	if target == null:
+		return &""
+	if target == _tower:
+		return &"tower"
+	if target == _player:
+		return &"player"
+	return &""
+
+
+## The FlowField service's direction (docs/33 B4), or Vector2.ZERO when there
+## is no service or the position is off-grid / unreachable: the caller then
+## steers straight. Found through the "flow_field" group with has_method.
+func flow_direction(kind: StringName, world_pos: Vector2) -> Vector2:
+	var ff: Node = flow_field_service(self)
+	if ff == null:
+		return Vector2.ZERO
+	var d: Variant = ff.call(&"direction_to", kind, world_pos)
+	return d if d is Vector2 else Vector2.ZERO
+
+
+## The shared FlowField node, cached; a missing one is looked up again at most
+## every FLOW_FIELD_LOOKUP_SECONDS so 350 enemies do not walk the tree.
+static func flow_field_service(from: Node) -> Node:
+	if _flow_field != null and is_instance_valid(_flow_field) and _flow_field.is_inside_tree():
+		return _flow_field
+	_flow_field = null
+	var now: float = SimClock.now
+	if now >= _flow_field_next_lookup or _flow_field_next_lookup - now > FLOW_FIELD_LOOKUP_SECONDS:
+		_flow_field_next_lookup = now + FLOW_FIELD_LOOKUP_SECONDS
+		if from != null and from.is_inside_tree():
+			var n: Node = from.get_tree().get_first_node_in_group(&"flow_field")
+			if n != null and n.has_method(&"direction_to"):
+				_flow_field = n
+	return _flow_field
+
+
+## Test seam: forget the cached FlowField so the next lookup re-reads the group.
+static func reset_flow_field_cache() -> void:
+	_flow_field = null
+	_flow_field_next_lookup = -INF
 
 
 # --- Stuck rules -------------------------------------------------------------
@@ -1290,8 +1410,8 @@ func get_body_radius() -> float:
 
 ## Seek `desired_position` with the normal separation steering; `speed_scale`
 ## scales the definition speed (Bomber retreat, King orbit).
-func drive_toward(desired_position: Vector2, speed_scale: float = 1.0) -> void:
-	_apply_movement(desired_position, _current_speed() * speed_scale)
+func drive_toward(desired_position: Vector2, speed_scale: float = 1.0, flow_kind: StringName = &"") -> void:
+	_apply_movement(desired_position, _current_speed() * speed_scale, flow_kind)
 
 
 func hold_position() -> void:
