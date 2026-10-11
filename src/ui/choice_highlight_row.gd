@@ -30,6 +30,9 @@ class_name ChoiceHighlightRow
 ## follows layout rather than fixing a position.
 
 const UNDERLINE_HEIGHT: float = 4.0
+## PT-UI (docs/33 A1, D320): the shared focus cue on a paused choice too: a gold outline round the
+## highlighted option and a pointer arrow before it (the underline stays; both are shape cues).
+const OUTLINE_PAD_PX: float = 10.0
 
 var _bar: PausedChoiceBar = null
 var _highlighted: int = 0
@@ -66,6 +69,25 @@ func _draw() -> void:
 	var rect: Rect2 = get_underline_rect()
 	if rect.size.x > 0.0:
 		draw_rect(rect, UiPalette.ACCENT, true)
+	var box: Rect2 = get_outline_rect()
+	if box.size.x > 0.0:
+		SelectableState.draw_focus_cue(self, box)
+
+
+## The highlighted option's whole rectangle plus OUTLINE_PAD_PX, in this row's local space
+## (it sits above the strip, so its y is negative); empty when there is nothing to mark.
+func get_outline_rect() -> Rect2:
+	if _bar == null or not is_instance_valid(_bar):
+		return Rect2()
+	if _highlighted < 0 or _highlighted >= _bar.get_child_count():
+		return Rect2()
+	var option: Control = _bar.get_child(_highlighted) as Control
+	if option == null or option.is_queued_for_deletion():
+		return Rect2()
+	var to_row: Transform2D = get_global_transform().affine_inverse() * option.get_global_transform()
+	var top_left: Vector2 = to_row * Vector2.ZERO
+	var bottom_right: Vector2 = to_row * option.size
+	return Rect2(top_left, bottom_right - top_left).grow(OUTLINE_PAD_PX)
 
 
 ## The rectangle `_draw()` fills, in this control's local space; an empty

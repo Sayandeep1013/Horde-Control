@@ -37,6 +37,7 @@ var _back_button: Button
 var _rows: Dictionary = {} # String (achievement id) -> Label (the value cell)
 var _bars: Dictionary = {} # String (achievement id) -> ProgressBar
 var _icons: Dictionary = {} # String (achievement id) -> TextureRect
+var _row_panels: Dictionary = {} # String (achievement id) -> PanelContainer (carries the SelectableState overlay)
 
 
 func _ready() -> void:
@@ -89,6 +90,12 @@ func _refresh() -> void:
 		(bar.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = UiPalette.SUCCESS_ON_PARCHMENT if unlocked else UiPalette.TOWER
 		var icon: TextureRect = _icons[achievement.id]
 		icon.modulate = Color(1, 1, 1, 1) if unlocked else Color(0.55, 0.55, 0.55, 0.9)
+		# PT-UI (docs/33 A1): earned = check badge and tint, still locked = padlock and veil. The row's own
+		# value cell carries the word ("Unlocked" or the progress), so the overlay adds no word plate.
+		var overlay: SelectableState = SelectableState.of(_row_panels.get(achievement.id) as Control)
+		if overlay != null:
+			overlay.set_locked(not unlocked, "")
+			overlay.set_selected(unlocked, tr("SEL_OWNED"))
 
 
 ## Unlocked: "Unlocked". Locked, cumulative metric: "n / threshold". Locked,
@@ -190,6 +197,11 @@ func _build_row(achievement: AchievementDefinition) -> void:
 	row.theme_type_variation = UiTheme.ROW
 	row.mouse_filter = Control.MOUSE_FILTER_PASS # lets a finger drag scroll the list
 	_rows_parent.add_child(row)
+	_row_panels[achievement.id] = row
+	var overlay: SelectableState = SelectableState.attach(row, SelectableState.RibbonSide.RIGHT)
+	overlay.set_show_word(false)
+	overlay.veil_alpha = 0.16
+	overlay.badge_overhang = 0.0 # the list scrolls and would clip a hanging badge
 
 	var hbox := HBoxContainer.new()
 	hbox.theme_type_variation = UiTheme.hbox("L")

@@ -38,6 +38,10 @@ const VALUE_MIN_WIDTH: float = 240.0
 const ARROW_MIN_WIDTH: float = 36.0
 const NAME_MIN_WIDTH: float = 400.0
 
+## PT-UI: the row's own focus lift (rows are wide, so smaller than the cards' 1.05x).
+const CURSOR_SCALE: float = 1.02
+
+var _cursor_on: bool = false
 var _marker_label: Label
 var _name_label: Label
 var _left_arrow: Label
@@ -152,6 +156,17 @@ func set_note(text: String) -> void:
 func set_highlighted(active: bool) -> void:
 	modulate = HIGHLIGHT_COLOR if active else NORMAL_COLOR
 	_marker_label.text = MARKER_HIGHLIGHTED if active else MARKER_NORMAL
+	_cursor_on = active
+	# PT-UI (docs/33 A1): the shared focus cue too (gold outline, pointer arrow, a small lift).
+	offset_transform_enabled = true
+	offset_transform_pivot_ratio = Vector2(0.5, 0.5)
+	offset_transform_scale = Vector2.ONE * (CURSOR_SCALE if active else 1.0)
+	queue_redraw()
+
+
+func _draw() -> void:
+	if _cursor_on:
+		SelectableState.draw_focus_cue(self, Rect2(Vector2.ZERO, size), false) # inside the row: its scroll area clips anything outside
 
 
 # --- test seams ------------------------------------------------------------

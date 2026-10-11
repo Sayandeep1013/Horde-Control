@@ -50,7 +50,7 @@ class_name DraftCardView
 ## Color/StyleBoxFlat literals, per phases/UI_PASS/BRIEF.md. Added: a
 ## Player/Tower-tinted accent strip (a redundant colour cue, never the only
 ## one -- the frame shape, glyph, and header word above still are), and two
-## purely cosmetic `create_tween()` animations (`_animate_highlight_lift()`,
+## purely cosmetic `create_tween()` animations (the SelectableState lift,
 ## `play_entrance()`) using Control's `offset_transform_*` properties
 ## (Godot 4.7.1; verified against a live 4.7.1 build for this pass) rather
 ## than `scale`/`position`/`size` -- `offset_transform_*` is visual-only by
@@ -59,6 +59,13 @@ class_name DraftCardView
 ## values tests/unit/draft_input_lockout_test.gd reads. See
 ## draft_controller.gd's own header for why a bare, node-bound
 ## `create_tween()` is permitted here at all.
+##
+## ## PT-UI (docs/33 A1/A2, D320/D321)
+## The corner brackets and the 1.09 lift are replaced by the shared SelectableState
+## overlay (4 px gold outline, pointer arrow, 1.05x lift when highlighted; the
+## confirming ring and the CHOSEN stamp too), and every card now carries its symbol,
+## `ICON_PX_DESKTOP` px (`ICON_PX_COMPACT` on a phone) at the top, so a returning player
+## recognises it without reading. An id with no icon shows the Player / Tower glyph instead.
 ##
 ## ## Round 2 (review fixes)
 ## UR-03: `_glyph_label` is now a `UiShapeGlyph` (`extends Label`), drawn as
@@ -102,7 +109,7 @@ const HEADER_TOWER: String = "TOWER"
 ## local literals -- no test asserts the old numeric values (grepped; see
 ## the report). The width GAP between normal and highlighted narrows from
 ## the old 3px/7px pair to UiPalette's own THIN/THICK pair (2px/3px); the
-## cosmetic lift in _animate_highlight_lift() below is what keeps the
+## SelectableState lift (PT-UI) is what keeps the
 ## highlighted state clearly distinct now that the border alone reads
 ## subtler (Colour-only-distinctions rule: shape AND colour AND motion all
 ## differ, not colour alone).
@@ -159,13 +166,6 @@ const RIBBON_TEXTURES: Dictionary = {
 	ContractEnums.Rarity.Rare: preload("res://assets/third_party/tiny_swords/UI/Ribbons/Ribbon_Blue_3Slides.png"),
 	ContractEnums.Rarity.Epic: preload("res://assets/third_party/tiny_swords/UI/Ribbons/Ribbon_Red_3Slides.png"),
 }
-const BRACKET_TEXTURES: Array[Texture2D] = [
-	preload("res://assets/third_party/tiny_swords/UI/Pointers/03.png"),
-	preload("res://assets/third_party/tiny_swords/UI/Pointers/04.png"),
-	preload("res://assets/third_party/tiny_swords/UI/Pointers/05.png"),
-	preload("res://assets/third_party/tiny_swords/UI/Pointers/06.png"),
-]
-const BRACKET_REACH_PX: float = 10.0 ## how far a selection bracket sits outside the card
 
 ## Round 2 (review): a shadow, present only while highlighted, is a
 ## silhouette difference (visible with colour desaturated, unlike a colour
@@ -173,6 +173,9 @@ const BRACKET_REACH_PX: float = 10.0 ## how far a selection bracket sits outside
 ## replacement for either. UiPalette has a colour and a spacing scale but no
 ## "shadow blur/offset" scale. TODO(ui-pass): promote to UiPalette if
 ## another surface wants the same elevation cue.
+## Register > "v1.0 Interface" > "Selection states": the card symbol (3x the 32 px art; 2x on a phone).
+const ICON_PX_DESKTOP: int = 96
+const ICON_PX_COMPACT: int = 64
 const KEY_BADGE_MIN_SIZE: float = 48.0 ## px at the 1920x1080 canvas, "Draft footer and key badge" Register row (D145)
 const HIGHLIGHT_SHADOW_SIZE_PX: int = 10
 const HIGHLIGHT_SHADOW_OFFSET_PX: float = 3.0
@@ -190,7 +193,6 @@ const HIGHLIGHT_SHADOW_ALPHA: float = 0.55
 const CONTENT_MIN_WIDTH: float = 400.0
 ## Round 2 (review): 1.05 read as too subtle in a still frame; raised
 ## alongside the border-width/shadow changes above, same reasoning.
-const HIGHLIGHT_LIFT_SCALE: float = 1.09
 
 ## Second UI pass (Tiny Swords restyle): a small custom-drawn Control
 ## showing rank progress as filled/empty pips (task instruction: "rank
@@ -231,27 +233,6 @@ class RankPips extends Control:
 			draw_rect(inner, fill_color if i < filled else UiPalette.PARCHMENT.darkened(0.15), true)
 
 
-## Corner pointers around the whole card while it is selected. A child of the
-## PanelContainer, so it is laid out inside the content margins; it draws
-## outward from there to the card's own corners (plus BRACKET_REACH_PX).
-class CardBrackets extends Control:
-	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		var card: Control = get_parent() as Control
-		if card == null:
-			return
-		var r := Rect2(-position, card.size).grow(BRACKET_REACH_PX)
-		var t: Texture2D = BRACKET_TEXTURES[0]
-		var s: Vector2 = t.get_size()
-		var tint: Color = UiPalette.ACCENT
-		draw_texture(BRACKET_TEXTURES[0], (r.position - Vector2(s.x * 0.25, s.y * 0.25)).round(), tint)
-		draw_texture(BRACKET_TEXTURES[1], (Vector2(r.end.x - s.x * 0.75, r.position.y - s.y * 0.25)).round(), tint)
-		draw_texture(BRACKET_TEXTURES[2], (Vector2(r.position.x - s.x * 0.25, r.end.y - s.y * 0.75)).round(), tint)
-		draw_texture(BRACKET_TEXTURES[3], (r.end - Vector2(s.x * 0.75, s.y * 0.75)).round(), tint)
-
-
 static func _make_frame(tex: Texture2D, region: Rect2, ml: int, mt: int, mr: int, mb: int, content: Vector4) -> StyleBoxTexture:
 	var sb := StyleBoxTexture.new()
 	sb.texture = tex
@@ -271,7 +252,9 @@ var _column: VBoxContainer
 var _ribbon: PanelContainer
 var _frame_player: StyleBoxTexture
 var _frame_tower: StyleBoxTexture
-var _brackets: Control
+var _selectable: SelectableState ## PT-UI: the shared focus / confirm / chosen cues
+var _icon_plate: PanelContainer ## PT-UI: the large ability / pact / blessing symbol at the card's top
+var _icon_rect: TextureRect
 var _header_label: Label
 ## Declared `Label` (get_glyph_label()'s own return type, unchanged --
 ## tests/unit/draft_input_lockout_test.gd's seam) though the instance built
@@ -287,8 +270,8 @@ var _style: StyleBoxFlat
 
 var _pool_ownership: int = ContractEnums.PoolOwnership.Player
 var _upgrade_id: String = ""
+var _icon_id: String = "" ## PT-UI: the id whose symbol is shown
 var _highlighted: bool = false
-var _lift_tween: Tween = null # killed before a new one starts -- see _animate_highlight_lift()
 
 ## D117 (card rarity).
 var _rarity: int = ContractEnums.Rarity.Common
@@ -347,6 +330,16 @@ func _init() -> void:
 	_ribbon.custom_minimum_size = Vector2(288, 52 if TouchUi.is_mobile_layout() else 64) # native height; wider body so a 37 px rarity word fits
 	_column.add_child(_ribbon)
 
+	# PT-UI: the symbol, centred under the ribbon on a dark plate so it reads on the parchment.
+	_icon_plate = PanelContainer.new()
+	_icon_plate.name = "IconPlate"
+	_icon_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon_plate.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_icon_plate.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.SURFACE, UiPalette.WOOD_BORDER, UiPalette.RADIUS_PANEL, UiPalette.BORDER_THICK, UiPalette.SPACE_S))
+	_column.add_child(_icon_plate)
+	_icon_rect = AbilityDisplay.make_icon_rect("", ICON_PX_COMPACT if TouchUi.is_mobile_layout() else ICON_PX_DESKTOP)
+	_icon_plate.add_child(_icon_rect)
+
 	var header_row := HBoxContainer.new()
 	header_row.name = "HeaderRow"
 	header_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -397,10 +390,12 @@ func _init() -> void:
 	else:
 		_ribbon.add_child(_rarity_label)
 
-	_brackets = CardBrackets.new()
-	_brackets.name = "SelectionBrackets"
-	_brackets.visible = false
-	add_child(_brackets)
+	# PT-UI (docs/33 A1): the shared selection language replaces the old corner brackets.
+	# The Draft is driven from outside (hover, keys, cycle), so this overlay does not read focus.
+	_selectable = SelectableState.attach(self)
+	_selectable.externally_driven = true
+	_selectable.ring_anchor = Vector2(0.5, 0.26)
+	_selectable.focus_word = tr("SEL_FOCUS_CHOOSE")
 
 	# Clear hierarchy: name in VALUE weight (display font, larger than body).
 	_name_label = Label.new()
@@ -499,6 +494,7 @@ func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnum
 	_effect_label.text = _scaled_effect_text(effect_text, float(DraftController.RARITY_VALUE_MULTIPLIER.get(_rarity, 1.0)), honest)
 
 	_rank_label.text = _rank_change_text(def, current_rank)
+	_set_icon(def.ability_id if def.ability_id != "" else def.unique_id, is_player)
 	if String(honest.get("kind", "")) == "ability":
 		# v1.0 (docs/31 §4.1): "NEW ABILITY" / "Lv 2 -> 3" and the honest next-level numbers.
 		_effect_label.text = String(honest.get("effect_text", effect_text))
@@ -521,6 +517,7 @@ func setup(def: UpgradeDefinition, current_rank: int, rarity: int = ContractEnum
 ##   shape (UiShapeGlyph.Shape), glyph_color (Color)
 ##   player_frame (bool)   rounded scroll (true) or squared panel (false)
 ##   ribbon_text (String), ribbon_rarity (int) -> the ribbon colour and border tint
+##   icon (String)         the symbol's id (PT-UI, D321); dim_icon (bool) draws it at 55% alpha
 func setup_event(data: Dictionary) -> void:
 	_upgrade_id = ""
 	_rarity = int(data.get("ribbon_rarity", ContractEnums.Rarity.Common))
@@ -542,7 +539,22 @@ func setup_event(data: Dictionary) -> void:
 	_rank_label.text = String(data.get("cost", ""))
 	_rank_label.add_theme_color_override("font_color", data.get("cost_color", UiPalette.DANGER_ON_PARCHMENT))
 	_rank_pips.visible = false
+	_set_icon(String(data.get("icon", "")), is_player)
+	_icon_rect.modulate = Color(1.0, 1.0, 1.0, 0.55) if bool(data.get("dim_icon", false)) else _icon_rect.modulate
 	_apply_highlight_style()
+
+
+## The symbol for `id` (and the Field Guide records that the player has now seen it). With no
+## icon of its own a card falls back to the Player triangle / Tower square, tinted by pool.
+func _set_icon(id: String, is_player: bool) -> void:
+	if AbilityDisplay.has_icon(id):
+		_icon_rect.texture = AbilityDisplay.icon(id)
+		_icon_rect.modulate = Color.WHITE
+	else:
+		_icon_rect.texture = AbilityDisplay.icon("triangle" if is_player else "square")
+		_icon_rect.modulate = UiPalette.PLAYER if is_player else UiPalette.TOWER
+	_icon_id = id
+	FieldGuideCatalog.note_seen(id)
 
 
 func _rank_change_text(def: UpgradeDefinition, current_rank: int) -> String:
@@ -559,12 +571,13 @@ func _rank_change_text(def: UpgradeDefinition, current_rank: int) -> String:
 ## Highlight state differs by SHAPE as well as colour (Colour-only
 ## distinctions rule): border width/colour change synchronously below, so
 ## every test reading them sees the correct value the instant this returns;
-## the lift in _animate_highlight_lift() is a separate, purely cosmetic
+## the SelectableState lift is a separate, purely cosmetic
 ## effect layered on top, never a substitute for the synchronous change.
 func set_highlighted(value: bool) -> void:
 	_highlighted = value
 	_apply_highlight_style()
-	_animate_highlight_lift()
+	if _selectable != null:
+		_selectable.set_focused(value)
 
 
 ## D117: the NORMAL (non-highlighted) border colour is the card's own
@@ -585,46 +598,8 @@ func _apply_highlight_style() -> void:
 	# change) even in a still frame with colour desaturated -- see class
 	# header and the HIGHLIGHT_SHADOW_* constants above.
 	_style.shadow_size = 0 # the logical style draws nothing (see the art header)
-	if _brackets != null:
-		_brackets.visible = _highlighted
 	_style.shadow_color = UiPalette.with_alpha(UiPalette.ACCENT, HIGHLIGHT_SHADOW_ALPHA)
 	_style.shadow_offset = Vector2(0.0, HIGHLIGHT_SHADOW_OFFSET_PX) if _highlighted else Vector2.ZERO
-
-
-## Cosmetic only (see class header): a bare, node-bound `create_tween()`
-## animating the visual-only `offset_transform_scale` around the centred
-## pivot set in _init() -- never `scale` itself (a real CanvasItem transform
-## that WOULD perturb `global_position`/`size`) and never `position`/`size`
-## (this card sits in a container -- docs/19 > "UI Layout"). `_highlighted`
-## and the frame style above are already correct by the time this is called
-## (set_highlighted() calls _apply_highlight_style() first); this never
-## gates or delays anything a test or the input rules read.
-func _animate_highlight_lift() -> void:
-	if not is_inside_tree():
-		return
-	# Highlight can toggle faster than a lift finishes (the 0.3 s cycle
-	# repeat cycling past this card and back) -- kill any still-running lift
-	# tween first so two tweens never fight over the same property.
-	if _lift_tween != null and _lift_tween.is_valid():
-		_lift_tween.kill()
-	var target: Vector2 = Vector2(HIGHLIGHT_LIFT_SCALE, HIGHLIGHT_LIFT_SCALE) if _highlighted else Vector2.ONE
-	var duration: float = UiPalette.MOTION_FAST if _highlighted else UiPalette.MOTION_BASE
-	var tween: Tween = create_tween()
-	_lift_tween = tween
-	# This card is only ever parented under DraftController, a
-	# PROCESS_MODE_ALWAYS CanvasLayer (draft_controller.gd's own header) --
-	# so it already inherits PROCESS_MODE_ALWAYS and this tween would keep
-	# running under the Draft's own pause regardless. Set explicitly anyway,
-	# per this task's own instruction, rather than relying on inherited
-	# process_mode: MASTER_SDLC.md's own reasoning for why a bound tween
-	# pauses correctly ("a tween bound to a paused node pauses with it")
-	# is about the DEFAULT (TWEEN_PAUSE_BOUND); TWEEN_PAUSE_PROCESS makes
-	# the intent explicit and keeps this correct even if this view were
-	# ever reparented under something that is not PROCESS_MODE_ALWAYS.
-	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	tween.set_trans(Tween.TRANS_QUAD)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.tween_property(self, "offset_transform_scale", target, duration)
 
 
 ## Card-row entrance (phases/UI_PASS/PLAN.md direction): a short staggered
@@ -642,12 +617,36 @@ func play_entrance(delay: float = 0.0) -> void:
 	modulate.a = 0.0
 	offset_transform_position = Vector2(0.0, UiPalette.SPACE_L)
 	var tween: Tween = create_tween()
-	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS) # see _animate_highlight_lift()'s own note
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS) # the Draft pauses the tree; this entrance must still play
 	tween.set_parallel(true)
 	tween.set_trans(Tween.TRANS_CUBIC)
 	tween.set_ease(Tween.EASE_OUT)
 	tween.tween_property(self, "modulate:a", 1.0, UiPalette.MOTION_BASE).set_delay(delay)
 	tween.tween_property(self, "offset_transform_position", Vector2.ZERO, UiPalette.MOTION_BASE).set_delay(delay)
+
+
+## PT-UI: the hold-to-confirm ring, drawn ON this card (0 hides it).
+func set_confirm_progress(progress: float) -> void:
+	if _selectable != null:
+		_selectable.set_confirm_progress(progress)
+
+
+## PT-UI: the CHOSEN stamp for 0.35 s (a confirmed card).
+func flash_chosen() -> void:
+	if _selectable != null:
+		_selectable.flash_chosen()
+
+
+func get_selectable() -> SelectableState:
+	return _selectable
+
+
+func get_icon_id() -> String:
+	return _icon_id
+
+
+func get_icon_rect() -> TextureRect:
+	return _icon_rect
 
 
 func is_highlighted() -> bool:
