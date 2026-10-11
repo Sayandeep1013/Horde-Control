@@ -40,7 +40,9 @@ var _player: Node2D = null
 var _tower: Node2D = null
 var _upgrade_system: Node = null
 
-# Meta hooks (WP-META calls these via MetaLoadoutApplier; REPLACE semantics).
+# Meta hooks (WP-META calls these via MetaLoadoutApplier). Every one is ABSOLUTE:
+# it assigns the loadout value, never adds, so calling the set twice (the
+# integration repeats it deferred) leaves each derived value equal to the loadout once.
 var _meta_dash_extra: int = 0
 var _meta_dash_cd: float = 1.0
 var _meta_skill_cd: float = 1.0
@@ -179,9 +181,22 @@ func describe_next(ability_id: String, rarity_mult: float = 1.0) -> Dictionary:
 	var nxt: int = mini(lvl + 1, AbilityIds.MAX_ABILITY_LEVEL)
 	return {
 		"level_text": "NEW ABILITY" if lvl <= 0 else "Lv %d → %d" % [lvl, nxt],
-		"effect_text": AbilityCatalog.describe(ability_id, nxt, best),
+		"effect_text": _with_synergies(ability_id, AbilityCatalog.describe(ability_id, nxt, best)),
 		"next_level": nxt,
 	}
+
+
+## Appends the synergy lines whose partner ability is owned (Draft card text).
+func _with_synergies(ability_id: String, text: String) -> String:
+	for line in AbilitySynergy.active_texts(ability_id, _owned.keys()):
+		text += "
+" + line
+	return text
+
+
+## Active synergy lines for an owned ability (pause Build panel, tooltips).
+func get_active_synergies(ability_id: String) -> Array[String]:
+	return AbilitySynergy.active_texts(ability_id, _owned.keys())
 
 
 ## Armory keystone (docs/31 §7.1): a free Level-1 player ability from the
@@ -198,8 +213,12 @@ func grant_free_random_ability(rng_seed: int = 0) -> String:
 		pool.append(id)
 	if pool.is_empty():
 		return ""
-	var rng := RandomNumberGenerator.new()
-	rng.seed = rng_seed if rng_seed != 0 else 0xA7E1
+	var rng: RandomNumberGenerator
+	if rng_seed != 0:
+		rng = RandomNumberGenerator.new() # test / explicit seam
+		rng.seed = rng_seed
+	else:
+		rng = AbilityDamage.keyed_rng("armory")
 	var pick: String = pool[rng.randi_range(0, pool.size() - 1)]
 	if us != null and us.has_method("apply_rank") and us.get_definition(pick) != null:
 		us.apply_rank(pick, 1.0)
@@ -314,8 +333,8 @@ func set_tower_ability_damage_multiplier(m: float) -> void:
 	_refresh_tower_palisade()
 
 
-func add_crit_chance(f: float) -> void:
-	_meta_crit += f
+func set_crit_chance_bonus(f: float) -> void:
+	_meta_crit = maxf(0.0, f)
 
 
 func set_damage_taken_multiplier(m: float) -> void:

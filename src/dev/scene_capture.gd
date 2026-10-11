@@ -11,6 +11,8 @@ extends Node
 ##     [--player_pos=X,Y] [--meta-profile-dir=<dir>] [--debug-panel=skill_tree]
 ##     [--grant=flame_arrows:3,ballista:2] [--skill=firebomb] [--cast-frames=F,F]
 ##     [--dash-frames=F,F] [--spawn-frame=F --spawn-count=N] [--tower-hp=0.4 --scrap=100]
+##     [--lineup=tower_seeker,player_hunter,opportunist,bomber]  (at --spawn-frame: a static
+##      row of those enemy scenes 170 px below the player, for readability captures)
 ##   (the v1.0 flags are dev-only helpers for WP-COMBAT captures, prototype scene only)
 ## Writes <out>_<frame>.png for each listed frame.
 ##
@@ -40,6 +42,7 @@ var _spawn_count: int = 0
 var _tower_hp_fraction: float = -1.0
 var _scrap: int = -1
 var _skill_id: String = ""
+var _lineup: Array[String] = []
 var _scene: Node = null
 var _has_player_pos: bool = false
 var _player_pos: Vector2 = Vector2.ZERO
@@ -76,6 +79,9 @@ func _ready() -> void:
 			_spawn_frame = int(arg.trim_prefix("--spawn-frame="))
 		elif arg.begins_with("--spawn-count="):
 			_spawn_count = int(arg.trim_prefix("--spawn-count="))
+		elif arg.begins_with("--lineup="):
+			for n in arg.trim_prefix("--lineup=").split(","):
+				_lineup.append(n)
 		elif arg.begins_with("--tower-hp="):
 			_tower_hp_fraction = float(arg.trim_prefix("--tower-hp="))
 		elif arg.begins_with("--scrap="):
@@ -140,6 +146,15 @@ func _drive_v1_helpers() -> void:
 		var player: Node2D = get_tree().get_first_node_in_group(&"player") as Node2D
 		var entities: Node = _scene.get_node_or_null("Main/Entities")
 		var scene: PackedScene = load("res://scenes/entities/tower_seeker.tscn")
+		for i in _lineup.size():
+			var le: EnemyController = (load("res://scenes/entities/%s.tscn" % _lineup[i]) as PackedScene).instantiate() as EnemyController
+			le.driven_externally = true
+			le.tower_path = NodePath("")
+			(entities if entities != null else _scene).add_child(le)
+			le.set_tower_reference(_scene.get_node("Main/Tower"))
+			le.global_position = player.global_position + Vector2((float(i) - float(_lineup.size() - 1) * 0.5) * 130.0, 170.0)
+			le.set_physics_process(false) # a still lineup, nothing walks into the player
+			EntityRegistry.update_position(le, le.global_position)
 		for i in _spawn_count:
 			var e: EnemyController = scene.instantiate() as EnemyController
 			e.driven_externally = true

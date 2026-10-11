@@ -67,7 +67,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_to_group(&"battle_skill")
 	skill_id = RunConfig.battle_skill_id if COOLDOWNS.has(RunConfig.battle_skill_id) else RunConfig.DEFAULT_BATTLE_SKILL_ID
-	_rng.seed = 91017
+	_rng = AbilityDamage.keyed_rng("battle_skill")
 	_ready_at = SimClock.now
 
 

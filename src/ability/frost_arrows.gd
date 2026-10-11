@@ -10,7 +10,7 @@ var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	super._ready()
-	_rng.seed = 4242
+	_rng = AbilityDamage.keyed_rng("freeze")
 	_hook = Callable(self, "_on_arrow_hit")
 	var p: Node2D = owner_node()
 	_weapon = p.get_node_or_null("AutoWeapon") as AutoWeapon if p != null else null

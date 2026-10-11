@@ -16,10 +16,25 @@ const BLAST_RADIUS_PX: float = 56.0
 const BLAST_DAMAGE: float = 22.0
 ## Retreating is slower than approaching so a chased Bomber can still be caught.
 const RETREAT_SPEED_SCALE: float = 0.8
+## The held-dynamite cue is hidden for this long after a throw (Register: Bomber cue).
+const RELOAD_HIDE_SECONDS: float = 0.7
 
 var state: State = State.APPROACH
 var _next_throw_time: float = -1.0
 var throws_made: int = 0
+var _last_throw_time: float = -INF
+
+
+## True while the Bomber holds a lit stick ready to throw (BomberThrowCue draws
+## it overhead): always, except for RELOAD_HIDE_SECONDS after a throw while the
+## dynamite is in the air.
+func is_armed() -> bool:
+	return controller != null and _now() - _last_throw_time >= RELOAD_HIDE_SECONDS
+
+
+## Seconds until the next throw (0 when due); drives the cue's spark rate.
+func seconds_to_throw() -> float:
+	return maxf(0.0, _next_throw_time - _now()) if _next_throw_time >= 0.0 else THROW_INTERVAL_SECONDS
 
 
 func suppress_default_attack() -> bool:
@@ -62,6 +77,7 @@ func _try_throw(player: Node2D, dist: float) -> void:
 		return
 	_next_throw_time = now + THROW_INTERVAL_SECONDS
 	throws_made += 1
+	_last_throw_time = now
 	var parent: Node = controller.get_parent()
 	if parent == null:
 		return

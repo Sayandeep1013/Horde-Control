@@ -282,6 +282,12 @@ func _add_owned(list: Container, manager: Node, slot_kind: String) -> void:
 		lv.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		row.add_child(lv)
 		list.add_child(row)
+		var synergies: Array = manager.get_active_synergies(str(entry.get("id", ""))) if manager != null and manager.has_method("get_active_synergies") else []
+		for line in synergies: # D204: a synergy shows once its partner is owned
+			var syn := _label(str(line), UiTheme.DIM_PARCHMENT)
+			syn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			syn.custom_minimum_size.x = 380.0
+			list.add_child(syn)
 
 
 func _fill_stats_column() -> void:

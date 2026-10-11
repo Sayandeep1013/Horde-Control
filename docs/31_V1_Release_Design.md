@@ -137,6 +137,13 @@ Every ability tags its hits with a `source_id` string (the ability id, or `bow` 
 
 ---
 
+### 4.7 Synergies (`src/ability/ability_synergy.gd`, D204)
+Four named synergies read status effects set by a partner ability. Each is active while the partner is owned and is listed on the Draft card and the pause Build panel once it is. Numbers are in the Register (Ability synergies).
+- **Conduction** (Storm Bolt + Frost Ward): +2 chains, x1.5 damage to a Slowed or Frozen enemy.
+- **Kindling** (Caltrops + Flame Arrows): patches ignite; burning enemies take x1.25 Caltrops damage.
+- **Shatter** (Ballista, Catapult + Frost Arrows): a Frozen enemy takes x2 from either Tower weapon.
+- **Hallowed** (Sacred Ground + Flame Arrows / Frost Ward): a burning enemy killed in the aura heals 1% max HP; with Frost Ward the aura slows 15%.
+
 ## 5. Enemies
 
 ### 5.1 Base roster changes
@@ -146,7 +153,7 @@ Every ability tags its hits with a `source_id` string (the ability id, or `bow` 
 | Tower Seeker | Unchanged base. |
 | Player Hunter | Unchanged base. |
 | Opportunist | Unchanged base. |
-| **Bomber** (new, intent `player`, ranged) | 40 HP, speed 0.6x. Holds 240-300 px from the player and throws dynamite every 3.0 s. The landing point is the player's position, shown as a 1.0 s telegraph ring of 56 px radius, then 22 damage. Art: TNT goblin sheet (throw row) with a darker "black powder" modulate (0.62, 0.55, 0.78). Drops 2 XP + 1 Scrap. |
+| **Bomber** (new, intent `player`, ranged) | 40 HP, speed 0.6x. Holds 240-300 px from the player and throws dynamite every 3.0 s. The landing point is the player's position, shown as a 1.0 s telegraph ring of 56 px radius, then 22 damage. Art: TNT goblin sheet (throw row) recoloured steel blue by a palette-swap shader (D206; purple belongs to the Opportunist) with a lit dynamite stick held overhead while a throw is ready. Drops 2 XP + 1 Scrap. |
 | **Brute** (new, intent `tower`) | 320 HP, speed 0.42x, 34 damage per 1.8 s melee, 0.7 s wind-up. Knock-back and freeze immune (freeze becomes a slow). Art: Torch goblin at 1.55x scale with a dark-red modulate (0.75, 0.45, 0.45). Drops 5 XP + 3 Scrap. |
 
 ### 5.2 Elites
@@ -156,7 +163,7 @@ Every ability tags its hits with a `source_id` string (the ability id, or `bow` 
   - **Armored**: takes -40% damage.
   - **Volatile**: on death, a 0.7 s telegraph ring, then 35 damage in a 90 px radius to the player and Tower.
   - **Vampiric**: heals 25% of damage dealt; red outline pulse.
-- Elite drops: 4 XP, 4 Scrap, 1 Core (banks instantly per the Cores rule), and a 35% chance of **Meat**.
+- Elite drops: 4 XP, 4 Scrap, 1 Core (paid at Run-End Settlement, D255), and a 35% chance of **Meat**.
 - **Meat** is a new pickup that heals 12% of the player's max HP. It is not magnetised and lasts 20 s. Art: Tiny Swords `M_Idle` / `M_Spawn`.
 
 ### 5.3 Bosses
@@ -304,8 +311,8 @@ The migration chain gets `_migrate_2_to_3`.
 | Per wave cleared | 2 |
 | Per 25 kills | 1 |
 | Per elite killed | 1 |
-| Warchief killed | 8 (paid as a field drop) |
-| Final boss killed | 20 (paid as a field drop) |
+| Warchief killed | 8 (boss bounty, D255) |
+| Final boss killed | 20 (boss bounty, D255) |
 | Victory | 10 |
 | Scrap carried | floor(Scrap / 10) |
 

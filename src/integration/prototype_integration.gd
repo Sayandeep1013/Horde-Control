@@ -143,6 +143,7 @@ func _ready() -> void:
 
 	run_seed = resolve_run_seed(run_seed, OS.get_cmdline_user_args())
 	CombatStats.reset_run_stats() # v1.0: per-run damage-by-source and counters start at zero
+	AbilityDamage.begin_run(run_seed) # keyed crit / freeze / skill / Armory streams restart (Retry carries no state)
 	_apply_meta_loadout()
 	_wire_hud()
 	_wire_overhead_bars()

@@ -70,8 +70,8 @@ const OPEN_POINT_SEARCH_DIRECTIONS: int = 8
 ## v1.0 (WP-ENEMIES, Register "v1.0 Enemies, Bosses & Waves" > "Meat" and "War Chest").
 @export var meat_definition: PickupDefinition = preload("res://data/pickups/meat.tres")
 @export var war_chest_definition: PickupDefinition = preload("res://data/pickups/war_chest.tres")
-## Elite drop table (Register): 4 XP, 4 Scrap; the Core is banked by the enemy
-## itself (CombatStats "field_cores"), Meat is rolled below.
+## Elite drop table (Register): 4 XP, 4 Scrap; the elite's Core is paid at
+## Run-End Settlement (1 per elite killed, D255), Meat is rolled below.
 const ELITE_XP: int = 4
 const ELITE_SCRAP: int = 4
 const ELITE_MEAT_CHANCE: float = 0.35
@@ -528,7 +528,7 @@ func _collect(pickup: Pickup) -> void:
 			if _event_bus != null and _event_bus.has_method("emit_war_chest_opened"):
 				_event_bus.emit_war_chest_opened()
 		_:
-			pass # Core is banked at the source (CombatStats "field_cores"), never a field pickup
+			pass # Cores are paid at Run-End Settlement (D255), never a field pickup
 	pickup.play_collect_fx()
 	_despawn_pickup(pickup)
 

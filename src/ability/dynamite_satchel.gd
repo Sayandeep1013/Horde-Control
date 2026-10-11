@@ -10,7 +10,7 @@ var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	super._ready()
-	_rng.seed = 777
+	_rng = AbilityDamage.keyed_rng("dynamite")
 
 
 func _physics_process(_delta: float) -> void:

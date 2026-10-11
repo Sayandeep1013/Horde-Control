@@ -176,6 +176,9 @@ var _audio_pool: Node = null
 @export var behavior_path: NodePath = NodePath("Behavior")
 ## v1.0 status-effect immunities (docs/31 §4.5): bosses are freeze-immune,
 ## Brutes take a slow instead of a freeze. Forwarded to StatusEffects (WP-COMBAT).
+## >= 0 recolours the sprite with the palette-swap shader at this hue (0..1);
+## the Bomber uses it to leave the Hunter / Opportunist / Seeker colours (D206).
+@export var palette_swap_hue: float = -1.0
 @export var freeze_immune: bool = false
 @export var freeze_becomes_slow: bool = false
 
@@ -1349,15 +1352,18 @@ func refresh_outline() -> void:
 	elif GameSettings.is_enemy_outlines():
 		if definition != null and definition.readability_profile != null:
 			color = definition.readability_profile.reserved_colour
-	else:
+	elif palette_swap_hue < 0.0:
 		sprite.material = null
 		return
+	else:
+		color = Color(0, 0, 0, 0) # recolour only: no outline
 	var mat := ShaderMaterial.new()
 	mat.shader = load(OUTLINE_SHADER_PATH) as Shader
 	mat.set_shader_parameter("outline_color", color)
 	mat.set_shader_parameter("outline_width", width)
 	mat.set_shader_parameter("pulse_speed", pulse_speed)
 	mat.set_shader_parameter("pulse_amount", pulse_amount)
+	mat.set_shader_parameter("swap_hue", palette_swap_hue)
 	sprite.material = mat
 
 
@@ -1375,7 +1381,6 @@ func _v1_on_death(position: Vector2) -> void:
 	CombatStats.add_run_counter("kills", 1.0)
 	if elite_affix != "":
 		CombatStats.add_run_counter("elite_kills", 1.0)
-		CombatStats.add_run_counter("field_cores", 1.0) # elite Core banks at once (Cores rule)
 		EventBus.emit_elite_killed(self, elite_affix)
 		var parent: Node = get_parent()
 		if elite_affix == "volatile" and parent != null:

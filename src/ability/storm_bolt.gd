@@ -19,7 +19,10 @@ func strike(first: Node2D) -> Array[Node2D]:
 	var pts := PackedVector2Array([global_position, first.global_position])
 	var last: Node2D = first
 	var chain_range: float = v("chain_range") * AbilityDamage.area_scale()
-	for i in AbilityCatalog.ivalue(ability_id, "chains", level):
+	var chains: int = AbilityCatalog.ivalue(ability_id, "chains", level)
+	if AbilitySynergy.conduction_active():
+		chains += AbilitySynergy.CONDUCTION_EXTRA_CHAINS # Conduction (Frost Ward)
+	for i in chains:
 		var nxt: Node2D = AbilityDamage.nearest_enemy(last.global_position, chain_range, hit_list)
 		if nxt == null:
 			break
@@ -28,7 +31,7 @@ func strike(first: Node2D) -> Array[Node2D]:
 		last = nxt
 	var amount: float = dmg()
 	for e in hit_list:
-		AbilityDamage.hit(e, amount, ability_id, &"player", true)
+		AbilityDamage.hit(e, amount * AbilitySynergy.conduction_mult(e), ability_id, &"player", true)
 	LightningBolt.spawn(fx_parent(), pts)
 	Sfx.play("lightning", first.global_position)
 	return hit_list

@@ -7,11 +7,13 @@ class_name AbilityCatalog
 ## docs/31 §4.1: "rarity scales an ability's damage numbers, not cooldowns or
 ## counts").
 
+const FREEZE_FIRST_LEVEL: int = 3
+
 const DAMAGE_KEYS: Array[String] = ["damage", "dps", "reflect"]
 
 const TABLE: Dictionary = {
 	"flame_arrows": {"every_n": [4.0, 2.0], "dps": [6.0, 14.0], "duration": [3.0, 3.0], "spread_radius": [90.0, 90.0]},
-	"frost_arrows": {"slow": [0.20, 0.40], "duration": [1.5, 1.5], "freeze_chance": [0.0, 0.12], "freeze_duration": [1.0, 1.0]},
+	"frost_arrows": {"slow": [0.20, 0.40], "duration": [1.5, 1.5], "freeze_chance": [0.05, 0.12], "freeze_duration": [1.0, 1.0]},
 	"whirling_axes": {"count": [1.0, 4.0], "radius": [72.0, 90.0], "damage": [14.0, 26.0], "rehit": [0.45, 0.45]},
 	"dynamite_satchel": {"interval": [3.2, 2.2], "range": [320.0, 320.0], "fuse": [0.5, 0.5], "damage": [30.0, 60.0], "radius": [70.0, 95.0]},
 	"storm_bolt": {"interval": [2.6, 1.6], "range": [300.0, 300.0], "damage": [22.0, 40.0], "chains": [2.0, 6.0], "chain_range": [140.0, 140.0]},
@@ -41,6 +43,10 @@ static func value(id: String, key: String, level: int, rarity_mult: float = 1.0)
 	if not entry.has(key):
 		return 0.0
 	var pair: Array = entry[key]
+	if key == "freeze_chance": # Register: Frost Arrows freezes from level 3 only (5%, 8.5%, 12%)
+		if level < FREEZE_FIRST_LEVEL:
+			return 0.0
+		return lerpf(float(pair[0]), float(pair[1]), clampf(float(level - FREEZE_FIRST_LEVEL) / float(AbilityIds.MAX_ABILITY_LEVEL - FREEZE_FIRST_LEVEL), 0.0, 1.0))
 	var t: float = clampf(float(level - 1) / float(AbilityIds.MAX_ABILITY_LEVEL - 1), 0.0, 1.0)
 	var v: float = lerpf(float(pair[0]), float(pair[1]), t)
 	if DAMAGE_KEYS.has(key):
@@ -71,7 +77,8 @@ static func describe(id: String, level: int, rarity_mult: float = 1.0) -> String
 		"frost_arrows":
 			var fr: String = ""
 			if level >= 3:
-				fr = " %d%% chance to freeze for 1s." % roundi(value(id, "freeze_chance", level) * 100.0)
+				var pct: float = value(id, "freeze_chance", level) * 100.0
+				fr = " %s%% chance to freeze for 1s." % (("%.1f" % pct) if absf(pct - roundf(pct)) > 0.01 else "%d" % roundi(pct))
 			return "Arrows slow %d%% for %.1fs.%s" % [roundi(value(id, "slow", level) * 100.0), value(id, "duration", level), fr]
 		"whirling_axes":
 			var c: int = ivalue(id, "count", level)

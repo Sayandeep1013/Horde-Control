@@ -44,7 +44,7 @@ The master's settlement pays per biome cleared, per boss killed and per minute. 
 | Bonuses | the Prospector node's percentage, plus Founder's +5% and Regicide's +10% once earned, added together and applied once to the sum (including the Scrap line above), rounded down |
 | Difficulty (D253) | the difficulty's Cores multiplier (Recruit x0.75, Soldier x1.0, Veteran x1.4, Warlord x1.85), applied last, shown as its own line when it is not 1 |
 
-Boss kills pay as field drops (8 Cores for the Goblin Warchief, 20 for the Bombardier King, docs/31 section 5.3), not through settlement. A Soldier win pays about 90 to 110 Cores, and a typical first failed run pays 20 to 40: enough for a node or two after every early run. That is the pacing target.
+Boss kills pay a bounty at settlement (8 Cores for the Goblin Warchief, 20 for the Bombardier King, D255); bosses drop no Core pickup. A Soldier win pays about 90 to 110 Cores, and a typical first failed run pays 20 to 40: enough for a node or two after every early run. That is the pacing target.
 
 **Unlock chain (D253).** A victory is recorded per difficulty. A Soldier win unlocks Veteran, a Veteran win unlocks Warlord, and any win unlocks Endless. A defeat unlocks nothing. An Endless run records its best wave. The settlement breakdown names what a run newly unlocked so the Results screen can say so.
 

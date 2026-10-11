@@ -94,8 +94,8 @@ func set_ability_damage_multiplier(m: float) -> void:
 	calls['set_ability_damage_multiplier'] = m
 func set_tower_ability_damage_multiplier(m: float) -> void:
 	calls['set_tower_ability_damage_multiplier'] = m
-func add_crit_chance(f: float) -> void:
-	calls['add_crit_chance'] = f
+func set_crit_chance_bonus(f: float) -> void:
+	calls['set_crit_chance_bonus'] = f
 func set_damage_taken_multiplier(m: float) -> void:
 	calls['set_damage_taken_multiplier'] = m
 func set_repair_multiplier(m: float) -> void:
@@ -131,7 +131,7 @@ func test_every_hook_is_called_on_the_ability_manager_with_the_register_values()
 	assert_int(int(calls["set_dash_extra_charges"])).is_equal(1)
 	assert_float(float(calls["set_dash_cooldown_multiplier"])).is_equal_approx(0.80, 0.0001)
 	assert_float(float(calls["set_damage_taken_multiplier"])).is_equal_approx(0.85, 0.0001)
-	assert_float(float(calls["add_crit_chance"])).is_equal_approx(0.12, 0.0001)
+	assert_float(float(calls["set_crit_chance_bonus"])).is_equal_approx(0.12, 0.0001)
 	assert_float(float(calls["set_skill_cooldown_multiplier"])).is_equal_approx(0.76, 0.0001)
 	assert_float(float(calls["set_skill_damage_multiplier"])).is_equal_approx(1.45, 0.0001)
 	assert_float(float(calls["set_tower_ability_damage_multiplier"])).is_equal_approx(1.30, 0.0001)
@@ -154,11 +154,11 @@ func test_absent_hooks_and_missing_nodes_are_skipped_silently() -> void:
 	assert_array(none["called"]).is_empty()
 	assert_bool(bool(none["armory_granted"])).is_false()
 	# A node that only has one of the methods.
-	var partial: Node = _make_spy("extends Node\nvar calls: Dictionary = {}\nfunc add_crit_chance(f: float) -> void:\n\tcalls['add_crit_chance'] = f\n")
+	var partial: Node = _make_spy("extends Node\nvar calls: Dictionary = {}\nfunc set_crit_chance_bonus(f: float) -> void:\n\tcalls['set_crit_chance_bonus'] = f\n")
 	var some: Dictionary = MetaLoadoutApplier.apply_group_hooks(loadout, get_tree(), true)
-	assert_array(some["called"]).contains_exactly(["add_crit_chance"])
+	assert_array(some["called"]).contains_exactly(["set_crit_chance_bonus"])
 	assert_bool(bool(some["armory_granted"])).append_failure_message("no grant method, so the grant is reported not done (a retry may find it later)").is_false()
-	assert_float(float((partial.get("calls") as Dictionary)["add_crit_chance"])).is_equal_approx(0.12, 0.0001)
+	assert_float(float((partial.get("calls") as Dictionary)["set_crit_chance_bonus"])).is_equal_approx(0.12, 0.0001)
 
 
 func test_running_the_hooks_twice_never_grants_the_armory_ability_twice() -> void:
