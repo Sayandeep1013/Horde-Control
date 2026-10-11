@@ -33,6 +33,9 @@
 ##   --no-autocast                    kite only: leave Auto-cast Battle Skill off
 ##   --difficulty=recruit|soldier|veteran|warlord   sets RunConfig.difficulty_id
 ##       before the scene loads (default soldier)
+##   --immortal-player / --immortal-tower   top that pool up every frame so the other
+##       pool's pressure can be read to the end (measurement aid; damage counters
+##       still count every hit)
 ##   --max-sim=SECONDS                abort at this SimClock time (default 1200)
 ##   --csv=<abs path>                 append one result row to this CSV
 ##   --meta-profile-dir=<abs dir>     REQUIRED in practice: MetaProgress writes
@@ -50,11 +53,13 @@ const PROFILE_FLAG: String = "--meta-profile-dir="
 var mode: String = "still"
 var pick: int = 0
 var smart_pick: bool = false
-## v1.0 order: player abilities first, then Tower abilities (a level-up of an
-## owned ability is the same id, so "abilities then their levels" falls out of
-## the order), then damage/rate passives, then sustain. Caltrops is last of the
-## abilities (it only works while moving) and Spiked Palisade is a defensive tail.
-const SMART_PRIORITY: Array[String] = ["whirling_axes", "storm_bolt", "flame_arrows", "dynamite_satchel", "ballista", "catapult", "frost_ward", "sacred_ground", "frost_arrows", "caliber", "tower_volley", "rapid_fire", "heavy_rounds", "ability_power", "keen_eye", "multishot", "piercing_arrows", "blast_radius", "battle_focus", "optics", "shield_matrix", "reinforced_plating", "vitality", "leather_armor", "regeneration", "watchtower_upgrade", "stone_mason", "caltrops", "spiked_palisade", "fleet_step", "repair_kit", "swift_feet", "magnet", "patch_kit"]
+## v1.0 order: abilities first (a level-up of an owned ability is the same id, so
+## "abilities, then their levels" falls out of the order), strongest by measured
+## damage share first (baseline damage reports: Ballista, Whirling Axes and
+## Dynamite Satchel carried runs; Flame Arrows and Frost Ward were 1-7%), then
+## damage/rate passives, then sustain. Caltrops is late (only works while moving)
+## and Spiked Palisade is a defensive tail.
+const SMART_PRIORITY: Array[String] = ["ballista", "whirling_axes", "dynamite_satchel", "storm_bolt", "catapult", "sacred_ground", "flame_arrows", "frost_arrows", "frost_ward", "caliber", "tower_volley", "rapid_fire", "heavy_rounds", "ability_power", "keen_eye", "multishot", "piercing_arrows", "blast_radius", "battle_focus", "optics", "shield_matrix", "reinforced_plating", "vitality", "leather_armor", "regeneration", "watchtower_upgrade", "stone_mason", "caltrops", "spiked_palisade", "fleet_step", "repair_kit", "swift_feet", "magnet", "patch_kit"]
 const BOSS_IDS: Array[String] = ["goblin_warchief", "bombardier_king"]
 const KITE_HUNTER_R: float = 220.0
 const KITE_BOMBER_R: float = 230.0
@@ -62,6 +67,11 @@ const KITE_BOSS_R: float = 330.0
 const KITE_DASH_R: float = 60.0
 var autocast: bool = false
 var no_autocast: bool = false
+## Measurement aids, not policies: keep a pool topped up so the other pool's
+## pressure can be read for the whole sequence ("Tower loses health in every
+## Siege wave without player help"). Damage counters still count every hit.
+var immortal_player: bool = false
+var immortal_tower: bool = false
 var difficulty: String = "soldier"
 var repairing: bool = false
 var tele_cache: Array = []
@@ -94,6 +104,10 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--mode="): mode = a.trim_prefix("--mode=")
 		if a == "--autocast": autocast = true
+		if a == "--no-autocast": no_autocast = true
+		if a == "--immortal-player": immortal_player = true
+		if a == "--immortal-tower": immortal_tower = true
+		if a.begins_with("--difficulty="): difficulty = a.trim_prefix("--difficulty=")
 		if a == "--pick=smart": smart_pick = true
 		elif a.begins_with("--pick="): pick = int(a.trim_prefix("--pick="))
 		if a.begins_with("--seed="): seed_value = int(a.trim_prefix("--seed="))
@@ -341,6 +355,11 @@ func _process(_delta: float) -> bool:
 		print("[%6.1f] WAVE %s (%d/%d) state=%s" % [now, wid, wd.get_current_wave_display_index(), wd.get_wave_total_count(), wd.get_state_name()])
 		last_wave = wid
 
+	if immortal_tower and not ended:
+		tower.health.heal(100000.0)
+		tower.health.restore_shield()
+	if immortal_player and not ended:
+		player.death_state.current_hp = player.death_state.max_hp
 	var p_hp: float = player.death_state.current_hp
 	var t_hp: float = tower.health.get_current_health()
 	_track_boss(now)
