@@ -122,6 +122,10 @@ const SETTLEMENT_PER_WAVE_CLEARED_CORES: int = 2
 const SETTLEMENT_KILLS_PER_CORE: int = 25
 const SETTLEMENT_PER_ELITE_CORES: int = 1
 const SETTLEMENT_VICTORY_CORES: int = 10
+## docs/31 §5.3/§7.4: boss bounties (Register "v1.0 Meta Progression" >
+## settlement). Paid at settlement from the run's boss kills, since bosses drop
+## no Core pickup (D255).
+const SETTLEMENT_BOSS_CORES: Dictionary = {"warchief": 8, "king": 20}
 
 ## Register > "v1.0 Meta Progression": the v2 -> v3 refund table. The v2 tree's
 ## own tier price table and each v2 node's tier, so the refund is exact even
@@ -1247,6 +1251,14 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 	if elite_kills > 0:
 		lines.append({"label": "Elites defeated (%d)" % elite_kills, "amount": elite_cores})
 		subtotal += elite_cores
+
+	for boss_id in SETTLEMENT_BOSS_CORES.keys():
+		var count: int = int(boss_kills.get(boss_id, 0))
+		if count > 0:
+			var boss_cores: int = count * int(SETTLEMENT_BOSS_CORES[boss_id])
+			var boss_name: String = "Goblin Warchief" if boss_id == "warchief" else "Bombardier King"
+			lines.append({"label": "%s defeated (%d)" % [boss_name, count], "amount": boss_cores})
+			subtotal += boss_cores
 
 	if victory:
 		lines.append({"label": "Victory", "amount": SETTLEMENT_VICTORY_CORES})

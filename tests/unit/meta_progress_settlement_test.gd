@@ -47,6 +47,16 @@ func test_victory_adds_the_victory_bonus() -> void:
 	assert_int(breakdown["total_cores"]).append_failure_message("Register v1.0 Meta Progression: 10 Cores for a victory").is_equal(10)
 
 
+func test_boss_bounties_are_paid_per_boss_killed() -> void:
+	# D255: Warchief 8 + King 20, no other lines.
+	var breakdown: Dictionary = MetaProgress.settle_run({
+		"run_id": "formula_bosses", "sim_time_seconds": 0.0,
+		"waves_cleared": 0, "kills": 0, "victory": false, "abandoned": false,
+		"boss_kills": {"warchief": 1, "king": 1},
+	})
+	assert_int(breakdown["total_cores"]).append_failure_message("Warchief 8 + King 20").is_equal(28)
+
+
 func test_kill_count_floors_rather_than_rounds() -> void:
 	# 49 kills -> floor(49/25) = 1, not 2.
 	var breakdown: Dictionary = MetaProgress.settle_run({

@@ -50,7 +50,7 @@ const MESSAGES: Dictionary = {
 	"DRAFT_REROLL_NONE": "No rerolls left",
 
 	# UX review items 4 and 9 (D129/D130): run objective, first-run hints, wave banners.
-	"HINT_OBJECTIVE": "Protect yourself and the Tower - survive %d waves",
+	"HINT_OBJECTIVE": "Protect yourself and the Tower - hold %d waves and slay the Bombardier King",
 	"HINT_OBJECTIVE_NO_COUNT": "Protect yourself and the Tower - survive every wave",
 	"HINT_AUTOFIRE": "Your bow fires automatically at the nearest goblin. Just move (WASD).",
 	"HINT_PICKUPS": "Walk over crystals (XP) and gold sacks (Scrap) to collect them.",
