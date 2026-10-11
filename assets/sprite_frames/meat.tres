@@ -1,0 +1,73 @@
+[gd_resource type="SpriteFrames" load_steps=11 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Resources/M_Spawn.png" id="1_sheet"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Resources/M_Idle.png" id="2_sheet"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spawn_0"]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spawn_1"]
+atlas = ExtResource("1_sheet")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spawn_2"]
+atlas = ExtResource("1_sheet")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spawn_3"]
+atlas = ExtResource("1_sheet")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spawn_4"]
+atlas = ExtResource("1_sheet")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spawn_5"]
+atlas = ExtResource("1_sheet")
+region = Rect2(640, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_spawn_6"]
+atlas = ExtResource("1_sheet")
+region = Rect2(768, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_idle_0"]
+atlas = ExtResource("2_sheet")
+region = Rect2(0, 0, 128, 128)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_idle_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spawn_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spawn_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spawn_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spawn_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spawn_5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_spawn_6")
+}],
+"loop": false,
+"name": &"spawn",
+"speed": 14.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_idle_0")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 14.0
+}]
