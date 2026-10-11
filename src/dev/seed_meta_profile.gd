@@ -40,7 +40,16 @@ func _ready() -> void:
 				if id != "":
 					buys.append(id)
 
+	var wins: Array[String] = []
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--win="): # v1.0: record a victory per difficulty id, e.g. --win=soldier,veteran
+			for id in arg.trim_prefix("--win=").split(","):
+				if id != "":
+					wins.append(id)
+
 	MetaProgress.ensure_loaded()
+	for id in wins:
+		MetaProgress.settle_run({"run_id": "seed_win_%s_%d" % [id, Time.get_ticks_usec()], "sim_time_seconds": 900.0, "waves_cleared": 15, "kills": 400, "victory": true, "difficulty_id": id, "wave_reached": 15, "elite_kills": 6})
 	if cores > 0:
 		# The real production route (docs/18/Register "Meta: Run-End
 		# Settlement"): 1 Core per simulated minute at 0 waves/0 kills/no

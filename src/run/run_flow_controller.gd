@@ -192,6 +192,19 @@ var _run_id: String = ""
 ## Meta layer core: incremented on every EventBus.enemy_died this run, for
 ## the Run-End Settlement's "1 Core per 25 enemies killed" term.
 var _kill_count: int = 0
+## v1.0 (D254): per-run tallies for settlement and the Results screen. Signal
+## based (EventBus v1.0 contract signals), with the matching CombatStats
+## counter read as a floor when the emitter only writes the counter.
+var _elite_kills: int = 0
+var _boss_kills: Dictionary = {"warchief": 0, "king": 0}
+var _repair_total: float = 0.0
+var _player_ability_ids: Dictionary = {} # ability id -> true (slot_kind "player")
+var _untouchable_wave: bool = false ## cleared a wave >= 5 with no player damage taken
+var _wave_damage_baseline: float = 0.0
+var _king_killed: bool = false
+var _wave_number_seen: int = 0 ## highest EventBus.wave_started wave_number; Endless counts past the 15-wave sequence
+## Wave number (1-based) a wave must reach for the Untouchable clear to count.
+const UNTOUCHABLE_MIN_WAVE: int = 5
 ## Meta layer core: incremented on every WaveDirector.wave_ended this run,
 ## for the Settlement's "2 Cores per wave fully cleared" term. Deliberately
 ## a count of ENDED waves, not `_final_wave_index` ("wave reached") -- a wave
@@ -241,9 +254,9 @@ func _build_ui() -> void:
 	if settings_menu != null:
 		settings_menu.closed.connect(_on_settings_closed)
 	if run_end_screen != null:
-		run_end_screen.settings_requested.connect(_on_open_settings_from_run_end)
 		run_end_screen.main_menu_requested.connect(_on_main_menu_requested)
-		run_end_screen.continue_requested.connect(_on_continue_requested)
+		run_end_screen.war_camp_requested.connect(_on_war_camp_requested)
+		run_end_screen.retry_requested.connect(_on_retry_requested)
 	_refresh_ui_visibility()
 
 
@@ -256,6 +269,7 @@ func _connect_signals() -> void:
 	_connect_sequence_completed()
 	_connect_enemy_died_for_meta()
 	_connect_wave_ended_for_meta()
+	_connect_v1_signals()
 	if not Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
 		Input.joy_connection_changed.connect(_on_joy_connection_changed)
 
@@ -288,8 +302,65 @@ func _connect_wave_ended_for_meta() -> void:
 			_wave_director.wave_ended.connect(_on_wave_ended_for_meta)
 
 
-func _on_wave_ended_for_meta(_wave_id: String, _wave_index: int) -> void:
+func _on_wave_ended_for_meta(_wave_id: String, wave_index: int) -> void:
 	_waves_cleared += 1
+	# D251 Untouchable: a wave numbered UNTOUCHABLE_MIN_WAVE or later that ended
+	# with no player damage taken since it opened.
+	if wave_index + 1 >= UNTOUCHABLE_MIN_WAVE and CombatStats.get_run_counter("damage_taken") <= _wave_damage_baseline:
+		_untouchable_wave = true
+
+
+func _on_wave_opened_for_meta(_wave_id: String, _wave_index: int) -> void:
+	_wave_damage_baseline = CombatStats.get_run_counter("damage_taken")
+
+
+## D254. Connects the v1.0 EventBus signals the tallies above read. Each is
+## skipped when the bus (a test double) lacks it.
+func _connect_v1_signals() -> void:
+	_connect_bus(&"elite_killed", Callable(self, "_on_elite_killed"))
+	_connect_bus(&"boss_defeated", Callable(self, "_on_boss_defeated"))
+	_connect_bus(&"tower_repaired", Callable(self, "_on_tower_repaired"))
+	_connect_bus(&"ability_leveled", Callable(self, "_on_ability_leveled"))
+	_connect_bus(&"wave_started", Callable(self, "_on_wave_started"))
+	if _wave_director != null and _wave_director.has_signal(&"wave_opened"):
+		if not _wave_director.wave_opened.is_connected(_on_wave_opened_for_meta):
+			_wave_director.wave_opened.connect(_on_wave_opened_for_meta)
+
+
+func _connect_bus(signal_name: StringName, callable: Callable) -> void:
+	if _event_bus == null or not _event_bus.has_signal(signal_name):
+		return
+	if not _event_bus.is_connected(signal_name, callable):
+		_event_bus.connect(signal_name, callable)
+
+
+func _on_wave_started(wave_number: Variant = 0, _wave_count: Variant = 0, _wave_type: Variant = "", _is_boss: Variant = false, _timestamp: Variant = null) -> void:
+	_wave_number_seen = maxi(_wave_number_seen, int(wave_number))
+
+
+func _on_elite_killed(_entity: Variant = null, _affix: Variant = null, _timestamp: Variant = null) -> void:
+	_elite_kills += 1
+
+
+func _on_boss_defeated(boss_id: Variant = "", _position: Variant = null, _timestamp: Variant = null) -> void:
+	var id: String = String(boss_id)
+	if _boss_kills.has(id):
+		_boss_kills[id] = int(_boss_kills[id]) + 1
+	if id == "king":
+		_king_killed = true
+		# Victory = the Bombardier King killed (docs/31 section 2). In Endless the
+		# run continues until defeat, so the kill alone ends nothing there.
+		if not RunConfig.endless:
+			call_deferred("_end_run", EndCause.SEQUENCE_COMPLETED)
+
+
+func _on_tower_repaired(health_restored: Variant = 0.0, _scrap_spent: Variant = 0, _timestamp: Variant = null) -> void:
+	_repair_total += float(health_restored)
+
+
+func _on_ability_leveled(ability_id: Variant = "", _level: Variant = 1, slot_kind: Variant = "player", _timestamp: Variant = null) -> void:
+	if String(slot_kind) == "player":
+		_player_ability_ids[String(ability_id)] = true
 
 
 func _connect_tower_destroyed() -> void:
@@ -430,8 +501,26 @@ func simulate_main_menu_requested_for_test() -> void:
 	_on_main_menu_requested()
 
 
-func simulate_continue_requested_for_test() -> void:
-	_on_continue_requested()
+func simulate_war_camp_requested_for_test() -> void:
+	_on_war_camp_requested()
+
+
+func simulate_retry_requested_for_test() -> void:
+	_on_retry_requested()
+
+
+## Test seam: set the Retry/War Camp scene change to a no-op so a test can assert
+## it without leaving the test scene. Records the path instead.
+var _last_scene_change_for_test: String = ""
+var _suppress_scene_change_for_test: bool = false
+
+
+func set_suppress_scene_change_for_test(suppress: bool) -> void:
+	_suppress_scene_change_for_test = suppress
+
+
+func get_last_scene_change_for_test() -> String:
+	return _last_scene_change_for_test
 
 
 # --- Input ("pause" action, docs/19 > Input Map: "Pause Escape / Start") ---
@@ -596,16 +685,28 @@ func _on_main_menu_requested() -> void:
 	get_tree().change_scene_to_file("res://scenes/title.tscn")
 
 
-## Meta layer core (build brief item 4): the run-end screen's new
-## "Continue" choice -> the Hub. Only reachable once `_state == State.ENDED`
-## (the run-end screen is not visible otherwise), so settlement has always
-## already happened by the time this fires -- mirrors `_on_main_menu_
-## requested()`'s own pause-reason-clearing shape exactly, targeting
-## `scenes/hub.tscn` instead of `scenes/title.tscn`.
-func _on_continue_requested() -> void:
+## v1.0 (D254): the run-end screen's "War Camp" choice -> the Hub (this was the
+## "Continue" choice before; renamed because "Continue" did not say where it
+## went). Only reachable once `_state == State.ENDED`, so settlement has always
+## already happened. Mirrors `_on_main_menu_requested()`'s pause-reason clearing.
+func _on_war_camp_requested() -> void:
+	_leave_to("res://scenes/hub.tscn")
+
+
+## v1.0 (D254): "Retry" starts a fresh run with the SAME RunConfig (difficulty,
+## Battle Skill, Endless) -- those are static on `RunConfig`, so they survive the
+## scene reload with nothing to copy. The seed is not carried: a retry is a new run.
+func _on_retry_requested() -> void:
+	_leave_to("res://scenes/prototype.tscn")
+
+
+func _leave_to(scene_path: String) -> void:
 	for reason in _pause_authority.get_active_reasons():
 		_pause_authority.pop_reason_immediate(reason)
-	get_tree().change_scene_to_file("res://scenes/hub.tscn")
+	_last_scene_change_for_test = scene_path
+	if _suppress_scene_change_for_test:
+		return
+	get_tree().change_scene_to_file(scene_path)
 
 
 func _refresh_ui_visibility() -> void:
@@ -632,6 +733,8 @@ func _on_tower_destroyed(_timestamp: float = 0.0) -> void:
 
 
 func _on_sequence_completed() -> void:
+	if RunConfig.endless:
+		return # Endless ends only on defeat (docs/31 section 2)
 	call_deferred("_end_run", EndCause.SEQUENCE_COMPLETED)
 
 
@@ -682,6 +785,12 @@ func _build_run_summary(victory: bool, abandoned: bool) -> Dictionary:
 	var tower_health_fraction: float = 1.0
 	if _tower != null and _tower.health != null and _tower.health.max_health > 0.0:
 		tower_health_fraction = _tower.health.get_current_health() / _tower.health.max_health
+	var elite_kills: int = maxi(_elite_kills, int(CombatStats.get_run_counter("elite_kills")))
+	var repair_total: int = maxi(int(round(_repair_total)), int(round(CombatStats.get_run_counter("tower_repaired"))))
+	var boss_kills: Dictionary = _boss_kills.duplicate()
+	var counter_bosses: int = int(CombatStats.get_run_counter("boss_kills"))
+	if counter_bosses > int(boss_kills["warchief"]) + int(boss_kills["king"]) and not _king_killed and counter_bosses > 0:
+		boss_kills["warchief"] = counter_bosses # a counter-only emitter cannot say which boss; never counts for the King
 	return {
 		"run_id": _run_id,
 		"sim_time_seconds": maxf(0.0, _now() - _run_start_sim_time),
@@ -691,6 +800,15 @@ func _build_run_summary(victory: bool, abandoned: bool) -> Dictionary:
 		"abandoned": abandoned,
 		"scrap_carried": scrap_carried,
 		"tower_health_fraction": tower_health_fraction,
+		"difficulty_id": RunConfig.difficulty_id,
+		"endless": RunConfig.endless,
+		"wave_reached": maxi(_final_wave_index, 0),
+		"elite_kills": elite_kills,
+		"boss_kills": boss_kills,
+		"repair_total": repair_total,
+		"scrap_collected": scrap_carried + int(CombatStats.get_run_counter("scrap_repaired")),
+		"untouchable_wave": _untouchable_wave,
+		"player_abilities": _player_ability_ids.size(),
 	}
 
 
@@ -707,6 +825,8 @@ func _capture_final_wave() -> void:
 	if _wave_director != null and _wave_director.has_method(&"get_current_wave_index_for_test"):
 		var raw_index: int = int(_wave_director.get_current_wave_index_for_test())
 		_final_wave_index = raw_index + 1 if raw_index >= 0 else -1
+	if _wave_number_seen > _final_wave_index:
+		_final_wave_index = _wave_number_seen # Endless: the signal's count passes the sequence length
 	var waves: Variant = _wave_director.get("waves") if _wave_director != null else null
 	if waves is Array:
 		_final_wave_total = (waves as Array).size()
@@ -748,6 +868,14 @@ func _build_summary() -> Dictionary:
 		"scrap_held": scrap_held,
 		"time_survived_seconds": survived,
 		"run_seed": run_seed,
+		# D254 (Results screen, docs/31 section 8.3)
+		"difficulty_name": RunConfig.get_difficulty().display_name,
+		"endless": RunConfig.endless,
+		"victory": _end_cause == EndCause.SEQUENCE_COMPLETED,
+		"kills": _kill_count,
+		"elite_kills": maxi(_elite_kills, int(CombatStats.get_run_counter("elite_kills"))),
+		"damage_report": CombatStats.get_damage_by_source(),
+		"warlord_title": MetaProgress.has_perk("warlord_title") and _end_cause == EndCause.SEQUENCE_COMPLETED and RunConfig.difficulty_id == "warlord",
 	}
 
 

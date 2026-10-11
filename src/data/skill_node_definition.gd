@@ -27,9 +27,10 @@ class_name SkillNodeDefinition
 ## `value_per_rank` as a simple presence flag (1.0 once owned, unused
 ## otherwise) -- their real effect is binary, not scalar.
 
-## Matches docs/18 section 4.1's own three branch names ("Archer" is the
-## player, "Fortune" is the economy branch).
-enum Branch { ARCHER, TOWER, FORTUNE }
+## Matches docs/18 section 4.1's branch names ("Archer" is the player,
+## "Fortune" is the economy branch). v2 (D250, docs/31 section 7.1) adds
+## Survival and Battle Skills; the first three keep their stored integers.
+enum Branch { ARCHER, TOWER, FORTUNE, SURVIVAL, BATTLE }
 
 ## Matches `MetaLoadout`'s own field set one-to-one -- see that file's
 ## header. Kept as a flat enum (not nested per-branch) so `MetaLoadout`'s
@@ -63,12 +64,27 @@ enum EffectKind {
 	## D117: Lucky Charm's rarity-luck points, shifting Draft card odds from
 	## Common toward Rare/Epic (src/ui/draft_controller.gd's rarity roll).
 	ECONOMY_DRAFT_RARITY_LUCK_FLAT,
+	## v2 (D250): values 19 and up are appended so every stored integer above
+	## keeps its meaning. TOWER_SHIELD_REGEN_RATE_PERCENT (9) is no longer used
+	## by an authored node (Mason's Kit now repairs) but stays for old data.
+	PLAYER_CRIT_CHANCE, ## 19: flat crit chance (Keen Eye)
+	PLAYER_WEAPON_RANGE_PERCENT, ## 20: Eagle Eye
+	ARMORY_START_ABILITY, ## 21: Armory keystone, a free Level-1 ability
+	PLAYER_DAMAGE_TAKEN_REDUCTION, ## 22: Iron Skin
+	DASH_COOLDOWN_REDUCTION, ## 23: Fleet Foot
+	DASH_EXTRA_CHARGE, ## 24: Second Dash
+	BATTLE_SKILL_UNLOCK, ## 25: unlocks the skill named by `unlock_id`
+	SKILL_COOLDOWN_REDUCTION, ## 26: Skill Focus
+	SKILL_DAMAGE_PERCENT, ## 27: Skill Power
+	TOWER_REPAIR_PERCENT, ## 28: Mason's Kit
+	TOWER_ABILITY_DAMAGE_PERCENT, ## 29: Engineers
 }
 
-## Register > "Meta: Skill Tree costs": "base 5 / 10 / 18 / 30 Cores for
-## tiers 1-4". Index 0 unused (tier is 1-based for every purchasable node;
+## Register > "Meta: Skill Tree costs": "base 8 / 16 / 28 / 45 Cores for
+## tiers 1-4" (v2, D250; the v2 profile migration keeps its own copy of the
+## old 5 / 10 / 18 / 30 table, see MetaProgress). Index 0 unused (tier is 1-based for every purchasable node;
 ## the root is tier 0 and priced separately, see `price_for_rank()` below).
-const TIER_BASE_COST: Array[int] = [0, 5, 10, 18, 30]
+const TIER_BASE_COST: Array[int] = [0, 8, 16, 28, 45]
 
 @export var id: String = ""
 @export var display_name: String = ""
@@ -90,6 +106,11 @@ const TIER_BASE_COST: Array[int] = [0, 5, 10, 18, 30]
 ## The real unlock graph (docs/18 section 4.1). Node ids that must ALL be
 ## owned (rank >= 1) before this node can be bought. Empty for the root.
 @export var prerequisite_ids: Array[String] = []
+## v2 (D250). Short label for the board (a legible two-line name), icon file
+## id (assets/ui/icons/icon_<id>.png; "" = branch glyph) and, for
+## BATTLE_SKILL_UNLOCK nodes, the AbilityIds Battle Skill this node unlocks.
+@export var icon_id: String = ""
+@export var unlock_id: String = ""
 
 
 ## Register > "Meta: Skill Tree costs": "Rank r of a tier-t node costs

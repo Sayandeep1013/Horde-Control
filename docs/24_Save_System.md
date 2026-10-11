@@ -1,7 +1,7 @@
 # 24 - Save System
 
-**Version:** 0.2.0
-**Status:** Working draft, written 2026-09-23 for the prototype's meta layer (document 18; decisions D109-D113). Numbers are Provisional Defaults whose authority is the master's Provisional Values Register row "Meta: Save profile".
+**Version:** 0.3.0
+**Status:** Working draft, written 2026-09-23 for the prototype's meta layer (document 18; decisions D109-D113); schema 3 added for v1.0 on 2026-10-11 (decisions D250-D254). Numbers are Provisional Defaults whose authority is the master's Provisional Values Register row "Meta: Save profile".
 
 **Owns:** the profile file format, atomic writes, backups, migration, and when saves happen. The Meta Wallet's rules are document 14's; this document only stores them.
 
@@ -10,7 +10,7 @@
 ## 1. One profile, one file
 
 - The path is `user://profile.json` (on Windows, `%APPDATA%/Godot/app_userdata/Horde Control/profile.json`). JSON, UTF-8, human-readable.
-- The top level holds `schema_version` (int, currently 2 — D118, 2026-09-23), `cores` (int), `lifetime_cores`, `tree_ranks` ({node_id: rank}), `records` ({best_wave, best_time_s, best_kills, runs, victories}), `settled_run_ids` (the last 16, for idempotent settlement), `first_hub_seen` (bool), `saved_at_unix`, and, since schema_version 2, `lifetime_kills` (int), `lifetime_scrap_collected` (int), and `unlocked_achievement_ids` (Array[String]) for the achievements list (document 18 section 8; `data/meta/achievements.tres`).
+- The top level holds `schema_version` (int, currently 3 — D252, 2026-10-11), `cores` (int), `lifetime_cores`, `tree_ranks` ({node_id: rank}), `records` ({best_wave, best_time_s, best_kills, runs, victories}), `settled_run_ids` (the last 16, for idempotent settlement), `first_hub_seen` (bool), `saved_at_unix`, and, since schema_version 2, `lifetime_kills` (int), `lifetime_scrap_collected` (int), and `unlocked_achievement_ids` (Array[String]) for the achievements list (document 18 section 8; `data/meta/achievements.tres`). Since schema_version 3 it also holds the v1.0 meta loop (document 18 section 9): `selected_difficulty`, `selected_battle_skill`, `selected_endless` (the War Camp's last choices), `difficulty_victories` ({recruit, soldier, veteran, warlord}: int), `endless_unlocked` (bool), `best_endless_wave`, `lifetime_elite_kills`, `lifetime_boss_kills` ({warchief, king}: int), `lifetime_repair`, `runs_played`, `tree_migrated_v3_notice` (bool) and `v3_refund_amount` (int, shown once in the Hub notice).
 - Unknown keys are preserved on rewrite, for forward compatibility inside a version.
 
 ## 2. Atomic write
@@ -30,7 +30,7 @@ A write interrupted at any step leaves either the old `profile.json` or the new 
 1. Read `profile.json` and parse it. If it parses and validates (types and ranges correct, `schema_version` known), use it.
 2. Otherwise try `profile.json.bak`.
 3. Otherwise copy the unreadable file to `profile.corrupt.json`, start a fresh profile, and set `recovered_from_corruption`. The Hub tells the player once.
-4. After a successful load, run the migration chain (section 5), then reconcile the tree: clamp each rank to the node's current max rank, drop unknown node ids, refund the Cores spent on anything removed, and ensure the root is owned.
+4. After a successful load, run the migration chain (section 5), then reconcile: clamp each tree rank to the node's current max rank, drop unknown node ids, refund the Cores spent on anything removed, and ensure the root is owned; clamp every v3 counter to zero or more; replace an unknown or locked `selected_difficulty`, an unknown or locked `selected_battle_skill`, and an Endless choice made without Endless unlocked, with the defaults (Soldier, Arrow Storm, off); and treat any recorded victory as Endless unlocked.
 
 ## 4. When saves happen
 
@@ -41,9 +41,11 @@ A write interrupted at any step leaves either the old `profile.json` or the new 
 
 ## 5. Migration
 
-`schema_version` starts at 1. Each future version adds one function `migrate_N_to_N_plus_1(dict) -> dict` to an ordered table, and load applies them in sequence. A profile from a newer version than the game understands is not overwritten: the game loads it read-only and warns the player.
+`schema_version` starts at 1 (the current version is 3). Each future version adds one function `migrate_N_to_N_plus_1(dict) -> dict` to an ordered table, and load applies them in sequence. A profile from a newer version than the game understands is not overwritten: the game loads it read-only and warns the player.
 
 **Version 2 (D118, 2026-09-23):** adds `lifetime_kills` (int), `lifetime_scrap_collected` (int), and `unlocked_achievement_ids` (Array[String]). `migrate_1_to_2()` adds all three at zero/empty on a v1 profile — the correct historical value, since a profile that predates achievements has, by definition, unlocked none and has no lifetime counters to backfill from.
+
+**Version 3 (D252, 2026-10-11):** the Skill Tree was rebuilt for v1.0 (30 nodes in five branches, new tier prices), so old ranks no longer mean anything. `migrate_2_to_3()` refunds **every Core spent on the v2 tree** and resets `tree_ranks` to empty. The refund is priced with the v2 tier table (5 / 10 / 18 / 30) and each v2 node's own tier, both kept as constants in `src/meta/meta_progress.gd` (`V2_TIER_BASE_COST`, `V2_NODE_TIERS`), because the authored tree no longer contains those nodes; an id v2 never authored refunds at tier 1, as reconcile does. The refund is clamped to the wallet cap, is not counted in `lifetime_cores`, and is recorded in `v3_refund_amount`. The migration sets `tree_migrated_v3_notice`, and the Hub shows "The Skill Tree was rebuilt. Your Cores were refunded." once; dismissing it saves the cleared flag. A v1 profile passes through 1 to 2 and then 2 to 3. Every other field survives unchanged, and the new fields start at their defaults: no past run is credited retroactively. The first save after the migration copies the v2 file to `profile.json.bak`, so the old file stays recoverable.
 
 ## 6. Tests (Acceptance Test Matrix rows Save atomicity test, Meta persistence test)
 
@@ -52,5 +54,6 @@ A write interrupted at any step leaves either the old `profile.json` or the new 
 - Corrupt file: garbage in `profile.json` loads `.bak`; garbage in both starts fresh and keeps `profile.corrupt.json`.
 - Settlement idempotence: settling the same run id twice pays once.
 - Reconcile: a profile holding a rank above the node's max, or an unknown node, is corrected and refunded.
+- Migration 2 to 3 (`meta_v3_profile_test.gd`): a v2 fixture refunds exactly 153 Cores at the v2 prices, resets the tree, sets the notice flag, keeps every other field, writes schema 3 with a v2 `.bak`, does not pay twice on reload, clamps at the wallet cap, and leaves a newer-than-known profile read-only. v3 fields are clamped, and locked selections fall back.
 
 Tests use a throwaway directory, never the real `user://profile.json`.

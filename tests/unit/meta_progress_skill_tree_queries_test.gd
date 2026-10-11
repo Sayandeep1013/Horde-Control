@@ -42,22 +42,22 @@ func test_prerequisites_met_is_true_for_a_tier_1_node_since_the_root_is_always_o
 
 func test_prerequisites_met_is_false_for_a_convergence_node_missing_one_sibling() -> void:
 	_grant_cores(200)
-	MetaProgress.buy("vitality")
-	MetaProgress.buy("sharpened_arrows")
-	assert_bool(MetaProgress.prerequisites_met("long_reach")).append_failure_message("long_reach needs BOTH sharpened_arrows and quick_draw; only one is owned").is_false()
-	MetaProgress.buy("swift_boots")
-	MetaProgress.buy("quick_draw")
-	assert_bool(MetaProgress.prerequisites_met("long_reach")).is_true()
+	MetaProgress.buy("stone_walls")
+	MetaProgress.buy("shield_runes")
+	assert_bool(MetaProgress.prerequisites_met("watchtower")).append_failure_message("watchtower needs BOTH shield_runes and masons_kit; only one is owned").is_false()
+	MetaProgress.buy("arrow_slits")
+	MetaProgress.buy("masons_kit")
+	assert_bool(MetaProgress.prerequisites_met("watchtower")).is_true()
 
 
 func test_prerequisites_met_distinguishes_locked_from_merely_unaffordable() -> void:
-	# sharpened_arrows: prerequisite (vitality) unmet AND unaffordable (0 Cores) --
+	# shield_runes: prerequisite (stone_walls) unmet AND unaffordable (0 Cores) --
 	# prerequisites_met() must report the PREREQUISITE state, independent of cores.
-	assert_bool(MetaProgress.prerequisites_met("sharpened_arrows")).is_false()
-	_grant_cores(5)
-	MetaProgress.buy("vitality") # reveals sharpened_arrows and satisfies its one prerequisite
-	assert_bool(MetaProgress.prerequisites_met("sharpened_arrows")).append_failure_message("sharpened_arrows' only prerequisite is now owned -- it must report met even with 0 Cores left").is_true()
-	assert_bool(MetaProgress.can_buy("sharpened_arrows")).append_failure_message("0 Cores left after buying vitality -- can_buy() must still refuse").is_false()
+	assert_bool(MetaProgress.prerequisites_met("shield_runes")).is_false()
+	_grant_cores(8)
+	MetaProgress.buy("stone_walls") # reveals shield_runes and satisfies its one prerequisite
+	assert_bool(MetaProgress.prerequisites_met("shield_runes")).append_failure_message("shield_runes' only prerequisite is now owned -- it must report met even with 0 Cores left").is_true()
+	assert_bool(MetaProgress.can_buy("shield_runes")).append_failure_message("0 Cores left after buying stone_walls -- can_buy() must still refuse").is_false()
 
 
 func test_prerequisites_met_is_true_for_an_unknown_id() -> void:

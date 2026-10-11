@@ -64,8 +64,8 @@ extends Node
 ## itemisation to hand back).
 ##
 ## ## Schema version / migration table
-## `schema_version` is 2 (D118 added lifetime achievement counters -- see
-## below). A file whose `schema_version` is HIGHER than this code's own
+## `schema_version` is 3 (D118 added lifetime achievement counters; D252 the
+## v1.0 meta fields -- see below). A file whose `schema_version` is HIGHER than this code's own
 ## `SCHEMA_VERSION` (this build is older than the one that wrote it) is
 ## loaded read-only: `flags.read_only_newer_version` is set, and `_save()`
 ## refuses to write at all, so a downgrade never clobbers a newer save
@@ -84,11 +84,21 @@ extends Node
 ## FUTURE play, never retroactively on past runs this profile already
 ## banked Cores for).
 
+## ## Schema version 3 (D252, 2026-10-11): the v1.0 meta loop
+## Adds `selected_difficulty`, `selected_battle_skill`, `selected_endless`,
+## `difficulty_victories{recruit,soldier,veteran,warlord}`, `endless_unlocked`,
+## `best_endless_wave`, `lifetime_elite_kills`, `lifetime_boss_kills{warchief,
+## king}`, `lifetime_repair`, `runs_played` and `tree_migrated_v3_notice`.
+## `_migrate_2_to_3()` refunds every Core spent on v2 nodes (priced with the OLD
+## 5/10/18/30 tier table and the old node tiers, kept below as constants because
+## the authored tree no longer contains them), resets `tree_ranks`, and sets the
+## one-time Hub notice flag. docs/31 section 7.3; docs/24.
+
 signal cores_changed(new_total: int)
 signal rank_changed(node_id: String, new_rank: int)
 signal profile_saved(ok: bool)
 
-const SCHEMA_VERSION: int = 2
+const SCHEMA_VERSION: int = 3
 const PROFILE_FILENAME: String = "profile.json"
 const BACKUP_FILENAME: String = "profile.json.bak"
 const TMP_FILENAME: String = "profile.json.tmp"
@@ -104,13 +114,27 @@ const CORE_WALLET_CAP: int = 999999
 ## (not compounded per rank).
 const PROSPECTOR_BONUS_PER_RANK: float = 0.15
 
-## Register > "Meta: Run-End Settlement (prototype)": "1 Core per full
-## minute of simulation time; 2 Cores per wave fully cleared; 1 Core per 25
-## enemies killed (floor); 5 Cores for clearing the final wave".
+## Register > "v1.0 Meta Progression" > "Run-End Settlement (v1.0)" (D253):
+## 1 Core per full minute, 2 per wave cleared, 1 per 25 kills, 1 per elite
+## killed, 10 for a victory; then x (1 + bonuses) x difficulty Cores multiplier.
 const SETTLEMENT_PER_MINUTE_CORES: int = 1
 const SETTLEMENT_PER_WAVE_CLEARED_CORES: int = 2
 const SETTLEMENT_KILLS_PER_CORE: int = 25
-const SETTLEMENT_FINAL_WAVE_BONUS_CORES: int = 5
+const SETTLEMENT_PER_ELITE_CORES: int = 1
+const SETTLEMENT_VICTORY_CORES: int = 10
+
+## Register > "v1.0 Meta Progression": the v2 -> v3 refund table. The v2 tree's
+## own tier price table and each v2 node's tier, so the refund is exact even
+## though the authored tree changed (D252).
+const V2_TIER_BASE_COST: Array[int] = [0, 5, 10, 18, 30]
+const V2_NODE_TIERS: Dictionary = {
+	"vitality": 1, "swift_boots": 1, "sharpened_arrows": 2, "quick_draw": 2, "long_reach": 3,
+	"second_wind": 4, "stone_walls": 1, "arrow_slits": 1, "shield_runes": 2, "masons_kit": 2,
+	"watchtower": 3, "fortress": 4, "scavenger": 1, "scholar": 1, "lucky_draw": 2,
+	"prospector": 2, "lucky_charm": 2, "deep_pockets": 3, "war_chest": 4,
+}
+const DIFFICULTY_IDS: Array[String] = ["recruit", "soldier", "veteran", "warlord"]
+const BOSS_IDS: Array[String] = ["warchief", "king"]
 
 ## D115 (no in-run shop): Scrap has no in-run sink any more -- Register >
 ## "Meta: Run-End Settlement (prototype)": "Scrap line: floor(scrap_carried
@@ -129,6 +153,8 @@ const SETTLEMENT_SCRAP_PER_CORE: int = 10
 ## here. `hoarder`'s own perk (`bonus_reroll`) needs no constant at all: a
 ## flat +1, read directly by `MetaLoadoutApplier`.
 const ACHIEVEMENT_SETTLEMENT_CORES_BONUS: float = 0.05
+## D251: Regicide's own settlement bonus (Register "Meta: Achievements").
+const ACHIEVEMENT_REGICIDE_CORES_BONUS: float = 0.10
 
 ## Harness/test-only cmdline flag (mirrors RunFlowController's
 ## `--no-focus-pause` precedent): redirects the save directory away from the
@@ -220,8 +246,19 @@ func set_achievement_list_for_test(list: AchievementList) -> void:
 ## Slayer threshold") without replaying every prior run that would have
 ## produced it.
 func set_lifetime_counter_for_test(key: String, value: int) -> void:
-	if key == "lifetime_kills" or key == "lifetime_scrap_collected":
+	if ["lifetime_kills", "lifetime_scrap_collected", "lifetime_elite_kills", "lifetime_repair", "runs_played", "best_endless_wave"].has(key):
 		_profile[key] = maxi(0, value)
+
+
+## Sets a difficulty's recorded victory count directly (unlock-chain tests).
+func set_difficulty_victories_for_test(id: String, count: int) -> void:
+	(_profile["difficulty_victories"] as Dictionary)[id] = maxi(0, count)
+	if count > 0:
+		_profile["endless_unlocked"] = true
+
+
+func get_profile_for_test() -> Dictionary:
+	return _profile.duplicate(true)
 
 
 ## Grants an achievement directly, bypassing settle_run()'s own metric
@@ -351,6 +388,9 @@ func _migrate(data: Dictionary) -> Dictionary:
 	if version < 2:
 		d = _migrate_1_to_2(d)
 		version = 2
+	if version < 3:
+		d = _migrate_2_to_3(d)
+		version = 3
 	if version > SCHEMA_VERSION:
 		d = d.duplicate(true)
 		var flags: Dictionary = d.get("flags", {})
@@ -378,6 +418,27 @@ func _migrate_1_to_2(data: Dictionary) -> Dictionary:
 	return d
 
 
+## Schema version 3 (D252): see class header. Refunds every Core spent on the
+## v2 tree at the v2 prices, clears the ranks, sets the one-time notice flag and
+## leaves the v1.0 fields to `_reconcile()` (zero: no past run is credited).
+func _migrate_2_to_3(data: Dictionary) -> Dictionary:
+	var d: Dictionary = data.duplicate(true)
+	var refund: int = 0
+	var raw_ranks: Variant = d.get("tree_ranks", {})
+	if raw_ranks is Dictionary:
+		for id in (raw_ranks as Dictionary).keys():
+			var tier: int = int(V2_NODE_TIERS.get(String(id), 1)) # an id v2 never authored: the cheapest tier, as _reconcile() does
+			var rank: int = maxi(0, int((raw_ranks as Dictionary)[id]))
+			for r in range(1, rank + 1):
+				refund += int(round(float(V2_TIER_BASE_COST[tier]) * (1.0 + 0.5 * float(r - 1))))
+	d["tree_ranks"] = {}
+	d["cores"] = clampi(int(d.get("cores", 0)) + refund, 0, CORE_WALLET_CAP)
+	d["tree_migrated_v3_notice"] = true
+	d["v3_refund_amount"] = refund
+	d["schema_version"] = 3
+	return d
+
+
 ## See class header, "Reconciliation." Always returns a COMPLETE, freshly
 ## shaped profile Dictionary (every key defaulted), never a passthrough of
 ## `data` -- a hand-edited or partially-written file missing a key must
@@ -391,6 +452,7 @@ func _reconcile(data: Dictionary) -> Dictionary:
 	profile["first_run_hints_seen"] = bool(data.get("first_run_hints_seen", false))
 	profile["lifetime_kills"] = maxi(0, int(data.get("lifetime_kills", 0)))
 	profile["lifetime_scrap_collected"] = maxi(0, int(data.get("lifetime_scrap_collected", 0)))
+	_reconcile_v3_fields(profile, data)
 
 	var raw_unlocked: Variant = data.get("unlocked_achievement_ids", [])
 	if raw_unlocked is Array:
@@ -454,7 +516,62 @@ func _reconcile(data: Dictionary) -> Dictionary:
 				refund += _cost_of_ranks(node.tier, node.max_rank + 1, stored_rank)
 	if refund > 0:
 		profile["cores"] = clampi(int(profile["cores"]) + refund, 0, CORE_WALLET_CAP)
+	if not _skill_unlocked_in(profile["tree_ranks"], String(profile["selected_battle_skill"])):
+		profile["selected_battle_skill"] = RunConfig.DEFAULT_BATTLE_SKILL_ID
 	return profile
+
+
+## v3 fields (D252): every value clamped, every key defaulted, an unknown
+## difficulty/skill id falling back to the default, and a selection that is not
+## unlocked falling back too (a hand-edited profile cannot start a locked run).
+func _reconcile_v3_fields(profile: Dictionary, data: Dictionary) -> void:
+	var raw_victories: Variant = data.get("difficulty_victories", {})
+	var victories: Dictionary = profile["difficulty_victories"]
+	if raw_victories is Dictionary:
+		for id in DIFFICULTY_IDS:
+			victories[id] = maxi(0, int((raw_victories as Dictionary).get(id, 0)))
+	var raw_bosses: Variant = data.get("lifetime_boss_kills", {})
+	var bosses: Dictionary = profile["lifetime_boss_kills"]
+	if raw_bosses is Dictionary:
+		for id in BOSS_IDS:
+			bosses[id] = maxi(0, int((raw_bosses as Dictionary).get(id, 0)))
+	profile["lifetime_elite_kills"] = maxi(0, int(data.get("lifetime_elite_kills", 0)))
+	profile["lifetime_repair"] = maxi(0, int(data.get("lifetime_repair", 0)))
+	profile["runs_played"] = maxi(0, int(data.get("runs_played", 0)))
+	profile["best_endless_wave"] = maxi(0, int(data.get("best_endless_wave", 0)))
+	profile["tree_migrated_v3_notice"] = bool(data.get("tree_migrated_v3_notice", false))
+	profile["v3_refund_amount"] = maxi(0, int(data.get("v3_refund_amount", 0)))
+	var any_victory: bool = false
+	for id in DIFFICULTY_IDS:
+		if int(victories[id]) > 0:
+			any_victory = true
+	profile["endless_unlocked"] = bool(data.get("endless_unlocked", false)) or any_victory
+	profile["selected_endless"] = bool(data.get("selected_endless", false)) and bool(profile["endless_unlocked"])
+	var difficulty: String = String(data.get("selected_difficulty", RunConfig.DEFAULT_DIFFICULTY_ID))
+	if not DIFFICULTY_IDS.has(difficulty) or not _difficulty_unlocked_in(victories, difficulty):
+		difficulty = RunConfig.DEFAULT_DIFFICULTY_ID
+	profile["selected_difficulty"] = difficulty
+	var skill: String = String(data.get("selected_battle_skill", RunConfig.DEFAULT_BATTLE_SKILL_ID))
+	if not AbilityIds.BATTLE_SKILLS.has(skill):
+		skill = RunConfig.DEFAULT_BATTLE_SKILL_ID
+	profile["selected_battle_skill"] = skill # a locked skill is corrected once the tree ranks are reconciled, in _reconcile()
+
+
+static func _difficulty_unlocked_in(victories: Dictionary, id: String) -> bool:
+	var required: String = RunConfig.get_difficulty_by_id(id).unlocked_by_victory_on
+	return required == "" or int(victories.get(required, 0)) > 0
+
+
+## True when `ranks` (a tree_ranks Dictionary) owns the node that unlocks `skill_id`.
+func _skill_unlocked_in(ranks: Dictionary, skill_id: String) -> bool:
+	if skill_id == RunConfig.DEFAULT_BATTLE_SKILL_ID:
+		return true
+	if skill_tree == null:
+		return false
+	for node in skill_tree.nodes:
+		if node != null and node.effect_kind == SkillNodeDefinition.EffectKind.BATTLE_SKILL_UNLOCK and node.unlock_id == skill_id:
+			return int(ranks.get(node.id, 0)) > 0
+	return false
 
 
 static func _cost_of_ranks(node_tier: int, from_rank: int, to_rank: int) -> int:
@@ -488,6 +605,18 @@ func _fresh_profile() -> Dictionary:
 		"lifetime_kills": 0,
 		"lifetime_scrap_collected": 0,
 		"unlocked_achievement_ids": [],
+		"selected_difficulty": RunConfig.DEFAULT_DIFFICULTY_ID,
+		"selected_battle_skill": RunConfig.DEFAULT_BATTLE_SKILL_ID,
+		"selected_endless": false,
+		"difficulty_victories": {"recruit": 0, "soldier": 0, "veteran": 0, "warlord": 0},
+		"endless_unlocked": false,
+		"best_endless_wave": 0,
+		"lifetime_elite_kills": 0,
+		"lifetime_boss_kills": {"warchief": 0, "king": 0},
+		"lifetime_repair": 0,
+		"runs_played": 0,
+		"tree_migrated_v3_notice": false,
+		"v3_refund_amount": 0,
 	}
 
 
@@ -747,6 +876,155 @@ func mark_hub_seen() -> void:
 	_save()
 
 
+# --- v1.0 meta loop API (D252-D254) -------------------------------------------
+
+func get_selected_difficulty() -> String:
+	return String(_profile.get("selected_difficulty", RunConfig.DEFAULT_DIFFICULTY_ID))
+
+
+func get_selected_battle_skill() -> String:
+	return String(_profile.get("selected_battle_skill", RunConfig.DEFAULT_BATTLE_SKILL_ID))
+
+
+func get_selected_endless() -> bool:
+	return bool(_profile.get("selected_endless", false)) and is_endless_unlocked()
+
+
+## Each setter refuses a locked choice (returns false) and saves on success,
+## matching every other profile mutation's save cadence.
+func set_selected_difficulty(id: String) -> bool:
+	if not DIFFICULTY_IDS.has(id) or not is_difficulty_unlocked(id):
+		return false
+	_profile["selected_difficulty"] = id
+	_save()
+	return true
+
+
+func set_selected_battle_skill(id: String) -> bool:
+	if not AbilityIds.BATTLE_SKILLS.has(id) or not is_battle_skill_unlocked(id):
+		return false
+	_profile["selected_battle_skill"] = id
+	_save()
+	return true
+
+
+func set_selected_endless(on: bool) -> bool:
+	if on and not is_endless_unlocked():
+		return false
+	_profile["selected_endless"] = on
+	_save()
+	return true
+
+
+## Writes the three persisted choices into `RunConfig` (the Hub calls this
+## right before it changes scene; Retry reuses what is already there).
+func apply_selection_to_run_config() -> void:
+	RunConfig.difficulty_id = get_selected_difficulty()
+	RunConfig.battle_skill_id = get_selected_battle_skill()
+	RunConfig.endless = get_selected_endless()
+
+
+func get_difficulty_victories(id: String) -> int:
+	return int((_profile.get("difficulty_victories", {}) as Dictionary).get(id, 0))
+
+
+## "" unlock condition = open; otherwise the named difficulty must have been won.
+func is_difficulty_unlocked(id: String) -> bool:
+	return _difficulty_unlocked_in(_profile.get("difficulty_victories", {}), id)
+
+
+## The difficulty a first victory on `won_id` newly opens ("" if none, or if it
+## was already open before this call's own increment).
+func _difficulty_unlocked_by(won_id: String) -> String:
+	for id in DIFFICULTY_IDS:
+		if RunConfig.get_difficulty_by_id(id).unlocked_by_victory_on == won_id and get_difficulty_victories(won_id) == 1:
+			return id
+	return ""
+
+
+func is_endless_unlocked() -> bool:
+	return bool(_profile.get("endless_unlocked", false))
+
+
+func get_best_endless_wave() -> int:
+	return int(_profile.get("best_endless_wave", 0))
+
+
+func get_lifetime_elite_kills() -> int:
+	return int(_profile.get("lifetime_elite_kills", 0))
+
+
+func get_lifetime_repair() -> int:
+	return int(_profile.get("lifetime_repair", 0))
+
+
+func get_runs_played() -> int:
+	return int(_profile.get("runs_played", 0))
+
+
+func get_lifetime_boss_kills(boss_id: String) -> int:
+	return int((_profile.get("lifetime_boss_kills", {}) as Dictionary).get(boss_id, 0))
+
+
+## A Battle Skill is open when it is the free default, or the tree node that
+## names it in `unlock_id` is owned.
+func is_battle_skill_unlocked(skill_id: String) -> bool:
+	return _skill_unlocked_in(_profile.get("tree_ranks", {}), skill_id)
+
+
+func get_unlocked_battle_skills() -> Array[String]:
+	var out: Array[String] = []
+	for id in AbilityIds.BATTLE_SKILLS:
+		if is_battle_skill_unlocked(id):
+			out.append(id)
+	return out
+
+
+## The tree node id that unlocks `skill_id` ("" for the free default).
+func get_battle_skill_unlock_node_id(skill_id: String) -> String:
+	if skill_tree == null:
+		return ""
+	for node in skill_tree.nodes:
+		if node != null and node.effect_kind == SkillNodeDefinition.EffectKind.BATTLE_SKILL_UNLOCK and node.unlock_id == skill_id:
+			return node.id
+	return ""
+
+
+## One-time Hub notice after the v2 -> v3 migration (D252).
+func has_v3_notice() -> bool:
+	return bool(_profile.get("tree_migrated_v3_notice", false))
+
+
+func get_v3_refund_amount() -> int:
+	return int(_profile.get("v3_refund_amount", 0))
+
+
+func acknowledge_v3_notice() -> void:
+	if not has_v3_notice():
+		return
+	_profile["tree_migrated_v3_notice"] = false
+	_save()
+
+
+## Achievements panel (D251): {"current": float, "target": float, "fraction":
+## float, "per_run": bool, "unlocked": bool}. Per-run metrics report 0 outside a run.
+func get_achievement_progress(id: String) -> Dictionary:
+	var achievement: AchievementDefinition = achievement_list.get_achievement(id) if achievement_list != null else null
+	if achievement == null:
+		return {}
+	var unlocked: bool = is_achievement_unlocked(id)
+	var per_run: bool = achievement.metric.begins_with("run_")
+	var current: float = 0.0 if per_run else maxf(0.0, _metric_value(achievement.metric, {}))
+	var target: float = achievement.threshold
+	if unlocked:
+		current = maxf(current, target)
+	return {
+		"current": current, "target": target,
+		"fraction": clampf(current / target, 0.0, 1.0) if target > 0.0 else 1.0,
+		"per_run": per_run, "unlocked": unlocked,
+	}
+
+
 ## `id == root_id` -> full info (owned, and free). Otherwise: full info if
 ## owned OR any ONE `prerequisite_ids` entry is owned; a silhouette (false)
 ## otherwise. docs/18 section 4.1: "A node is revealed ... once it is owned
@@ -889,12 +1167,16 @@ func respec() -> int:
 	return credited
 
 
-## Register > "Meta: Run-End Settlement (prototype)"; D110/D115/D118.
-## Idempotent by `run_summary.run_id` -- see class header, "Idempotent
-## settlement". `run_summary` keys: `run_id: String`, `sim_time_seconds:
-## float`, `waves_cleared: int`, `kills: int`, `victory: bool`, `abandoned:
-## bool`, `scrap_carried: int` (D115), `tower_health_fraction: float`
-## (D118). Commits to disk (via `_save()`) before returning, per the build
+## Register > "Meta: Run-End Settlement (prototype)" and > "v1.0 Meta
+## Progression"; D110/D115/D118/D253. Idempotent by `run_summary.run_id` --
+## see class header, "Idempotent settlement". `run_summary` keys: `run_id:
+## String`, `sim_time_seconds: float`, `waves_cleared: int`, `kills: int`,
+## `victory: bool`, `abandoned: bool`, `scrap_carried: int` (D115),
+## `tower_health_fraction: float` (D118) and the v1.0 keys (D253, all
+## optional): `difficulty_id: String`, `endless: bool`, `wave_reached: int`,
+## `elite_kills: int`, `boss_kills: Dictionary` (id -> count), `repair_total:
+## int`, `scrap_collected: int`, `untouchable_wave: bool`, `player_abilities:
+## int`. Commits to disk (via `_save()`) before returning, per the build
 ## brief.
 func settle_run(run_summary: Dictionary) -> Dictionary:
 	var run_id: String = String(run_summary.get("run_id", ""))
@@ -919,6 +1201,20 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 	var abandoned: bool = bool(run_summary.get("abandoned", false))
 	var scrap_carried: int = maxi(0, int(run_summary.get("scrap_carried", 0)))
 	var tower_health_fraction: float = float(run_summary.get("tower_health_fraction", 1.0))
+	var difficulty_id: String = String(run_summary.get("difficulty_id", RunConfig.DEFAULT_DIFFICULTY_ID))
+	if not DIFFICULTY_IDS.has(difficulty_id):
+		difficulty_id = RunConfig.DEFAULT_DIFFICULTY_ID
+	var endless: bool = bool(run_summary.get("endless", false))
+	var wave_reached: int = maxi(0, int(run_summary.get("wave_reached", waves_cleared)))
+	var elite_kills: int = maxi(0, int(run_summary.get("elite_kills", 0)))
+	var boss_kills: Dictionary = {}
+	var raw_boss_kills: Variant = run_summary.get("boss_kills", {})
+	if raw_boss_kills is Dictionary:
+		for boss_id in BOSS_IDS:
+			boss_kills[boss_id] = maxi(0, int((raw_boss_kills as Dictionary).get(boss_id, 0)))
+	var repair_total: int = maxi(0, int(run_summary.get("repair_total", 0)))
+	var scrap_collected: int = maxi(scrap_carried, int(run_summary.get("scrap_collected", scrap_carried)))
+	var difficulty: DifficultyProfile = RunConfig.get_difficulty_by_id(difficulty_id)
 
 	var minutes: int = int(floor(sim_time / 60.0))
 	var lines: Array = []
@@ -947,21 +1243,35 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 	lines.append({"label": "Scrap (%d)" % scrap_carried, "amount": scrap_cores})
 	subtotal += scrap_cores
 
+	var elite_cores: int = elite_kills * SETTLEMENT_PER_ELITE_CORES
+	if elite_kills > 0:
+		lines.append({"label": "Elites defeated (%d)" % elite_kills, "amount": elite_cores})
+		subtotal += elite_cores
+
 	if victory:
-		lines.append({"label": "Wave sequence cleared", "amount": SETTLEMENT_FINAL_WAVE_BONUS_CORES})
-		subtotal += SETTLEMENT_FINAL_WAVE_BONUS_CORES
+		lines.append({"label": "Victory", "amount": SETTLEMENT_VICTORY_CORES})
+		subtotal += SETTLEMENT_VICTORY_CORES
 
 	var prospector_rank: int = get_rank("prospector")
 	var bonus_fraction: float = float(prospector_rank) * PROSPECTOR_BONUS_PER_RANK
 	# D118: Founder's own perk composes additively with Prospector, exactly
 	# like Fortress composes with Stone Walls/Arrow Slits in
-	# MetaLoadoutApplier -- ONE combined fraction, applied once.
+	# MetaLoadoutApplier -- ONE combined fraction, applied once. D251:
+	# Regicide's +10% joins the same fraction.
 	if has_perk("settlement_cores_bonus"):
 		bonus_fraction += ACHIEVEMENT_SETTLEMENT_CORES_BONUS
+	if has_perk("settlement_cores_bonus_regicide"):
+		bonus_fraction += ACHIEVEMENT_REGICIDE_CORES_BONUS
 	var total: int = subtotal
 	if bonus_fraction > 0.0:
 		total = int(floor(float(subtotal) * (1.0 + bonus_fraction)))
 		lines.append({"label": "Settlement bonus (+%d%%)" % int(round(bonus_fraction * 100.0)), "amount": total - subtotal})
+	# D253: the difficulty's Cores multiplier is applied last, to the
+	# bonus-inclusive total, and shown as its own line when it is not 1.
+	if not is_equal_approx(difficulty.cores_multiplier, 1.0):
+		var scaled: int = int(floor(float(total) * difficulty.cores_multiplier))
+		lines.append({"label": "%s difficulty (x%s)" % [difficulty.display_name, _trim_float(difficulty.cores_multiplier)], "amount": scaled - total})
+		total = scaled
 
 	var cores_before: int = get_cores()
 	var cores_after: int = clampi(cores_before + total, 0, CORE_WALLET_CAP)
@@ -978,6 +1288,28 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 	if victory:
 		records["victories"] = int(records.get("victories", 0)) + 1
 
+	# D252/D253: the v1.0 profile counters, updated BEFORE achievements run
+	# (same rule as the lifetime counters below).
+	var unlocked_difficulty: String = ""
+	var unlocked_endless: bool = false
+	var new_best_endless: bool = false
+	_profile["runs_played"] = int(_profile.get("runs_played", 0)) + 1
+	_profile["lifetime_elite_kills"] = int(_profile.get("lifetime_elite_kills", 0)) + elite_kills
+	_profile["lifetime_repair"] = int(_profile.get("lifetime_repair", 0)) + repair_total
+	var lifetime_bosses: Dictionary = _profile["lifetime_boss_kills"]
+	for boss_id in BOSS_IDS:
+		lifetime_bosses[boss_id] = int(lifetime_bosses.get(boss_id, 0)) + int(boss_kills.get(boss_id, 0))
+	if victory:
+		var victories: Dictionary = _profile["difficulty_victories"]
+		victories[difficulty_id] = int(victories.get(difficulty_id, 0)) + 1
+		unlocked_difficulty = _difficulty_unlocked_by(difficulty_id)
+		if not bool(_profile.get("endless_unlocked", false)):
+			_profile["endless_unlocked"] = true
+			unlocked_endless = true
+	if endless:
+		new_best_endless = wave_reached > int(_profile.get("best_endless_wave", 0))
+		_profile["best_endless_wave"] = maxi(int(_profile.get("best_endless_wave", 0)), wave_reached)
+
 	_profile["cores"] = cores_after
 	_profile["lifetime_cores"] = int(_profile.get("lifetime_cores", 0)) + maxi(0, total)
 
@@ -986,9 +1318,19 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 	# on the same settlement that crossed it (e.g. 299 lifetime kills + a
 	# 1-kill run reads 300 when Goblin Slayer's own check runs).
 	_profile["lifetime_kills"] = int(_profile.get("lifetime_kills", 0)) + kills
-	_profile["lifetime_scrap_collected"] = int(_profile.get("lifetime_scrap_collected", 0)) + scrap_carried
+	_profile["lifetime_scrap_collected"] = int(_profile.get("lifetime_scrap_collected", 0)) + scrap_collected
 
-	var newly_unlocked: Array[Dictionary] = _evaluate_achievements(waves_cleared, victory, tower_health_fraction)
+	var run_metrics: Dictionary = {
+		"run_waves_cleared": float(waves_cleared), # legacy v1 metrics, kept as aliases (D118)
+		"run_tower_health_fraction": tower_health_fraction,
+		"run_wave_reached": float(wave_reached),
+		"run_victory": 1.0 if victory else 0.0,
+		"run_victory_tower_fraction": tower_health_fraction if victory else 0.0,
+		"run_king_killed_hard": 1.0 if (int(boss_kills.get("king", 0)) > 0 and (difficulty_id == "veteran" or difficulty_id == "warlord")) else 0.0,
+		"run_untouchable_wave": 1.0 if bool(run_summary.get("untouchable_wave", false)) else 0.0,
+		"run_player_abilities": float(maxi(0, int(run_summary.get("player_abilities", 0)))),
+	}
+	var newly_unlocked: Array[Dictionary] = _evaluate_achievements(run_metrics)
 
 	if run_id != "":
 		var ids: Array = _profile["settled_run_ids"]
@@ -1021,6 +1363,12 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 		"new_best_kills": new_best_kills,
 		"new_best_survival_seconds": new_best_survival,
 		"newly_unlocked_achievements": newly_unlocked,
+		"difficulty_id": difficulty_id,
+		"endless": endless,
+		"wave_reached": wave_reached,
+		"new_best_endless_wave": new_best_endless,
+		"unlocked_difficulty": unlocked_difficulty,
+		"unlocked_endless": unlocked_endless,
 	}
 	if run_id != "":
 		_settled_breakdown_cache[run_id] = breakdown
@@ -1036,6 +1384,8 @@ func _already_settled_breakdown(run_id: String) -> Dictionary:
 		"victory": false, "abandoned": false,
 		"new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
 		"newly_unlocked_achievements": [],
+		"difficulty_id": RunConfig.DEFAULT_DIFFICULTY_ID, "endless": false, "wave_reached": 0,
+		"new_best_endless_wave": false, "unlocked_difficulty": "", "unlocked_endless": false,
 	}
 
 
@@ -1047,7 +1397,8 @@ func _already_settled_breakdown(run_id: String) -> Dictionary:
 ## breakdown this settlement returns. Lifetime counters (`lifetime_kills`/
 ## `lifetime_scrap_collected`) must already reflect THIS run's own
 ## contribution before this runs -- see settle_run()'s own call site.
-func _evaluate_achievements(waves_cleared: int, victory: bool, tower_health_fraction: float) -> Array[Dictionary]:
+## D251: `run_metrics` (key -> float) carries the per-run metric values.
+func _evaluate_achievements(run_metrics: Dictionary) -> Array[Dictionary]:
 	var newly_unlocked: Array[Dictionary] = []
 	if achievement_list == null:
 		return newly_unlocked
@@ -1055,25 +1406,48 @@ func _evaluate_achievements(waves_cleared: int, victory: bool, tower_health_frac
 	for achievement in achievement_list.achievements:
 		if achievement == null or achievement.id == "" or unlocked.has(achievement.id):
 			continue
-		var current_value: float = 0.0
-		match achievement.metric:
-			"lifetime_kills":
-				current_value = float(_profile.get("lifetime_kills", 0))
-			"lifetime_scrap_collected":
-				current_value = float(_profile.get("lifetime_scrap_collected", 0))
-			"run_waves_cleared":
-				current_value = float(waves_cleared)
-			"run_victory":
-				current_value = 1.0 if victory else 0.0
-			"run_tower_health_fraction":
-				current_value = tower_health_fraction
-			_:
-				push_warning("MetaProgress._evaluate_achievements(): unknown metric '%s' on achievement '%s'" % [achievement.metric, achievement.id])
-				continue
+		var current_value: float = _metric_value(achievement.metric, run_metrics)
+		if current_value < 0.0:
+			push_warning("MetaProgress._evaluate_achievements(): unknown metric '%s' on achievement '%s'" % [achievement.metric, achievement.id])
+			continue
 		if current_value >= achievement.threshold:
 			unlocked.append(achievement.id)
 			newly_unlocked.append({"id": achievement.id, "display_name": achievement.display_name})
 	return newly_unlocked
+
+
+## Current value of one achievement metric (AchievementDefinition's header
+## lists them). `run_metrics` carries this run's per-run values; an empty
+## Dictionary (the Achievements panel, outside any run) reads them as 0.
+## -1.0 marks an unknown metric.
+func _metric_value(metric: String, run_metrics: Dictionary) -> float:
+	var victories: Dictionary = _profile.get("difficulty_victories", {})
+	match metric:
+		"lifetime_kills":
+			return float(_profile.get("lifetime_kills", 0))
+		"lifetime_scrap_collected":
+			return float(_profile.get("lifetime_scrap_collected", 0))
+		"lifetime_elite_kills":
+			return float(_profile.get("lifetime_elite_kills", 0))
+		"lifetime_repair":
+			return float(_profile.get("lifetime_repair", 0))
+		"lifetime_boss_kills_warchief":
+			return float((_profile.get("lifetime_boss_kills", {}) as Dictionary).get("warchief", 0))
+		"victories_total":
+			return float((_profile.get("records", {}) as Dictionary).get("victories", 0))
+		"difficulty_victories_warlord":
+			return float(victories.get("warlord", 0))
+		"best_endless_wave":
+			return float(_profile.get("best_endless_wave", 0))
+		"runs_played":
+			return float(_profile.get("runs_played", 0))
+		"run_waves_cleared", "run_tower_health_fraction", "run_wave_reached", "run_victory", "run_victory_tower_fraction", "run_king_killed_hard", "run_untouchable_wave", "run_player_abilities":
+			return float(run_metrics.get(metric, 0.0))
+	return -1.0
+
+
+static func _trim_float(value: float) -> String:
+	return String.num(value, 2).rstrip("0").rstrip(".")
 
 
 ## Build brief item 3. Reads every OWNED node's effect into a fresh
@@ -1130,4 +1504,27 @@ func build_run_loadout() -> MetaLoadout:
 				loadout.war_chest_enabled = true
 			SkillNodeDefinition.EffectKind.ECONOMY_DRAFT_RARITY_LUCK_FLAT:
 				loadout.rarity_luck_points = int(round(total_value))
+			SkillNodeDefinition.EffectKind.PLAYER_CRIT_CHANCE:
+				loadout.player_crit_chance_bonus = total_value
+			SkillNodeDefinition.EffectKind.PLAYER_WEAPON_RANGE_PERCENT:
+				loadout.player_weapon_range_bonus = total_value
+			SkillNodeDefinition.EffectKind.ARMORY_START_ABILITY:
+				loadout.armory_enabled = true
+			SkillNodeDefinition.EffectKind.PLAYER_DAMAGE_TAKEN_REDUCTION:
+				loadout.damage_taken_reduction = total_value
+			SkillNodeDefinition.EffectKind.DASH_COOLDOWN_REDUCTION:
+				loadout.dash_cooldown_reduction = total_value
+			SkillNodeDefinition.EffectKind.DASH_EXTRA_CHARGE:
+				loadout.dash_extra_charges = int(round(total_value))
+			SkillNodeDefinition.EffectKind.BATTLE_SKILL_UNLOCK:
+				if node.unlock_id != "" and not loadout.unlocked_battle_skills.has(node.unlock_id):
+					loadout.unlocked_battle_skills.append(node.unlock_id)
+			SkillNodeDefinition.EffectKind.SKILL_COOLDOWN_REDUCTION:
+				loadout.skill_cooldown_reduction = total_value
+			SkillNodeDefinition.EffectKind.SKILL_DAMAGE_PERCENT:
+				loadout.skill_damage_bonus = total_value
+			SkillNodeDefinition.EffectKind.TOWER_REPAIR_PERCENT:
+				loadout.tower_repair_bonus = total_value
+			SkillNodeDefinition.EffectKind.TOWER_ABILITY_DAMAGE_PERCENT:
+				loadout.tower_ability_damage_bonus = total_value
 	return loadout

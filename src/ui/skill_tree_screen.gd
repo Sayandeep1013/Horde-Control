@@ -113,13 +113,28 @@ class_name SkillTreeScreen
 ## refund preview (`MetaProgress.get_respec_refund_preview()`) instead of a
 ## cost.
 
+## ## v2 (D250, WP-META): five branches, node names on the board, click to buy
+## The board is now 8 x 9 cells of 266 x 180 (the tablets hold a 37 px two-line
+## name, see `SkillNodeView`); it is larger than the screen, so it scrolls and
+## `_select()` keeps the selected node in view. Branch names sit on small
+## ribbons in empty cells beside their branch (`BRANCH_LABEL_CELLS`) instead of
+## a header row. Buying: a 0.5 s hold (`confirm`, a finger, or standing still in
+## the movement-only mode), OR a quick click / tap (press and release under
+## `CLICK_MAX_SECONDS`) on the node that was ALREADY selected -- on a touch screen
+## the first tap only selects, the second buys. The hold stays for the
+## movement-only floor (docs/19).
+
 signal back_requested()
 
 const RESPEC_ID: String = "__respec__"
 
 ## Reused from PausedChoiceBar/DraftController (class header) -- the one
 ## hold-to-confirm timing the Register defines anywhere (Draft input row).
-const HOLD_CONFIRM_SECONDS: float = 1.0
+## D250: 0.5 s here (Register "v1.0 Meta Progression"); the Draft and the paused
+## menus keep their own 1.0 s.
+const HOLD_CONFIRM_SECONDS: float = 0.5
+## A press-and-release shorter than this on the already-selected node buys it.
+const CLICK_MAX_SECONDS: float = 0.35
 const CYCLE_REPEAT_SECONDS: float = 0.3
 
 const SKILL_TREE_CANVAS_LAYER: int = 5
@@ -128,10 +143,19 @@ const SKILL_TREE_CANVAS_LAYER: int = 5
 ## values, see that file's own layout comment): x in [-4, 4], y in [-1, 5].
 ## Respec is NOT part of this box any more (polish pass item 2) -- its own
 ## `_nav_positions` entry sits one step past MAX_Y, for navigation only.
-const MIN_X: int = -4
+const MIN_X: int = -3
 const MAX_X: int = 4
-const MIN_Y: int = -1
-const MAX_Y: int = 5
+const MIN_Y: int = -4
+const MAX_Y: int = 4
+
+## Empty grid cells that carry a branch ribbon, beside the branch they name.
+const BRANCH_LABEL_CELLS: Dictionary = {
+	SkillNodeDefinition.Branch.ARCHER: Vector2i(-3, -1),
+	SkillNodeDefinition.Branch.SURVIVAL: Vector2i(-1, -4),
+	SkillNodeDefinition.Branch.BATTLE: Vector2i(2, -3),
+	SkillNodeDefinition.Branch.TOWER: Vector2i(4, 1),
+	SkillNodeDefinition.Branch.FORTUNE: Vector2i(1, 4),
+}
 
 ## Polish pass item 2: bigger cells for the bigger `SkillNodeView.NODE_SIZE`
 ## (84 -> 112). Padding (CELL - NODE_SIZE) stays roomy enough for the
@@ -142,14 +166,14 @@ const MAX_Y: int = 5
 ## header for the measured reason) -- freeing 7 rows x 18px = 126px of
 ## vertical room in the SAME 1080-px budget for the new branch-header-
 ## ribbon row and legend row this pass adds above/below the board.
-const CELL_W: float = 150.0
-const CELL_H: float = 104.0
-const DETAIL_PANEL_WIDTH: float = 460.0
+const CELL_W: float = 266.0
+const CELL_H: float = 180.0
+const DETAIL_PANEL_WIDTH: float = 440.0
 ## The root's own footprint (polish pass item 2: "keep the root visibly
 ## special ... larger"). Skill Tree art pass: shrunk to keep the same
 ## ~1.5x-of-a-real-node ratio after NODE_SIZE's own shrink (172/112 ~=
 ## 142/92).
-const ROOT_SIZE: float = 146.0 # a clearly bigger footprint than any real node's own NODE_SIZE (92) -- see coordinator review, "keep the root visibly special ... larger"
+const ROOT_SIZE: float = 150.0 # a clearly bigger footprint than any real node's own NODE_SIZE (92) -- see coordinator review, "keep the root visibly special ... larger"
 const RESPEC_WIDGET_SIZE: float = 96.0
 const RESPEC_WIDGET_WIDTH: float = 230.0 ## D168: carries its own 37 px name and refund
 
@@ -162,12 +186,16 @@ var _selected_id: String = ""
 var _respec_view: SkillNodeView = null
 
 var _board: Control = null # SkillTreeBoard instance
+var _board_scroll: ScrollContainer = null
+var _press_msec: int = 0 ## when the current press on a node began (click-to-buy)
+var _press_was_selected: bool = false
 var _selection_caret: UiShapeGlyph = null
 var _cores_label: Label = null
 var _back_button: Button = null
 var _detail_name: Label = null
 var _detail_branch: Label = null
 var _detail_effect: Label = null
+var _detail_total: Label = null
 var _detail_requirements_box: VBoxContainer = null
 var _detail_rank: Label = null
 var _detail_price_icon: UiShapeGlyph = null
@@ -242,6 +270,7 @@ func set_active(active: bool) -> void:
 		# a buyable node -- mirrors `PausedChoiceBar._reset_input_state()`'s
 		# identical `_hold_up_armed = not _is_pressed(...)` rule.
 		_select(_tree.root_id)
+		_center_on_root.call_deferred()
 		# `self` is a CanvasLayer (no `modulate` of its own -- only CanvasItem/
 		# Control has one); the fade animates `_content_root`, the actual
 		# Control this screen builds, exactly like MenuFrame.animate_in()
@@ -379,6 +408,10 @@ static func _branch_color(branch: int) -> Color:
 			return UiPalette.TOWER
 		SkillNodeDefinition.Branch.FORTUNE:
 			return UiPalette.GOLD
+		SkillNodeDefinition.Branch.SURVIVAL:
+			return UiPalette.DANGER
+		SkillNodeDefinition.Branch.BATTLE:
+			return UiPalette.XP
 	return UiPalette.ACCENT
 
 
@@ -393,6 +426,10 @@ func _branch_name(branch: int) -> String:
 			return tr("SKILL_TREE_BRANCH_TOWER")
 		SkillNodeDefinition.Branch.FORTUNE:
 			return tr("SKILL_TREE_BRANCH_FORTUNE")
+		SkillNodeDefinition.Branch.SURVIVAL:
+			return tr("SKILL_TREE_BRANCH_SURVIVAL")
+		SkillNodeDefinition.Branch.BATTLE:
+			return tr("SKILL_TREE_BRANCH_BATTLE")
 	return ""
 
 
@@ -420,6 +457,10 @@ static func _shape_for(def: SkillNodeDefinition) -> int:
 			return UiShapeGlyph.Shape.TOWER
 		SkillNodeDefinition.Branch.FORTUNE:
 			return UiShapeGlyph.Shape.COIN
+		SkillNodeDefinition.Branch.SURVIVAL:
+			return UiShapeGlyph.Shape.HEART
+		SkillNodeDefinition.Branch.BATTLE:
+			return UiShapeGlyph.Shape.ARROW
 	return UiShapeGlyph.Shape.SQUARE
 
 
@@ -430,13 +471,16 @@ static func _shape_for(def: SkillNodeDefinition) -> int:
 ## duplicating `MetaLoadoutApplier`'s own one.
 static func _value_text(def: SkillNodeDefinition, ranks: int) -> String:
 	var total: float = def.value_per_rank * float(ranks)
+	var sign_text: String = "-" if def.description_template.begins_with("-") else "+" # a reduction node reads "-10%"
 	if def.description_template.contains("%"):
-		return "+%d%%" % int(round(total * 100.0))
-	return "+%d" % int(round(total))
+		return "%s%d%%" % [sign_text, int(round(total * 100.0))]
+	return "%s%d" % [sign_text, int(round(total))]
 
 
 static func _format_effect(def: SkillNodeDefinition, ranks: int) -> String:
-	return def.description_template.format({"value": _value_text(def, ranks).trim_prefix("+")})
+	var total: float = def.value_per_rank * float(ranks)
+	var number: int = int(round(total * 100.0)) if def.description_template.contains("%") else int(round(total))
+	return def.description_template.format({"value": str(number)})
 
 
 ## docs/18's own three "mechanic" one-rank nodes (Second Wind, Fortress, War
@@ -460,13 +504,24 @@ func _on_node_hovered(id: String) -> void:
 ## is right for a held key carried over from another screen but wrong for a
 ## deliberate press on this very node, so it is cleared here.
 func _on_node_pressed(id: String) -> void:
+	_press_was_selected = _selected_id == id # a touch has no hover, so the first tap only selects
+	_press_msec = Time.get_ticks_msec()
 	_select(id)
 	_confirm_requires_release = false
 	_pointer_held = true
 
 
-func _on_node_released(_id: String) -> void:
+## A quick press-and-release on a node that was already selected buys it (D250).
+## A hold longer than CLICK_MAX_SECONDS is the 0.5 s hold path instead, so one
+## gesture never buys twice.
+func _on_node_released(id: String) -> void:
 	_pointer_held = false
+	var held_seconds: float = float(Time.get_ticks_msec() - _press_msec) / 1000.0
+	if _press_was_selected and held_seconds < CLICK_MAX_SECONDS and id == _selected_id and _state_for(id) == SkillNodeView.State.BUYABLE and _hold_progress < HOLD_CONFIRM_SECONDS:
+		_hold_progress = 0.0
+		_confirm_requires_release = true
+		_confirm_selected()
+	_press_was_selected = false
 
 
 func _select(id: String) -> void:
@@ -482,9 +537,36 @@ func _select(id: String) -> void:
 	# rule `set_active()` applies on open, applied uniformly on every
 	# selection change rather than only at open time.
 	_confirm_requires_release = _is_pressed(&"confirm")
+	_keep_in_view(id)
 	_refresh_detail_panel()
 	_refresh_hold_ring_visibility()
 	_reposition_indicators()
+
+
+## Scrolls the board so the selected node is visible (keyboard / pad navigation
+## walks off-screen on a board larger than the window).
+func _keep_in_view(id: String) -> void:
+	if _board_scroll == null or id == RESPEC_ID or not is_inside_tree():
+		return
+	var view: Control = _node_views.get(id)
+	if view != null:
+		_board_scroll.ensure_control_visible(view)
+
+
+## Centres the scroll view on the Command Tent when the screen opens.
+func _center_on_root() -> void:
+	# The scroll has no size until the screen has been laid out once, so wait for it.
+	if is_inside_tree():
+		await get_tree().process_frame
+		await get_tree().process_frame
+	if _board_scroll == null or not is_instance_valid(_board) or not visible:
+		return
+	var root_view: Control = _node_views.get(_tree.root_id)
+	if root_view == null:
+		return
+	var center: Vector2 = _board.global_position - _board_scroll.get_global_position() + root_view.position + root_view.size * 0.5
+	_board_scroll.scroll_horizontal = int(center.x + _board_scroll.scroll_horizontal - _board_scroll.size.x * 0.5)
+	_board_scroll.scroll_vertical = int(center.y + _board_scroll.scroll_vertical - _board_scroll.size.y * 0.5)
 
 
 ## The board caret only makes sense over a node actually inside `_board`
@@ -529,6 +611,7 @@ func _refresh_detail_panel() -> void:
 		_detail_name.text = tr("SKILL_TREE_RESPEC")
 		_detail_branch.visible = false
 		_detail_effect.text = tr("SKILL_TREE_RESPEC_DESC")
+		_detail_total.visible = false
 		_detail_rank.visible = false
 		_detail_price_icon.visible = false
 		_detail_price.remove_theme_color_override("font_color")
@@ -548,6 +631,7 @@ func _refresh_detail_panel() -> void:
 		_detail_name.text = tr("SKILL_TREE_SILHOUETTE_NAME")
 		_detail_branch.visible = false
 		_detail_effect.text = tr("SKILL_TREE_SILHOUETTE_HINT")
+		_detail_total.visible = false
 		_detail_rank.visible = false
 		_detail_price_icon.visible = false
 		_detail_price.text = ""
@@ -562,6 +646,7 @@ func _refresh_detail_panel() -> void:
 	if id == _tree.root_id:
 		_detail_branch.visible = false
 		_detail_effect.text = tr("SKILL_TREE_ROOT_EXPLANATION")
+		_detail_total.visible = false
 		_detail_rank.visible = false
 		_detail_price_icon.visible = false
 		_detail_price.text = ""
@@ -574,10 +659,14 @@ func _refresh_detail_panel() -> void:
 	var rank: int = MetaProgress.get_rank(id)
 	if _is_mechanic_node(def):
 		_detail_effect.text = def.description_template
-	elif rank >= def.max_rank:
-		_detail_effect.text = "%s (%s)" % [_value_text(def, rank), tr("SKILL_TREE_MAX")]
+		_detail_total.visible = false
 	else:
-		_detail_effect.text = "%s -> %s" % [_value_text(def, rank), _value_text(def, rank + 1)]
+		_detail_effect.text = _format_effect(def, 1)
+		_detail_total.visible = true
+		if rank >= def.max_rank:
+			_detail_total.text = "%s (%s)" % [_value_text(def, rank), tr("SKILL_TREE_MAX")]
+		else:
+			_detail_total.text = "%s -> %s" % [_value_text(def, rank), _value_text(def, rank + 1)]
 
 	_build_requirements_box(def)
 
@@ -872,8 +961,6 @@ func _build_ui() -> void:
 	board_column.theme_type_variation = UiTheme.vbox("XS")
 	board_panel.add_child(board_column)
 
-	_build_branch_header_row(board_column)
-
 	var board_center := CenterContainer.new()
 	board_center.name = "BoardCenter"
 	board_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -882,6 +969,7 @@ func _build_ui() -> void:
 	# D168: the board can be larger than the room (a 37 px legend and 140 px
 	# nodes), so it pans: drag, wheel or scroll bars. Centred when it fits.
 	var board_scroll := ScrollContainer.new()
+	_board_scroll = board_scroll
 	board_scroll.name = "BoardScroll"
 	board_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	board_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -896,6 +984,7 @@ func _build_ui() -> void:
 	board_center.add_child(_board)
 
 	_build_nodes()
+	_build_branch_labels()
 
 	_selection_caret = UiShapeGlyph.new()
 	_selection_caret.name = "SelectionCaret"
@@ -912,50 +1001,28 @@ func _build_ui() -> void:
 	_build_detail_panel(body)
 
 
-## Skill Tree art pass (task instruction: "branch headers on ribbons
-## ('Archer', 'Tower', 'Fortune')"). Three ribbon banners in one row above
-## the board: Archer (red -- the combat branch) on the left, Fortune
-## (yellow/gold -- matches its own COIN icon and branch colour) centred,
-## Tower (blue -- a steady, defensive read) on the right. `UiTheme.
-## make_ribbon_box()` is the SAME helper the HUD's own Wave ribbon already
-## uses (src/ui/hud.gd), just with the pack's Red/Blue sheets instead of
-## its default Yellow -- `UiTheme`'s own header names these two as "kept
-## available ... for a future caller that wants a differently-coloured
-## ribbon," which this is. A plain per-instance `add_theme_stylebox_
-## override()` rather than a new theme_type_variation, matching this
-## screen's own established "mutate a StyleBox at runtime" convention
-## (SkillNodeView's frame, above) for a one-off, three-colour need a shared
-## Theme variation would not fit any better.
-func _build_branch_header_row(parent: Container) -> void:
-	var row := HBoxContainer.new()
-	row.name = "BranchHeaderRow"
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.theme_type_variation = UiTheme.hbox("M")
-	parent.add_child(row)
-
-	var archer_ribbon := _make_branch_ribbon(UiPalette.TEX_RIBBON_RED, _branch_name(SkillNodeDefinition.Branch.ARCHER))
-	archer_ribbon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(archer_ribbon)
-
-	var fortune_ribbon := _make_branch_ribbon(UiPalette.TEX_RIBBON_YELLOW, _branch_name(SkillNodeDefinition.Branch.FORTUNE))
-	row.add_child(fortune_ribbon)
-
-	var tower_ribbon := _make_branch_ribbon(UiPalette.TEX_RIBBON_BLUE, _branch_name(SkillNodeDefinition.Branch.TOWER))
-	tower_ribbon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(tower_ribbon)
+## One small ribbon per branch, placed in an empty cell beside that branch
+## (`BRANCH_LABEL_CELLS`), tinted with the branch colour. `UiTheme.make_ribbon_box()`
+## is the same helper the HUD's Wave ribbon uses.
+func _build_branch_labels() -> void:
+	for branch in BRANCH_LABEL_CELLS.keys():
+		var cell: Vector2i = BRANCH_LABEL_CELLS[branch]
+		var ribbon: PanelContainer = _make_branch_ribbon(UiPalette.TEX_RIBBON_YELLOW, _branch_name(branch), _branch_color(branch))
+		ribbon.name = "BranchLabel_%d" % branch
+		_board.add_child(ribbon)
+		var ribbon_size: Vector2 = ribbon.get_combined_minimum_size()
+		ribbon.size = ribbon_size
+		ribbon.position = Vector2(
+			float(cell.x - MIN_X) * CELL_W + (CELL_W - ribbon_size.x) * 0.5,
+			float(cell.y - MIN_Y) * CELL_H + (CELL_H - ribbon_size.y) * 0.5,
+		)
 
 
-## `content_margin_v` is a small explicit override (4, not `UiTheme.make_
-## ribbon_box()`'s own `UiPalette.SPACE_XS` default), and the label keeps
-## `UiTheme.VALUE` rather than the taller `HEADING` variation -- both purely
-## for VERTICAL compactness (this row competes with the legend row below for
-## the same tight 1080-px budget CELL_H's own header names), not a style
-## preference; the ribbon still reads clearly as a named banner at this
-## smaller height.
-func _make_branch_ribbon(texture_path: String, label_text: String) -> PanelContainer:
+func _make_branch_ribbon(texture_path: String, label_text: String, tint: Color) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_theme_stylebox_override("panel", UiTheme.make_ribbon_box(texture_path, UiPalette.SPACE_L, 4))
+	panel.self_modulate = Color(1, 1, 1, 1).lerp(tint, 0.55)
 	var label := Label.new()
 	label.name = "Label"
 	label.text = label_text
@@ -1040,7 +1107,7 @@ func _build_header(parent: Container) -> void:
 	_respec_view.name = "RespecWidget"
 	_respec_view.show_name = true
 	row.add_child(_respec_view)
-	_respec_view.configure(RESPEC_ID, UiShapeGlyph.Shape.RECYCLE, UiPalette.DANGER, tr("SKILL_TREE_RESPEC"))
+	_respec_view.configure(RESPEC_ID, UiShapeGlyph.Shape.RECYCLE, UiPalette.DANGER, tr("SKILL_TREE_RESPEC"), "")
 	_respec_view.custom_minimum_size = Vector2(RESPEC_WIDGET_WIDTH, RESPEC_WIDGET_SIZE)
 	_respec_view.size = Vector2(RESPEC_WIDGET_WIDTH, RESPEC_WIDGET_SIZE)
 	_respec_view.node_hovered.connect(_on_node_hovered)
@@ -1090,7 +1157,7 @@ func _build_nodes() -> void:
 		_board.add_child(view)
 		var is_root: bool = def.id == _tree.root_id
 		var shape: int = UiShapeGlyph.Shape.TENT if is_root else _icon_shape_for(def)
-		view.configure(def.id, shape, _branch_color(def.branch), def.display_name)
+		view.configure(def.id, shape, _branch_color(def.branch), def.display_name, def.icon_id)
 		view.node_hovered.connect(_on_node_hovered)
 		view.node_pressed.connect(_on_node_pressed)
 		view.node_released.connect(_on_node_released)
@@ -1145,6 +1212,13 @@ func _build_detail_panel(parent: Container) -> void:
 	_detail_effect.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_detail_effect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(_detail_effect)
+
+	_detail_total = Label.new()
+	_detail_total.name = "TotalLabel"
+	_detail_total.theme_type_variation = UiTheme.DIM_PARCHMENT
+	_detail_total.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail_total.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(_detail_total)
 
 	_detail_requirements_box = VBoxContainer.new()
 	_detail_requirements_box.name = "RequirementsBox"
@@ -1246,6 +1320,14 @@ func get_detail_branch_label_for_test() -> Label:
 
 func get_detail_effect_label_for_test() -> Label:
 	return _detail_effect
+
+
+func get_detail_total_label_for_test() -> Label:
+	return _detail_total
+
+
+func get_board_scroll_for_test() -> ScrollContainer:
+	return _board_scroll
 
 
 func get_detail_requirements_box_for_test() -> VBoxContainer:

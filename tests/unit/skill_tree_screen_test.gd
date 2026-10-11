@@ -11,7 +11,7 @@ extends GdUnitTestSuite
 ## fixture (settle_run() is the only production route to Cores).
 
 const STEP: float = 1.0 / 60.0
-const HOLD: float = 1.0 # SkillTreeScreen.HOLD_CONFIRM_SECONDS
+const HOLD: float = 0.5 # SkillTreeScreen.HOLD_CONFIRM_SECONDS (D250: the tree's own 0.5 s hold)
 
 var _dir: String
 var _screen: SkillTreeScreen
@@ -81,7 +81,7 @@ func test_holding_confirm_for_the_full_duration_buys_the_selected_node() -> void
 	_screen.set_action_pressed_for_test(&"confirm", true)
 	_tick_seconds(HOLD + STEP)
 
-	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("a full 1.0s hold on a buyable node must buy it").is_equal(1)
+	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("a full 0.5 s hold on a buyable node must buy it").is_equal(1)
 	assert_int(MetaProgress.get_cores()).is_equal(50 - SkillNodeDefinition.price_for_rank(1, 1))
 
 
@@ -91,7 +91,7 @@ func test_a_short_tap_does_not_buy_and_resets_the_hold_ring() -> void:
 	_screen.select_for_test("vitality")
 
 	_screen.set_action_pressed_for_test(&"confirm", true)
-	_tick_seconds(0.3) # well short of the 1.0 s requirement
+	_tick_seconds(0.3) # short of the 0.5 s requirement
 	_screen.set_action_pressed_for_test(&"confirm", false)
 	_screen.tick_for_test(STEP)
 
@@ -109,7 +109,7 @@ func test_a_short_tap_does_not_buy_and_resets_the_hold_ring() -> void:
 func test_holding_confirm_on_an_unaffordable_node_never_buys_it() -> void:
 	assert_int(MetaProgress.get_cores()).is_equal(0)
 	_screen.set_active(true)
-	_screen.select_for_test("vitality") # price 5, 0 Cores held -- unaffordable, not locked (root is always owned)
+	_screen.select_for_test("vitality") # price 8, 0 Cores held -- unaffordable, not locked (root is always owned)
 
 	_screen.set_action_pressed_for_test(&"confirm", true)
 	_tick_seconds(HOLD * 2.0) # well past the hold duration
@@ -140,7 +140,7 @@ func test_a_maxed_node_shows_max_and_refuses_further_purchase() -> void:
 
 func test_an_unrevealed_node_shows_as_a_silhouette() -> void:
 	_screen.set_active(true) # nothing bought yet
-	var view: SkillNodeView = _screen.get_node_view_for_test("sharpened_arrows")
+	var view: SkillNodeView = _screen.get_node_view_for_test("iron_skin")
 	assert_bool(view.get_silhouette_label_for_test().visible).append_failure_message("an unrevealed node must show the silhouette placeholder").is_true()
 	assert_str(view.get_silhouette_label_for_test().text).is_equal(tr("SKILL_TREE_SILHOUETTE_NAME"))
 	assert_bool(view.get_name_label_for_test().visible).append_failure_message("a silhouette must never show its real name").is_false()
@@ -148,37 +148,38 @@ func test_an_unrevealed_node_shows_as_a_silhouette() -> void:
 
 
 func test_a_revealed_but_not_yet_owned_node_shows_its_price_not_a_silhouette() -> void:
-	_grant_cores(5)
-	assert_bool(MetaProgress.buy("vitality")).is_true() # reveals sharpened_arrows
+	_grant_cores(8)
+	assert_bool(MetaProgress.buy("vitality")).is_true() # reveals iron_skin
 	_screen.set_active(true)
 	_screen.refresh()
 
-	var view: SkillNodeView = _screen.get_node_view_for_test("sharpened_arrows")
+	var view: SkillNodeView = _screen.get_node_view_for_test("iron_skin")
 	assert_bool(view.get_silhouette_label_for_test().visible).append_failure_message("a revealed node must not show the silhouette placeholder").is_false()
-	# D168 (deliberate): a 140 px tablet cannot hold a 37 px name, so a revealed node carries its name in the tooltip (and the detail panel), not on the tablet.
-	assert_str(view.tooltip_text).append_failure_message("a revealed node must carry its real name (tooltip)").is_not_empty()
-	assert_bool(view.get_name_label_for_test().visible).append_failure_message("the name is not drawn on a board node").is_false()
+	# D250 (v2): the board node now draws its name (a 236 px tablet holds a 37 px two-line name); the tooltip keeps it too.
+	assert_str(view.tooltip_text).append_failure_message("a revealed node must carry its real name (tooltip)").is_equal("Iron Skin")
+	assert_bool(view.get_name_label_for_test().visible).append_failure_message("the node name is drawn on the board").is_true()
+	assert_str(view.get_name_label_for_test().text).is_equal("Iron Skin")
 	assert_bool(view.get_price_label_for_test().visible).is_true()
 
 
 func test_a_revealed_convergence_node_missing_one_prerequisite_is_locked_not_buyable() -> void:
 	_grant_cores(200)
 	assert_bool(MetaProgress.buy("vitality")).is_true()
-	assert_bool(MetaProgress.buy("sharpened_arrows")).is_true() # reveals long_reach (one of its two prerequisites owned)
+	assert_bool(MetaProgress.buy("iron_skin")).is_true() # reveals second_dash (one of its two prerequisites owned)
 	_screen.set_active(true)
 	_screen.refresh()
 
-	assert_bool(MetaProgress.is_visible("long_reach")).is_true()
-	assert_bool(MetaProgress.prerequisites_met("long_reach")).append_failure_message("long_reach needs BOTH sharpened_arrows and quick_draw -- only one is owned").is_false()
+	assert_bool(MetaProgress.is_visible("second_dash")).is_true()
+	assert_bool(MetaProgress.prerequisites_met("second_dash")).append_failure_message("second_dash needs BOTH fleet_foot and iron_skin -- only one is owned").is_false()
 
-	_screen.select_for_test("long_reach")
+	_screen.select_for_test("second_dash")
 	_screen.set_action_pressed_for_test(&"confirm", true)
 	_tick_seconds(HOLD + STEP)
-	assert_int(MetaProgress.get_rank("long_reach")).append_failure_message("a locked node (prerequisites not met) must never be purchasable, however long confirm is held").is_equal(0)
+	assert_int(MetaProgress.get_rank("second_dash")).append_failure_message("a locked node (prerequisites not met) must never be purchasable, however long confirm is held").is_equal(0)
 
 
 func test_an_owned_node_is_never_shown_as_a_silhouette() -> void:
-	_grant_cores(5)
+	_grant_cores(8)
 	assert_bool(MetaProgress.buy("vitality")).is_true()
 	_screen.set_active(true)
 	_screen.refresh()
@@ -374,8 +375,9 @@ func test_detail_panel_shows_branch_and_arrow_effect_for_an_owned_node() -> void
 	_screen.set_active(true)
 	_screen.select_for_test("vitality")
 
-	assert_str(_screen.get_detail_branch_label_for_test().text).is_equal(tr("SKILL_TREE_BRANCH_ARCHER"))
-	assert_str(_screen.get_detail_effect_label_for_test().text).append_failure_message("expected a current -> next arrow line (e.g. '+10% -> +20%')").is_equal("+10% -> +20%")
+	assert_str(_screen.get_detail_branch_label_for_test().text).is_equal(tr("SKILL_TREE_BRANCH_SURVIVAL"))
+	assert_str(_screen.get_detail_effect_label_for_test().text).append_failure_message("the per-rank effect sentence").is_equal("+10% player max health per rank.")
+	assert_str(_screen.get_detail_total_label_for_test().text).append_failure_message("expected a current -> next arrow line (e.g. '+10% -> +20%')").is_equal("+10% -> +20%")
 	assert_str(_screen.get_detail_rank_label_for_test().text).is_equal(tr("SKILL_TREE_RANK_OF") % [1, 3])
 
 
@@ -396,12 +398,12 @@ func test_detail_panel_price_icon_is_hidden_at_max_and_shown_otherwise() -> void
 func test_detail_panel_requirements_list_shows_a_tick_per_owned_prerequisite() -> void:
 	_grant_cores(200)
 	assert_bool(MetaProgress.buy("vitality")).is_true()
-	assert_bool(MetaProgress.buy("sharpened_arrows")).is_true() # reveals long_reach with ONE of its two prerequisites owned
+	assert_bool(MetaProgress.buy("iron_skin")).is_true() # reveals second_dash with ONE of its two prerequisites owned
 	_screen.set_active(true)
-	_screen.select_for_test("long_reach")
+	_screen.select_for_test("second_dash")
 
 	var box: VBoxContainer = _screen.get_detail_requirements_box_for_test()
-	assert_int(box.get_child_count()).append_failure_message("long_reach names exactly two prerequisites").is_equal(2)
+	assert_int(box.get_child_count()).append_failure_message("second_dash names exactly two prerequisites").is_equal(2)
 	var glyphs: Array[OutcomeGlyph] = []
 	for row in box.get_children():
 		glyphs.append(row.get_child(0) as OutcomeGlyph)
@@ -409,7 +411,7 @@ func test_detail_panel_requirements_list_shows_a_tick_per_owned_prerequisite() -
 	for g in glyphs:
 		if not g.is_defeat_for_test():
 			owned_count += 1
-	assert_int(owned_count).append_failure_message("exactly one of long_reach's two prerequisites (sharpened_arrows) is owned -- exactly one row must tick").is_equal(1)
+	assert_int(owned_count).append_failure_message("exactly one of second_dash's two prerequisites (iron_skin) is owned -- exactly one row must tick").is_equal(1)
 
 
 func test_root_detail_panel_shows_the_explanation_not_a_price() -> void:
@@ -433,9 +435,106 @@ func test_navigating_away_and_back_resets_hold_progress() -> void:
 	_screen.set_active(true)
 	_screen.select_for_test("vitality")
 	_screen.set_action_pressed_for_test(&"confirm", true)
-	_tick_seconds(0.5)
+	_tick_seconds(0.3)
 	assert_float(_screen.get_hold_progress_for_test()).is_greater(0.0)
 
 	_screen.select_for_test("stone_walls") # changing selection must not carry a partial hold onto a different node
 	assert_float(_screen.get_hold_progress_for_test()).is_equal(0.0)
 	assert_int(MetaProgress.get_rank("vitality")).is_equal(0)
+
+
+# --- v2 (D250): names on the board, click to buy, scrolling, layout -----------------
+
+func test_every_revealed_board_node_fits_its_tablet_and_shows_its_name() -> void:
+	_grant_cores(2000)
+	for pass_i in 6:
+		for id in MetaProgress.skill_tree.get_purchasable_node_ids():
+			if MetaProgress.can_buy(id):
+				MetaProgress.buy(id)
+	_screen.set_active(true)
+	_screen.refresh(true)
+	for def in MetaProgress.skill_tree.nodes:
+		if def.id == MetaProgress.skill_tree.root_id:
+			continue
+		var view: SkillNodeView = _screen.get_node_view_for_test(def.id)
+		assert_bool(view.get_name_label_for_test().visible).append_failure_message("'%s': the board node must show its name" % def.id).is_true()
+		assert_str(view.get_name_label_for_test().text).is_equal(def.display_name)
+		assert_vector(view.size).append_failure_message("'%s': the contents outgrew the %s tablet" % [def.id, Vector2(SkillNodeView.NODE_SIZE, SkillNodeView.NODE_HEIGHT)]).is_equal(Vector2(SkillNodeView.NODE_SIZE, SkillNodeView.NODE_HEIGHT))
+		assert_object(view.get_icon_texture_rect_for_test().texture).append_failure_message("'%s': icon %s did not load" % [def.id, def.icon_id]).is_not_null()
+
+
+## A quick press-and-release on the already-selected buyable node buys it.
+func test_a_quick_click_on_the_selected_node_buys_it() -> void:
+	_grant_cores(50)
+	_screen.set_active(true)
+	_screen.select_for_test("vitality")
+	_screen._on_node_pressed("vitality")
+	_screen._on_node_released("vitality")
+	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("press+release under the click window on the selected node must buy one rank").is_equal(1)
+
+
+## The first tap on a node that was NOT selected only selects it (a touch screen has no hover).
+func test_the_first_tap_on_an_unselected_node_only_selects_it() -> void:
+	_grant_cores(50)
+	_screen.set_active(true)
+	assert_str(_screen.get_selected_id_for_test()).is_equal("root")
+	_screen._on_node_pressed("vitality")
+	_screen._on_node_released("vitality")
+	assert_str(_screen.get_selected_id_for_test()).is_equal("vitality")
+	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("a tap on an unselected node must not buy").is_equal(0)
+	_screen._on_node_pressed("vitality")
+	_screen._on_node_released("vitality")
+	assert_int(MetaProgress.get_rank("vitality")).append_failure_message("the second tap on the now-selected node buys").is_equal(1)
+
+
+## A click on a node the player cannot afford buys nothing.
+func test_a_click_on_an_unaffordable_node_buys_nothing() -> void:
+	_screen.set_active(true)
+	_screen.select_for_test("vitality")
+	_screen._on_node_pressed("vitality")
+	_screen._on_node_released("vitality")
+	assert_int(MetaProgress.get_rank("vitality")).is_equal(0)
+
+
+## One gesture never buys twice: a click-buy is followed by no extra rank from the hold path.
+func test_a_click_then_continued_holding_does_not_buy_a_second_rank() -> void:
+	_grant_cores(50)
+	_screen.set_active(true)
+	_screen.select_for_test("vitality")
+	_screen.set_action_pressed_for_test(&"confirm", true) # the mouse button also drives `confirm`
+	_screen._on_node_pressed("vitality")
+	_screen._on_node_released("vitality")
+	_screen.set_action_pressed_for_test(&"confirm", false)
+	_tick_seconds(HOLD * 2.0)
+	assert_int(MetaProgress.get_rank("vitality")).is_equal(1)
+
+
+## Navigation keeps the selected node on screen: the board is bigger than the viewport.
+func test_the_board_is_larger_than_its_scroll_view_and_selection_scrolls_to_it() -> void:
+	_screen.set_active(true)
+	var scroll: ScrollContainer = _screen.get_board_scroll_for_test()
+	assert_object(scroll).is_not_null()
+	var board: Control = _screen.get_board_for_test()
+	var expected: Vector2 = Vector2((SkillTreeScreen.MAX_X - SkillTreeScreen.MIN_X + 1) * SkillTreeScreen.CELL_W, (SkillTreeScreen.MAX_Y - SkillTreeScreen.MIN_Y + 1) * SkillTreeScreen.CELL_H)
+	assert_vector(board.custom_minimum_size).is_equal(expected)
+
+
+func test_five_branch_labels_sit_in_cells_no_node_occupies() -> void:
+	var occupied: Dictionary = {}
+	for def in MetaProgress.skill_tree.nodes:
+		occupied[def.grid_position] = true
+	assert_int(SkillTreeScreen.BRANCH_LABEL_CELLS.size()).is_equal(5)
+	for branch in SkillTreeScreen.BRANCH_LABEL_CELLS.keys():
+		var cell: Vector2i = SkillTreeScreen.BRANCH_LABEL_CELLS[branch]
+		assert_bool(occupied.has(cell)).append_failure_message("branch label cell %s collides with a node" % cell).is_false()
+		assert_bool(cell.x >= SkillTreeScreen.MIN_X and cell.x <= SkillTreeScreen.MAX_X and cell.y >= SkillTreeScreen.MIN_Y and cell.y <= SkillTreeScreen.MAX_Y).is_true()
+
+
+func test_reduction_nodes_read_with_a_minus_sign() -> void:
+	_grant_cores(200)
+	MetaProgress.buy("vitality")
+	MetaProgress.buy("swift_boots")
+	MetaProgress.buy("fleet_foot")
+	_screen.set_active(true)
+	_screen.select_for_test("fleet_foot")
+	assert_str(_screen.get_detail_total_label_for_test().text).append_failure_message("a cooldown reduction is a minus").is_equal("-10% -> -20%")

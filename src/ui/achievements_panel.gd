@@ -11,12 +11,20 @@ class_name AchievementsPanel
 ##
 ## Read-only: this screen never mutates `MetaProgress`, exactly like
 ## `RecordsPanel`.
+##
+## ## v1.0 (D251, WP-META)
+## 16 achievements, each with its pixel icon and a progress bar fed by
+## `MetaProgress.get_achievement_progress()` ("1240 / 2000"). A per-run
+## achievement (reach wave 8, clear a wave untouched, ...) has no lifetime
+## figure, so its bar stays empty with the label "In one run" until earned.
 
 signal back_requested()
 
 const ACHIEVEMENTS_CANVAS_LAYER: int = 5
 const ROW_LABEL_MIN_WIDTH: float = 460.0
-const ROW_VALUE_MIN_WIDTH: float = 220.0
+const ROW_VALUE_MIN_WIDTH: float = 300.0
+const ICON_SIDE: float = 64.0
+const BAR_HEIGHT: float = 22.0
 
 ## D147: height of the scrolling list on the mobile layout (720-base px).
 const MOBILE_SCROLL_HEIGHT: float = 380.0
@@ -27,6 +35,8 @@ var _rows_scroll: ScrollContainer
 var _frame: MenuFrame.Parts
 var _back_button: Button
 var _rows: Dictionary = {} # String (achievement id) -> Label (the value cell)
+var _bars: Dictionary = {} # String (achievement id) -> ProgressBar
+var _icons: Dictionary = {} # String (achievement id) -> TextureRect
 
 
 func _ready() -> void:
@@ -64,39 +74,39 @@ func _refresh() -> void:
 	for achievement in MetaProgress.achievement_list.achievements:
 		if achievement == null or not _rows.has(achievement.id):
 			continue
-		var unlocked: bool = MetaProgress.is_achievement_unlocked(achievement.id)
+		var progress: Dictionary = MetaProgress.get_achievement_progress(achievement.id)
+		var unlocked: bool = bool(progress.get("unlocked", false))
 		var value_label: Label = _rows[achievement.id]
-		value_label.text = _status_text(achievement)
+		value_label.text = _status_text(achievement, progress)
 		# UX review item 8 (D132): unlocked reads at a glance (colour is
 		# redundant; the word "Unlocked" is the primary signal).
 		if unlocked:
 			value_label.add_theme_color_override("font_color", UiPalette.SUCCESS_ON_PARCHMENT)
 		else:
 			value_label.remove_theme_color_override("font_color")
+		var bar: ProgressBar = _bars[achievement.id]
+		bar.value = float(progress.get("fraction", 0.0)) * bar.max_value
+		(bar.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = UiPalette.SUCCESS_ON_PARCHMENT if unlocked else UiPalette.TOWER
+		var icon: TextureRect = _icons[achievement.id]
+		icon.modulate = Color(1, 1, 1, 1) if unlocked else Color(0.55, 0.55, 0.55, 0.9)
 
 
-## Unlocked: "Unlocked". Locked, lifetime metric: "n / threshold" (the one
-## progress figure a Hub visit -- outside any run -- can actually show).
-## Locked, per-run metric (run_waves_cleared/run_victory/
-## run_tower_health_fraction): "Locked" -- there is no meaningful lifetime
-## progress number for a condition that resets every run.
-func _status_text(achievement: AchievementDefinition) -> String:
-	if MetaProgress.is_achievement_unlocked(achievement.id):
+## Unlocked: "Unlocked". Locked, cumulative metric: "n / threshold". Locked,
+## per-run metric: "In one run" -- there is no lifetime figure for a condition
+## that resets every run.
+func _status_text(achievement: AchievementDefinition, progress: Dictionary) -> String:
+	if bool(progress.get("unlocked", false)):
 		return tr("ACHIEVEMENTS_UNLOCKED")
-	match achievement.metric:
-		"lifetime_kills":
-			return "%d / %d" % [MetaProgress.get_lifetime_kills(), int(achievement.threshold)]
-		"lifetime_scrap_collected":
-			return "%d / %d" % [MetaProgress.get_lifetime_scrap_collected(), int(achievement.threshold)]
-		_:
-			return tr("ACHIEVEMENTS_LOCKED")
+	if bool(progress.get("per_run", false)):
+		return tr("ACHIEVEMENTS_PER_RUN")
+	return "%d / %d" % [int(progress.get("current", 0.0)), int(achievement.threshold)]
 
 
 ## "Unlocks card: Multishot" / "Reward: +1 Draft reroll". Figures come from the
 ## same constants the perks are applied with, never a second copy.
 static func reward_text(achievement: AchievementDefinition) -> String:
 	if achievement.unlocks_card_id != "":
-		return TranslationServer.translate("ACHIEVEMENTS_REWARD_CARD") % achievement.unlocks_card_id.capitalize()
+		return TranslationServer.translate("ACHIEVEMENTS_REWARD_CARD") % AbilityDisplay.display_name(achievement.unlocks_card_id)
 	match achievement.perk_id:
 		"bonus_reroll":
 			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % TranslationServer.translate("ACHIEVEMENTS_PERK_REROLL")
@@ -104,6 +114,22 @@ static func reward_text(achievement: AchievementDefinition) -> String:
 			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_DAMAGE") % roundi(MetaLoadoutApplier.ACHIEVEMENT_WEAPON_DAMAGE_BONUS * 100.0))
 		"settlement_cores_bonus":
 			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_CORES") % roundi(MetaProgress.ACHIEVEMENT_SETTLEMENT_CORES_BONUS * 100.0))
+		"settlement_cores_bonus_regicide":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_REGICIDE") % roundi(MetaProgress.ACHIEVEMENT_REGICIDE_CORES_BONUS * 100.0))
+		"move_speed_bonus":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_MOVE_SPEED") % roundi(MetaLoadoutApplier.ACHIEVEMENT_MOVE_SPEED_BONUS * 100.0))
+		"repair_bonus":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_REPAIR") % roundi(MetaLoadoutApplier.ACHIEVEMENT_REPAIR_BONUS * 100.0))
+		"luck_bonus":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_LUCK") % MetaLoadoutApplier.ACHIEVEMENT_LUCK_BONUS)
+		"xp_bonus":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_XP") % roundi(MetaLoadoutApplier.ACHIEVEMENT_XP_BONUS * 100.0))
+		"ability_damage_bonus":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_ABILITY_DAMAGE") % roundi(MetaLoadoutApplier.ACHIEVEMENT_ABILITY_DAMAGE_BONUS * 100.0))
+		"start_scrap_bonus":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % (TranslationServer.translate("ACHIEVEMENTS_PERK_START_SCRAP") % MetaLoadoutApplier.ACHIEVEMENT_START_SCRAP_BONUS)
+		"warlord_title":
+			return TranslationServer.translate("ACHIEVEMENTS_REWARD_PERK") % TranslationServer.translate("ACHIEVEMENTS_PERK_WARLORD")
 	return ""
 
 
@@ -159,11 +185,26 @@ func _build_row(achievement: AchievementDefinition) -> void:
 	hbox.theme_type_variation = UiTheme.hbox("L")
 	row.add_child(hbox)
 
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.custom_minimum_size = Vector2(ICON_SIDE, ICON_SIDE)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon_path: String = "res://assets/ui/icons/icon_%s.png" % achievement.icon_id
+	if achievement.icon_id != "" and ResourceLoader.exists(icon_path):
+		icon.texture = load(icon_path) as Texture2D
+	hbox.add_child(icon)
+	_icons[achievement.id] = icon
+
 	var column := VBoxContainer.new()
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(column)
 
 	var name_label := Label.new()
+	name_label.name = "Name"
 	name_label.text = achievement.display_name
 	name_label.theme_type_variation = UiTheme.VALUE
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -187,15 +228,30 @@ func _build_row(achievement: AchievementDefinition) -> void:
 	reward_label.custom_minimum_size = Vector2(ROW_LABEL_MIN_WIDTH, 0.0)
 	column.add_child(reward_label)
 
+	var progress_column := VBoxContainer.new()
+	progress_column.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_column.custom_minimum_size = Vector2(ROW_VALUE_MIN_WIDTH, 0.0)
+	hbox.add_child(progress_column)
+
 	var value := Label.new()
 	value.name = "Value"
 	value.theme_type_variation = UiTheme.HUD_VALUE
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	value.custom_minimum_size = Vector2(ROW_VALUE_MIN_WIDTH, 0.0)
-	hbox.add_child(value)
+	progress_column.add_child(value)
+
+	var bar := ProgressBar.new()
+	bar.name = "Progress"
+	bar.min_value = 0.0
+	bar.max_value = 100.0
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
+	bar.add_theme_stylebox_override("background", UiTheme.make_box(UiPalette.INK, UiPalette.WOOD_BORDER, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, 0))
+	bar.add_theme_stylebox_override("fill", UiTheme.make_box(UiPalette.TOWER, UiPalette.TOWER, UiPalette.RADIUS_SMALL, 0, 0))
+	progress_column.add_child(bar)
 
 	_rows[achievement.id] = value
+	_bars[achievement.id] = bar
 
 
 # --- Test seams --------------------------------------------------------------
@@ -210,3 +266,7 @@ func get_back_button_for_test() -> Button:
 
 func get_row_count_for_test() -> int:
 	return _rows.size()
+
+
+func get_row_bar_for_test(id: String) -> ProgressBar:
+	return _bars.get(id)

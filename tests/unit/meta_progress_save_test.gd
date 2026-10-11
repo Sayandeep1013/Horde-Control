@@ -164,7 +164,7 @@ func test_reconcile_refunds_a_rank_above_current_max_and_clamps_it() -> void:
 	DirAccess.make_dir_recursive_absolute(_dir)
 	var f: FileAccess = FileAccess.open(_dir.path_join("profile.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify({
-		"schema_version": 1, "cores": 0, "lifetime_cores": 0,
+		"schema_version": 3, "cores": 0, "lifetime_cores": 0,
 		"tree_ranks": {"test_node": 5},
 		"records": {}, "settled_run_ids": [], "first_hub_seen": false, "flags": {},
 	}))
@@ -188,11 +188,11 @@ func test_reconcile_refunds_a_rank_above_current_max_and_clamps_it() -> void:
 func test_a_failed_save_sets_last_save_failed_and_a_later_successful_save_clears_it_on_disk() -> void:
 	# BUGFIX (found while adding the D118 schema-migration tests below and
 	# running this file in isolation): the settlement previously earned only
-	# 4 Cores (1 minute + 2 waves + floor(25/25) kill = 4), one short of a
-	# SINGLE tier-1 node's 5-Core price -- both buy() calls a few lines down
-	# need one each (10 total). 10 minutes/1 wave/25 kills earns 13, enough
-	# for both with headroom.
-	_settle("flag_1", 600.0, 1, 25) # a real, successful save
+	# 4 Cores (1 minute + 2 waves + floor(25/25) kill = 4), short of a
+	# SINGLE tier-1 node's 8-Core price -- both buy() calls a few lines down
+	# need one each (8 + 12 = 20 at the v2 prices). 30 minutes/1 wave/25 kills
+	# earns 33, enough for both with headroom.
+	_settle("flag_1", 1800.0, 1, 25) # a real, successful save: 33 Cores, enough for vitality ranks 1 and 2 (8 + 12)
 	assert_bool(MetaProgress.get_flags()["last_save_failed"]).is_false()
 
 	MetaProgress.set_fail_after_tmp_write_for_test(true)
@@ -305,7 +305,7 @@ func test_reconcile_refunds_and_drops_an_unknown_node_id() -> void:
 	DirAccess.make_dir_recursive_absolute(_dir) # see the sibling test's identical comment above
 	var f: FileAccess = FileAccess.open(_dir.path_join("profile.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify({
-		"schema_version": 1, "cores": 0, "lifetime_cores": 0,
+		"schema_version": 3, "cores": 0, "lifetime_cores": 0,
 		"tree_ranks": {"ghost_node_removed_from_tree": 3},
 		"records": {}, "settled_run_ids": [], "first_hub_seen": false, "flags": {},
 	}))
@@ -325,7 +325,7 @@ func test_reconcile_refunds_and_drops_an_unknown_node_id() -> void:
 ## three new fields at all -- `_migrate_1_to_2()` must add them at their
 ## correct historical value (zero/empty) rather than erroring or dropping
 ## the rest of the profile.
-func test_a_schema_version_1_profile_migrates_to_2_with_zeroed_achievement_fields() -> void:
+func test_a_schema_version_1_profile_migrates_with_zeroed_achievement_fields() -> void:
 	DirAccess.make_dir_recursive_absolute(_dir)
 	var f: FileAccess = FileAccess.open(_dir.path_join("profile.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify({
@@ -350,7 +350,7 @@ func test_a_schema_version_1_profile_migrates_to_2_with_zeroed_achievement_field
 	# the simplest real production call that forces one for this readback.
 	_settle("migrate_save_check", 0.0, 0, 0)
 	var raw: Dictionary = _read_raw("profile.json")
-	assert_int(int(raw.get("schema_version", 0))).is_equal(2)
+	assert_int(int(raw.get("schema_version", 0))).append_failure_message("a v1 profile migrates all the way to the current schema (3)").is_equal(3)
 	assert_bool(raw.has("lifetime_kills")).is_true()
 	assert_bool(raw.has("lifetime_scrap_collected")).is_true()
 	assert_bool(raw.has("unlocked_achievement_ids")).is_true()
@@ -360,7 +360,7 @@ func test_a_schema_version_1_profile_migrates_to_2_with_zeroed_achievement_field
 ## edit) is treated identically to schema_version 1 -- `_migrate()`'s own
 ## `if version < 2` branch covers both, so a missing key never accidentally
 ## skips the achievement-fields migration.
-func test_a_profile_with_no_schema_version_key_at_all_still_migrates_to_2() -> void:
+func test_a_profile_with_no_schema_version_key_at_all_still_migrates() -> void:
 	DirAccess.make_dir_recursive_absolute(_dir)
 	var f: FileAccess = FileAccess.open(_dir.path_join("profile.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify({

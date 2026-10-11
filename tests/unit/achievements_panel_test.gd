@@ -66,16 +66,18 @@ func test_a_locked_lifetime_achievement_shows_its_progress_fraction() -> void:
 	panel.set_active(true)
 
 	assert_str(panel.get_row_value_label_for_test("kill_hundred").text).is_equal("37 / 100")
+	assert_float(panel.get_row_bar_for_test("kill_hundred").value).append_failure_message("the bar fills in proportion to the lifetime counter (37 of 100)").is_equal_approx(37.0, 0.01)
 
 
-func test_a_locked_per_run_achievement_shows_locked_not_a_fraction() -> void:
+func test_a_locked_per_run_achievement_shows_in_one_run_not_a_fraction() -> void:
 	MetaProgress.set_achievement_list_for_test(_fake_list([_make_achievement("win_a_run", "run_victory", 1.0)]))
 
 	var panel: AchievementsPanel = auto_free(AchievementsPanel.new())
 	add_child(panel)
 	panel.set_active(true)
 
-	assert_str(panel.get_row_value_label_for_test("win_a_run").text).is_equal("Locked")
+	assert_str(panel.get_row_value_label_for_test("win_a_run").text).is_equal("In one run")
+	assert_float(panel.get_row_bar_for_test("win_a_run").value).append_failure_message("a per-run achievement has no lifetime figure, so its bar stays empty").is_equal(0.0)
 
 
 func test_back_button_emits_back_requested() -> void:
@@ -96,4 +98,30 @@ func test_every_row_shows_its_reward_and_unlocked_rows_are_tinted() -> void:
 		var reward: String = AchievementsPanel.reward_text(a)
 		assert_str(reward).append_failure_message("%s shows no reward" % a.id).is_not_empty()
 	assert_str(AchievementsPanel.reward_text(RealAchievementList.achievements[1])).contains("Unlocks card")
-	assert_str(AchievementsPanel.reward_text(RealAchievementList.achievements[5])).contains("5%")
+	assert_str(AchievementsPanel.reward_text(RealAchievementList.get_achievement("marksman"))).contains("5%")
+	assert_str(AchievementsPanel.reward_text(RealAchievementList.get_achievement("mason"))).contains("10%")
+
+
+func test_sixteen_real_rows_each_with_an_icon_and_a_bar() -> void:
+	var panel: AchievementsPanel = auto_free(AchievementsPanel.new())
+	add_child(panel)
+	panel.set_active(true)
+	assert_int(panel.get_row_count_for_test()).is_equal(16)
+	for a in RealAchievementList.achievements:
+		assert_object(panel.get_row_bar_for_test(a.id)).append_failure_message("%s has no progress bar" % a.id).is_not_null()
+		assert_object(panel._icons[a.id].texture).append_failure_message("%s has no icon" % a.id).is_not_null()
+
+
+## The progress counters live in the profile: a lifetime counter set directly
+## reads back through the panel, e.g. "1240 / 2000" for Mason.
+func test_profile_counters_feed_the_progress_text() -> void:
+	MetaProgress.set_lifetime_counter_for_test("lifetime_repair", 1240)
+	MetaProgress.set_lifetime_counter_for_test("lifetime_elite_kills", 12)
+	MetaProgress.set_lifetime_counter_for_test("runs_played", 4)
+	var panel: AchievementsPanel = auto_free(AchievementsPanel.new())
+	add_child(panel)
+	panel.set_active(true)
+	assert_str(panel.get_row_value_label_for_test("mason").text).is_equal("1240 / 2000")
+	assert_float(panel.get_row_bar_for_test("mason").value).is_equal_approx(62.0, 0.01)
+	assert_str(panel.get_row_value_label_for_test("elite_hunter").text).is_equal("12 / 50")
+	assert_str(panel.get_row_value_label_for_test("survivor").text).is_equal("4 / 10")
