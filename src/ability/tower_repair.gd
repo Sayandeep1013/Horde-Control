@@ -22,6 +22,10 @@ const DASH_COUNT: int = 40
 @export var tower_path: NodePath = NodePath("../Tower")
 @export var pickup_system_path: NodePath = NodePath("../PickupSystem")
 
+## Warden (WP-LOADOUT, docs/32 C1; Register "v1.0 Loadout"): Tower HP per second while the
+## player stands in the Interaction Radius, with or without Scrap. ABSOLUTE; 0 = off.
+var _passive_regen_hp_per_second: float = 0.0
+
 var _tower: Node2D = null
 var _inventory: RunInventory = null
 var _carry: float = 0.0
@@ -90,6 +94,27 @@ func set_run_inventory_for_test(inv: RunInventory) -> void:
 	_inventory = inv
 
 
+func set_passive_regen_hp_per_second(hp_per_second: float) -> void:
+	_passive_regen_hp_per_second = maxf(0.0, hp_per_second)
+
+
+func get_passive_regen_hp_per_second() -> float:
+	return _passive_regen_hp_per_second
+
+
+## The Warden trickle. Runs only on a tick where Scrap did NOT repair, so the two never
+## stack: carrying Scrap the 24 HP/s Scrap repair is the heal, the trickle covers the rest.
+func _passive_regen_step(delta: float, tower: Node2D) -> void:
+	if _passive_regen_hp_per_second <= 0.0 or tower.get("health") == null or tower.get("interaction_radius") == null:
+		return
+	var health: TowerHealth = tower.health
+	if health.is_destroyed() or health.get_current_health() >= health.max_health:
+		return
+	if not tower.interaction_radius.is_player_inside():
+		return
+	health.heal(_passive_regen_hp_per_second * delta) # not counted as "repaired" (Mason, the damage report)
+
+
 func is_repairing() -> bool:
 	return _repairing
 
@@ -129,6 +154,7 @@ func physics_step(delta: float) -> void:
 	var health: TowerHealth = tower.health
 	if health.is_destroyed() or health.get_current_health() >= health.max_health or inv.scrap_current <= 0:
 		_carry = 0.0
+		_passive_regen_step(delta, tower) # no Scrap to spend (or nothing to heal): the Warden trickle may still run
 		return
 	if not tower.interaction_radius.is_player_inside():
 		_carry = 0.0

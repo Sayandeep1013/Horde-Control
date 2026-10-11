@@ -25,6 +25,10 @@ const FREEZE_TO_SLOW_FRACTION: float = 0.50 # Register: Freeze-immune-to-slow st
 static var _state: Dictionary = {} # instance_id -> Dictionary
 static var _immunity: Dictionary = {} # instance_id -> {freeze_immune, freeze_to_slow}
 static var _runner: Node = null
+## Ember Heart (WP-LOADOUT, docs/32 C2; Register "v1.0 Loadout"): multiplies every burn
+## tick (the burn status and Firebomb's burning ground). ABSOLUTE, set once per run by
+## MetaLoadoutApplier; 1.0 = neutral.
+static var _burn_damage_multiplier: float = 1.0
 
 
 static func _entry(enemy: Object, create: bool) -> Dictionary:
@@ -34,6 +38,14 @@ static func _entry(enemy: Object, create: bool) -> Dictionary:
 			return {}
 		_state[id] = {"enemy": enemy, "burn_dps": 0.0, "burn_until": -1.0, "burn_source": "burn", "burn_next": 0.0, "slow": 0.0, "slow_until": -1.0, "freeze_until": -1.0}
 	return _state[id]
+
+
+static func set_burn_damage_multiplier(multiplier: float) -> void:
+	_burn_damage_multiplier = maxf(0.0, multiplier)
+
+
+static func get_burn_damage_multiplier() -> float:
+	return _burn_damage_multiplier
 
 
 static func _now() -> float:
@@ -140,6 +152,7 @@ static func clear(enemy: Object) -> void:
 static func reset() -> void:
 	_state.clear()
 	_immunity.clear()
+	_burn_damage_multiplier = 1.0
 
 
 static func get_state() -> Dictionary:

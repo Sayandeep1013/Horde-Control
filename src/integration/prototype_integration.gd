@@ -176,6 +176,7 @@ func _ready() -> void:
 func _apply_meta_loadout() -> void:
 	CombatStats.reset_run_stats() # D173/D254: the damage report and run counters start from zero every run (Retry included)
 	var loadout: MetaLoadout = MetaProgress.build_run_loadout()
+	LoadoutEffects.fold_into(loadout, RunConfig.champion_id, RunConfig.relic_ids) # WP-LOADOUT (docs/32 C): Champion + Relics join the tree's values
 	var pickup_system: PickupSystem = _pickup_system as PickupSystem
 	var run_inventory: RunInventory = pickup_system.run_inventory if pickup_system != null else null
 	var hooks: Dictionary = MetaLoadoutApplier.apply(loadout, _player, _tower, _auto_weapon as AutoWeapon, run_inventory, _draft_controller as DraftController, _wave_director)

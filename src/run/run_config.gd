@@ -56,3 +56,8 @@ static func reset_for_test() -> void:
 
 static func has_relic(id: String) -> bool:
 	return relic_ids.has(id)
+
+
+## King's Crown (docs/32 C2; Register "v1.0 Loadout"): points added to the elite chance.
+static func elite_chance_add() -> float:
+	return LoadoutCatalog.CROWN_ELITE_CHANCE_ADD if has_relic("kings_crown") else 0.0

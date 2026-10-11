@@ -141,6 +141,11 @@ var _buff_fire_rate_multiplier: float = 1.0
 ## arrow hit is accepted.
 var arrow_hit_hooks: Array[Callable] = []
 var _multishot_extra: int = 0
+## WP-LOADOUT (docs/32 C; Register "v1.0 Loadout"): Skirmisher's fire-rate bonus while the
+## owner is moving, and Quiver of Echoes' every-Nth-shot second arrow. Both ABSOLUTE.
+var _moving_fire_rate_bonus: float = 0.0
+var _echo_every_shots: int = 0
+var _echo_counter: int = 0
 ## Fixed by the card's own spec ("at 70% damage"), not a Register row of
 ## its own -- named here beside the field it scales rather than invented as
 ## a second exported tunable no design document asks for.
@@ -285,7 +290,24 @@ func get_effective_damage_per_shot() -> float:
 ## must decrease this interval, not increase it).
 func get_effective_fire_interval_seconds() -> float:
 	var rate: float = _fire_rate_multiplier * _buff_fire_rate_multiplier
+	if _moving_fire_rate_bonus > 0.0 and _owner_is_moving():
+		rate *= 1.0 + _moving_fire_rate_bonus
 	return (_fire_interval_seconds / rate) if rate > 0.0 else INF
+
+
+## Skirmisher. `bonus` is a fraction (0.15 = +15%) that applies only while the owner moves.
+func set_moving_fire_rate_bonus(bonus: float) -> void:
+	_moving_fire_rate_bonus = maxf(0.0, bonus)
+
+
+## Quiver of Echoes: every `shots`-th shot also fires a second arrow (0 turns it off).
+func set_echo_every_shots(shots: int) -> void:
+	_echo_every_shots = maxi(0, shots)
+	_echo_counter = 0
+
+
+func _owner_is_moving() -> bool:
+	return _origin != null and _origin.has_method("is_moving") and bool(_origin.call("is_moving"))
 
 
 func set_buff_fire_rate_multiplier(multiplier: float) -> void:
@@ -420,6 +442,12 @@ func _fire_at(target: Node2D) -> void:
 		var step: float = float(i / 2 + 1)
 		var angle_offset: float = deg_to_rad(MULTISHOT_SPREAD_DEGREES * step * side)
 		_launch_one(origin_pos, direction.rotated(angle_offset), multishot_damage)
+	if _echo_every_shots > 0:
+		_echo_counter += 1
+		if _echo_counter >= _echo_every_shots:
+			_echo_counter = 0
+			# Quiver of Echoes: a second full-damage arrow, fanned slightly so it reads.
+			_launch_one(origin_pos, direction.rotated(deg_to_rad(LoadoutCatalog.QUIVER_ECHO_SPREAD_DEGREES)), get_effective_damage_per_shot())
 	if _audio_pool != null and fire_sfx != null and _audio_pool.has_method("play"):
 		_audio_pool.play(fire_sfx, origin_pos, 0, false, "SFX")
 	fired.emit(_now())

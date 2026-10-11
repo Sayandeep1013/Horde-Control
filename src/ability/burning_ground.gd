@@ -38,7 +38,7 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	var now: float = SimClock.now
 	while now >= _next_tick and _next_tick < _start + lifetime + 0.001:
-		AbilityDamage.hit_area(global_position, radius, dps * TICK_SECONDS, source_id, &"player", false)
+		AbilityDamage.hit_area(global_position, radius, dps * TICK_SECONDS * StatusEffects.get_burn_damage_multiplier(), source_id, &"player", false)
 		_next_tick += TICK_SECONDS
 	if now >= _start + lifetime:
 		queue_free()

@@ -64,3 +64,15 @@ var skill_cooldown_reduction: float = 0.0 ## fraction (Skill Focus)
 var skill_damage_bonus: float = 0.0 ## fraction (Skill Power)
 var tower_repair_bonus: float = 0.0 ## fraction of repair per Scrap (Mason's Kit)
 var tower_ability_damage_bonus: float = 0.0 ## fraction (Engineers)
+
+## --- v1.0 Loadout (WP-LOADOUT, docs/32 C; Register "v1.0 Loadout") -----------------
+## Filled by `LoadoutEffects.fold_into()` AFTER the tree is read, and added into the
+## fields above where a Champion/Relic shares a stat with a tree node, so one
+## absolute setter call carries the combined value.
+var tower_regen_in_radius_hp: float = 0.0 ## Warden: Tower HP per second while the player is in its radius
+var moving_fire_rate_bonus: float = 0.0 ## Skirmisher: bow fire-rate fraction while moving
+var echo_every_shots: int = 0 ## Quiver of Echoes: every Nth bow shot fires a second arrow (0 = off)
+var tower_shield_capacity_bonus: float = 0.0 ## Iron Banner: fraction of the Tower's whole shield capacity
+var tower_in_wave_shield_regen_fraction: float = 0.0 ## Iron Banner: shield regen rate fraction during waves
+var burn_damage_bonus: float = 0.0 ## Ember Heart: fraction added to burn damage
+var champion_id: String = LoadoutCatalog.DEFAULT_CHAMPION_ID ## for the palette tint
