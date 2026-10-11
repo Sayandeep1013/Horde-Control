@@ -13,6 +13,9 @@ class_name AbilitySynergy
 ##               Caltrops damage.
 ##   SHATTER     Ballista and Catapult (Tower) + Frost Arrows (player): a Frozen
 ##               enemy takes double damage from either.
+##   CHAIN REACTION  Ricochet + Flame Arrows / Frost Arrows (player, D353): every bounce
+##               runs the partner's arrow-hit effect, so bounced arrows count toward
+##               igniting and slow (and can freeze) what they reach.
 ##   HALLOWED    Sacred Ground (player): with Flame Arrows each burning enemy
 ##               killed inside heals +1% of max HP; with Frost Ward (Tower) the
 ##               aura slows enemies inside by 15%.
@@ -33,13 +36,19 @@ const TABLE: Dictionary = {
 		["sacred_ground", "Hallowed (Sacred Ground): Sacred Ground's aura slows enemies 15%."],
 	],
 	"caltrops": [["flame_arrows", "Kindling (Flame Arrows): patches ignite enemies; burning enemies take +25% Caltrops damage."]],
+	"ricochet": [
+		["flame_arrows", "Chain Reaction (Flame Arrows): each bounce counts toward igniting, and ignites on the Nth."],
+		["frost_arrows", "Chain Reaction (Frost Arrows): each bounce slows, and can freeze, what it reaches."],
+	],
 	"flame_arrows": [
+		["ricochet", "Chain Reaction (Ricochet): bounced arrows count toward igniting."],
 		["caltrops", "Kindling (Caltrops): Caltrops ignite enemies and hit burning ones for +25%."],
 		["sacred_ground", "Hallowed (Sacred Ground): each burning enemy killed in the aura heals you 1% max HP."],
 	],
 	"ballista": [["frost_arrows", "Shatter (Frost Arrows): Frozen enemies take double damage."]],
 	"catapult": [["frost_arrows", "Shatter (Frost Arrows): Frozen enemies take double damage."]],
 	"frost_arrows": [
+		["ricochet", "Chain Reaction (Ricochet): bounced arrows slow and can freeze."],
 		["ballista", "Shatter (Ballista): Frozen enemies take double Ballista damage."],
 		["catapult", "Shatter (Catapult): Frozen enemies take double Catapult damage."],
 	],
