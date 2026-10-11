@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="PickupDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/merge_rule.gd" id="1_merge"]
+[ext_resource type="Script" path="res://src/data/visual_audio_cue.gd" id="2_visual"]
+[ext_resource type="Script" path="res://src/data/pickup_definition.gd" id="3_def"]
+
+; v1.0 (WP-ENEMIES, decision D213). Meat: heals `value` percent of the player max HP (12), 20 s life.
+; Register "v1.0 Enemies, Bosses & Waves" > "Meat". magnet_behaviour = 1
+; (Static): never magnetised, the player walks onto it.
+[sub_resource type="Resource" id="Resource_merge"]
+script = ExtResource("1_merge")
+trigger = "at pickup cap"
+same_type_only = true
+resulting_behaviour = "sum into nearest same-type neighbour within radius, else expire oldest of that type"
+
+[sub_resource type="Resource" id="Resource_visual"]
+script = ExtResource("2_visual")
+sprite_reference = "res://assets/third_party/tiny_swords/Resources/Resources/M_Idle.png"
+audio_cue_id = "xp_tick"
+
+[resource]
+script = ExtResource("3_def")
+unique_id = "pickup_meat"
+pickup_type = 3
+value = 12
+magnet_behaviour = 1
+merge_rule = SubResource("Resource_merge")
+lifetime_seconds = 20.0
+visual_audio_cue = SubResource("Resource_visual")

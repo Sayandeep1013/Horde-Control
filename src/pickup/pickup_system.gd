@@ -67,6 +67,17 @@ const OPEN_POINT_SEARCH_DIRECTIONS: int = 8
 @export var economy_configuration: EconomyConfiguration = preload("res://data/economy/prototype.tres")
 @export var xp_shard_definition: PickupDefinition = preload("res://data/pickups/xp_shard.tres")
 @export var scrap_definition: PickupDefinition = preload("res://data/pickups/scrap.tres")
+## v1.0 (WP-ENEMIES, Register "v1.0 Enemies, Bosses & Waves" > "Meat" and "War Chest").
+@export var meat_definition: PickupDefinition = preload("res://data/pickups/meat.tres")
+@export var war_chest_definition: PickupDefinition = preload("res://data/pickups/war_chest.tres")
+## Elite drop table (Register): 4 XP, 4 Scrap; the Core is banked by the enemy
+## itself (CombatStats "field_cores"), Meat is rolled below.
+const ELITE_XP: int = 4
+const ELITE_SCRAP: int = 4
+const ELITE_MEAT_CHANCE: float = 0.35
+## Run seed for the keyed Meat roll; set by PrototypeIntegration.
+var run_seed: int = 0
+var _meat_rolls: int = 0
 
 @export var entity_spawner_path: NodePath
 @export var player_path: NodePath
@@ -110,6 +121,7 @@ func _ready() -> void:
 		_collector = get_node_or_null(player_collector_path) as PlayerCollector
 	_connect_collector()
 	_connect_enemy_died()
+	_connect_boss_defeated()
 	call_deferred("_find_and_register_with_sim_loop")
 
 
@@ -160,6 +172,19 @@ func _connect_enemy_died() -> void:
 		_event_bus.connect("enemy_died", callable)
 
 
+func _connect_boss_defeated() -> void:
+	if _event_bus == null:
+		return
+	var callable: Callable = Callable(self, "_on_boss_defeated")
+	if _event_bus.has_signal("boss_defeated") and not _event_bus.is_connected("boss_defeated", callable):
+		_event_bus.connect("boss_defeated", callable)
+
+
+## A boss drops a War Chest where it fell (docs/31 §5.3).
+func _on_boss_defeated(_boss_id: String, position: Vector2, _timestamp: float) -> void:
+	_pending_drops.append({"drop_table": null, "position": position, "chest": true})
+
+
 func _connect_collector() -> void:
 	if _collector != null and not _collector.pickup_entered.is_connected(_on_pickup_entered_collector):
 		_collector.pickup_entered.connect(_on_pickup_entered_collector)
@@ -186,6 +211,7 @@ func set_event_bus_for_test(event_bus: Object) -> void:
 	_event_bus = event_bus
 	run_inventory.configure(economy_configuration, _event_bus)
 	_connect_enemy_died()
+	_connect_boss_defeated()
 
 
 func configure_collector(collector: PlayerCollector) -> void:
@@ -230,7 +256,8 @@ func _on_enemy_died(entity: Node2D, position: Vector2, _timestamp: float) -> voi
 	var drop_table: DropTable = _resolve_drop_table_for(entity)
 	if drop_table == null:
 		return
-	_queue_drop(drop_table, position)
+	var affix: Variant = entity.get("elite_affix") if entity != null else null
+	_pending_drops.append({"drop_table": drop_table, "position": position, "meat": affix is String and affix != ""})
 
 
 ## `entity.get("definition")` / `.get("is_finisher")` are duck-typed public
@@ -266,6 +293,13 @@ func _resolve_drop_table_for(entity: Node2D) -> DropTable:
 	var base_drop_table: DropTable = definition.get("drop_table")
 	if base_drop_table == null:
 		return null
+	var affix: Variant = entity.get("elite_affix")
+	if affix is String and affix != "":
+		var elite_table: DropTable = DropTable.new()
+		elite_table.xp_shards = ELITE_XP
+		elite_table.scrap = ELITE_SCRAP
+		elite_table.cores = 0
+		return elite_table
 	var is_finisher: Variant = entity.get("is_finisher")
 	if is_finisher == true:
 		var override: DropTable = DropTable.new()
@@ -318,10 +352,20 @@ func step_drops(_delta: float = 0.0) -> void:
 	for entry in drops:
 		var drop_table: DropTable = entry["drop_table"]
 		var position: Vector2 = _resolve_open_point(entry["position"])
+		if bool(entry.get("chest", false)):
+			_spawn_one_pickup(war_chest_definition, war_chest_definition.value, position)
+			continue
+		if bool(entry.get("meat", false)) and _roll_meat():
+			_spawn_one_pickup(meat_definition, meat_definition.value, position + Vector2(24.0, 0.0))
 		if drop_table.xp_shards > 0:
 			_spawn_one_pickup(xp_shard_definition, drop_table.xp_shards, position)
 		if drop_table.scrap > 0:
 			_spawn_one_pickup(scrap_definition, drop_table.scrap, position)
+
+
+func _roll_meat() -> bool:
+	_meat_rolls += 1
+	return KeyedRng.rng_for([run_seed, "meat", _meat_rolls]).randf() < ELITE_MEAT_CHANCE
 
 
 # --- Spawning, the pickup cap, and C-MERGE ----------------------------------
@@ -474,8 +518,17 @@ func _collect(pickup: Pickup) -> void:
 			run_inventory.credit_xp(float(pickup.value))
 		ContractEnums.PickupType.Scrap:
 			run_inventory.credit_scrap(pickup.value)
+		ContractEnums.PickupType.Health:
+			# Meat (Register): heals `value` percent of the player's max HP; not magnetised.
+			if _player != null and is_instance_valid(_player) and _player.death_state != null:
+				_player.heal(_player.death_state.max_hp * float(pickup.value) / 100.0)
+			Sfx.play("xp_tick", pickup.global_position)
+		ContractEnums.PickupType.WarChest:
+			Sfx.play("chest_open", pickup.global_position)
+			if _event_bus != null and _event_bus.has_method("emit_war_chest_opened"):
+				_event_bus.emit_war_chest_opened()
 		_:
-			pass # Core/Health are out of prototype scope (task brief)
+			pass # Core is banked at the source (CombatStats "field_cores"), never a field pickup
 	pickup.play_collect_fx()
 	_despawn_pickup(pickup)
 

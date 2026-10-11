@@ -213,6 +213,9 @@ func configure(pickup_definition: PickupDefinition, pickup_value: int, position:
 		var texture_path: String = pickup_definition.visual_audio_cue.sprite_reference
 		if texture_path != "" and ResourceLoader.exists(texture_path):
 			_sprite.texture = load(texture_path) as Texture2D
+		elif pickup_definition.pickup_type == ContractEnums.PickupType.WarChest:
+			_sprite.texture = WarChestArt.texture() # fallback until WP-ASSETS' res://assets/sprites/v1/war_chest.png exists
+	_apply_type_geometry()
 
 	# Art session: Scrap specifically gets a one-shot G_Spawn burst before
 	# settling into its idle bob (task brief, "Pickups" > Scrap); every other
@@ -230,6 +233,26 @@ func configure(pickup_definition: PickupDefinition, pickup_value: int, position:
 			_spawn_fx.visible = false
 		if _sprite != null:
 			_sprite.visible = true
+
+
+## v1.0: pooled pickups are shared across types, so scale and touch radius are
+## reset on every configure(). Meat and the War Chest are walked onto, so they
+## get a bigger touch radius than the magnetised 6 px crystals.
+func _apply_type_geometry() -> void:
+	var kind: ContractEnums.PickupType = get_pickup_type()
+	var touch_radius: float = COLLISION_RADIUS_PX
+	var sprite_scale: float = 1.0
+	if kind == ContractEnums.PickupType.Health:
+		touch_radius = 14.0
+		sprite_scale = 1.0
+	elif kind == ContractEnums.PickupType.WarChest:
+		touch_radius = 26.0
+		sprite_scale = 2.0
+	var shape_node: CollisionShape2D = get_node_or_null(collision_shape_path) as CollisionShape2D
+	if shape_node != null and shape_node.shape is CircleShape2D:
+		(shape_node.shape as CircleShape2D).radius = touch_radius
+	if _sprite != null:
+		_sprite.scale = Vector2(sprite_scale, sprite_scale)
 
 
 func get_pickup_type() -> ContractEnums.PickupType:

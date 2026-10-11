@@ -6,9 +6,13 @@ extends GdUnitTestSuite
 ## Provisional Values Register > Spawning & Waves > "Inter-wave gap",
 ## "Final combat wave rule (C-FINAL)".
 ##
+## v1.0 NOTE: the director's default exports are now the 15-wave v1.0 sequence
+## (tests/unit/wave_sequence_v1_test.gd proves that one); this suite keeps
+## proving the gap/ordering MECHANISM against the original eight-wave
+## prototype fixtures via `use_legacy_prototype_sequence_for_test()`.
+##
 ## Runs against the REAL, preloaded 8-wave prototype sequence
-## (src/director/wave_director.gd's own default `waves`/
-## `encounter_definitions` exports), not a throwaway scenario -- this suite
+## (data/waves/t1..combat_4), not a throwaway scenario -- this suite
 ## exists specifically to prove THAT sequence, with its authored durations
 ## and gaps, actually advances correctly end to end. A lightweight dummy
 ## PackedScene (a bare Node2D, no EnemyController) stands in for every
@@ -78,6 +82,7 @@ func before_test() -> void:
 	_spawner.set_registry_for_test(_registry)
 
 	_director = auto_free(WaveDirectorScript.new()) as WaveDirector
+	_director.use_legacy_prototype_sequence_for_test() # v1.0: mechanism suite, authored against the eight-wave prototype fixtures
 	_director.driven_externally = true
 	_director.run_seed = 42
 	add_child(_director)

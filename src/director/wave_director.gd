@@ -11,6 +11,17 @@ class_name WaveDirector
 ## (T1-T4, combat waves 1-4; no boss waves) and spawns their authored spawn
 ## groups on the two Spawn Rings, off-screen, on schedule.
 ##
+## ## v1.0 (WP-ENEMIES; docs/31 §5-§6; Register "v1.0 Enemies, Bosses & Waves")
+## The default `waves`/`encounter_definitions` are now the 15-wave release
+## sequence (data/waves/w01..w15; D171, D221). The paragraphs below describe the
+## original eight-wave prototype build and remain accurate for the mechanisms
+## (rings, Siege formula, Overtime, Pressure), which the suites still exercise
+## through `use_legacy_prototype_sequence_for_test()`. v1.0 adds: boss waves
+## (`has_maximum_duration == false`, ending on the boss's death, no Overtime or
+## Pressure), difficulty at spawn (D219), elites (D214), Endless looping (D217),
+## boss summons (`spawn_summons()`), spawn markers and the Siege warning
+## (emission only), and the `wave_director` group query API.
+##
 ## ## Scope, named per this task's own binding brief
 ## P2.8 (phases/PHASE_03_.../evidence/p28_report.md, "Deferred") named eight
 ## items it deliberately left out. This task (P2.8b,
@@ -179,6 +190,24 @@ const FINISHER_SERIAL_BASE: int = 10_000_000
 ## Overtime could ever spawn this many finishers.
 const FINISHER_SERIAL_PER_WAVE: int = 1000
 
+# --- v1.0 (WP-ENEMIES) constants: Register "v1.0 Enemies, Bosses & Waves" ----
+## Spawns of a group beyond its authored count (Spawn count multiplier > 1) use
+## serials from here so they never repeat another group's keyed RNG stream.
+const EXTRA_SPAWN_SERIAL_BASE: int = 5_000_000
+const SUMMON_SERIAL_BASE: int = 7_000_000
+const ENDLESS_LOOP_SERIAL_STRIDE: int = 100_000
+const SPAWN_WARNING_LEAD_SECONDS: float = 0.75
+const SPAWN_WARNING_SECTOR_DEGREES: float = 30.0
+const SIEGE_WARNING_LEAD_SECONDS: float = 3.0
+const ELITE_FIRST_WAVE: int = 5
+const ELITE_BASE_CHANCE: float = 0.04
+const ELITE_CHANCE_PER_WAVE: float = 0.01
+const ELITE_MAX_BASE_CHANCE: float = 0.12
+const ENDLESS_HP_PER_LOOP: float = 0.15
+const ENDLESS_DAMAGE_PER_LOOP: float = 0.10
+const SUMMON_RING_MIN_PX: float = 90.0
+const SUMMON_RING_MAX_PX: float = 170.0
+
 
 @export var driven_externally: bool = false
 
@@ -204,25 +233,39 @@ const FINISHER_SERIAL_PER_WAVE: int = 1000
 ## wire" instruction, but ships pre-populated with the authored prototype
 ## sequence so the director is playable with no further wiring.
 @export var waves: Array[WaveDefinition] = [
-	preload("res://data/waves/t1.tres"),
-	preload("res://data/waves/t2.tres"),
-	preload("res://data/waves/t3.tres"),
-	preload("res://data/waves/t4.tres"),
-	preload("res://data/waves/combat_1.tres"),
-	preload("res://data/waves/combat_2.tres"),
-	preload("res://data/waves/combat_3.tres"),
-	preload("res://data/waves/combat_4.tres"),
+	preload("res://data/waves/w01.tres"),
+	preload("res://data/waves/w02.tres"),
+	preload("res://data/waves/w03.tres"),
+	preload("res://data/waves/w04.tres"),
+	preload("res://data/waves/w05.tres"),
+	preload("res://data/waves/w06.tres"),
+	preload("res://data/waves/w07.tres"),
+	preload("res://data/waves/w08.tres"),
+	preload("res://data/waves/w09.tres"),
+	preload("res://data/waves/w10.tres"),
+	preload("res://data/waves/w11.tres"),
+	preload("res://data/waves/w12.tres"),
+	preload("res://data/waves/w13.tres"),
+	preload("res://data/waves/w14.tres"),
+	preload("res://data/waves/w15.tres"),
 ]
 
 @export var encounter_definitions: Array[EncounterDefinition] = [
-	preload("res://data/encounters/t1_standard_assault.tres"),
-	preload("res://data/encounters/t2_standard_assault.tres"),
-	preload("res://data/encounters/t3_split_assault.tres"),
-	preload("res://data/encounters/t4_siege.tres"),
-	preload("res://data/encounters/combat_1_hunt.tres"),
-	preload("res://data/encounters/combat_2_siege.tres"),
-	preload("res://data/encounters/combat_3_split_assault.tres"),
-	preload("res://data/encounters/combat_4_siege.tres"),
+	preload("res://data/encounters/w01_standard.tres"),
+	preload("res://data/encounters/w02_standard.tres"),
+	preload("res://data/encounters/w03_split.tres"),
+	preload("res://data/encounters/w04_siege.tres"),
+	preload("res://data/encounters/w05_hunt.tres"),
+	preload("res://data/encounters/w06_split.tres"),
+	preload("res://data/encounters/w07_siege.tres"),
+	preload("res://data/encounters/w08_boss.tres"),
+	preload("res://data/encounters/w09_hunt.tres"),
+	preload("res://data/encounters/w10_siege.tres"),
+	preload("res://data/encounters/w11_split.tres"),
+	preload("res://data/encounters/w12_hunt.tres"),
+	preload("res://data/encounters/w13_siege.tres"),
+	preload("res://data/encounters/w14_grand_assault.tres"),
+	preload("res://data/encounters/w15_boss.tres"),
 ]
 
 ## Orchestrator-supplied (task instruction: "do not hardcode paths"). Left
@@ -232,6 +275,11 @@ const FINISHER_SERIAL_PER_WAVE: int = 1000
 @export var tower_seeker_scene: PackedScene
 @export var player_hunter_scene: PackedScene
 @export var opportunist_scene: PackedScene
+## v1.0 (WP-ENEMIES): the Bomber, the Brute and the two bosses.
+@export var bomber_scene: PackedScene
+@export var brute_scene: PackedScene
+@export var warchief_scene: PackedScene
+@export var king_scene: PackedScene
 
 ## The three prototype enemies' own authored data, read for
 ## `target_intent` (ring routing) and `unique_id` (the enemy_lookup key a
@@ -243,6 +291,10 @@ const FINISHER_SERIAL_PER_WAVE: int = 1000
 @export var tower_seeker_definition: EnemyDefinition = preload("res://data/enemies/tower_seeker.tres")
 @export var player_hunter_definition: EnemyDefinition = preload("res://data/enemies/player_hunter.tres")
 @export var opportunist_definition: EnemyDefinition = preload("res://data/enemies/opportunist.tres")
+@export var bomber_definition: EnemyDefinition = preload("res://data/enemies/bomber.tres")
+@export var brute_definition: EnemyDefinition = preload("res://data/enemies/brute.tres")
+@export var warchief_definition: EnemyDefinition = preload("res://data/enemies/goblin_warchief.tres")
+@export var king_definition: EnemyDefinition = preload("res://data/enemies/bombardier_king.tres")
 
 ## Fallback source for the Tower's Interaction Radius when no live Tower is
 ## wired (`tower_path` unset and `set_tower_reference()` never called) --
@@ -261,7 +313,7 @@ const FINISHER_SERIAL_PER_WAVE: int = 1000
 ## for a wave whose unique_id is NOT in this list (Register > Pressure &
 ## Overtime > "Pressure formula": "only while a combat wave (not a teaching
 ## wave) is open").
-@export var teaching_wave_unique_ids: Array[String] = ["wave_t1", "wave_t2", "wave_t3", "wave_t4"]
+@export var teaching_wave_unique_ids: Array[String] = ["wave_01", "wave_02", "wave_03", "wave_04"]
 
 ## P2.9 Capacity seam fallback (Register > Pressure & Overtime > "Capacity
 ## formula": "sheet DPS of the player and the Tower with their current
@@ -310,10 +362,18 @@ const FINISHER_SERIAL_PER_WAVE: int = 1000
 ## exempt from the formula per the Register; any encounter this task does
 ## not know about) is left at its authored literal spawn-group counts
 ## unconditionally -- see `_maybe_scale_siege_spawn_groups()`.
-@export var siege_multiplier_by_encounter_id: Dictionary = {
-	"combat_2_siege": 1.5,
-	"combat_4_siege": 2.0,
-}
+@export var siege_multiplier_by_encounter_id: Dictionary = {}
+
+## v1.0 (WP-ENEMIES): endless mode (docs/31 §2). Read from RunConfig at _ready().
+@export var endless: bool = false
+
+## v1.0 dev-only: open this wave number (1-based) first instead of wave 1.
+## Set by PrototypeIntegration from `--start-wave=N`; captures and bot runs only.
+@export var dev_start_wave_number: int = 0
+
+## v1.0: the wave-type string of an encounter whose type enum has no member for
+## it (EncounterType has no Grand Assault). Others derive from the enum.
+@export var wave_type_by_encounter_id: Dictionary = {"w14_grand_assault": "grand_assault"}
 
 
 var _registry: Node = null
@@ -381,6 +441,17 @@ var _finisher_fail_counts: Dictionary = {} # finisher index (int) -> consecutive
 var _current_wave_finishers: Array[Node2D] = [] # finishers THIS wave has spawned and are still tracked as live -- see _despawn_remaining_finishers_without_drops()
 var _event_bus: Node = null
 
+# --- v1.0 (WP-ENEMIES) state ------------------------------------------------
+var _run_start_time: float = -1.0
+var _boss_instance: Node2D = null
+var _boss_wave_spawned: bool = false
+var _loop_wave_indices: Array[int] = [] # array indices that repeat in Endless: [boss wave, then the waves between it and the final wave]
+var _warned_bursts: Dictionary = {} # "group:burst" -> true, per encounter
+var _warning_last_time_by_sector: Dictionary = {} # sector (int) -> SimClock time of the last warning
+var _siege_warning_pending: bool = false
+var _siege_warning_time: float = 0.0
+var _summon_serial: int = 0
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -392,11 +463,14 @@ func _ready() -> void:
 		_combat_stats = CombatStats
 	if _event_bus == null:
 		_event_bus = EventBus
+	add_to_group(&"wave_director")
+	endless = endless or RunConfig.endless
 	_connect_event_bus()
 	_resolve_entity_spawner()
 	_build_encounter_lookup()
 	_build_enemy_lookup()
 	_build_serial_bases()
+	_build_endless_loop()
 	_configured = _entity_spawner != null and not waves.is_empty() and not _encounter_lookup.is_empty()
 	# Deliberately no push_error here: `entity_spawner_path` resolves above
 	# for a real scene, but the test seam (`set_entity_spawner_for_test()`,
@@ -433,6 +507,11 @@ func _build_enemy_lookup() -> void:
 		_enemy_lookup[player_hunter_definition.unique_id] = {"definition": player_hunter_definition, "scene": player_hunter_scene}
 	if opportunist_definition != null:
 		_enemy_lookup[opportunist_definition.unique_id] = {"definition": opportunist_definition, "scene": opportunist_scene}
+	# v1.0 roster. A definition whose scene is unwired is still looked up so the
+	# "no PackedScene wired" error names it instead of "unknown enemy id".
+	for pair in [[bomber_definition, bomber_scene], [brute_definition, brute_scene], [warchief_definition, warchief_scene], [king_definition, king_scene]]:
+		if pair[0] != null:
+			_enemy_lookup[(pair[0] as EnemyDefinition).unique_id] = {"definition": pair[0], "scene": pair[1]}
 	# P2.8b: the Overtime finisher reuses player_hunter_scene (same
 	# CharacterBody2D/EnemyController script -- only its stats differ) but
 	# is looked up under its OWN unique_id, distinct from a normal Hunter's,
@@ -508,8 +587,13 @@ func _build_serial_bases() -> void:
 
 
 func _spawn_serial_for(group_index: int, spawn_index: int) -> int:
-	var key: String = "%d:%d" % [_current_wave_index, group_index]
-	return int(_serial_base.get(key, 0)) + spawn_index
+	var key: String = "%d:%d" % [_array_index_for(_current_wave_index), group_index]
+	var base: int = int(_serial_base.get(key, 0))
+	var loop_offset: int = _endless_loop_number(_current_wave_index) * ENDLESS_LOOP_SERIAL_STRIDE
+	var encounter: EncounterDefinition = _current_encounter()
+	if encounter != null and group_index < encounter.spawn_groups.size() and spawn_index >= encounter.spawn_groups[group_index].count:
+		return EXTRA_SPAWN_SERIAL_BASE + base + (spawn_index - encounter.spawn_groups[group_index].count) + loop_offset
+	return base + spawn_index + loop_offset
 
 
 # --- Test-only seams (never called by gameplay code) ------------------------
@@ -539,6 +623,7 @@ func rebuild_lookups_for_test() -> void:
 	_build_encounter_lookup()
 	_build_enemy_lookup()
 	_build_serial_bases()
+	_build_endless_loop()
 	_configured = _entity_spawner != null and not waves.is_empty() and not _encounter_lookup.is_empty()
 
 
@@ -547,9 +632,8 @@ func get_state_name() -> String:
 
 
 func get_current_wave_id() -> String:
-	if _current_wave_index < 0 or _current_wave_index >= waves.size():
-		return ""
-	return waves[_current_wave_index].unique_id
+	var wave: WaveDefinition = _current_wave()
+	return wave.unique_id if wave != null else ""
 
 
 func get_current_wave_index_for_test() -> int:
@@ -571,6 +655,87 @@ func get_current_wave_display_index() -> int:
 ## today (confirmed by the same evidence report).
 func get_wave_total_count() -> int:
 	return waves.size()
+
+
+# --- v1.0 query API (WP-UI renders from these; docs/31 §10) ------------------
+
+## 1-based absolute wave number (16, 17, ... in Endless); 0 before wave 1 opens.
+func get_current_wave_number() -> int:
+	return maxi(0, _current_wave_index + 1)
+
+
+## 15 in the campaign; -1 in Endless.
+func get_wave_count() -> int:
+	return -1 if endless else waves.size()
+
+
+## "standard", "split", "siege", "hunt", "grand_assault" or "boss"; "" before wave 1.
+func get_current_wave_type() -> String:
+	return _wave_type_for(_current_wave())
+
+
+## 0..1: fraction of the wave's maximum duration elapsed; on a boss wave the
+## fraction of the boss's health lost. 1.0 during the gap after a wave.
+func get_wave_progress() -> float:
+	var wave: WaveDefinition = _current_wave()
+	if wave == null:
+		return 0.0
+	if _state == State.GAP or _state == State.SEQUENCE_COMPLETE:
+		return 1.0
+	if _is_boss_wave(wave):
+		if _boss_instance == null or not is_instance_valid(_boss_instance):
+			return 1.0 if _boss_wave_spawned else 0.0
+		var ds: Variant = _boss_instance.get("death_state")
+		if ds is DeathState and (ds as DeathState).max_hp > 0.0:
+			return clampf(1.0 - (ds as DeathState).current_hp / (ds as DeathState).max_hp, 0.0, 1.0)
+		return 0.0
+	if wave.maximum_duration_seconds <= 0.0:
+		return 0.0
+	return clampf((_now() - _wave_open_time) / wave.maximum_duration_seconds, 0.0, 1.0)
+
+
+## SimClock seconds since the first wave opened (pauses excluded).
+func get_run_elapsed_seconds() -> float:
+	return maxf(0.0, _now() - _run_start_time) if _run_start_time >= 0.0 else 0.0
+
+
+func is_boss_wave() -> bool:
+	return _is_boss_wave(_current_wave())
+
+
+## Sequence test seam: swaps in the original eight-wave prototype fixtures
+## (data/waves/t1..combat_4), which the mechanism suites (spawn rings, Siege
+## formula, Overtime, pressure, hunt, split) were authored against.
+func use_legacy_prototype_sequence_for_test() -> void:
+	waves = [
+		preload("res://data/waves/t1.tres"), preload("res://data/waves/t2.tres"), preload("res://data/waves/t3.tres"), preload("res://data/waves/t4.tres"),
+		preload("res://data/waves/combat_1.tres"), preload("res://data/waves/combat_2.tres"), preload("res://data/waves/combat_3.tres"), preload("res://data/waves/combat_4.tres"),
+	]
+	encounter_definitions = [
+		preload("res://data/encounters/t1_standard_assault.tres"), preload("res://data/encounters/t2_standard_assault.tres"),
+		preload("res://data/encounters/t3_split_assault.tres"), preload("res://data/encounters/t4_siege.tres"),
+		preload("res://data/encounters/combat_1_hunt.tres"), preload("res://data/encounters/combat_2_siege.tres"),
+		preload("res://data/encounters/combat_3_split_assault.tres"), preload("res://data/encounters/combat_4_siege.tres"),
+	]
+	teaching_wave_unique_ids = ["wave_t1", "wave_t2", "wave_t3", "wave_t4"]
+	siege_multiplier_by_encounter_id = {"combat_2_siege": 1.5, "combat_4_siege": 2.0}
+	if is_inside_tree():
+		rebuild_lookups_for_test()
+
+
+## v1.0 test seams.
+func get_loop_wave_indices_for_test() -> Array[int]:
+	return _loop_wave_indices
+
+
+func get_boss_instance_for_test() -> Node2D:
+	return _boss_instance
+
+
+## Opens wave `number` (1-based, absolute) straight away; only valid while idle.
+func open_wave_for_test(number: int) -> void:
+	_run_start_time = _now() if _run_start_time < 0.0 else _run_start_time
+	_open_wave(maxi(0, number - 1))
 
 
 ## UX review item 9 (D130): true when the wave that just opened contains a
@@ -774,7 +939,8 @@ func physics_step(delta: float) -> void:
 			push_error("WaveDirector: physics_step() called while not configured -- entity_spawner=%s waves=%d encounters=%d. Wire entity_spawner_path (or call set_entity_spawner_for_test()) before driving this node." % [_entity_spawner, waves.size(), _encounter_lookup.size()])
 		return
 	if _state == State.IDLE:
-		_open_wave(0)
+		_run_start_time = _now()
+		_open_wave(clampi(dev_start_wave_number - 1, 0, waves.size() - 1) if dev_start_wave_number > 0 else 0)
 	match _state:
 		State.WAVE_ACTIVE:
 			_process_wave_active(delta)
@@ -786,6 +952,10 @@ func physics_step(delta: float) -> void:
 
 func _open_wave(index: int) -> void:
 	_current_wave_index = index
+	var opening: WaveDefinition = _wave_at(index)
+	_boss_instance = null
+	_boss_wave_spawned = false
+	_warning_last_time_by_sector.clear()
 	_wave_open_time = _now()
 	_overtime_active = false
 	_next_stall_check_time = -INF
@@ -796,10 +966,12 @@ func _open_wave(index: int) -> void:
 	_current_wave_finishers.clear()
 	_encounter_gap_deadline = -INF
 	_wave_encounter_position = 0
-	_wave_encounter_queue = _build_priority_sorted_encounter_queue(waves[index])
+	_wave_encounter_queue = _build_priority_sorted_encounter_queue(opening)
 	_start_encounter_tracking(_current_encounter())
 	_state = State.WAVE_ACTIVE
-	wave_opened.emit(waves[index].unique_id, index)
+	wave_opened.emit(opening.unique_id, index)
+	_emit_bus("emit_wave_started", [get_current_wave_number(), get_wave_count(), _wave_type_for(opening), _is_boss_wave(opening)])
+	Sfx.play("wave_horn", Vector2.INF, 5, true)
 
 
 ## P2.8b. Register > "Priorities & recovery gaps": "When two encounters are
@@ -852,8 +1024,11 @@ func _start_encounter_tracking(encounter: EncounterDefinition) -> void:
 	_group_start_offset_override.clear() # P2.9: group indices are per-encounter and reused across encounters/waves, like the clears above
 	_group_count_override.clear()
 	_current_wave_spawned.clear()
+	_warned_bursts.clear()
+	_siege_warning_pending = false
 	if encounter != null:
 		_maybe_scale_siege_spawn_groups(encounter)
+		_arm_siege_warning(encounter)
 
 
 func _advance_to_next_encounter_in_wave() -> void:
@@ -862,7 +1037,7 @@ func _advance_to_next_encounter_in_wave() -> void:
 
 
 func _process_wave_active(_delta: float) -> void:
-	var wave: WaveDefinition = waves[_current_wave_index]
+	var wave: WaveDefinition = _current_wave()
 	var now: float = _now()
 
 	# P2.8b: the recovery gap between two encounters WITHIN this wave
@@ -885,6 +1060,7 @@ func _process_wave_active(_delta: float) -> void:
 		push_error("WaveDirector: wave '%s' names an encounter sequence that does not resolve to any wired EncounterDefinition" % wave.unique_id)
 		return
 
+	_process_siege_warning(now)
 	_process_pressure_metric(wave, encounter) # P2.9 -- before spawn groups, so an escalation/de-escalation decided THIS tick already applies to _process_spawn_groups() below
 	_maybe_enter_overtime(wave, encounter, now) # P2.8b -- may flip _overtime_active THIS tick, before spawn processing below decides which path to take
 	if _overtime_active:
@@ -933,6 +1109,8 @@ func _process_spawn_groups(encounter: EncounterDefinition) -> void:
 			var burst: int = maxi(1, group.burst_size)
 			var due_time: float = _encounter_open_time + start_offset + float((emitted / burst) * burst) * group.spawn_interval_seconds * interval_multiplier # D138: spawns in one burst share a due time (burst == 1 reduces to the original formula)
 			if now < due_time:
+				if due_time - now <= SPAWN_WARNING_LEAD_SECONDS:
+					_warn_upcoming_spawn(encounter, group, group_index, emitted, burst)
 				break
 			if not _attempt_spawn(encounter, group, group_index, emitted):
 				break # throttled or invalid this tick -- retries next tick WITHOUT consuming budget (Register: both throttle and "no valid candidate" share this rule)
@@ -945,7 +1123,15 @@ func _process_spawn_groups(encounter: EncounterDefinition) -> void:
 ## (live-DPS-scaled Siege sizing) -- see that method's own header. Never
 ## mutates the shared SpawnGroup Resource itself.
 func _effective_group_count(group_index: int, group: SpawnGroup) -> int:
-	return int(_group_count_override.get(group_index, group.count))
+	var base: int = int(_group_count_override.get(group_index, group.count))
+	var info: Dictionary = _enemy_lookup.get(group.enemy_definition_id, {})
+	var def: EnemyDefinition = info.get("definition")
+	if def != null and def.readability_profile != null and def.readability_profile.silhouette_class == ContractEnums.SilhouetteClass.Boss:
+		return base # a boss is never multiplied
+	var mult: float = _difficulty().spawn_count_multiplier
+	if base <= 0 or is_equal_approx(mult, 1.0):
+		return base
+	return maxi(1, int(round(float(base) * mult)))
 
 
 ## P2.9. The first group (in authored order) that has not yet emitted even
@@ -978,7 +1164,7 @@ func _find_next_pending_group_index(encounter: EncounterDefinition) -> int:
 ## own comment on that method).
 func _process_pressure_metric(wave: WaveDefinition, encounter: EncounterDefinition) -> void:
 	var now: float = _now()
-	var active: bool = not _is_teaching_wave(wave) and not _is_in_grace_period(now)
+	var active: bool = not _is_teaching_wave(wave) and not _is_boss_wave(wave) and not _is_in_grace_period(now)
 	if not active:
 		_pressure_was_active_last_tick = false
 		return
@@ -1204,7 +1390,9 @@ func _attempt_spawn(encounter: EncounterDefinition, group: SpawnGroup, group_ind
 	if _registry != null:
 		_registry.update_position(instance, spawn_position)
 	_current_wave_spawned.append(instance)
-	_apply_wave_scaling(instance)
+	_apply_wave_scaling(instance, definition)
+	_maybe_make_elite(instance, definition, serial)
+	_track_boss(instance, definition)
 	enemy_spawned.emit(instance, group.enemy_definition_id, spawn_position)
 	return true
 
@@ -1214,15 +1402,225 @@ func _attempt_spawn(encounter: EncounterDefinition, group: SpawnGroup, group_ind
 ## authors none) are applied to every standard enemy at spawn. Finishers
 ## (spawned by `_spawn_finisher`) are deliberately not scaled: their HP is
 ## already a fixed fraction of a Hunter's by the Register.
-func _apply_wave_scaling(instance: Node2D) -> void:
-	if _current_wave_index < 0 or _current_wave_index >= waves.size():
-		return
-	var wave: WaveDefinition = waves[_current_wave_index]
+func _apply_wave_scaling(instance: Node2D, definition: EnemyDefinition = null) -> void:
+	var wave: WaveDefinition = _current_wave()
 	if wave == null or not instance.has_method("set_wave_scaling"):
 		return
-	if is_equal_approx(wave.enemy_hp_multiplier, 1.0) and is_equal_approx(wave.enemy_damage_multiplier, 1.0) and is_equal_approx(wave.hunter_damage_multiplier, 1.0):
+	# v1.0: difficulty profile (docs/31 §6.2) and the Endless loop bonus
+	# multiply on top of the wave's own multipliers. Bosses take the profile's
+	# boss HP multiplier instead of its enemy HP multiplier.
+	var diff: DifficultyProfile = _difficulty()
+	var loop: int = _endless_loop_number(_current_wave_index)
+	var loop_hp: float = 1.0 + ENDLESS_HP_PER_LOOP * float(loop)
+	var loop_dmg: float = 1.0 + ENDLESS_DAMAGE_PER_LOOP * float(loop)
+	var is_boss: bool = definition != null and definition.readability_profile != null and definition.readability_profile.silhouette_class == ContractEnums.SilhouetteClass.Boss
+	var hp_mult: float = wave.enemy_hp_multiplier * (diff.boss_hp_multiplier if is_boss else diff.enemy_hp_multiplier) * loop_hp
+	var dmg_mult: float = wave.enemy_damage_multiplier * diff.enemy_damage_multiplier * loop_dmg
+	var hunter_mult: float = wave.hunter_damage_multiplier * diff.enemy_damage_multiplier * loop_dmg
+	instance.call("set_wave_scaling", hp_mult, dmg_mult, hunter_mult)
+
+
+## docs/31 §5.2 / Register "Elite chance": from wave 5, 4% rising 1% per wave to
+## 12%, plus the wave's own `elite_chance` and the difficulty's add. Bosses
+## and Overtime finishers never roll (finishers do not pass through here).
+func get_elite_chance_for_test(wave_number: int, wave_extra: float = 0.0, difficulty_add: float = 0.0) -> float:
+	return _elite_chance(wave_number, wave_extra, difficulty_add)
+
+
+func _elite_chance(wave_number: int, wave_extra: float, difficulty_add: float) -> float:
+	if wave_number < ELITE_FIRST_WAVE:
+		return 0.0
+	var base: float = minf(ELITE_BASE_CHANCE + ELITE_CHANCE_PER_WAVE * float(wave_number - ELITE_FIRST_WAVE), ELITE_MAX_BASE_CHANCE)
+	return base + wave_extra + difficulty_add
+
+
+func _maybe_make_elite(instance: Node2D, definition: EnemyDefinition, serial: int) -> void:
+	if definition == null or not definition.elite_eligibility or not instance.has_method("apply_elite"):
 		return
-	instance.call("set_wave_scaling", wave.enemy_hp_multiplier, wave.enemy_damage_multiplier, wave.hunter_damage_multiplier)
+	var wave: WaveDefinition = _current_wave()
+	var chance: float = _elite_chance(get_current_wave_number(), wave.elite_chance if wave != null else 0.0, _difficulty().elite_chance_add)
+	if chance <= 0.0:
+		return
+	var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "elite", serial, _current_wave_index])
+	if rng.randf() >= chance:
+		return
+	var affixes: Array[String] = definition.allowed_affixes
+	if affixes.is_empty():
+		return
+	var affix: String = affixes[rng.randi() % affixes.size()]
+	instance.call("apply_elite", affix)
+	_emit_bus("emit_elite_spawned", [instance, affix])
+	Sfx.play("elite_spawn", instance.global_position)
+
+
+func _track_boss(instance: Node2D, definition: EnemyDefinition) -> void:
+	var behavior: Variant = instance.get("behavior")
+	if behavior == null or not (behavior as Object).has_method("is_boss") or not behavior.call("is_boss"):
+		return
+	_boss_instance = instance
+	_boss_wave_spawned = true
+	if (behavior as Object).has_method("announce_spawn"):
+		behavior.call("announce_spawn")
+
+
+## Boss summons (Rally, Call the Horde): spawns `count` of `enemy_id` in a ring
+## around `near`, through the same pool, caps and scaling as wave spawns.
+func spawn_summons(enemy_id: String, count: int, near: Vector2) -> int:
+	var info: Dictionary = _enemy_lookup.get(enemy_id, {})
+	var definition: EnemyDefinition = info.get("definition")
+	var scene: PackedScene = info.get("scene")
+	if definition == null or scene == null or _entity_spawner == null:
+		return 0
+	var made: int = 0
+	for i in count:
+		if _registry != null and _registry.get_live_enemy_count() >= EntityCaps.MAX_ENEMIES:
+			break
+		_summon_serial += 1
+		var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "summon", _summon_serial])
+		var offset: Vector2 = Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(SUMMON_RING_MIN_PX, SUMMON_RING_MAX_PX)
+		var position: Vector2 = (near + offset).clamp(arena_center - ARENA_SIZE / 2.0 + Vector2(ARENA_INSET_PX, ARENA_INSET_PX), arena_center + ARENA_SIZE / 2.0 - Vector2(ARENA_INSET_PX, ARENA_INSET_PX))
+		var instance: Node2D = _entity_spawner.spawn_enemy(position, func() -> Node2D: return scene.instantiate())
+		if instance == null:
+			break
+		instance.global_position = position
+		instance.reset_physics_interpolation()
+		if _registry != null:
+			_registry.update_position(instance, position)
+		_current_wave_spawned.append(instance)
+		_apply_wave_scaling(instance, definition)
+		enemy_spawned.emit(instance, enemy_id, position)
+		made += 1
+	return made
+
+
+# --- v1.0: spawn markers and Siege warning (emission only; WP-UI renders) ----
+
+func _warn_upcoming_spawn(encounter: EncounterDefinition, group: SpawnGroup, group_index: int, spawn_index: int, burst: int) -> void:
+	var key: String = "%d:%d" % [group_index, spawn_index / burst]
+	if _warned_bursts.has(key):
+		return
+	var info: Dictionary = _enemy_lookup.get(group.enemy_definition_id, {})
+	var definition: EnemyDefinition = info.get("definition")
+	if definition == null:
+		return
+	var serial: int = _spawn_serial_for(group_index, spawn_index)
+	var placement: Dictionary = _resolve_spawn_placement(encounter, definition, serial, group_index, spawn_index, group.count)
+	if not placement.get("valid", false):
+		return
+	_warned_bursts[key] = true # only once a marker position exists, so an invalid tick retries
+	var position: Vector2 = placement["position"]
+	var bearing: float = wrapf((position - _view_center()).angle(), 0.0, TAU)
+	var sector: int = int(floor(bearing / deg_to_rad(SPAWN_WARNING_SECTOR_DEGREES)))
+	var now: float = _now()
+	if now - float(_warning_last_time_by_sector.get(sector, -INF)) < SPAWN_WARNING_LEAD_SECONDS:
+		return # at most one marker per 30 degree sector per 0.75 s
+	_warning_last_time_by_sector[sector] = now
+	_emit_bus("emit_spawn_warning", [position, int(definition.target_intent), SPAWN_WARNING_LEAD_SECONDS])
+
+
+func _arm_siege_warning(encounter: EncounterDefinition) -> void:
+	if encounter.encounter_type != ContractEnums.EncounterType.Siege:
+		return
+	var first_seeker: float = INF
+	for group in encounter.spawn_groups:
+		if group.enemy_definition_id == tower_seeker_definition.unique_id:
+			first_seeker = minf(first_seeker, group.start_offset_seconds)
+	if first_seeker == INF:
+		return
+	_siege_warning_pending = true
+	_siege_warning_time = _encounter_open_time + maxf(0.0, first_seeker - SIEGE_WARNING_LEAD_SECONDS)
+
+
+func _process_siege_warning(now: float) -> void:
+	if not _siege_warning_pending or now < _siege_warning_time:
+		return
+	_siege_warning_pending = false
+	_emit_bus("emit_siege_warning", [SIEGE_WARNING_LEAD_SECONDS])
+	Sfx.play("siege_warning", Vector2.INF, 10, true)
+
+
+## EventBus emit wrapper that tolerates a test double without the v1.0 wrappers.
+func _emit_bus(method: String, args: Array) -> void:
+	if _event_bus != null and _event_bus.has_method(method):
+		_event_bus.callv(method, args)
+
+
+# --- v1.0: wave indexing, boss and Endless helpers ---------------------------
+
+func _difficulty() -> DifficultyProfile:
+	return RunConfig.get_difficulty()
+
+
+func _is_boss_wave(wave: WaveDefinition) -> bool:
+	return wave != null and not wave.has_maximum_duration
+
+
+func _is_final_wave() -> bool:
+	return not endless and _current_wave_index >= waves.size() - 1
+
+
+## Endless loop: [the first boss wave, then every wave strictly between it and
+## the final wave] (docs/31 §2: waves 9-14 repeat with a Warchief each loop).
+func _build_endless_loop() -> void:
+	_loop_wave_indices.clear()
+	var boss_index: int = -1
+	for i in waves.size():
+		if _is_boss_wave(waves[i]):
+			boss_index = i
+			break
+	if boss_index < 0:
+		return
+	_loop_wave_indices.append(boss_index)
+	for i in range(boss_index + 1, waves.size() - 1):
+		_loop_wave_indices.append(i)
+
+
+## Absolute 0-based wave index -> index into `waves` (Endless wraps).
+func _array_index_for(index: int) -> int:
+	if index < waves.size() or _loop_wave_indices.is_empty():
+		return clampi(index, 0, maxi(0, waves.size() - 1))
+	return _loop_wave_indices[(index - waves.size()) % _loop_wave_indices.size()]
+
+
+## 0 in the campaign pass; 1, 2, ... for each completed pass of the Endless loop.
+func _endless_loop_number(index: int) -> int:
+	if index < waves.size() or _loop_wave_indices.is_empty():
+		return 0
+	return (index - waves.size()) / _loop_wave_indices.size() + 1
+
+
+func _wave_at(index: int) -> WaveDefinition:
+	if index < 0 or waves.is_empty():
+		return null
+	return waves[_array_index_for(index)]
+
+
+func _current_wave() -> WaveDefinition:
+	return _wave_at(_current_wave_index)
+
+
+func _wave_type_for(wave: WaveDefinition) -> String:
+	if wave == null:
+		return ""
+	if _is_boss_wave(wave):
+		return "boss"
+	if wave.encounter_sequence.is_empty():
+		return "standard"
+	var encounter_id: String = wave.encounter_sequence[0]
+	if wave_type_by_encounter_id.has(encounter_id):
+		return String(wave_type_by_encounter_id[encounter_id])
+	var encounter: EncounterDefinition = _encounter_lookup.get(encounter_id)
+	if encounter == null:
+		return "standard"
+	match encounter.encounter_type:
+		ContractEnums.EncounterType.SplitAssault:
+			return "split"
+		ContractEnums.EncounterType.Siege:
+			return "siege"
+		ContractEnums.EncounterType.Hunt:
+			return "hunt"
+		_:
+			return "standard"
 
 
 ## P2.8b. Register > "Encounter-level alive cap": "e.g. 120 in heavy Siege;
@@ -1564,7 +1962,7 @@ func _maybe_scale_siege_spawn_groups(encounter: EncounterDefinition) -> void:
 	var constants: SiegeVolumeConstants = director_configuration.siege_volume_constants if director_configuration != null else null
 	var window_fraction: float = constants.spawn_window_fraction if constants != null and constants.spawn_window_fraction > 0.0 else 0.75
 	var hunter_pct: float = constants.hunter_percentage if constants != null and constants.hunter_percentage > 0.0 else 0.15
-	var wave: WaveDefinition = waves[_current_wave_index]
+	var wave: WaveDefinition = _current_wave()
 	var seeker_count: int = int(ceil(multiplier * live_dps * window_fraction * wave.maximum_duration_seconds / 60.0))
 	var hunter_count: int = int(round(hunter_pct * float(seeker_count)))
 
@@ -1679,7 +2077,9 @@ func _kills_in_last_window(now: float) -> int:
 func _maybe_enter_overtime(wave: WaveDefinition, _encounter: EncounterDefinition, now: float) -> void:
 	if _overtime_active:
 		return
-	var is_final: bool = _current_wave_index == waves.size() - 1
+	if _is_boss_wave(wave):
+		return # v1.0: boss waves end on the boss's death; the finisher/Overtime rule never applies
+	var is_final: bool = _is_final_wave()
 	if is_final:
 		# C-FINAL: "After its maximum duration the stall check re-runs every
 		# 0.5 seconds until Overtime starts."
@@ -1719,8 +2119,14 @@ func _maybe_enter_overtime(wave: WaveDefinition, _encounter: EncounterDefinition
 ## which is itself a CONSEQUENCE of this predicate becoming true, not a
 ## precondition for it.
 func _evaluate_wave_state(wave: WaveDefinition, encounter: EncounterDefinition) -> Dictionary:
-	var is_final: bool = _current_wave_index == waves.size() - 1
+	var is_final: bool = _is_final_wave()
 	var now: float = _now()
+
+	if _is_boss_wave(wave):
+		# v1.0 (docs/31 §5.3, §6.1): a boss wave ends when its boss is dead, not
+		# on a clock. Escort enemies still alive carry over like any other wave.
+		var boss_dead: bool = _boss_wave_spawned and not _boss_is_alive()
+		return {"encounter_ended": boss_dead, "wave_ends": boss_dead}
 
 	if is_final:
 		# C-FINAL: "adopts every living enemy when it opens ... ends only
@@ -1778,6 +2184,15 @@ func _evaluate_wave_state(wave: WaveDefinition, encounter: EncounterDefinition) 
 	return {"encounter_ended": false, "wave_ends": false}
 
 
+func _boss_is_alive() -> bool:
+	if _boss_instance == null or not is_instance_valid(_boss_instance):
+		return false
+	var ds: Variant = _boss_instance.get("death_state")
+	if ds is DeathState:
+		return not (ds as DeathState).is_dead
+	return _registry != null and _registry.get_entities_with_tag(TowerWeapon.ENEMY_TAG).has(_boss_instance)
+
+
 ## Register > "Overtime finishers" / Wave Runtime Model: "the wave continues
 ## until every non-finisher enemy it owns is dead." Global, not scoped to
 ## this wave's own spawned list (see this file's own header, "Completion
@@ -1815,7 +2230,7 @@ func _despawn_remaining_finishers_without_drops() -> void:
 		var live: Array[Node2D] = _registry.get_entities_with_tag(TowerWeapon.ENEMY_TAG)
 		for f in _current_wave_finishers:
 			if is_instance_valid(f) and live.has(f):
-				_entity_spawner.despawn_enemy(f)
+				_entity_spawner.discard_enemy(f) # v1.0: never back onto the archetype-blind free list
 	_current_wave_finishers.clear()
 
 
@@ -1826,7 +2241,7 @@ func _end_current_wave(wave: WaveDefinition, encounter: EncounterDefinition) -> 
 	# scope has no next wave to delay, so it goes straight to
 	# SEQUENCE_COMPLETE rather than sitting in a GAP state waiting for a
 	# deadline nothing is scheduled against.
-	if _current_wave_index >= waves.size() - 1:
+	if _is_final_wave():
 		_state = State.SEQUENCE_COMPLETE
 		sequence_completed.emit()
 		return

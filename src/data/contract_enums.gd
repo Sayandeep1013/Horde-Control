@@ -132,7 +132,8 @@ enum MagnetBehaviour { Attracted, Static }
 ## Pickup type (Pickup Definition Contract fields). Health is listed because
 ## Contract Field Semantics states it as a member ("vertical slice only") -
 ## the member list is typed exactly regardless of when it becomes reachable.
-enum PickupType { XP, Scrap, Core, Health }
+## v1.0 (WP-ENEMIES, D213): Meat reuses Health; WarChest is appended.
+enum PickupType { XP, Scrap, Core, Health, WarChest }
 
 ## Hurtbox definition (Player Definition Contract fields). A single-member
 ## enum - Contract Field Semantics defines only {SameAsBody} today.

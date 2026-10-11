@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="WaveDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/wave_definition.gd" id="1_wave"]
+
+; v1.0 wave 8, boss (docs/31 6.1; decision D171). Multipliers, durations and
+; gaps are Register "v1.0 Enemies, Bosses & Waves" > "Wave sequence" starting
+; values. hunter_damage_multiplier is the Register's Hunter damage share of the
+; wave damage multiplier (Hunters hit a 100 HP pool). Boss wave: has_maximum_duration = false, it ends when the boss dies.
+
+[resource]
+script = ExtResource("1_wave")
+unique_id = "wave_08"
+biome_context_id = "biome_1_prototype"
+difficulty_band = 1
+encounter_sequence = Array[String](["w08_boss"])
+enemy_intent_mix = Array[EnemyIntentMixEntry]([])
+elite_chance = 0.0
+maximum_duration_seconds = 0.0
+has_maximum_duration = false
+target_duration_seconds = 0.0
+inter_wave_gap_seconds = 6.0
+overtime_condition = null
+pressure_metric_constants = null
+boss_overlap_rules = 0
+enemy_hp_multiplier = 1.0
+enemy_damage_multiplier = 1.0
+hunter_damage_multiplier = 0.55
