@@ -202,6 +202,11 @@ var _player_ability_ids: Dictionary = {} # ability id -> true (slot_kind "player
 var _untouchable_wave: bool = false ## cleared a wave >= 5 with no player damage taken
 var _wave_damage_baseline: float = 0.0
 var _king_killed: bool = false
+## Review fix (D247): who last hurt the player and who last hurt the Tower, as an
+## EnemyDefinition id ("bomber", "brute", ...) plus the elite affix, for the Results
+## cause line. "" = unknown (the generic line is shown).
+var _last_player_damager: Dictionary = {}
+var _last_tower_damager: Dictionary = {}
 var _wave_number_seen: int = 0 ## highest EventBus.wave_started wave_number; Endless counts past the 15-wave sequence
 ## Wave number (1-based) a wave must reach for the Untouchable clear to count.
 const UNTOUCHABLE_MIN_WAVE: int = 5
@@ -270,6 +275,7 @@ func _connect_signals() -> void:
 	_connect_enemy_died_for_meta()
 	_connect_wave_ended_for_meta()
 	_connect_v1_signals()
+	_connect_damage_trackers.call_deferred()
 	if not Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
 		Input.joy_connection_changed.connect(_on_joy_connection_changed)
 
@@ -325,6 +331,57 @@ func _connect_v1_signals() -> void:
 	if _wave_director != null and _wave_director.has_signal(&"wave_opened"):
 		if not _wave_director.wave_opened.is_connected(_on_wave_opened_for_meta):
 			_wave_director.wave_opened.connect(_on_wave_opened_for_meta)
+
+
+## Review fix (D247). Listens to the player's and the Tower's Hurtbox, the one
+## place every hit (melee, projectile, Bomber blast) passes with its source, and
+## remembers the last EnemyController that landed one. Deferred: the Player and
+## Tower build their hurtboxes in their own _ready().
+func _connect_damage_trackers() -> void:
+	if not is_inside_tree():
+		return
+	var player: Node = get_tree().get_first_node_in_group("player")
+	if player != null and player.get("hurtbox") != null:
+		var hurtbox: Hurtbox = player.get("hurtbox") as Hurtbox
+		if hurtbox != null and not hurtbox.damage_received.is_connected(_on_player_hurt):
+			hurtbox.damage_received.connect(_on_player_hurt)
+	if _tower != null and _tower.hurtbox != null and not _tower.hurtbox.damage_received.is_connected(_on_tower_hurt):
+		_tower.hurtbox.damage_received.connect(_on_tower_hurt)
+
+
+func _on_player_hurt(_amount: float, source: Variant, hitbox: Node) -> void:
+	_record_damager(_last_player_damager, source, hitbox)
+
+
+func _on_tower_hurt(_amount: float, source: Variant, hitbox: Node) -> void:
+	_record_damager(_last_tower_damager, source, hitbox)
+
+
+## Finds the EnemyController behind a hit (melee: `source` is the attacker; a blast:
+## `hitbox` is) and stores its type; a hit from anything else (a reflect, a hazard) keeps the old value.
+static func _record_damager(into: Dictionary, source: Variant, hitbox: Variant) -> void:
+	for candidate: Variant in [source, hitbox, (hitbox.get("owner_entity") if hitbox is Object and is_instance_valid(hitbox) else null)]:
+		if is_instance_valid(candidate) and candidate is EnemyController:
+			var enemy := candidate as EnemyController
+			var kind: String = enemy.definition.unique_id if enemy.definition != null else ""
+			if kind != "":
+				into["kind"] = kind
+				into["elite"] = enemy.elite_affix
+				return
+
+
+## "Slain by a Bomber" / "The Tower fell to a Brute" -- or "" when the killer is unknown.
+static func killer_line(template_key: String, damager: Dictionary) -> String:
+	var kind: String = String(damager.get("kind", ""))
+	if kind == "":
+		return ""
+	var name_key: String = "ENEMY_NAME_" + kind.to_upper()
+	var name_text: String = TranslationServer.translate(StringName(name_key))
+	if name_text == name_key:
+		return ""
+	if String(damager.get("elite", "")) != "" and not (kind == "goblin_warchief" or kind == "bombardier_king"):
+		name_text = TranslationServer.translate(&"ENEMY_NAME_ELITE_PREFIX") % name_text.trim_prefix("a ")
+	return TranslationServer.translate(StringName(template_key)) % name_text
 
 
 func _connect_bus(signal_name: StringName, callable: Callable) -> void:
@@ -842,10 +899,14 @@ func _build_summary() -> Dictionary:
 	# resolved value" convention for cause_text/wave_reached/scrap_held).
 	var outcome_title: String = tr("RUN_END_OUTCOME_VICTORY")
 	if _end_cause == EndCause.PLAYER_DEFEATED:
-		cause_text = tr("RUN_END_CAUSE_PLAYER")
+		cause_text = killer_line("RUN_END_CAUSE_PLAYER_BY", _last_player_damager)
+		if cause_text == "":
+			cause_text = tr("RUN_END_CAUSE_PLAYER")
 		outcome_title = tr("RUN_END_OUTCOME_DEFEATED")
 	elif _end_cause == EndCause.TOWER_DESTROYED:
-		cause_text = tr("RUN_END_CAUSE_TOWER")
+		cause_text = killer_line("RUN_END_CAUSE_TOWER_BY", _last_tower_damager)
+		if cause_text == "":
+			cause_text = tr("RUN_END_CAUSE_TOWER")
 		outcome_title = tr("RUN_END_OUTCOME_TOWER_FALLEN")
 	elif _end_cause == EndCause.ABANDONED:
 		# Meta layer core (D113). The Hub/Skill Tree screen session promoted
@@ -877,6 +938,16 @@ func _build_summary() -> Dictionary:
 		"damage_report": CombatStats.get_damage_by_source(),
 		"warlord_title": MetaProgress.has_perk("warlord_title") and _end_cause == EndCause.SEQUENCE_COMPLETED and RunConfig.difficulty_id == "warlord",
 	}
+
+
+## The run so far in `MetaProgress.settle_run()`'s summary shape, as if it ended
+## now without a victory; the pause menu previews the Cores payout from it.
+func get_live_summary() -> Dictionary:
+	return _build_run_summary(false, false)
+
+
+func record_damager_for_test(target: String, source: Variant, hitbox: Variant = null) -> void:
+	_record_damager(_last_player_damager if target == "player" else _last_tower_damager, source, hitbox)
 
 
 func get_summary_for_test() -> Dictionary:

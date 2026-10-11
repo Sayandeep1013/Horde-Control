@@ -97,6 +97,18 @@ func test_estimated_cores_apply_the_difficulty_multiplier() -> void:
 	assert_int(menu.estimated_cores()).is_equal(int(floor(14.0 * RunConfig.get_difficulty().cores_multiplier)))
 
 
+func test_estimated_cores_come_from_the_settlement_preview_with_bosses_and_bonuses() -> void:
+	CombatStats.add_run_counter("kills", 60)
+	CombatStats.add_run_counter("boss_kills", 1)
+	MetaProgress.set_rank_for_test("prospector", 2)
+	var menu: PauseMenu = _pause_with_fakes()
+	var preview: Dictionary = MetaProgress.preview_settlement({"sim_time_seconds": 272.0, "waves_cleared": 5, "kills": 60, "elite_kills": 0,
+		"scrap_carried": 0, "boss_kills": {"warchief": 1}, "difficulty_id": RunConfig.difficulty_id})
+	assert_int(menu.estimated_cores()).append_failure_message("the pause estimate must be the preview itself").is_equal(int(preview["total_cores"]))
+	# Warchief bounty (8) and Prospector x2 (+30%) are both in, unlike the old duplicated sum.
+	assert_int(menu.estimated_cores()).is_greater(19 + MetaProgress.SETTLEMENT_BOSS_CORES["warchief"] - 1)
+
+
 func test_how_to_play_opens_closes_and_hides_the_choices() -> void:
 	var menu: PauseMenu = auto_free(PauseMenu.new())
 	add_child(menu)

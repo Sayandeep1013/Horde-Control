@@ -121,6 +121,23 @@ func configure(name_text: String, has_value: bool) -> void:
 	_value_label.visible = has_value
 
 
+## Review fix (D246): the footer rows (Reset to Defaults, Back) are buttons, not
+## settings. The caller puts them on a plate; this centres the label (the marker
+## keeps its place on the left, balanced by an invisible twin on the right).
+func set_button_style(on: bool) -> void:
+	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if on else HORIZONTAL_ALIGNMENT_LEFT
+	if on and get_node_or_null("Balance") == null:
+		var balance := Label.new()
+		balance.name = "Balance"
+		balance.theme_type_variation = UiTheme.HUD_VALUE
+		_white_text(balance)
+		balance.text = MARKER_NORMAL
+		balance.modulate.a = 0.0
+		balance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(balance)
+		move_child(balance, get_child_count() - 1)
+
+
 func set_value_text(text: String) -> void:
 	_value_label.text = text
 
