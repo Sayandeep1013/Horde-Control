@@ -12,6 +12,9 @@ const ENEMY_TAG: StringName = &"enemy"
 const CRIT_MULTIPLIER: float = 2.0 # Register "v1.0 Combat & Abilities": Crit damage
 
 static var _rng: RandomNumberGenerator = null
+## Run seed the keyed streams derive from (set by begin_run at run start).
+static var _run_seed: int = 0
+static var _serials: Dictionary = {} # purpose -> next serial
 ## Test seam: -1 = roll normally, 0 = never crit, 1 = always crit.
 static var forced_crit: int = -1
 static var _manager: Node = null
@@ -23,9 +26,25 @@ static func _crit_roll(chance: float) -> bool:
 	if chance <= 0.0:
 		return false
 	if _rng == null:
-		_rng = RandomNumberGenerator.new()
-		_rng.seed = 20261011
+		_rng = KeyedRng.rng_for([_run_seed, "crit", 0])
 	return _rng.randf() < chance
+
+
+## Run start (PrototypeIntegration, Retry included): the crit stream and every
+## per-purpose serial restart from the run seed, so no state carries over.
+static func begin_run(run_seed: int) -> void:
+	_run_seed = run_seed
+	_serials.clear()
+	_rng = null
+
+
+## A fresh stream keyed `[run_seed, purpose, serial]` (Register "Keyed RNG"); the
+## serial counts requests per purpose within the run, so two Dynamite Satchel
+## nodes (or a re-picked ability) never share a sequence.
+static func keyed_rng(purpose: String) -> RandomNumberGenerator:
+	var serial: int = int(_serials.get(purpose, 0))
+	_serials[purpose] = serial + 1
+	return KeyedRng.rng_for([_run_seed, purpose, serial])
 
 
 ## One crit roll at the run's current crit chance (Keen Eye + meta).
@@ -147,3 +166,5 @@ static func reset() -> void:
 	forced_crit = -1
 	_manager = null
 	_rng = null
+	_run_seed = 0
+	_serials.clear()

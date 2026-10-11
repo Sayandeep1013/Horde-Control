@@ -108,7 +108,7 @@ const WARLORD_TOWER_TINT: Color = Color(1.0, 0.88, 0.5)
 ## silently when the node or the method is absent (they do not exist on every
 ## base). All live on the AbilityManager (group "ability_manager"):
 ## set_dash_extra_charges(n), set_dash_cooldown_multiplier(m),
-## set_damage_taken_multiplier(m), add_crit_chance(f),
+## set_damage_taken_multiplier(m), set_crit_chance_bonus(f),
 ## set_skill_cooldown_multiplier(m), set_skill_damage_multiplier(m),
 ## set_ability_damage_multiplier(m), set_tower_ability_damage_multiplier(m),
 ## set_repair_multiplier(m), grant_free_random_ability().
@@ -322,7 +322,7 @@ static func apply_group_hooks(loadout: MetaLoadout, tree: SceneTree, grant_armor
 	if loadout.damage_taken_reduction > 0.0:
 		_hook(tree, &"set_damage_taken_multiplier", [1.0 - loadout.damage_taken_reduction], called)
 	if loadout.player_crit_chance_bonus > 0.0:
-		_hook(tree, &"add_crit_chance", [loadout.player_crit_chance_bonus], called)
+		_hook(tree, &"set_crit_chance_bonus", [loadout.player_crit_chance_bonus], called)
 	if loadout.skill_cooldown_reduction > 0.0:
 		_hook(tree, &"set_skill_cooldown_multiplier", [1.0 - loadout.skill_cooldown_reduction], called)
 	if loadout.skill_damage_bonus > 0.0:

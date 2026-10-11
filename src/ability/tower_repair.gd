@@ -12,6 +12,12 @@ const SCRAP_PER_SECOND: float = 8.0
 const HEALTH_PER_SCRAP: float = 3.0
 const TICK_SFX_MAX_PER_SECOND: float = 6.0
 const RING_RADIUS_FALLBACK_PX: float = 160.0
+## Discoverability (D205; Register "Tower repair ring"): a faint dashed ring while
+## repair is possible (Tower health below max and Scrap carried), a ~1.5 s pulse
+## after the Tower loses health, and a clearly stronger solid ring while repairing.
+const IDLE_RING_ALPHA: float = 0.30
+const PULSE_SECONDS: float = 1.5
+const DASH_COUNT: int = 40
 
 @export var tower_path: NodePath = NodePath("../Tower")
 @export var pickup_system_path: NodePath = NodePath("../PickupSystem")
@@ -22,11 +28,16 @@ var _carry: float = 0.0
 var _repairing: bool = false
 var _last_sfx_at: float = -INF
 var _glow: float = 0.0
+var _idle: float = 0.0 # 0..1 fade of the idle ring
+var _pulse_until: float = -INF
+var _last_health: float = -1.0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_to_group(&"tower_repair")
+	if not EventBus.tower_damaged.is_connected(_on_tower_damaged):
+		EventBus.tower_damaged.connect(_on_tower_damaged)
 	z_as_relative = false
 	z_index = 39
 	top_level = true
@@ -42,6 +53,33 @@ func _register_with_sim_loop() -> void:
 
 ## When true, SimLoop calls physics_step(); otherwise _physics_process does.
 var driven_externally: bool = false
+
+
+func _exit_tree() -> void:
+	if EventBus.tower_damaged.is_connected(_on_tower_damaged):
+		EventBus.tower_damaged.disconnect(_on_tower_damaged)
+
+
+## Pulse the idle ring for PULSE_SECONDS when the Tower's health (not only its
+## shield) dropped.
+func _on_tower_damaged(_amount: float, new_health: float, _new_shield: float, _timestamp: float) -> void:
+	if _last_health >= 0.0 and new_health < _last_health - 0.001:
+		_pulse_until = SimClock.now + PULSE_SECONDS
+	_last_health = new_health
+
+
+func is_pulsing() -> bool:
+	return SimClock.now < _pulse_until
+
+
+## True while repair is possible but the player is not (yet) repairing.
+func can_repair() -> bool:
+	var tower: Node2D = _get_tower()
+	var inv: RunInventory = _get_inventory()
+	if tower == null or inv == null or tower.get("health") == null:
+		return false
+	var health: TowerHealth = tower.health
+	return not health.is_destroyed() and health.get_current_health() < health.max_health and inv.scrap_current > 0
 
 
 func set_tower_for_test(t: Node2D) -> void:
@@ -123,6 +161,7 @@ func physics_step(delta: float) -> void:
 func _process(delta: float) -> void:
 	var fade_target: float = 1.0 if _repairing else 0.0
 	_glow = move_toward(_glow, fade_target, delta * 4.0)
+	_idle = move_toward(_idle, 1.0 if can_repair() else 0.0, delta * 3.0)
 	var tower: Node2D = _get_tower()
 	if tower != null:
 		global_position = tower.global_position
@@ -138,14 +177,28 @@ func _radius() -> float:
 	return RING_RADIUS_FALLBACK_PX
 
 
-## A glowing ring on the radius while repairing (docs/31 §3.4).
+## Idle: a faint dashed ring (dark under-stroke so it reads on sand and grass);
+## pulsing for PULSE_SECONDS after Tower damage. Repairing: a solid, thick, bright
+## ring (docs/31 §3.4).
 func _draw() -> void:
-	if _glow <= 0.01:
-		return
 	var r: float = _radius()
-	var pulse: float = 0.5 + 0.5 * sin(SimClock.now * 8.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.55))
-	draw_circle(Vector2.ZERO, r, Color(0.45, 1.0, 0.55, 0.07 * _glow))
-	draw_arc(Vector2.ZERO, r, 0.0, TAU, 72, Color(0.45, 1.0, 0.55, (0.45 + 0.35 * pulse) * _glow), 6.0, false)
-	draw_arc(Vector2.ZERO, r - 8.0, 0.0, TAU, 72, Color(0.85, 1.0, 0.85, 0.35 * _glow), 2.0, false)
+	var idle: float = _idle * (1.0 - _glow)
+	if idle > 0.01:
+		var pulse_k: float = 0.0
+		if is_pulsing():
+			pulse_k = 0.5 + 0.5 * sin(SimClock.now * 9.0)
+		var a: float = (IDLE_RING_ALPHA + 0.45 * pulse_k) * idle
+		var width: float = 3.0 + 3.0 * pulse_k
+		var seg: float = TAU / float(DASH_COUNT)
+		for i in DASH_COUNT:
+			var start: float = float(i) * seg
+			draw_arc(Vector2.ZERO, r, start, start + seg * 0.55, 6, Color(0.05, 0.18, 0.08, a * 1.3), width + 3.0, false)
+			draw_arc(Vector2.ZERO, r, start, start + seg * 0.55, 6, Color(0.6, 1.0, 0.7, minf(1.0, a * 1.6)), width, false)
+	if _glow > 0.01:
+		var pulse: float = 0.5 + 0.5 * sin(SimClock.now * 8.0)
+		draw_circle(Vector2.ZERO, r, Color(0.45, 1.0, 0.55, 0.12 * _glow))
+		draw_arc(Vector2.ZERO, r, 0.0, TAU, 72, Color(0.04, 0.2, 0.08, 0.85 * _glow), 12.0, false)
+		draw_arc(Vector2.ZERO, r, 0.0, TAU, 72, Color(0.55, 1.0, 0.65, (0.75 + 0.25 * pulse) * _glow), 7.0, false)
+		draw_arc(Vector2.ZERO, r - 9.0, 0.0, TAU, 72, Color(0.9, 1.0, 0.9, 0.5 * _glow), 2.5, false)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

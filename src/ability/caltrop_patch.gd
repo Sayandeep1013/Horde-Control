@@ -44,8 +44,20 @@ func _physics_process(_delta: float) -> void:
 	if now >= _next_tick:
 		_next_tick = now + tick
 		for e in AbilityDamage.enemies_in_radius(global_position, RADIUS_PX):
-			if AbilityDamage.hit(e, damage, AbilityIds.CALTROPS, &"player", true) > 0.0:
+			var amount: float = damage * AbilitySynergy.kindling_mult(e) # Kindling: +25% vs burning
+			if AbilityDamage.hit(e, amount, AbilityIds.CALTROPS, &"player", true) > 0.0:
 				StatusEffects.apply_slow(e, slow_fraction, SLOW_REFRESH_SECONDS)
+				_kindle(e)
+
+
+## Kindling: with Flame Arrows owned the patch ignites what stands in it, at
+## Flame Arrows' own burn (dps and duration at its current level).
+func _kindle(enemy: Node) -> void:
+	if not AbilitySynergy.kindling_active():
+		return
+	var flame: AbilityNode = AbilityDamage.get_manager().get_ability_node("flame_arrows")
+	if flame != null:
+		StatusEffects.apply_burn(enemy, flame.dmg("dps"), flame.v("duration"), AbilityIds.CALTROPS)
 
 
 func _process(_delta: float) -> void:

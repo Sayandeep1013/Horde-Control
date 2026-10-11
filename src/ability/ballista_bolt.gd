@@ -46,7 +46,7 @@ func _physics_process(delta: float) -> void:
 			if _hit.has(e):
 				continue
 			_hit.append(e)
-			AbilityDamage.hit(e, damage, AbilityIds.BALLISTA, &"tower", false)
+			AbilityDamage.hit(e, damage * AbilitySynergy.shatter_mult(e), AbilityIds.BALLISTA, &"tower", false)
 	travel_left -= step
 	if travel_left <= 0.0:
 		queue_free()

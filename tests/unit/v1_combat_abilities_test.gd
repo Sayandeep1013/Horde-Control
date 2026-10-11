@@ -160,7 +160,7 @@ func test_meta_hooks_feed_the_derived_multipliers() -> void:
 	_mgr.set_ability_damage_multiplier(1.15)
 	_mgr.set_tower_ability_damage_multiplier(1.3)
 	_mgr.set_repair_multiplier(1.2)
-	_mgr.add_crit_chance(0.04)
+	_mgr.set_crit_chance_bonus(0.04)
 	assert_float(_mgr.get_skill_cooldown_multiplier()).is_equal_approx(0.8, 0.0001)
 	assert_float(_mgr.get_skill_damage_multiplier()).is_equal_approx(1.3, 0.0001)
 	assert_float(_mgr.get_player_ability_damage_multiplier()).is_equal_approx(1.15, 0.0001)

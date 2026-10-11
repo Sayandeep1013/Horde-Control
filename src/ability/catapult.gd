@@ -20,4 +20,10 @@ func _physics_process(_delta: float) -> void:
 	LobbedBomb.spawn(parent, "rock", global_position, cluster["position"], v("flight"), 0.0, radius, func(pos: Vector2) -> void:
 		ExplosionFx.spawn(parent, pos, radius)
 		Sfx.play("explosion", pos)
-		AbilityDamage.hit_area(pos, radius, amount, ability_id, &"tower", false), Color(0.95, 0.75, 0.3))
+		blast(pos, radius, amount), Color(0.95, 0.75, 0.3))
+
+
+## The landing blast. Shatter: a Frozen enemy takes double (Frost Arrows owned).
+func blast(pos: Vector2, radius: float, amount: float) -> void:
+	for e in AbilityDamage.enemies_in_radius(pos, radius):
+		AbilityDamage.hit(e, amount * AbilitySynergy.shatter_mult(e), ability_id, &"tower", false)

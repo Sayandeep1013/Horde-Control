@@ -109,6 +109,13 @@ static func is_frozen(enemy: Object) -> bool:
 	return not e.is_empty() and float(e["freeze_until"]) > _now()
 
 
+static func is_slowed(enemy: Object) -> bool:
+	if enemy == null or _state.is_empty():
+		return false
+	var e: Dictionary = _entry(enemy, false)
+	return not e.is_empty() and float(e["slow_until"]) > _now() and float(e["slow"]) > 0.0
+
+
 static func is_burning(enemy: Object) -> bool:
 	if enemy == null or _state.is_empty():
 		return false
