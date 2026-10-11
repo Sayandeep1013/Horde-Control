@@ -1,22 +1,10 @@
-[gd_scene load_steps=49 format=3]
+[gd_scene load_steps=60 format=3]
 
-; Art pass (D102): a green grassland island (Tiny Swords) replaces the flat
-; beige Kenney floor/walls. See src/environment/ground_detail.gd,
-; src/environment/foam_ring.gd, src/environment/tree_grove.gd and
-; src/environment/sheep_flock.gd for the generated pieces, and
-; assets/third_party/tiny_swords/PROVENANCE.md's `Derived/` rows for the
-; two cropped ground tiles. ArenaBounds' collision is untouched.
-;
-; Rich-biome pass (author's brief: "a RICH, LUSH GRASSLAND biome"): three
-; raised grass plateaus (src/environment/elevation_plateau.gd), three
-; inland ponds with a bridge crossing (src/environment/pond_field.gd), a
-; goblin camp, a gold mine, a knights' house and a ruined outpost (hand-
-; placed below, animated where the sheet allows via
-; src/environment/animated_prop.gd), denser rim forests and sparse lone
-; trees, and clustered ground clutter and grazing flocks. Every new site's
-; exact coordinates are chosen here (not rolled) so the map reads as
-; hand-authored; the organic shoreline/silhouette jitter within each site
-; still comes from KeyedRng. See each script's own header for why.
+; Arena (docs/33 section B, D330-D334): one 2432 x 1664 px island around the Tower, ringed by a
+; 128 px water moat that only four bridges cross, with large solid rock outcrops and ruins that
+; shape the lanes and an outer bank the waves spawn on. All fixed geometry is src/arena/arena_layout.gd;
+; the art nodes below and ArenaCollision / FlowField read it, so the water you see is the water that
+; blocks. Art is the Tiny Swords tile grid throughout (D158): foam, sand shores, stone plateaus.
 
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/grass_fill_tile.png" id="1_floor"]
 [ext_resource type="Script" path="res://src/environment/arena_bounds.gd" id="2_bounds"]
@@ -37,50 +25,53 @@
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/13.png" id="5_deco13"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/14.png" id="5_deco14"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/15.png" id="5_deco15"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/16.png" id="5_deco16"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/17.png" id="5_deco17"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Deco/18.png" id="5_deco18"]
 [ext_resource type="Script" path="res://src/environment/ground_detail.gd" id="6_grounddetail"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Ground/Tilemap_Flat.png" id="7_flattilemap"]
 [ext_resource type="Script" path="res://src/environment/foam_ring.gd" id="8_foamring"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Foam/Foam.png" id="9_foamtex"]
 [ext_resource type="Script" path="res://src/environment/tree_grove.gd" id="10_treegrove"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Trees/Tree.png" id="11_treetex"]
-[ext_resource type="Script" path="res://src/environment/sheep_flock.gd" id="12_sheepflock"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Sheep/HappySheep_All.png" id="13_sheeptex"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Rocks/Rocks_01.png" id="14_waterrock1"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Rocks/Rocks_03.png" id="14_waterrock3"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Rocks/Rocks_02.png" id="15_waterrock2"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Water/Rocks/Rocks_04.png" id="16_waterrock4"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Ground/Tilemap_Elevation.png" id="17_elevtex"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/shadow_band.png" id="18_shadowtex"]
-[ext_resource type="Script" path="res://src/environment/elevation_plateau.gd" id="19_elevscript"]
 [ext_resource type="Script" path="res://src/environment/pond_field.gd" id="20_pondscript"]
-[ext_resource type="Script" path="res://src/environment/animated_prop.gd" id="21_animprop"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Terrain/Bridge/Bridge_All.png" id="22_bridgetex"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Effects/Fire/Fire.png" id="23_firetex"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Goblins/Buildings/Wood_Tower/Wood_Tower_Red.png" id="24_woodtowerred"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Goblins/Buildings/Wood_Tower/Wood_Tower_Destroyed.png" id="25_woodtowerdestroyed"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Goblins/Buildings/Wood_House/Goblin_House.png" id="26_goblinhouse"]
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Goblins/Buildings/Wood_House/Goblin_House_Destroyed.png" id="27_goblinhousedestroyed"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Gold_Mine/GoldMine_Active.png" id="28_goldmine"]
-[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Knights/Buildings/House/House_Blue.png" id="29_knightshouse"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Resources/Gold_Mine/GoldMine_Inactive.png" id="28_goldmine"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Factions/Knights/Buildings/Castle/Castle_Destroyed.png" id="29_castleruin"]
 [ext_resource type="Script" path="res://src/environment/sand_network.gd" id="30_sandnetwork"]
 [ext_resource type="Script" path="res://src/environment/bridge_span.gd" id="32_bridgespan"]
+[ext_resource type="Script" path="res://src/environment/rock_outcrop.gd" id="33_outcrop"]
+[ext_resource type="Script" path="res://src/environment/arena_solid.gd" id="34_solid"]
+[ext_resource type="Script" path="res://src/arena/arena_collision.gd" id="35_collision"]
+[ext_resource type="Script" path="res://src/navigation/flow_field.gd" id="36_flowfield"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_north"]
-size = Vector2(4928, 64)
+size = Vector2(2560, 64)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_south"]
-size = Vector2(4928, 64)
+size = Vector2(2560, 64)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_west"]
-size = Vector2(64, 3200)
+size = Vector2(64, 1664)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_east"]
-size = Vector2(64, 3200)
+size = Vector2(64, 1664)
 
 [node name="Arena" type="Node2D"]
+
+; Open water everywhere outside the island (the camera may scroll a HUD margin past the walls).
+[node name="WaterBackdrop" type="Sprite2D" parent="."]
+texture_filter = 1
+z_index = 0
+texture = ExtResource("3_water")
+centered = true
+region_enabled = true
+region_rect = Rect2(0, 0, 4400, 3400)
+texture_repeat = 2
 
 [node name="Floor" type="Sprite2D" parent="."]
 texture_filter = 1
@@ -88,59 +79,12 @@ z_index = 0
 texture = ExtResource("1_floor")
 centered = true
 region_enabled = true
-region_rect = Rect2(0, 0, 4800, 3200)
+region_rect = Rect2(0, 0, 2432, 1664)
 texture_repeat = 2
 
-; The island's edge: water beyond the true arena boundary (ArenaBounds'
-; own collision, untouched), replacing the old flat Kenney wall sprites.
-; North/South are wider than the arena so they cover the four corners;
-; West/East fill the remaining strip along the sides only -- the same
-; corner-coverage convention the walls they replace used.
-[node name="WaterNorthSprite" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(0, -1950)
-z_index = 0
-texture = ExtResource("3_water")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 6200, 700)
-texture_repeat = 2
-
-[node name="WaterSouthSprite" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(0, 1950)
-z_index = 0
-texture = ExtResource("3_water")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 6200, 700)
-texture_repeat = 2
-
-[node name="WaterWestSprite" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(-2750, 0)
-z_index = 0
-texture = ExtResource("3_water")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 700, 3200)
-texture_repeat = 2
-
-[node name="WaterEastSprite" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(2750, 0)
-z_index = 0
-texture = ExtResource("3_water")
-centered = true
-region_enabled = true
-region_rect = Rect2(0, 0, 700, 3200)
-texture_repeat = 2
-
-; A few static water-rock accents (first bob frame only -- these sheets are
-; animated 8-frame loops, kept static here to bound scope; see task report).
 [node name="WaterRockA" type="Sprite2D" parent="."]
 texture_filter = 1
-position = Vector2(-2650, -1300)
+position = Vector2(-1420, -940)
 z_index = 0
 texture = ExtResource("14_waterrock1")
 region_enabled = true
@@ -148,7 +92,7 @@ region_rect = Rect2(0, 0, 128, 128)
 
 [node name="WaterRockB" type="Sprite2D" parent="."]
 texture_filter = 1
-position = Vector2(2600, 1250)
+position = Vector2(1400, 930)
 z_index = 0
 texture = ExtResource("14_waterrock3")
 region_enabled = true
@@ -156,7 +100,7 @@ region_rect = Rect2(0, 0, 128, 128)
 
 [node name="WaterRockC" type="Sprite2D" parent="."]
 texture_filter = 1
-position = Vector2(0, -2050)
+position = Vector2(-300, -1010)
 z_index = 0
 texture = ExtResource("14_waterrock1")
 region_enabled = true
@@ -164,222 +108,226 @@ region_rect = Rect2(128, 0, 128, 128)
 
 [node name="WaterRockD" type="Sprite2D" parent="."]
 texture_filter = 1
-position = Vector2(0, 2100)
+position = Vector2(500, 1020)
 z_index = 0
 texture = ExtResource("14_waterrock3")
 region_enabled = true
 region_rect = Rect2(256, 0, 128, 128)
 
-; Animated foam right at the seam between the coastal sand and the water.
 [node name="FoamRing" type="Node2D" parent="."]
 z_index = 0
 script = ExtResource("8_foamring")
 foam_texture = ExtResource("9_foamtex")
+arena_size = Vector2(2432, 1664)
 
-; Organic sand: a few free patches and a coastal ring around the whole
-; island. See src/environment/ground_detail.gd. The Tower plaza and every
-; path used to live here too; they are now SandNetwork below (supervisor
-; review, this session -- see that script's own header).
 [node name="GroundDetail" type="TileMapLayer" parent="."]
 texture_filter = 1
 script = ExtResource("6_grounddetail")
 flat_tilemap_texture = ExtResource("7_flattilemap")
+arena_size = Vector2(2432, 1664)
+tower_clearing_radius_px = 192.0
+coastal_band_px = 64.0
+patch_count = 0
 
-; The Tower plaza, every landmark clearing and every connecting path
-; (including the bridge crossing), as one smooth Polygon2D + Line2D shape.
-; See src/environment/sand_network.gd's own header for why this replaced
-; tile-stamped circles/paths this session.
+; The Tower plaza and a road from it to the inner end of every bridge.
 [node name="SandNetwork" type="TileMapLayer" parent="."]
 z_index = 0
 script = ExtResource("30_sandnetwork")
 flat_tilemap_texture = ExtResource("7_flattilemap")
-plaza_radius_px = 400.0
-landmark_clearings = Array[Vector2]([Vector2(0, -640), Vector2(1800, -1300), Vector2(1550, 950), Vector2(-1850, 1180)])
-landmark_clearing_radii = Array[float]([140.0, 260.0, 170.0, 220.0])
-landmark_path_targets = Array[int]([0, 1, 2])
-bridge_crossing_target = Vector2(300, 1150)
+plaza_radius_px = 192.0
+use_arena_bridge_roads = true
 
-; Three raised grass plateaus (biome brief). Sites chosen well clear of the
-; Tower plaza, the coastal band and every landmark below; Plateau A (index
-; 0) carries the approximated stair (see elevation_plateau.gd's header).
-[node name="ElevationPlateaus" type="TileMapLayer" parent="."]
-texture_filter = 1
-script = ExtResource("19_elevscript")
-flat_tilemap_texture = ExtResource("7_flattilemap")
-elevation_texture = ExtResource("17_elevtex")
-shadow_texture = ExtResource("18_shadowtex")
-plateau_centers = Array[Vector2]([Vector2(-1150, -1080), Vector2(1500, 620), Vector2(-1750, 250)])
-plateau_radii = Array[float]([280.0, 300.0, 260.0])
-stair_plateau_index = 0
-
-; Three inland ponds (biome brief: "2-4 ponds/lakes ... one crossed by a
-; bridge"). Pond 0 is the bridge pond: see the Bridge node near the end of
-; this file for the crossing, and SandNetwork's bridge_crossing_target
-; above for the path that meets it.
+; The moat (water ring, foam and sand shores) from ArenaLayout.
 [node name="PondField" type="Node2D" parent="."]
 z_index = 0
 script = ExtResource("20_pondscript")
 water_texture = ExtResource("3_water")
 foam_texture = ExtResource("9_foamtex")
 flat_tilemap_texture = ExtResource("7_flattilemap")
-rock_textures = Array[Texture2D]([ExtResource("14_waterrock1"), ExtResource("15_waterrock2"), ExtResource("14_waterrock3"), ExtResource("16_waterrock4")])
-pond_centers = Array[Vector2]([Vector2(300, 950), Vector2(700, -1200), Vector2(-950, -150)])
-pond_axes = Array[Vector2]([Vector2(230, 115), Vector2(150, 130), Vector2(170, 140)])
+use_arena_moat = true
 
-; Ground clutter: mushrooms, rocks, bushes and plants (Deco 01-15) at high
-; weight, pumpkins/bones (12-15) as rare finds -- weighting is done by
-; simply repeating the common entries in this array; SceneryScatter's own
-; algorithm (unchanged) already picks uniformly at random from it.
 [node name="SceneryScatter" type="Node2D" parent="."]
 z_index = 0
 script = ExtResource("4_scatter")
-prop_count = 160
-cluster_count = 10
+arena_size = Vector2(2432, 1664)
+prop_count = 46
+cluster_count = 4
 props_per_cluster = 4
-avoid_centers = Array[Vector2]([Vector2(0, -640), Vector2(1800, -1300), Vector2(1550, 950), Vector2(-1850, 1180), Vector2(-1150, -1080), Vector2(1500, 620), Vector2(-1750, 250), Vector2(300, 950), Vector2(700, -1200), Vector2(-950, -150)])
-avoid_radii = Array[float]([160.0, 320.0, 220.0, 280.0, 320.0, 340.0, 300.0, 330.0, 260.0, 270.0])
+tower_clear_radius_px = 300.0
+avoid_moat_margin_px = 150.0
+avoid_centers = Array[Vector2]([Vector2(384, -256), Vector2(-384, 256), Vector2(-560, -264), Vector2(560, 264), Vector2(-384, -320), Vector2(672, -128), Vector2(384, 320), Vector2(-672, 128)])
+avoid_radii = Array[float]([240.0, 240.0, 230.0, 190.0, 110.0, 110.0, 110.0, 110.0])
 textures = Array[Texture2D]([ExtResource("5_deco01"), ExtResource("5_deco01"), ExtResource("5_deco02"), ExtResource("5_deco02"), ExtResource("5_deco03"), ExtResource("5_deco03"), ExtResource("5_deco04"), ExtResource("5_deco04"), ExtResource("5_deco05"), ExtResource("5_deco05"), ExtResource("5_deco06"), ExtResource("5_deco06"), ExtResource("5_deco07"), ExtResource("5_deco07"), ExtResource("5_deco08"), ExtResource("5_deco08"), ExtResource("5_deco09"), ExtResource("5_deco09"), ExtResource("5_deco10"), ExtResource("5_deco10"), ExtResource("5_deco11"), ExtResource("5_deco11"), ExtResource("5_deco12"), ExtResource("5_deco13"), ExtResource("5_deco14"), ExtResource("5_deco15")])
 
-; Animated tree groves clustered toward the edges. See
-; src/environment/tree_grove.gd for the Y-sort/z-band trade-off note.
 [node name="TreeGrove" type="Node2D" parent="."]
 z_index = 0
 script = ExtResource("10_treegrove")
 tree_texture = ExtResource("11_treetex")
-rim_cluster_count = 4
-rim_trees_per_cluster = 6
-lone_tree_count = 10
-avoid_centers = Array[Vector2]([Vector2(0, -640), Vector2(1800, -1300), Vector2(1550, 950), Vector2(-1850, 1180), Vector2(-1150, -1080), Vector2(1500, 620), Vector2(-1750, 250), Vector2(300, 950), Vector2(700, -1200), Vector2(-950, -150)])
-avoid_radii = Array[float]([160.0, 320.0, 220.0, 280.0, 320.0, 340.0, 300.0, 330.0, 260.0, 270.0])
+arena_size = Vector2(2432, 1664)
+cluster_count = 0
+rim_cluster_count = 0
+lone_tree_count = 0
+fixed_tree_positions = Array[Vector2]([Vector2(-1130, -700), Vector2(-1010, -760), Vector2(1010, -770), Vector2(-1150, 330), Vector2(-1080, 560), Vector2(1140, 420), Vector2(1080, 690), Vector2(-560, 770), Vector2(-100, 780), Vector2(700, 760), Vector2(60, -770), Vector2(620, -760)])
 
-; Two grazing flocks (biome brief: "sheep flocks grazing"), hand-placed on
-; open grass clear of every pond/plateau/landmark above.
-[node name="SheepFlock" type="Node2D" parent="."]
+; Rock outcrops: stone plateaus (4 x 3 cells of top, plus the cliff row) in the north-east and
+; south-west of the keep.
+[node name="RockOutcrops" type="Node2D" parent="."]
 z_index = 0
-script = ExtResource("12_sheepflock")
-sheep_texture = ExtResource("13_sheeptex")
-flock_anchors = Array[Vector2]([Vector2(-550, -1300), Vector2(950, 1280)])
-sheep_per_flock = 4
+script = ExtResource("33_outcrop")
+elevation_texture = ExtResource("17_elevtex")
+shadow_texture = ExtResource("18_shadowtex")
+rects = Array[Rect2i]([Rect2i(4, -6, 4, 3), Rect2i(-8, 2, 4, 3)])
 
-; Goblin camp (biome brief: "a goblin camp in one or two corners"), NE
-; corner. WatchTower and Campfire are animated (Wood_Tower_Red's 4-frame
-; idle sway, Fire.png's 7-frame flame loop) via animated_prop.gd; House is
-; a plain static Sprite2D (Goblin_House.png has no sheet to animate).
-; Ground clearing for this site is GroundDetail's landmark_clearings[1].
-[node name="GoblinCamp" type="Node2D" parent="."]
-position = Vector2(1800, -1300)
-z_index = 0
+; Ruins and rubble: a ruined castle (north-west), a rock mound (south-east), a timber pile in front
+; of each bridge exit (a gate that splits the lane) and a goblin house in each bank corner.
+[node name="CastleRuin" type="Node2D" parent="."]
+position = Vector2(-560, -264)
+script = ExtResource("34_solid")
+texture = ExtResource("29_castleruin")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.0
+footprint_size = Vector2(288, 112)
+footprint_offset = Vector2(0, 60)
 
-[node name="House" type="Sprite2D" parent="GoblinCamp"]
-texture_filter = 1
-position = Vector2(-140, 70)
-z_index = 0
-texture = ExtResource("26_goblinhouse")
-
-[node name="WatchTower" type="AnimatedSprite2D" parent="GoblinCamp"]
-position = Vector2(120, -40)
-z_index = 0
-script = ExtResource("21_animprop")
-sheet = ExtResource("24_woodtowerred")
-frame_size = Vector2i(256, 192)
-frame_count = 4
-fps = 4.0
-loop_mode = 2
-
-[node name="Campfire" type="AnimatedSprite2D" parent="GoblinCamp"]
-position = Vector2(-10, 150)
-z_index = 0
-script = ExtResource("21_animprop")
-sheet = ExtResource("23_firetex")
-frame_size = Vector2i(128, 128)
-frame_count = 7
-fps = 8.0
-
-; A sacked goblin outpost (biome brief: "a ruined/destroyed building or
-; two"), SW corner. Both pieces are the pack's own "_Destroyed" static art
-; -- nothing to animate. Ground clearing is landmark_clearings[3] (no
-; connecting path -- an abandoned ruin reads better off the beaten track).
-[node name="RuinedOutpost" type="Node2D" parent="."]
-position = Vector2(-1850, 1180)
-z_index = 0
-
-[node name="HouseRuin" type="Sprite2D" parent="RuinedOutpost"]
-texture_filter = 1
-z_index = 0
-texture = ExtResource("27_goblinhousedestroyed")
-
-[node name="TowerRuin" type="Sprite2D" parent="RuinedOutpost"]
-texture_filter = 1
-position = Vector2(260, 80)
-z_index = 0
-texture = ExtResource("25_woodtowerdestroyed")
-
-; A gold mine (biome brief: "a gold mine near a plateau") -- Plateau B
-; (ElevationPlateaus.plateau_centers[1], (1500, 620)) sits ~330px away.
-; GoldMine_Active.png is a single composed image, not a sprite sheet.
-[node name="GoldMineSite" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(1550, 950)
-z_index = 0
+[node name="RockMound" type="Node2D" parent="."]
+position = Vector2(560, 264)
+script = ExtResource("34_solid")
 texture = ExtResource("28_goldmine")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.5
+footprint_size = Vector2(224, 112)
+footprint_offset = Vector2(0, 24)
 
-; A knights' house near the Tower plaza (biome brief), just outside
-; GroundDetail's tower_clearing_radius_px (400) and SceneryScatter's own
-; tower_clear_radius_px (320).
-[node name="KnightsHouse" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(0, -640)
-z_index = 0
-texture = ExtResource("29_knightshouse")
+[node name="GatePileNorth" type="Node2D" parent="."]
+position = Vector2(-384, -320)
+script = ExtResource("34_solid")
+texture = ExtResource("25_woodtowerdestroyed")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.5
+footprint_size = Vector2(160, 96)
+footprint_offset = Vector2(0, 44)
 
-; Hand-placed rare landmark deco (Deco 16-18: a wooden signpost, a
-; skeleton waymarker, a scarecrow) -- not part of SceneryScatter's random
-; pool since exactly one or two of each reads as a landmark, not clutter.
-[node name="LandmarkScarecrow" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(-1550, 1000)
-z_index = 0
-texture = ExtResource("5_deco18")
+[node name="GatePileEast" type="Node2D" parent="."]
+position = Vector2(672, -128)
+script = ExtResource("34_solid")
+texture = ExtResource("25_woodtowerdestroyed")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.5
+footprint_size = Vector2(96, 160)
+footprint_offset = Vector2(0, 44)
 
-[node name="LandmarkSignpostWood" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(1650, -1150)
-z_index = 0
-texture = ExtResource("5_deco17")
+[node name="GatePileSouth" type="Node2D" parent="."]
+position = Vector2(384, 320)
+script = ExtResource("34_solid")
+texture = ExtResource("25_woodtowerdestroyed")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.5
+footprint_size = Vector2(160, 96)
+footprint_offset = Vector2(0, 44)
 
-[node name="LandmarkSignpostSkull" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(-1700, -900)
-z_index = 0
-texture = ExtResource("5_deco16")
+[node name="GatePileWest" type="Node2D" parent="."]
+position = Vector2(-672, 128)
+script = ExtResource("34_solid")
+texture = ExtResource("25_woodtowerdestroyed")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.5
+footprint_size = Vector2(96, 160)
+footprint_offset = Vector2(0, 44)
+
+[node name="CampHouseNE" type="Node2D" parent="."]
+position = Vector2(1090, -720)
+script = ExtResource("34_solid")
+texture = ExtResource("26_goblinhouse")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.0
+footprint_size = Vector2(96, 64)
+footprint_offset = Vector2(0, 56)
+
+[node name="CampHouseSE" type="Node2D" parent="."]
+position = Vector2(1090, 720)
+script = ExtResource("34_solid")
+texture = ExtResource("27_goblinhousedestroyed")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.0
+footprint_size = Vector2(96, 64)
+footprint_offset = Vector2(0, 56)
+
+[node name="CampHouseSW" type="Node2D" parent="."]
+position = Vector2(-1090, 720)
+script = ExtResource("34_solid")
+texture = ExtResource("26_goblinhouse")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.0
+footprint_size = Vector2(96, 64)
+footprint_offset = Vector2(0, 56)
+
+[node name="CampHouseNW" type="Node2D" parent="."]
+position = Vector2(-1090, -720)
+script = ExtResource("34_solid")
+texture = ExtResource("27_goblinhousedestroyed")
+sprite_offset = Vector2(0, 0)
+sprite_scale = 1.0
+footprint_size = Vector2(96, 64)
+footprint_offset = Vector2(0, 56)
 
 [node name="ArenaBounds" type="StaticBody2D" parent="."]
 script = ExtResource("2_bounds")
 
 [node name="WallNorth" type="CollisionShape2D" parent="ArenaBounds"]
-position = Vector2(0, -1632)
+position = Vector2(0, -864)
 shape = SubResource("RectangleShape2D_north")
 
 [node name="WallSouth" type="CollisionShape2D" parent="ArenaBounds"]
-position = Vector2(0, 1632)
+position = Vector2(0, 864)
 shape = SubResource("RectangleShape2D_south")
 
 [node name="WallWest" type="CollisionShape2D" parent="ArenaBounds"]
-position = Vector2(-2432, 0)
+position = Vector2(-1248, 0)
 shape = SubResource("RectangleShape2D_west")
 
 [node name="WallEast" type="CollisionShape2D" parent="ArenaBounds"]
-position = Vector2(2432, 0)
+position = Vector2(1248, 0)
 shape = SubResource("RectangleShape2D_east")
 
-; The bridge (biome brief: "one crossed by a bridge on a path"): the pack's
-; own vertical bridge piece at native scale and no rotation (BridgeSpan, D157),
-; over the water rows of PondField.pond_centers[0] at x=288 (the centre of the
-; path column SandNetwork.bridge_crossing_target lands in). Placed last so it
-; draws over PondField's water and shore wherever they meet.
-[node name="Bridge" type="Node2D" parent="."]
-position = Vector2(288, 960)
+; The four bridges (the only way over the moat), a pinwheel round the Tower. Drawn after the water.
+[node name="BridgeNorth" type="Node2D" parent="."]
+position = Vector2(-384, -576)
 z_index = 0
 script = ExtResource("32_bridgespan")
 texture = ExtResource("22_bridgetex")
-length_px = 160.0
+length_px = 192.0
+width_px = 128.0
+
+[node name="BridgeEast" type="Node2D" parent="."]
+position = Vector2(896, -128)
+z_index = 0
+script = ExtResource("32_bridgespan")
+texture = ExtResource("22_bridgetex")
+length_px = 192.0
+width_px = 128.0
+horizontal = true
+
+[node name="BridgeSouth" type="Node2D" parent="."]
+position = Vector2(384, 576)
+z_index = 0
+script = ExtResource("32_bridgespan")
+texture = ExtResource("22_bridgetex")
+length_px = 192.0
+width_px = 128.0
+
+[node name="BridgeWest" type="Node2D" parent="."]
+position = Vector2(-896, 128)
+z_index = 0
+script = ExtResource("32_bridgespan")
+texture = ExtResource("22_bridgetex")
+length_px = 192.0
+width_px = 128.0
+horizontal = true
+
+; Real collision for the water (Water layer: bodies, not shots) and the solids (World layer).
+[node name="ArenaCollision" type="Node2D" parent="."]
+script = ExtResource("35_collision")
+
+; Walking-distance fields for the enemy code; group "flow_field".
+[node name="FlowField" type="Node2D" parent="."]
+script = ExtResource("36_flowfield")

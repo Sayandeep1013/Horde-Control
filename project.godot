@@ -161,6 +161,7 @@ pointing/emulate_mouse_from_touch=true
 2d_physics/layer_14="InteractionRadius"
 2d_physics/layer_15="ArenaBounds"
 2d_physics/layer_16="PlayerCollector"
+2d_physics/layer_17="Water"
 
 [autoload]
 

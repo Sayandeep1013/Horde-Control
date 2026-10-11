@@ -73,6 +73,9 @@ class_name SceneryScatter
 ## band and degrades first).
 @export var tint: Color = Color(1.0, 1.0, 1.0, 0.85)
 
+## D330: keep clutter this far (px) off the moat ring and its shore; negative = off.
+@export var avoid_moat_margin_px: float = -1.0
+
 ## Clustered clutter (biome brief: "flowers/mushrooms/bushes clustered
 ## naturally, Poisson/noise-based, not uniform scatter"). This is a SECOND
 ## pass, additional to the uniform ambient scatter above: `cluster_count`
@@ -163,6 +166,8 @@ func _build() -> void:
 
 
 func _blocked(p: Vector2) -> bool:
+	if avoid_moat_margin_px >= 0.0 and ArenaLayout.near_moat(p, avoid_moat_margin_px):
+		return true
 	for i in avoid_centers.size():
 		var r: float = avoid_radii[i] if i < avoid_radii.size() else 0.0
 		if p.distance_squared_to(avoid_centers[i]) < r * r:

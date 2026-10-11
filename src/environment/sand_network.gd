@@ -36,6 +36,8 @@ class_name SandNetwork
 @export var landmark_clearing_radii: Array[float] = []
 @export var landmark_path_targets: Array[int] = []
 @export var bridge_crossing_target: Vector2 = Vector2.ZERO # Vector2.ZERO means "no bridge path"
+## D330: a road from the Tower plaza to the inner end of each of ArenaLayout's four bridges.
+@export var use_arena_bridge_roads: bool = false
 
 ## Path width in px, rounded to a whole, odd number of cells (170 -> 3 cells).
 @export var path_width_px: float = 170.0
@@ -81,6 +83,10 @@ func _ready() -> void:
 		# Horizontal first, so the last leg runs north-south through the pond
 		# the Bridge crosses.
 		_add_l_path(tower_center, bridge_crossing_target, width_cells, true)
+
+	if use_arena_bridge_roads:
+		for i in ArenaLayout.BRIDGES.size():
+			_add_l_path(tower_center, ArenaLayout.bridge_point(i, -128.0), width_cells, ArenaLayout.bridge_is_vertical(i))
 
 	_fill_notches()
 	FlatAutotile.paint(self, FlatAutotile.SAND, _cells)

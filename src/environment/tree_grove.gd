@@ -68,6 +68,11 @@ const FPS: float = 5.0
 @export var avoid_centers: Array[Vector2] = []
 @export var avoid_radii: Array[float] = []
 
+## D330: keep trees this far (px) off the moat ring and its shore; negative = off. Trees stay
+## decoration (no collision); `fixed_tree_positions` hand-places them on the outer bank.
+@export var avoid_moat_margin_px: float = -1.0
+@export var fixed_tree_positions: Array[Vector2] = []
+
 var _frames: SpriteFrames = null
 
 
@@ -81,9 +86,14 @@ func _ready() -> void:
 	_scatter_clusters()
 	_scatter_rim_clusters()
 	_scatter_lone_trees()
+	var fixed_rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "fixed_trees"])
+	for pos in fixed_tree_positions:
+		_place_tree(pos, fixed_rng)
 
 
 func _blocked(pos: Vector2) -> bool:
+	if avoid_moat_margin_px >= 0.0 and ArenaLayout.near_moat(pos, avoid_moat_margin_px):
+		return true
 	if pos.distance_to(tower_center) < tower_clear_radius_px * 0.6:
 		return true
 	for i in avoid_centers.size():

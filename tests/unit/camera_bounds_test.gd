@@ -21,7 +21,7 @@ extends GdUnitTestSuite
 
 const GameCameraScript: GDScript = preload("res://src/camera/game_camera.gd")
 
-const ARENA_HALF: Vector2 = Vector2(2400.0, 1600.0) # half of the Register's 4800x3200 "Arena size" row
+const ARENA_HALF: Vector2 = Vector2(1216.0, 832.0) # half of the Register's 2432x1664 "Arena size" row (D330)
 const VIEWPORT_REF: Vector2 = Vector2(1920.0, 1080.0) # "View scale" row: "1.0 = 1920x1080 world px"
 const VIEW_SCALES: Array[float] = [0.9, 0.95, 1.0, 1.05, 1.1, 1.15] # sweeps the "View scale" row's full [0.9, 1.15] range
 const EPSILON: float = 0.01 # float-comparison tolerance only; not a gameplay number
