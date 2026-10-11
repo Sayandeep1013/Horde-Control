@@ -125,6 +125,9 @@ func _movement_dir(player: Node2D, tower: Node2D, ps: Node) -> Vector2:
 					best = p
 			if best != null:
 				target = best.global_position
+			var arena_target: Vector2 = _arena_target(pp, tp) # v1.0 WP-ARENA: claim a safe Shrine, break nearby crates
+			if arena_target != Vector2.INF:
+				target = arena_target
 		if pp.distance_to(target) > 12.0:
 			dir = (target - pp).normalized()
 		if mode == "collect":
@@ -138,6 +141,30 @@ func _movement_dir(player: Node2D, tower: Node2D, ps: Node) -> Vector2:
 			if push != Vector2.ZERO:
 				dir = (dir + push * 1.5).normalized()
 	return dir
+
+
+## v1.0 WP-ARENA (Register "v1.0 Arena Interactables"): a point worth walking to for the collect policy: an unclaimed
+## Shrine within reach when no enemy is near it (the bot then stands on it until it
+## is claimed), else the nearest Supply Crate within 600 px. Never during a Siege
+## wave and never beyond 900 px of the Tower. Vector2.INF = nothing to do.
+func _arena_target(pp: Vector2, tp: Vector2) -> Vector2:
+	var mgr: Node = _n("Main/ArenaInteractables")
+	if mgr == null or SIEGE_WAVES.has(last_wave):
+		return Vector2.INF
+	var reg: Node = root.get_node("EntityRegistry")
+	var shrine: Node2D = mgr.get_shrine()
+	if shrine != null and not shrine.is_claimed and not shrine.is_expired and shrine.time_left() > 4.0:
+		var sp: Vector2 = shrine.global_position
+		if sp.distance_to(pp) < 900.0 and sp.distance_to(tp) < 900.0 and reg.get_enemies_in_radius(sp, 220.0).is_empty():
+			return sp
+	var best: Vector2 = Vector2.INF
+	var best_d: float = 600.0
+	for c in mgr.get_crates():
+		var d: float = c.global_position.distance_to(pp)
+		if d < best_d and c.global_position.distance_to(tp) < 900.0:
+			best_d = d
+			best = c.global_position
+	return best
 
 
 func _process(_delta: float) -> bool:

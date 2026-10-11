@@ -104,8 +104,10 @@ func _draw() -> void:
 	if is_claimed or is_expired:
 		return
 	draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.55))
-	draw_arc(Vector2.ZERO, CLAIM_RADIUS_PX, 0.0, TAU, 40, Color(0.55, 0.9, 1.0, 0.45), 2.0, false)
+	# Dark underline then a bright ring, so it reads on sand and on grass.
+	draw_arc(Vector2.ZERO, CLAIM_RADIUS_PX, 0.0, TAU, 40, Color(0.09, 0.11, 0.18, 0.7), 5.0, false)
+	draw_arc(Vector2.ZERO, CLAIM_RADIUS_PX, 0.0, TAU, 40, Color(0.7, 0.95, 1.0, 0.95), 2.5, false)
 	var f: float = progress_fraction()
 	if f > 0.0:
-		draw_arc(Vector2.ZERO, CLAIM_RADIUS_PX, -PI * 0.5, -PI * 0.5 + TAU * f, 40, Color(1.0, 0.85, 0.3, 0.95), 5.0, false)
+		draw_arc(Vector2.ZERO, CLAIM_RADIUS_PX, -PI * 0.5, -PI * 0.5 + TAU * f, 40, Color(1.0, 0.85, 0.3, 1.0), 5.0, false)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

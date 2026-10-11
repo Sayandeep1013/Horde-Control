@@ -125,7 +125,7 @@ func _all_positions() -> Array[Vector2]:
 		out.append(c.global_position)
 	for k in _kegs:
 		out.append(k.global_position)
-	if _shrine != null and is_instance_valid(_shrine) and not _shrine.is_claimed and not _shrine.is_expired:
+	if is_instance_valid(_shrine) and not _shrine.is_claimed and not _shrine.is_expired:
 		out.append(_shrine.global_position)
 	for t in _traps:
 		out.append(t.global_position)
@@ -175,7 +175,7 @@ func _prune() -> void:
 		if is_instance_valid(k) and not k.has_exploded:
 			kegs.append(k)
 	_kegs = kegs
-	if _shrine != null and not is_instance_valid(_shrine):
+	if not is_instance_valid(_shrine): # a freed object does not compare equal to null, so test validity
 		_shrine = null
 
 
@@ -222,7 +222,7 @@ func spawn_for_wave(wave: int) -> void:
 			if p != Vector2.INF:
 				add_keg(p)
 	if wave >= SHRINE_FIRST_WAVE:
-		if _shrine != null and is_instance_valid(_shrine) and not _shrine.is_claimed:
+		if is_instance_valid(_shrine) and not _shrine.is_claimed:
 			_shrine.queue_free()
 			_shrine = null
 		var rng: RandomNumberGenerator = _rng_for(wave)
@@ -303,7 +303,7 @@ func step() -> void:
 		for k in _kegs.duplicate():
 			if is_instance_valid(k):
 				k.check_player(player, prev)
-		if _shrine != null and is_instance_valid(_shrine):
+		if is_instance_valid(_shrine):
 			_shrine.check_player(player)
 		_prev_player_pos = player.global_position
 	update_boons()
