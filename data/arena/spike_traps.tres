@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ArenaSpikeLayout" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/arena/arena_spike_layout.gd" id="1_layout"]
+
+; Four plates on the sand paths (Register "v1.0 Arena Interactables"): east path, south path
+; (towards the bridge), north path (towards the knights' house), north-west
+; plaza edge. Distances from the Tower: 520, 591, 504, 608 px. Verified to sit
+; on sand and clear of the Tower footprint by tests/unit/arena_interactables_test.gd.
+[resource]
+script = ExtResource("1_layout")
+positions = PackedVector2Array(520, 24, 190, 560, 60, -500, -440, -420)
+phase_offsets = PackedFloat32Array(0.0, 0.8, 1.6, 2.4)

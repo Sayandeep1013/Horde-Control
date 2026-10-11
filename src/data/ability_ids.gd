@@ -48,6 +48,9 @@ const SOURCE_BOW: String = "bow"
 const SOURCE_TOWER_BOW: String = "tower_bow"
 const SOURCE_REFLECT: String = "spiked_palisade"
 const SOURCE_STATUS_BURN: String = "burn"
+# Arena interactables (Register "v1.0 Arena Interactables")
+const SOURCE_KEG: String = "keg"
+const SOURCE_SPIKES: String = "spikes"
 
 
 static func is_player_ability(id: String) -> bool:

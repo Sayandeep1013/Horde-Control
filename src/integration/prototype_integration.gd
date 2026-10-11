@@ -230,6 +230,9 @@ func _wire_run_seed() -> void:
 		_wave_director.dev_start_wave_number = resolve_start_wave(OS.get_cmdline_user_args())
 	if _draft_controller != null:
 		_draft_controller.run_seed = run_seed
+	var arena_interactables: Node = get_node_or_null("Main/ArenaInteractables") # v1.0 WP-ARENA: keyed placement and drops
+	if arena_interactables != null:
+		arena_interactables.set("run_seed", run_seed)
 
 
 ## D124. Pure resolution of the run seed; see the `run_seed` doc above.

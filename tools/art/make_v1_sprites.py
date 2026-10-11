@@ -135,6 +135,118 @@ def make_burn_ground():
     return im
 
 
+# ---------------------------------------------------------------------------
+# Arena interactables (WP-ARENA, docs/32 section B): crate, powder keg, shrine,
+# spike trap. Same compose() pipeline; drawn at native size, nearest filter.
+# ---------------------------------------------------------------------------
+KEG = pal((150, 52, 46), (212, 96, 78), (96, 30, 32))      # danger red wood
+DARKWOOD = pal((120, 78, 44), (170, 120, 70), (78, 48, 28))
+RUNE = pal((120, 214, 236), (214, 250, 255), (64, 150, 196))
+
+
+def make_crate():
+    parts = [Part(lambda d: d.rectangle([5, 9, 34, 34], fill=255), WOOD),
+             Part(lambda d: d.rectangle([5, 9, 34, 13], fill=255), DARKWOOD, 1),      # lid rim
+             Part(lambda d: d.rectangle([5, 30, 34, 34], fill=255), DARKWOOD, 1)]    # base rim
+    det = [(lambda d, c: d.line([(8, 15), (31, 28)], fill=c, width=2), WOOD[2] + (255,)),
+           (lambda d, c: d.line([(31, 15), (8, 28)], fill=c, width=2), WOOD[2] + (255,)),
+           (lambda d, c: d.line([(20, 14), (20, 29)], fill=c, width=1), WOOD[2] + (255,)),
+           (lambda d, c: [d.rectangle([x, y, x + 1, y + 1], fill=c) for x in (7, 31) for y in (11, 31)], GOLD[1] + (255,)),
+           (lambda d, c: d.rectangle([17, 20, 22, 23], fill=c), GOLD[0] + (255,))]
+    return compose(parts, det, size=(40, 40))
+
+
+def make_crate_broken():
+    parts = [Part(lambda d: d.polygon([(4, 26), (17, 22), (20, 28), (8, 33)], fill=255), WOOD, 1),
+             Part(lambda d: d.polygon([(21, 24), (35, 27), (33, 33), (22, 31)], fill=255), DARKWOOD, 1),
+             Part(lambda d: d.polygon([(12, 32), (28, 33), (27, 37), (13, 37)], fill=255), WOOD, 1),
+             Part(lambda d: d.polygon([(15, 14), (19, 12), (21, 21), (17, 22)], fill=255), WOOD, 1),
+             Part(lambda d: d.polygon([(26, 15), (30, 17), (27, 24), (24, 22)], fill=255), DARKWOOD, 1)]
+    return compose(parts, [(lambda d, c: d.line([(6, 28), (17, 25)], fill=c, width=1), WOOD[2] + (255,)),
+                           (lambda d, c: d.rectangle([14, 33, 16, 34], fill=c), GOLD[1] + (255,))], size=(40, 40))
+
+
+def _keg_parts():
+    return [Part(lambda d: d.rounded_rectangle([3, 12, 32, 40], radius=10, fill=255), KEG),
+            Part(lambda d: d.rectangle([4, 18, 31, 21], fill=255), IRON, 1),
+            Part(lambda d: d.rectangle([4, 31, 31, 34], fill=255), IRON, 1),
+            Part(lambda d: d.rectangle([14, 6, 21, 13], fill=255), DARKWOOD, 1)]   # stopper
+
+
+def make_powder_keg():
+    det = [(lambda d, c: d.line([(17, 6), (19, 2), (23, 1)], fill=c, width=1), (230, 220, 190, 255)),     # unlit fuse
+           (lambda d, c: d.ellipse([14, 22, 21, 29], fill=c), BONE[0] + (255,)),                           # skull plate
+           (lambda d, c: [d.rectangle([x, 24, x + 1, 25], fill=c) for x in (15, 19)], INK),
+           (lambda d, c: d.rectangle([16, 27, 19, 28], fill=c), INK)]
+    return compose(_keg_parts(), det, size=(36, 44))
+
+
+def make_powder_keg_lit():
+    """Lit: white-hot body flash on the rim and a bright burning fuse spark."""
+    im = make_powder_keg()
+    hot = (255, 238, 170, 255)
+    for (x, y) in [(6, 22), (7, 21), (28, 22), (29, 23), (8, 14), (27, 15), (6, 30), (29, 31)]:
+        im.putpixel((x, y), hot)
+    spark = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(spark)
+    d.polygon([(23, 0), (26, 3), (23, 6), (20, 3)], fill=(255, 208, 80, 255))
+    d.polygon([(23, 1), (25, 3), (23, 5), (21, 3)], fill=(255, 255, 220, 255))
+    im.alpha_composite(spark)
+    return im
+
+
+def make_shrine():
+    parts = [Part(lambda d: d.rectangle([4, 62, 43, 75], fill=255), STONE),                          # plinth
+             Part(lambda d: d.rectangle([9, 54, 38, 62], fill=255), STONE, 1),
+             Part(lambda d: d.polygon([(16, 54), (31, 54), (29, 14), (23, 2), (18, 14)], fill=255), IRON)]
+    det = [(lambda d, c: d.polygon([(23, 22), (27, 30), (23, 40), (19, 30)], fill=c), RUNE[0] + (255,)),
+           (lambda d, c: d.polygon([(23, 25), (25, 30), (23, 36), (21, 30)], fill=c), RUNE[1] + (255,)),
+           (lambda d, c: d.line([(23, 43), (23, 52)], fill=c, width=1), RUNE[2] + (255,)),
+           (lambda d, c: d.line([(11, 66), (36, 66)], fill=c, width=1), STONE[1] + (255,))]
+    return compose(parts, det, size=(48, 80))
+
+
+def _trap_base(tips, glow):
+    """64x40 top-down plate. tips: 0 none, 1 peeking, 2 raised."""
+    plate = STONE if not glow else pal((196, 70, 60), (250, 130, 106), (136, 40, 42))
+    parts = [Part(lambda d: d.rounded_rectangle([4, 6, 59, 33], radius=5, fill=255), plate, 2)]
+    pts = [(x, y) for x in (16, 32, 48) for y in (14, 25)]
+    det = [(lambda d, c: [d.ellipse([x - 3, y - 2, x + 3, y + 2], fill=c) for (x, y) in pts], INK)]
+    im = compose(parts, det, size=(64, 40))
+    layer = Image.new("RGBA", (64, 40), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    h = {0: 0, 1: 8, 2: 13}[tips]
+    for (x, y) in pts:
+        if h:
+            d.polygon([(x - 3, y + 2), (x + 3, y + 2), (x, y + 2 - h)], fill=STEEL[1] if (tips == 2 or glow) else STEEL[0], outline=INK)
+    im.alpha_composite(layer)
+    return im
+
+
+def make_spike_trap_0():
+    return _trap_base(0, False)
+
+
+def make_spike_trap_1():
+    return _trap_base(1, False)
+
+
+def make_spike_trap_2():
+    return _trap_base(2, False)
+
+
+def make_spike_trap_3():
+    return _trap_base(1, True)
+
+
+ARENA_SPRITES = {
+    "crate": make_crate, "crate_broken": make_crate_broken, "powder_keg": make_powder_keg,
+    "powder_keg_lit": make_powder_keg_lit, "shrine": make_shrine,
+    "spike_trap_0": make_spike_trap_0, "spike_trap_1": make_spike_trap_1,
+    "spike_trap_2": make_spike_trap_2, "spike_trap_3": make_spike_trap_3,
+}
+
+
 SPRITES = {
     "axe": make_axe, "caltrop": make_caltrop, "frost_shard": make_frost_shard,
     "lightning_segment": make_lightning_segment, "ballista_bolt": make_ballista_bolt,
@@ -177,3 +289,11 @@ if __name__ == "__main__":
         made[name] = im
         print("wrote", os.path.join(OUT, name + ".png"), im.size)
     contact_sheet(made, os.path.join(OUT, "_contact_sheet.png"))
+    # Arena interactables (WP-ARENA) are kept apart so the sprites above and their sheet stay byte-identical.
+    arena = {}
+    for name, fn in ARENA_SPRITES.items():
+        im = fn()
+        im.save(os.path.join(OUT, name + ".png"))
+        arena[name] = im
+        print("wrote", os.path.join(OUT, name + ".png"), im.size)
+    contact_sheet(arena, os.path.join(OUT, "_contact_sheet_arena.png"))

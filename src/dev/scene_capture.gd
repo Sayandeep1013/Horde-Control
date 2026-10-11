@@ -13,7 +13,11 @@ extends Node
 ##     [--dash-frames=F,F] [--spawn-frame=F --spawn-count=N] [--tower-hp=0.4 --scrap=100]
 ##     [--lineup=tower_seeker,player_hunter,opportunist,bomber]  (at --spawn-frame: a static
 ##      row of those enemy scenes 170 px below the player, for readability captures)
-##   (the v1.0 flags are dev-only helpers for WP-COMBAT captures, prototype scene only)
+##     [--arena-showcase=war|haste|ward|bounty] (at frame 3: two crates, a keg and a shrine around the player)
+##     [--arena-wave=N] (at frame 3: spawn wave N's arena interactables by the normal rules)
+##     [--boons=war,haste,ward,bounty] (at frame 3: claim those Shrine boons for a tray capture)
+##     [--light-kegs=F] (at frame F: light every Powder Keg)
+##   (the v1.0 flags are dev-only helpers for WP-COMBAT / WP-ARENA captures, prototype scene only)
 ## Writes <out>_<frame>.png for each listed frame.
 ##
 ## `--player_pos=X,Y` and `--meta-profile-dir=`/`--debug-panel=` are not
@@ -43,6 +47,10 @@ var _tower_hp_fraction: float = -1.0
 var _scrap: int = -1
 var _skill_id: String = ""
 var _lineup: Array[String] = []
+var _arena_showcase: String = ""
+var _arena_wave: int = 0
+var _boons: Array[String] = []
+var _light_kegs_frame: int = -1
 var _scene: Node = null
 var _has_player_pos: bool = false
 var _player_pos: Vector2 = Vector2.ZERO
@@ -82,6 +90,15 @@ func _ready() -> void:
 		elif arg.begins_with("--lineup="):
 			for n in arg.trim_prefix("--lineup=").split(","):
 				_lineup.append(n)
+		elif arg.begins_with("--arena-showcase="):
+			_arena_showcase = arg.trim_prefix("--arena-showcase=")
+		elif arg.begins_with("--arena-wave="):
+			_arena_wave = int(arg.trim_prefix("--arena-wave="))
+		elif arg.begins_with("--boons="):
+			for b in arg.trim_prefix("--boons=").split(","):
+				_boons.append(b)
+		elif arg.begins_with("--light-kegs="):
+			_light_kegs_frame = int(arg.trim_prefix("--light-kegs="))
 		elif arg.begins_with("--tower-hp="):
 			_tower_hp_fraction = float(arg.trim_prefix("--tower-hp="))
 		elif arg.begins_with("--scrap="):
@@ -134,6 +151,19 @@ func _drive_v1_helpers() -> void:
 		var ps: Node = _scene.get_node_or_null("Main/PickupSystem")
 		if ps != null and _scrap >= 0:
 			ps.run_inventory.scrap_current = _scrap
+	var arena: Node = _scene.get_node_or_null("Main/ArenaInteractables")
+	if arena != null:
+		if _count == 3:
+			var pl: Node2D = get_tree().get_first_node_in_group(&"player") as Node2D
+			if _arena_showcase != "" and pl != null:
+				arena.dev_spawn_showcase(pl.global_position, _arena_showcase)
+			if _arena_wave > 0:
+				arena.spawn_for_wave(_arena_wave)
+			for b in _boons:
+				arena.claim_boon(b)
+		if _light_kegs_frame >= 0 and _count == _light_kegs_frame:
+			for k in arena.get_kegs():
+				k.light("capture")
 	if _cast_frames.has(_count):
 		var sk: Node = get_tree().get_first_node_in_group(&"battle_skill")
 		if sk != null:

@@ -142,6 +142,28 @@ static func hit_area(center: Vector2, radius: float, amount: float, source_id: S
 	for e in enemies_in_radius(center, radius):
 		if hit(e, amount, source_id, side, allow_crit) > 0.0:
 			n += 1
+	if amount > 0.0:
+		hit_breakables(center, radius, amount, source_id)
+	return n
+
+
+## Arena interactables (Register "v1.0 Arena Interactables"): player-side area damage also
+## reaches every node in group "breakable" (Supply Crates, Powder Kegs) whose
+## centre is within `radius` of `center` (+ its own `breakable_radius`). The
+## `source_id` lets a keg ignore its own blast. Returns the number hit.
+static func hit_breakables(center: Vector2, radius: float, amount: float, source_id: String) -> int:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null or amount <= 0.0:
+		return 0
+	var n: int = 0
+	for node in tree.get_nodes_in_group(&"breakable"):
+		var b: Node2D = node as Node2D
+		if b == null or not b.has_method(&"take_area_damage"):
+			continue
+		var reach: float = radius + float(b.get("breakable_radius") if b.get("breakable_radius") != null else 0.0)
+		if b.global_position.distance_to(center) <= reach:
+			b.take_area_damage(amount, source_id)
+			n += 1
 	return n
 
 
