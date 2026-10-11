@@ -1,4 +1,4 @@
-extends SceneTree
+﻿extends SceneTree
 ## Balance bot (review 2026-10-05 P0-2, promoted from the reviewer's throwaway
 ## sandbox script). Dev tooling, not shipped gameplay: it drives the assembled
 ## prototype scene headlessly with a scripted movement policy, always confirms
@@ -27,17 +27,22 @@ extends SceneTree
 ##       smart = highest on a fixed power-first priority list (damage, fire rate,
 ##       Tower cards before sustain), except Patch Kit when the player is below
 ##       50% health and Repair Kit when the Tower is, which approximates a human
-##   --autocast                       turn Auto-cast Battle Skill on (v1.0, docs/31 §3.3);
+##   --autocast                       turn Auto-cast Battle Skill on (v1.0, docs/31 Â§3.3);
 ##       the bot never presses the skill key itself, so without this flag no
 ##       Battle Skill is cast. Dash is never auto-cast and the bot does not dash.
+##   --no-autocast                    kite only: leave Auto-cast Battle Skill off
+##   --difficulty=recruit|soldier|veteran|warlord   sets RunConfig.difficulty_id
+##       before the scene loads (default soldier)
 ##   --max-sim=SECONDS                abort at this SimClock time (default 1200)
 ##   --csv=<abs path>                 append one result row to this CSV
 ##   --meta-profile-dir=<abs dir>     REQUIRED in practice: MetaProgress writes
 ##       its profile there instead of the real user:// profile. If omitted the
 ##       bot refuses to start (it would otherwise settle the real profile).
 ##
-## Output: "BOT_RESULT mode=.. seed=.. outcome=VICTORY|TOWER|PLAYER|TIMEOUT
-## t=.. wave=.. P=.. T=.. drafts=.. kills=.." as the last line.
+## Output: "BOT_RESULT mode=.. diff=.. seed=.. outcome=VICTORY|TOWER|PLAYER|TIMEOUT
+## cause=.. t=.. wave=.. P=.. T=.. .. dmg=src:amount,.." as the last line. WAVE_STAT
+## lines (one per wave: duration, player damage taken, Tower damage taken, Tower
+## HP at wave end) are printed as the run goes.
 
 const SIEGE_WAVES: Array[String] = ["wave_04", "wave_07", "wave_10", "wave_13", "wave_14"] # v1.0 Siege and Grand Assault waves
 const PROFILE_FLAG: String = "--meta-profile-dir="
@@ -45,8 +50,30 @@ const PROFILE_FLAG: String = "--meta-profile-dir="
 var mode: String = "still"
 var pick: int = 0
 var smart_pick: bool = false
-const SMART_PRIORITY: Array[String] = ["caliber", "tower_volley", "rapid_fire", "heavy_rounds", "ballista", "flame_arrows", "whirling_axes", "dynamite_satchel", "frost_ward", "storm_bolt", "catapult", "keen_eye", "ability_power", "optics", "shield_matrix", "reinforced_plating", "vitality", "multishot", "regeneration", "watchtower_upgrade", "piercing_arrows", "repair_kit", "swift_feet", "magnet", "patch_kit"]
+## v1.0 order: player abilities first, then Tower abilities (a level-up of an
+## owned ability is the same id, so "abilities then their levels" falls out of
+## the order), then damage/rate passives, then sustain. Caltrops is last of the
+## abilities (it only works while moving) and Spiked Palisade is a defensive tail.
+const SMART_PRIORITY: Array[String] = ["whirling_axes", "storm_bolt", "flame_arrows", "dynamite_satchel", "ballista", "catapult", "frost_ward", "sacred_ground", "frost_arrows", "caliber", "tower_volley", "rapid_fire", "heavy_rounds", "ability_power", "keen_eye", "multishot", "piercing_arrows", "blast_radius", "battle_focus", "optics", "shield_matrix", "reinforced_plating", "vitality", "leather_armor", "regeneration", "watchtower_upgrade", "stone_mason", "caltrops", "spiked_palisade", "fleet_step", "repair_kit", "swift_feet", "magnet", "patch_kit"]
+const BOSS_IDS: Array[String] = ["goblin_warchief", "bombardier_king"]
+const KITE_HUNTER_R: float = 220.0
+const KITE_BOMBER_R: float = 230.0
+const KITE_BOSS_R: float = 330.0
+const KITE_DASH_R: float = 60.0
 var autocast: bool = false
+var no_autocast: bool = false
+var difficulty: String = "soldier"
+var repairing: bool = false
+var tele_cache: Array = []
+var tele_next_scan: int = 0
+var wave_t0: float = 0.0
+var wave_p0: float = 0.0
+var wave_tw0: float = 0.0
+var wave_stats: Array[String] = []
+var boss_alive_since: float = -1.0
+var boss_start_stats: Dictionary = {}
+var boss_log: Array[String] = []
+var dashes_used: int = 0
 var profile_dir: String = ""
 var seed_value: int = -1
 var max_sim: float = 1200.0
@@ -83,6 +110,8 @@ func _initialize() -> void:
 		push_error("balance_bot: refusing to run without --meta-profile-dir=<sandbox dir>")
 		quit(2)
 		return
+	if mode == "kite" and not no_autocast:
+		autocast = true
 	if autocast:
 		# Redirect the settings file into the sandbox profile dir first: turning
 		# the option on saves GameSettings, and the bot must never touch the
@@ -91,11 +120,12 @@ func _initialize() -> void:
 		GameSettings.set_auto_cast_enabled(true)
 	if seed_value < 0:
 		seed_value = int(randi() & 0x7fffffff)
+	RunConfig.difficulty_id = difficulty
 	var ps: PackedScene = load("res://scenes/prototype.tscn")
 	root_scene = ps.instantiate()
 	root_scene.run_seed = seed_value
 	root.add_child.call_deferred(root_scene)
-	print("BOT_START mode=%s seed=%d pick=%s" % [mode, seed_value, "smart" if smart_pick else str(pick)])
+	print("BOT_START mode=%s diff=%s seed=%d pick=%s autocast=%s" % [mode, difficulty, seed_value, "smart" if smart_pick else str(pick), str(autocast)])
 
 
 func _n(p: String) -> Node:
@@ -106,6 +136,8 @@ func _movement_dir(player: Node2D, tower: Node2D, ps: Node) -> Vector2:
 	var pp: Vector2 = player.global_position
 	var tp: Vector2 = tower.global_position
 	var dir := Vector2.ZERO
+	if mode == "kite":
+		return _kite_dir(player, tower, ps)
 	if mode == "far":
 		var tg: Vector2 = tp + Vector2(1400, 0)
 		if pp.distance_to(tg) > 12.0:
@@ -137,6 +169,122 @@ func _movement_dir(player: Node2D, tower: Node2D, ps: Node) -> Vector2:
 				push += away / d * (1.0 - d / 130.0)
 			if push != Vector2.ZERO:
 				dir = (dir + push * 1.5).normalized()
+	return dir
+
+
+func _enemy_id(e: Node) -> String:
+	var d: Variant = e.get("definition")
+	return str(d.unique_id) if d != null else ""
+
+
+func _scan_telegraphs() -> void:
+	# Cheap enough at ~20 Hz: walk the scene once and keep every live red ring.
+	tele_cache.clear()
+	var stack: Array = [root_scene]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		# Duck-typed on purpose: naming GroundTelegraph here would compile that script
+		# while this -s script loads, before the autoloads (SimClock) exist, and
+		# poison it for the game.
+		var scr: Script = n.get_script()
+		if scr != null and scr.get_global_name() == &"GroundTelegraph":
+			var g: Node2D = n
+			# Player-ability telegraphs use the ability's own tint; only danger red counts.
+			var col: Color = g.get("color")
+			if col.r > 0.7 and col.g < 0.4 and g.time_left() > 0.0:
+				tele_cache.append(g)
+			continue
+		for c in n.get_children():
+			if not (c is CollisionShape2D) and not (c is Sprite2D) and not (c is AnimatedSprite2D):
+				stack.append(c)
+
+
+## Set by _kite_dir when a dash is warranted.
+var want_dash: bool = false
+
+
+func _kite_dir(player: Node2D, tower: Node2D, ps: Node) -> Vector2:
+	want_dash = false
+	var pp: Vector2 = player.global_position
+	var tp: Vector2 = tower.global_position
+	var reg: Node = root.get_node("EntityRegistry")
+	var siege: bool = SIEGE_WAVES.has(last_wave)
+	var p_frac: float = player.death_state.current_hp / maxf(1.0, player.death_state.max_hp)
+	var t_frac: float = tower.health.get_current_health() / maxf(1.0, tower.health.max_health)
+	var scrap: int = ps.run_inventory.scrap_current
+	# Repair hysteresis: start under 60% with Scrap, stop at 90% or when Scrap is gone.
+	if not repairing and t_frac < 0.6 and scrap > 20:
+		repairing = true
+	if repairing and (t_frac >= 0.9 or scrap <= 0 or p_frac < 0.3):
+		repairing = false
+	# 1) Telegraph dodge overrides everything.
+	if frames >= tele_next_scan:
+		tele_next_scan = frames + 3
+		_scan_telegraphs()
+	var escape := Vector2.ZERO
+	var imminent: bool = false
+	for g in tele_cache:
+		if not is_instance_valid(g):
+			continue
+		var off: Vector2 = pp - g.global_position
+		var d: float = off.length()
+		var r: float = float(g.get("radius")) + 24.0
+		if d < r:
+			escape += (off / maxf(d, 1.0)) * (1.0 + (r - d) / r)
+			if g.time_left() < 0.35:
+				imminent = true
+	if escape != Vector2.ZERO:
+		want_dash = imminent
+		return escape.normalized()
+	# 2) Base target.
+	var target: Vector2 = tp + (pp - tp).normalized().rotated(0.6) * 200.0
+	var live: Array = reg.get_enemies_in_radius(pp, 700.0)
+	if repairing:
+		target = tp + (pp - tp).normalized() * 40.0 if pp.distance_to(tp) > 40.0 else pp
+	elif siege:
+		# Hold the side of the Tower where the horde is heaviest.
+		var c := Vector2.ZERO
+		var n: int = 0
+		for e in reg.get_enemies_in_radius(tp, 650.0):
+			c += e.global_position
+			n += 1
+		if n > 0:
+			target = tp + ((c / n) - tp).normalized() * 190.0
+	else:
+		var best: Node2D = null
+		var best_d: float = 700.0
+		for pk in ps.get_active_pickups_for_test():
+			var dd: float = pk.global_position.distance_to(pp)
+			if dd < best_d and pk.global_position.distance_to(tp) < 900.0:
+				best_d = dd
+				best = pk
+		if best != null:
+			target = best.global_position
+	var dir := Vector2.ZERO
+	if pp.distance_to(target) > 12.0:
+		dir = (target - pp).normalized()
+	# 3) Repulsion: Hunters, Bombers and bosses are kited; anything on top of us is stepped away from.
+	var push := Vector2.ZERO
+	var close_threat: bool = false
+	for e in live:
+		var id: String = _enemy_id(e)
+		var away: Vector2 = pp - e.global_position
+		var d: float = maxf(away.length(), 1.0)
+		var r: float = 130.0
+		if BOSS_IDS.has(id):
+			r = KITE_BOSS_R
+		elif id == "bomber":
+			r = KITE_BOMBER_R
+		elif id == "player_hunter" or int(e.get("current_intent")) == 1:
+			r = KITE_HUNTER_R
+		if d < r:
+			push += away / d * (1.0 - d / r)
+		if d < KITE_DASH_R:
+			close_threat = true
+	if push != Vector2.ZERO:
+		var k: float = 2.2 if not repairing else 1.2
+		dir = (dir + push * k).normalized() if dir != Vector2.ZERO else push.normalized()
+	want_dash = close_threat and dir != Vector2.ZERO
 	return dir
 
 
@@ -183,14 +331,19 @@ func _process(_delta: float) -> bool:
 
 	if not ended:
 		player.set_input_direction_for_test(_movement_dir(player, tower, ps))
+		if mode == "kite" and want_dash and not player.is_dashing() and player.get_dash_state()["charges"] > 0:
+			player.press_dash_for_test()
+			dashes_used += 1
 
 	var wid: String = wd.get_current_wave_id()
 	if wid != last_wave:
+		_close_wave(now, tower)
 		print("[%6.1f] WAVE %s (%d/%d) state=%s" % [now, wid, wd.get_current_wave_display_index(), wd.get_wave_total_count(), wd.get_state_name()])
 		last_wave = wid
 
 	var p_hp: float = player.death_state.current_hp
 	var t_hp: float = tower.health.get_current_health()
+	_track_boss(now)
 	min_player = minf(min_player, p_hp)
 	min_tower = minf(min_tower, t_hp)
 	peak_pressure = maxf(peak_pressure, wd.get_pressure_value_for_test())
@@ -217,9 +370,57 @@ func _process(_delta: float) -> bool:
 	return false
 
 
+func _close_wave(now: float, tower: Node) -> void:
+	if last_wave == "":
+		wave_t0 = now
+		return
+	var pd: float = _cs().get_run_counter("damage_taken")
+	var td: float = _cs().get_run_counter("tower_damage_taken")
+	var line: String = "%s dur=%.0f pdmg=%.0f tdmg=%.0f T=%.0f" % [last_wave, now - wave_t0, pd - wave_p0, td - wave_tw0, tower.health.get_current_health()]
+	wave_stats.append(line)
+	print("[%6.1f] WAVE_STAT %s" % [now, line])
+	wave_t0 = now
+	wave_p0 = pd
+	wave_tw0 = td
+
+
+func _track_boss(now: float) -> void:
+	var alive: bool = false
+	var bid: String = ""
+	for e in root.get_node("EntityRegistry").get_entities_with_tag(&"enemy"):
+		var id: String = _enemy_id(e)
+		if BOSS_IDS.has(id):
+			alive = true
+			bid = id
+			break
+	if alive and boss_alive_since < 0.0:
+		boss_alive_since = now
+		boss_start_stats = {"id": bid, "pd": _cs().get_run_counter("damage_taken"), "td": _cs().get_run_counter("tower_damage_taken")}
+	elif not alive and boss_alive_since >= 0.0:
+		_close_boss(now)
+
+
+func _close_boss(now: float) -> void:
+	var s: String = "boss=%s fight=%.0fs pdmg=%.0f tdmg=%.0f" % [boss_start_stats.get("id", "?"), now - boss_alive_since, _cs().get_run_counter("damage_taken") - float(boss_start_stats.get("pd", 0)), _cs().get_run_counter("tower_damage_taken") - float(boss_start_stats.get("td", 0))]
+	boss_log.append(s)
+	print("[%6.1f] BOSS_FIGHT %s" % [now, s])
+	boss_alive_since = -1.0
+
+
 func _finish(outcome: String, now: float, wd: Node, p_hp: float, t_hp: float, rfc: Node) -> void:
 	var kills: int = rfc.get_kill_count_for_test() if rfc != null else -1
-	var line: String = "BOT_RESULT mode=%s seed=%d outcome=%s t=%.1f wave=%d P=%.0f T=%.0f minP=%.0f minT=%.0f peakPress=%.2f drafts=%d kills=%d" % [mode, seed_value, outcome, now, wd.get_current_wave_display_index(), p_hp, t_hp, min_player, min_tower, peak_pressure, drafts, kills]
+	if boss_alive_since >= 0.0:
+		_close_boss(now)
+	var cause: String = "none"
+	if rfc != null:
+		cause = ["NONE", "PLAYER_DEFEATED", "TOWER_DESTROYED", "SEQUENCE_COMPLETED", "ABANDONED"][clampi(rfc.get_end_cause_for_test(), 0, 4)]
+	var dmg_parts: Array[String] = []
+	var total: float = 0.0
+	for r in _cs().get_damage_by_source():
+		total += float(r["damage"])
+	for r in _cs().get_damage_by_source():
+		dmg_parts.append("%s:%.0f(%.0f%%)" % [r["source_id"], r["damage"], 100.0 * float(r["damage"]) / maxf(total, 1.0)])
+	var line: String = "BOT_RESULT mode=%s diff=%s seed=%d outcome=%s cause=%s t=%.1f wave=%d P=%.0f T=%.0f minP=%.0f minT=%.0f peakPress=%.2f drafts=%d kills=%d dashes=%.0f skills=%.0f repaired=%.0f dmg=%s" % [mode, difficulty, seed_value, outcome, cause, now, wd.get_current_wave_display_index(), p_hp, t_hp, min_player, min_tower, peak_pressure, drafts, kills, _cs().get_run_counter("dashes"), _cs().get_run_counter("skills_cast"), _cs().get_run_counter("tower_repaired"), ",".join(dmg_parts)]
 	print(line)
 	if csv_path != "":
 		var existed: bool = FileAccess.file_exists(csv_path)
@@ -228,6 +429,10 @@ func _finish(outcome: String, now: float, wd: Node, p_hp: float, t_hp: float, rf
 			if existed:
 				f.seek_end()
 			else:
-				f.store_line("mode,seed,outcome,t,wave,player_hp,tower_hp,min_player,min_tower,peak_pressure,drafts,kills")
-			f.store_line("%s,%d,%s,%.1f,%d,%.0f,%.0f,%.0f,%.0f,%.2f,%d,%d" % [mode, seed_value, outcome, now, wd.get_current_wave_display_index(), p_hp, t_hp, min_player, min_tower, peak_pressure, drafts, kills])
+				f.store_line("mode,difficulty,seed,outcome,cause,t,wave,player_hp,tower_hp,min_player,min_tower,drafts,kills,boss_fights,damage")
+			f.store_line("%s,%s,%d,%s,%s,%.1f,%d,%.0f,%.0f,%.0f,%.0f,%d,%d,\"%s\",\"%s\"" % [mode, difficulty, seed_value, outcome, cause, now, wd.get_current_wave_display_index(), p_hp, t_hp, min_player, min_tower, drafts, kills, " | ".join(boss_log), ",".join(dmg_parts)])
 			f.close()
+
+func _cs() -> Node:
+	return root.get_node("CombatStats")
+
