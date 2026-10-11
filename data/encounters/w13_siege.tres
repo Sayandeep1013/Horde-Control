@@ -11,49 +11,49 @@
 [sub_resource type="Resource" id="Resource_group_1"]
 script = ExtResource("2_group")
 enemy_definition_id = "tower_seeker"
-count = 240
+count = 608
 start_offset_seconds = 3.0
-spawn_interval_seconds = 0.12
+spawn_interval_seconds = 0.072
 burst_size = 12
 
 [sub_resource type="Resource" id="Resource_group_2"]
 script = ExtResource("2_group")
 enemy_definition_id = "player_hunter"
-count = 60
+count = 152
 start_offset_seconds = 6.0
-spawn_interval_seconds = 0.5
+spawn_interval_seconds = 0.3
 burst_size = 10
 
 [sub_resource type="Resource" id="Resource_group_3"]
 script = ExtResource("2_group")
 enemy_definition_id = "brute"
-count = 8
+count = 20
 start_offset_seconds = 10.0
-spawn_interval_seconds = 4.0
+spawn_interval_seconds = 2.4
 burst_size = 1
 
 [sub_resource type="Resource" id="Resource_group_4"]
 script = ExtResource("2_group")
 enemy_definition_id = "bomber"
-count = 20
+count = 51
 start_offset_seconds = 20.0
-spawn_interval_seconds = 1.5
+spawn_interval_seconds = 0.9
 burst_size = 4
 
 [sub_resource type="Resource" id="Resource_group_5"]
 script = ExtResource("2_group")
 enemy_definition_id = "goblin_shaman"
-count = 24
+count = 61
 start_offset_seconds = 28.0
-spawn_interval_seconds = 1.5
+spawn_interval_seconds = 0.9
 burst_size = 4
 
 [sub_resource type="Resource" id="Resource_group_6"]
 script = ExtResource("2_group")
 enemy_definition_id = "opportunist"
-count = 40
+count = 101
 start_offset_seconds = 36.0
-spawn_interval_seconds = 0.3
+spawn_interval_seconds = 0.18
 burst_size = 10
 
 [resource]

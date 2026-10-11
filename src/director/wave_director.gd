@@ -146,10 +146,15 @@ const CONSECUTIVE_FAIL_ESCALATION_TICKS: int = 8
 ## movement direction."
 const HUNT_CAMERA_TOWER_PROXIMITY_PX: float = 240.0
 
-## Register > Arena & Camera > "Arena size": "4800 x 3200 px ... Tower at
+## Register > Arena & Camera > "Arena size" (PT-ARENA island since D330). Tower at
 ## centre." Register > Spawn Rings: "clipped to the arena inset by 32
 ## pixels."
-const ARENA_SIZE: Vector2 = Vector2(4800.0, 3200.0)
+## PT-SWARM: the PT-ARENA island (src/arena/arena_layout.gd, D330), 2432 x 1664,
+## used whenever the island's FlowField has installed SpawnGeometry's point
+## projector; without it (suites that build no arena) the ring geometry keeps the
+## original 4800 x 3200 bounds it was authored for. See _arena_half_size().
+const ARENA_SIZE: Vector2 = ArenaLayout.SIZE
+const LEGACY_ARENA_SIZE: Vector2 = Vector2(4800.0, 3200.0)
 const ARENA_INSET_PX: float = 32.0
 
 ## Register > Arena & Camera > "View scale": "1.0 = 1920x1080 world px."
@@ -964,7 +969,7 @@ func physics_step(delta: float) -> void:
 			push_error("WaveDirector: physics_step() called while not configured -- entity_spawner=%s waves=%d encounters=%d. Wire entity_spawner_path (or call set_entity_spawner_for_test()) before driving this node." % [_entity_spawner, waves.size(), _encounter_lookup.size()])
 		return
 	if _registry != null:
-		EnemyController.swarm_alive_count = _registry.get_live_enemy_count() # PT-SWARM LOD (D341)
+		SwarmState.alive_count = _registry.get_live_enemy_count() # PT-SWARM LOD (D341)
 	if _state == State.IDLE:
 		_run_start_time = _now()
 		_open_wave(clampi(dev_start_wave_number - 1, 0, waves.size() - 1) if dev_start_wave_number > 0 else 0)
@@ -1469,10 +1474,12 @@ func _apply_wave_scaling(instance: Node2D, definition: EnemyDefinition = null) -
 	var loop_hp: float = 1.0 + ENDLESS_HP_PER_LOOP * float(loop)
 	var loop_dmg: float = 1.0 + ENDLESS_DAMAGE_PER_LOOP * float(loop)
 	var is_boss: bool = definition != null and definition.readability_profile != null and definition.readability_profile.silhouette_class == ContractEnums.SilhouetteClass.Boss
-	var hp_mult: float = wave.enemy_hp_multiplier * (diff.boss_hp_multiplier if is_boss else diff.enemy_hp_multiplier) * loop_hp
+	# PT-SWARM: a boss wave's HP and damage multipliers are for its minions; a
+	# boss uses its definition x the difficulty multipliers (x the Endless loop).
+	var hp_mult: float = (1.0 if is_boss else wave.enemy_hp_multiplier) * (diff.boss_hp_multiplier if is_boss else diff.enemy_hp_multiplier) * loop_hp
 	if not is_boss and EntityCaps.is_mobile():
 		hp_mult *= MOBILE_HP_MULTIPLIER # PT-SWARM (D345): fewer bodies on mobile, each tougher
-	var dmg_mult: float = wave.enemy_damage_multiplier * diff.enemy_damage_multiplier * loop_dmg
+	var dmg_mult: float = (1.0 if is_boss else wave.enemy_damage_multiplier) * diff.enemy_damage_multiplier * loop_dmg
 	var hunter_mult: float = wave.hunter_damage_multiplier * diff.enemy_damage_multiplier * loop_dmg
 	instance.call("set_wave_scaling", hp_mult, dmg_mult, hunter_mult)
 	if not is_boss and instance.has_method("set_speed_ramp"):
@@ -1516,7 +1523,8 @@ func _maybe_make_elite(instance: Node2D, definition: EnemyDefinition, serial: in
 func _apply_fodder_drop_share(instance: Node2D, definition: EnemyDefinition, serial: int) -> void:
 	if definition == null or definition.entity_cap_weight > 1 or _is_boss_definition(definition):
 		return
-	if String(instance.get("elite_affix")) != "":
+	var affix: Variant = instance.get("elite_affix")
+	if affix is String and affix != "":
 		return
 	var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "drop_share", serial, _current_wave_index])
 	if rng.randf() < FODDER_DROP_SHARE:
@@ -1551,7 +1559,13 @@ func spawn_summons(enemy_id: String, count: int, near: Vector2) -> int:
 		_summon_serial += 1
 		var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "summon", _summon_serial])
 		var offset: Vector2 = Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(SUMMON_RING_MIN_PX, SUMMON_RING_MAX_PX)
-		var position: Vector2 = (near + offset).clamp(arena_center - ARENA_SIZE / 2.0 + Vector2(ARENA_INSET_PX, ARENA_INSET_PX), arena_center + ARENA_SIZE / 2.0 - Vector2(ARENA_INSET_PX, ARENA_INSET_PX))
+		var position: Vector2 = (near + offset).clamp(arena_center - _arena_half_size() + Vector2(ARENA_INSET_PX, ARENA_INSET_PX), arena_center + _arena_half_size() - Vector2(ARENA_INSET_PX, ARENA_INSET_PX))
+		# PT-SWARM: never summon into the moat or a rock (FlowField contract, docs/33 B4).
+		var ff: Node = get_tree().get_first_node_in_group(&"flow_field") if is_inside_tree() else null
+		if ff != null and ff.has_method(&"is_walkable") and not bool(ff.call(&"is_walkable", position)):
+			var alt: Variant = ff.call(&"random_walkable_point", rng, near, SUMMON_RING_MIN_PX * 0.5, SUMMON_RING_MAX_PX * 1.5)
+			if alt is Vector2 and alt != Vector2.ZERO:
+				position = alt
 		var instance: Node2D = _entity_spawner.spawn_enemy(position, func() -> Node2D: return scene.instantiate())
 		if instance == null:
 			break
@@ -1827,7 +1841,7 @@ func _resolve_spawn_placement(encounter: EncounterDefinition, definition: EnemyD
 		ring_info["ring"], ring_info["center"],
 		_tower_center(), _tower_interaction_radius_px(),
 		_view_center(), _view_half_size(), float(director_configuration.camera_exclusion_margin_px),
-		arena_center, ARENA_SIZE / 2.0, ARENA_INSET_PX,
+		arena_center, _arena_half_size(), ARENA_INSET_PX,
 		director_configuration.spawn_validation_retry.steps, director_configuration.spawn_validation_retry.angle_degrees
 	)
 
@@ -1841,7 +1855,7 @@ func _escalated_placement(definition: EnemyDefinition, serial: int) -> Dictionar
 		preferred_angle, primary["ring"], primary["center"],
 		_tower_center(), _tower_interaction_radius_px(),
 		_view_center(), _view_half_size(), float(director_configuration.camera_exclusion_margin_px),
-		arena_center, ARENA_SIZE / 2.0, ARENA_INSET_PX
+		arena_center, _arena_half_size(), ARENA_INSET_PX
 	)
 	if point == null:
 		var other: Dictionary = _other_ring(primary["ring_type"])
@@ -1849,7 +1863,7 @@ func _escalated_placement(definition: EnemyDefinition, serial: int) -> Dictionar
 			preferred_angle, other["ring"], other["center"],
 			_tower_center(), _tower_interaction_radius_px(),
 			_view_center(), _view_half_size(), float(director_configuration.camera_exclusion_margin_px),
-			arena_center, ARENA_SIZE / 2.0, ARENA_INSET_PX
+			arena_center, _arena_half_size(), ARENA_INSET_PX
 		)
 	if point == null:
 		return {"valid": false}
@@ -1982,7 +1996,7 @@ func _resolve_finisher_spawn_placement(definition: EnemyDefinition, serial: int)
 		ring_info["ring"], ring_info["center"],
 		_tower_center(), _tower_interaction_radius_px(),
 		_view_center(), _view_half_size(), float(director_configuration.camera_exclusion_margin_px),
-		arena_center, ARENA_SIZE / 2.0, ARENA_INSET_PX,
+		arena_center, _arena_half_size(), ARENA_INSET_PX,
 		director_configuration.spawn_validation_retry.steps, director_configuration.spawn_validation_retry.angle_degrees
 	)
 
@@ -2053,6 +2067,10 @@ func _maybe_scale_siege_spawn_groups(encounter: EncounterDefinition) -> void:
 
 
 # --- World-state readers, with named Register-cited fallbacks ---------------
+
+func _arena_half_size() -> Vector2:
+	return (ARENA_SIZE if SpawnGeometry.point_projector.is_valid() else LEGACY_ARENA_SIZE) / 2.0
+
 
 func _tower_center() -> Vector2:
 	var tower: Node2D = _resolve_tower()

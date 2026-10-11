@@ -47,7 +47,7 @@
 ## lines (one per wave: duration, player damage taken, Tower damage taken, Tower
 ## HP at wave end) are printed as the run goes.
 
-const SIEGE_WAVES: Array[String] = ["wave_04", "wave_07", "wave_10", "wave_13", "wave_14"] # v1.0 Siege and Grand Assault waves
+const SIEGE_WAVES: Array[String] = ["wave_04", "wave_07", "wave_13", "wave_14"] # Siege and Grand Assault waves (PT-SWARM sequence, D346)
 const PROFILE_FLAG: String = "--meta-profile-dir="
 
 var mode: String = "still"
@@ -60,7 +60,7 @@ var smart_pick: bool = false
 ## damage/rate passives, then sustain. Caltrops is late (only works while moving)
 ## and Spiked Palisade is a defensive tail.
 const SMART_PRIORITY: Array[String] = ["ballista", "whirling_axes", "dynamite_satchel", "storm_bolt", "catapult", "sacred_ground", "flame_arrows", "frost_arrows", "frost_ward", "caliber", "tower_volley", "rapid_fire", "heavy_rounds", "ability_power", "keen_eye", "multishot", "piercing_arrows", "blast_radius", "battle_focus", "optics", "shield_matrix", "reinforced_plating", "vitality", "leather_armor", "regeneration", "watchtower_upgrade", "stone_mason", "caltrops", "spiked_palisade", "fleet_step", "repair_kit", "swift_feet", "magnet", "patch_kit"]
-const BOSS_IDS: Array[String] = ["goblin_warchief", "bombardier_king"]
+const BOSS_IDS: Array[String] = ["goblin_warchief", "gutbarrel_juggernaut", "bombardier_king"]
 const KITE_HUNTER_R: float = 220.0
 const KITE_BOMBER_R: float = 230.0
 const KITE_BOSS_R: float = 330.0

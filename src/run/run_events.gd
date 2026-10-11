@@ -2,8 +2,8 @@ extends Node
 class_name RunEvents
 ## v1.0 run events (docs/32 §A; Register "v1.0 Run Events"; decisions D280-D289).
 ## The scheduled choices of a run: Opening Pick (before wave 1), Patron's Boon
-## (gap after waves 4 and 11), Sanctuary (gap after waves 7 and 14, before each
-## boss) and Blood Pact (after the Goblin Warchief dies). This node is the LOGIC
+## (gap after waves 4 and 11), Sanctuary (gap after waves 4, 9 and 14, before
+## each boss; PT-SWARM D346) and Blood Pact (after the Goblin Warchief dies). This node is the LOGIC
 ## half: it decides WHEN an event is due, rolls the offer on the run seed, and
 ## applies the choice. `EventDraftController` (src/ui/event_draft_controller.gd)
 ## is the UI half; it pops events from here and resolves them.
@@ -38,10 +38,11 @@ const PATRON_CARDS: int = 2
 const LUCKY_COIN_PATRON_CARDS: int = 3 ## relic "lucky_coin"
 const LUCKY_COIN_RELIC_ID: String = "lucky_coin"
 const PATRON_RARITY: int = ContractEnums.Rarity.Epic ## floor ("Epic or better")
-const SANCTUARY_WAVES: Array[int] = [7, 14] ## Sanctuary after these waves
-const WARCHIEF_WAVE: int = 8 ## the campaign Goblin Warchief wave
+const SANCTUARY_WAVES: Array[int] = [4, 9, 14] ## Sanctuary after these waves (PT-SWARM D346: a boss every 5th wave)
+const WARCHIEF_WAVE: int = 5 ## the Goblin Warchief wave (PT-SWARM D346)
 const ENDLESS_LOOP_START_WAVE: int = 15 ## Endless events repeat every ENDLESS_LOOP_LENGTH waves past this
-const ENDLESS_LOOP_LENGTH: int = 7
+const ENDLESS_LOOP_LENGTH: int = 10 ## the Endless loop is waves 6-15 (WaveDirector, D346)
+const BOSS_WAVE_INTERVAL: int = 5 ## a boss closes every 5th wave, Endless included
 const PACTBOUND_CHAMPION_ID: String = "pactbound"
 const PACTBOUND_EXTRA_PACT_WAVE: int = 11
 const EVENT_MIN_GAP_SECONDS: float = 8.0 ## minimum gap after an event wave
@@ -114,11 +115,10 @@ static func is_enabled_by_default() -> bool:
 
 # --- Pure schedule (static, so the director and tests share one rule) ----------
 
-## True on the Goblin Warchief waves: wave 8, and 16, 23, 30, ... in Endless.
-static func is_warchief_wave(wave_number: int, endless: bool) -> bool:
-	if wave_number == WARCHIEF_WAVE:
-		return true
-	return endless and wave_number > ENDLESS_LOOP_START_WAVE and (wave_number - ENDLESS_LOOP_START_WAVE - 1) % ENDLESS_LOOP_LENGTH == 0
+## True on the Goblin Warchief wave: wave 5 only. The Endless loop (waves 6-15)
+## brings the Juggernaut and the King back, not the Warchief (D346).
+static func is_warchief_wave(wave_number: int, _endless: bool) -> bool:
+	return wave_number == WARCHIEF_WAVE
 
 
 static func _endless_event_wave(wave_number: int, endless: bool) -> bool:
@@ -135,9 +135,9 @@ static func events_after_wave(wave_number: int, endless: bool, pactbound: bool =
 		out.append(KIND_PATRON)
 	if pactbound and wave_number == PACTBOUND_EXTRA_PACT_WAVE:
 		out.append(KIND_PACT)
-	# Sanctuary before every boss: waves 7 and 14, and in Endless after wave 15 (the
-	# Warchief of wave 16 follows) and after each later loop's last wave.
-	if SANCTUARY_WAVES.has(wave_number) or (endless and wave_number >= ENDLESS_LOOP_START_WAVE and (wave_number - ENDLESS_LOOP_START_WAVE) % ENDLESS_LOOP_LENGTH == 0):
+	# Sanctuary before every boss: after waves 4, 9 and 14, and in Endless after
+	# every wave that precedes a boss (19, 24, 29, ...).
+	if SANCTUARY_WAVES.has(wave_number) or (endless and wave_number > ENDLESS_LOOP_START_WAVE and (wave_number + 1) % BOSS_WAVE_INTERVAL == 0):
 		out.append(KIND_SANCTUARY)
 	return out
 
