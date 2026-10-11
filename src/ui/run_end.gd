@@ -127,6 +127,7 @@ var _wave_cell: PanelContainer ## the Wave stat cell; kept in sync with _wave_la
 ## (empty) in `_build_ui()`; populated/cleared and styled by
 ## `set_settlement()`.
 var _settlement_box: VBoxContainer
+var _ribbons_box: VBoxContainer ## NEW BEST / unlock / achievement ribbons, under the damage report (left column)
 var _body_scroll: ScrollContainer
 
 ## Round 2 (LEDGER UR-14): 220 was measured too tight for the widest cell.
@@ -387,6 +388,8 @@ static func _source_color(source_id: String) -> Color:
 ## `_settlement_box`'s own node identity/name is unchanged
 ## (`get_settlement_box_for_test()`'s contract).
 func set_settlement(breakdown: Dictionary) -> void:
+	for child in _ribbons_box.get_children():
+		child.queue_free()
 	for child in _settlement_box.get_children():
 		child.queue_free()
 	var lines: Array = breakdown.get("lines", [])
@@ -471,7 +474,7 @@ func _build_new_best_ribbon(text: String) -> PanelContainer:
 	ribbon.name = "NewBestRibbon"
 	ribbon.theme_type_variation = UiTheme.RIBBON
 	ribbon.modulate.a = 0.0
-	_settlement_box.add_child(ribbon)
+	_ribbons_box.add_child(ribbon)
 
 	var label := Label.new()
 	label.text = text
@@ -539,6 +542,10 @@ static func _apply_total_text(value: float, label: Label, prefix: String) -> voi
 
 func get_settlement_box_for_test() -> VBoxContainer:
 	return _settlement_box
+
+
+func get_ribbons_box_for_test() -> VBoxContainer:
+	return _ribbons_box
 
 
 func get_kills_label_for_test() -> Label:
@@ -672,6 +679,10 @@ func _build_ui() -> void:
 	_damage_box.name = "DamageBox"
 	_damage_box.theme_type_variation = UiTheme.vbox("XS")
 	damage_column.add_child(_damage_box)
+
+	_ribbons_box = VBoxContainer.new()
+	_ribbons_box.name = "RibbonsBox"
+	damage_column.add_child(_ribbons_box)
 
 	# Meta layer core: the settlement card container -- see set_settlement()'s
 	# own header for the styling it applies to each child it builds. Hidden

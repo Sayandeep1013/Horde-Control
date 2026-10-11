@@ -65,7 +65,7 @@ func test_new_best_flags_add_a_ribbon_per_flag() -> void:
 		"lines": [{"label": "Waves cleared (8)", "amount": 16}],
 		"total_cores": 16, "new_best_waves": true, "new_best_kills": true, "new_best_survival_seconds": false,
 	})
-	var box: VBoxContainer = screen.get_settlement_box_for_test()
+	var box: VBoxContainer = screen.get_ribbons_box_for_test() # D254: the ribbons live under the damage report
 	var ribbon_count: int = 0
 	for child in box.get_children():
 		# Godot enforces unique SIBLING names -- the second "NewBestRibbon"
@@ -87,7 +87,7 @@ func test_newly_unlocked_achievements_add_one_ribbon_each_with_the_right_text() 
 		"total_cores": 12, "new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
 		"newly_unlocked_achievements": [{"id": "goblin_slayer", "display_name": "Goblin Slayer"}],
 	})
-	var box: VBoxContainer = screen.get_settlement_box_for_test()
+	var box: VBoxContainer = screen.get_ribbons_box_for_test()
 	var found_text: String = ""
 	for child in box.get_children():
 		if child is PanelContainer and (child as PanelContainer).theme_type_variation == UiTheme.RIBBON:
@@ -103,7 +103,7 @@ func test_no_newly_unlocked_achievements_key_builds_no_extra_ribbon() -> void:
 		"lines": [{"label": "Time survived (1 min)", "amount": 1}],
 		"total_cores": 1, "new_best_waves": false, "new_best_kills": false, "new_best_survival_seconds": false,
 	})
-	var box: VBoxContainer = screen.get_settlement_box_for_test()
+	var box: VBoxContainer = screen.get_ribbons_box_for_test() # D254: the ribbons live under the damage report
 	var ribbon_count: int = 0
 	for child in box.get_children():
 		if child is PanelContainer and (child as PanelContainer).theme_type_variation == UiTheme.RIBBON:

@@ -138,7 +138,7 @@ const MUSIC_VOLUME_DB: float = -14.0 # the calm town theme (D254) plays at the t
 
 const MENU_CARD_MIN_WIDTH: float = 460.0
 const SETUP_CARD_MIN_WIDTH: float = 700.0
-const PICKER_BUTTON_MIN_SIZE: Vector2 = Vector2(330.0, 64.0)
+const PICKER_BUTTON_MIN_SIZE: Vector2 = Vector2(330.0, 72.0)
 const PICKER_ICON_SIDE: int = 40
 const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 60.0)
 const HUB_MENU_BAND_TOP: float = 250.0 # 1080-base px; UX review P0-1

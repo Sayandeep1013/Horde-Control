@@ -57,7 +57,7 @@ class_name SkillNodeView
 ##
 ## ## v2 board node (D250, WP-META)
 ## The tree grew to five branches and 30 nodes, and the author asked for node
-## NAMES on the board. The tablet is now 236 x 148: the name on top in the 37 px
+## NAMES on the board. The tablet is now 236 x 164: the name on top in the 37 px
 ## font (wrapped to at most two lines; every authored word fits one line of the
 ## wrap width), and one bottom row with the 32 px icon, rank pips and price.
 ## The icon is the project pixel icon `assets/ui/icons/icon_<icon_id>.png` when
@@ -111,7 +111,7 @@ signal node_released(id: String)
 ## Tree node text". The node is now wider than it is tall (NODE_SIZE x
 ## NODE_HEIGHT) so two lines of 20 px name text and the price row fit.
 const NODE_SIZE: float = 236.0 ## width (D250: holds a 37 px two-line name; the board pans, so size is not capped by the screen)
-const NODE_HEIGHT: float = 148.0
+const NODE_HEIGHT: float = 164.0
 const ICON_SIDE: int = 32
 const ROOT_ICON_SIDE: int = 64
 const NAME_WRAP_WIDTH: float = NODE_SIZE - 28.0

@@ -114,7 +114,7 @@ class_name SkillTreeScreen
 ## cost.
 
 ## ## v2 (D250, WP-META): five branches, node names on the board, click to buy
-## The board is now 8 x 9 cells of 266 x 168 (the tablets hold a 37 px two-line
+## The board is now 8 x 9 cells of 266 x 180 (the tablets hold a 37 px two-line
 ## name, see `SkillNodeView`); it is larger than the screen, so it scrolls and
 ## `_select()` keeps the selected node in view. Branch names sit on small
 ## ribbons in empty cells beside their branch (`BRANCH_LABEL_CELLS`) instead of
@@ -167,7 +167,7 @@ const BRANCH_LABEL_CELLS: Dictionary = {
 ## vertical room in the SAME 1080-px budget for the new branch-header-
 ## ribbon row and legend row this pass adds above/below the board.
 const CELL_W: float = 266.0
-const CELL_H: float = 168.0
+const CELL_H: float = 180.0
 const DETAIL_PANEL_WIDTH: float = 440.0
 ## The root's own footprint (polish pass item 2: "keep the root visibly
 ## special ... larger"). Skill Tree art pass: shrunk to keep the same
@@ -555,7 +555,11 @@ func _keep_in_view(id: String) -> void:
 
 ## Centres the scroll view on the Command Tent when the screen opens.
 func _center_on_root() -> void:
-	if _board_scroll == null or not is_instance_valid(_board):
+	# The scroll has no size until the screen has been laid out once, so wait for it.
+	if is_inside_tree():
+		await get_tree().process_frame
+		await get_tree().process_frame
+	if _board_scroll == null or not is_instance_valid(_board) or not visible:
 		return
 	var root_view: Control = _node_views.get(_tree.root_id)
 	if root_view == null:
