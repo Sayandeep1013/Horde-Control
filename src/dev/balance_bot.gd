@@ -91,6 +91,7 @@ func _initialize() -> void:
 		GameSettings.set_auto_cast_enabled(true)
 	if seed_value < 0:
 		seed_value = int(randi() & 0x7fffffff)
+	RunConfig.run_events_forced = true # docs/32: the run events run headless too, and the bot answers them
 	var ps: PackedScene = load("res://scenes/prototype.tscn")
 	root_scene = ps.instantiate()
 	root_scene.run_seed = seed_value
@@ -181,8 +182,9 @@ func _process(_delta: float) -> bool:
 		draft.confirm_choice_for_test(idx)
 		drafts += 1
 
+	_handle_events(now, player, tower)
 	if not ended:
-		player.set_input_direction_for_test(_movement_dir(player, tower, ps))
+		player.set_input_direction_for_test(_focus_adjust(_movement_dir(player, tower, ps), player, now))
 
 	var wid: String = wd.get_current_wave_id()
 	if wid != last_wave:
@@ -231,3 +233,60 @@ func _finish(outcome: String, now: float, wd: Node, p_hp: float, t_hp: float, rf
 				f.store_line("mode,seed,outcome,t,wave,player_hp,tower_hp,min_player,min_tower,peak_pressure,drafts,kills")
 			f.store_line("%s,%d,%s,%.1f,%d,%.0f,%.0f,%.0f,%.0f,%.2f,%d,%d" % [mode, seed_value, outcome, now, wd.get_current_wave_display_index(), p_hp, t_hp, min_player, min_tower, peak_pressure, drafts, kills])
 			f.close()
+
+
+# --- WP-RUNEVENTS (docs/32 §A, §A2): run events and Focus ------------------------
+
+const FOCUS_NEAR_ENEMY_PX: float = 150.0 ## stand only when nothing is this close
+const FOCUS_STAND_SECONDS: float = 2.0 ## long enough to reach full Focus (0.25 s + 1.5 s)
+const FOCUS_MOVE_SECONDS: float = 3.0 ## then carry on (pickups, orbit) before standing again
+var events_taken: int = 0
+var _focus_stand_until: float = -1.0
+var _focus_next_stand: float = 0.0
+
+
+## Answers an open run event: Opening Pick and Patron's Boon by the smart priority,
+## Sanctuary by need (Restore if the Tower is under 50%, Mend if the player is, else
+## Valor), Blood Pact by paying with the pool that has more HP (refusing if both are
+## under 60%). Skips the input lockout like the Draft block does.
+func _handle_events(now: float, player: Node, tower: Node) -> void:
+	var ev: Node = _n("EventDraftInstance")
+	if ev == null or not ev.is_showing():
+		return
+	var offer: Dictionary = ev.get_offer()
+	var cards: Array = offer.get("cards", [])
+	var p_frac: float = player.death_state.current_hp / maxf(1.0, player.death_state.max_hp)
+	var t_frac: float = tower.health.get_current_health() / maxf(1.0, tower.health.max_health)
+	var idx: int = 0
+	match str(offer.get("kind", "")):
+		"opening_pick", "patrons_boon":
+			var best_rank: int = 999
+			for i in cards.size():
+				var rank: int = SMART_PRIORITY.find(str(cards[i].get("id", "")))
+				rank = 500 if rank < 0 else rank
+				if str(cards[i].get("id", "")) == "patch_kit" and p_frac < 0.5:
+					rank = -2
+				if str(cards[i].get("id", "")) == "repair_kit" and t_frac < 0.5:
+					rank = -1
+				if rank < best_rank:
+					best_rank = rank
+					idx = i
+		"sanctuary":
+			idx = 1 if t_frac < 0.5 else (0 if p_frac < 0.5 else 2) # Restore, Mend, Valor
+		"blood_pact":
+			idx = 2 if (p_frac < 0.6 and t_frac < 0.6) else (1 if t_frac > p_frac else 0) # Refuse, Tower, blood
+	print("[%6.1f] EVENT %s -> %d (P=%.2f T=%.2f)" % [now, offer.get("kind", ""), idx, p_frac, t_frac])
+	events_taken += 1
+	ev.skip_lockout_for_test()
+	ev.confirm_choice_for_test(idx)
+
+
+## Stands still for FOCUS_STAND_SECONDS whenever no enemy is within FOCUS_NEAR_ENEMY_PX,
+## then moves for FOCUS_MOVE_SECONDS, so the bow reaches full Focus in quiet moments.
+func _focus_adjust(dir: Vector2, player: Node2D, now: float) -> Vector2:
+	if now < _focus_stand_until:
+		return Vector2.ZERO if root.get_node("EntityRegistry").get_enemies_in_radius(player.global_position, FOCUS_NEAR_ENEMY_PX).is_empty() else dir
+	if now >= _focus_next_stand and root.get_node("EntityRegistry").get_enemies_in_radius(player.global_position, FOCUS_NEAR_ENEMY_PX).is_empty():
+		_focus_stand_until = now + FOCUS_STAND_SECONDS
+		_focus_next_stand = _focus_stand_until + FOCUS_MOVE_SECONDS
+	return dir

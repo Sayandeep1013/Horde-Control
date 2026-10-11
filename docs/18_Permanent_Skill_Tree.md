@@ -69,7 +69,7 @@ Tier drives the price formula (section 4.3) and is authored per node in `data/me
 | Archer | Quick Draw | 1 | 3 | +6% fire rate | Tent |
 | Archer | Keen Eye | 3 | 3 | +4% critical chance | Sharpened Arrows |
 | Archer | Eagle Eye | 2 | 2 | +10% bow range | Quick Draw |
-| Archer | Armory (keystone) | 4 | 1 | start each run with a free Level 1 player ability | Keen Eye and Eagle Eye |
+| Archer | Armory (keystone) | 4 | 1 | the Opening Pick offers 4 abilities rolled Epic instead of 3 at Rare (D281; no free ability) | Keen Eye and Eagle Eye |
 | Survival | Vitality | 1 | 3 | +10% player max health | Tent |
 | Survival | Swift Boots | 1 | 3 | +4% move speed | Vitality |
 | Survival | Iron Skin | 3 | 3 | -5% damage taken | Vitality |
