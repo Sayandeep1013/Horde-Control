@@ -32,6 +32,7 @@ definition = ExtResource("5_def")
 hit_sfx = ExtResource("8_hit")
 death_sfx = ExtResource("9_death_sfx")
 freeze_immune = true
+body_collision_radius_px = 22.0
 
 [node name="BodyShape" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_body")

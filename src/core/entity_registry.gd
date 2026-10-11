@@ -210,9 +210,12 @@ func update_position(entity: Node2D, position: Vector2) -> bool:
 	if entity == null or not _entity_to_slot.has(entity):
 		return false
 	var slot: int = _entity_to_slot[entity]
-	_remove_from_grid(slot, _slot_position[slot])
+	# PT-SWARM (D341): most moves stay inside one grid cell; only a cell change
+	# touches the buckets (each bucket write copies its packed array).
+	if _cell_of(_slot_position[slot]) != _cell_of(position):
+		_remove_from_grid(slot, _slot_position[slot])
+		_add_to_grid(slot, position)
 	_slot_position[slot] = position
-	_add_to_grid(slot, position)
 	return true
 
 

@@ -3,43 +3,42 @@
 [ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="1_enc"]
 [ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
 
-; v1.0 wave 2 (docs/31 6.1; decision D171). Group counts, offsets and
-; intervals are Register "v1.0 Enemies, Bosses & Waves" > "Wave sequence"
-; starting values (Soldier, spawn count x1.0); the difficulty profile scales
-; the counts at spawn time. minimum_recovery_gap_seconds is the Register's
-; 8 s inter-wave gap (12 s before a boss wave; WP-BALANCE, D270).
+; PT-SWARM wave 2, standard (docs/33 C1-C3; decisions D344, D346). Group counts,
+; offsets, intervals, bursts and the encounter alive cap are Register "v1.0
+; Enemies, Bosses & Waves" > "Wave sequence" (about 10x the v1.0 counts;
+; difficulty scales counts at spawn).
 
 [sub_resource type="Resource" id="Resource_group_1"]
 script = ExtResource("2_group")
 enemy_definition_id = "player_hunter"
-count = 4
+count = 16
 start_offset_seconds = 0.0
 spawn_interval_seconds = 0.5
-burst_size = 1
+burst_size = 4
 
 [sub_resource type="Resource" id="Resource_group_2"]
 script = ExtResource("2_group")
 enemy_definition_id = "tower_seeker"
-count = 5
-start_offset_seconds = 0.0
-spawn_interval_seconds = 1.0
-burst_size = 1
+count = 24
+start_offset_seconds = 3.0
+spawn_interval_seconds = 0.6
+burst_size = 6
 
 [sub_resource type="Resource" id="Resource_group_3"]
 script = ExtResource("2_group")
 enemy_definition_id = "player_hunter"
-count = 4
-start_offset_seconds = 10.0
-spawn_interval_seconds = 0.5
-burst_size = 1
+count = 20
+start_offset_seconds = 14.0
+spawn_interval_seconds = 0.4
+burst_size = 5
 
 [sub_resource type="Resource" id="Resource_group_4"]
 script = ExtResource("2_group")
 enemy_definition_id = "tower_seeker"
-count = 4
-start_offset_seconds = 20.0
-spawn_interval_seconds = 1.0
-burst_size = 1
+count = 24
+start_offset_seconds = 24.0
+spawn_interval_seconds = 0.5
+burst_size = 6
 
 [resource]
 script = ExtResource("1_enc")
@@ -56,7 +55,7 @@ telegraph_requirements = Array[TelegraphData]([])
 minimum_recovery_gap_seconds = 8.0
 priority = 20
 entity_cap_behavior = 0
-encounter_alive_cap = 0
+encounter_alive_cap = 90
 allowed_encounter_tags = Array[String]([])
 excluded_encounter_tags = Array[String]([])
 reward = null

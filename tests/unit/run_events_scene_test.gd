@@ -47,5 +47,5 @@ func test_the_wave_director_is_given_the_event_gap_floor_and_events_follow_its_w
 	var events: RunEvents = proto.get_run_events()
 	# The director's own signal queues the event for the wave that just ended (wave index 3 = wave 4).
 	wd.wave_ended.emit("wave_04", 3)
-	assert_array(events.get_pending_kinds()).is_equal(["patrons_boon"])
+	assert_array(events.get_pending_kinds()).is_equal(["patrons_boon", "sanctuary"]) # PT-SWARM D346: the Warchief is wave 5
 	assert_float(events.gap_floor_for_director(4)).is_equal(8.0)

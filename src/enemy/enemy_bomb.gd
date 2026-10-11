@@ -29,6 +29,14 @@ var telegraph_color: Color = Color(0.9, 0.15, 0.1)
 var attacker: Node = null
 var registry: Node = null
 var clock: Node = null
+## PT-SWARM: an object sitting on the landing point for the whole fuse (the
+## Juggernaut's barrels). Set before add_child; frame 0 of `ground_hframes`.
+var ground_texture: Texture2D = null
+var ground_hframes: int = 1
+var ground_vframes: int = 1
+var ground_frame: int = 0
+var ground_scale: float = 1.0
+var ground_modulate: Color = Color.WHITE
 
 var _start_time: float = 0.0
 var _sprite: Sprite2D = null
@@ -63,6 +71,20 @@ func _ready() -> void:
 	global_position = from_position
 	_start_time = clock.now
 	_telegraph = GroundTelegraph.spawn(get_parent(), target_position, blast_radius, flight_seconds, telegraph_color, false)
+	if ground_texture != null:
+		var g := Sprite2D.new()
+		g.texture = ground_texture
+		g.hframes = ground_hframes
+		g.vframes = ground_vframes
+		g.frame = ground_frame
+		g.scale = Vector2(ground_scale, ground_scale)
+		g.modulate = ground_modulate
+		g.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		g.z_as_relative = false
+		g.z_index = SPRITE_Z_INDEX
+		g.top_level = true
+		add_child(g)
+		g.global_position = target_position + Vector2(0.0, -20.0 * ground_scale)
 	if show_dynamite:
 		_sprite = Sprite2D.new()
 		_sprite.texture = DYNAMITE_SHEET

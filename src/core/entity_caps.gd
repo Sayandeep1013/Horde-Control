@@ -2,7 +2,8 @@ extends RefCounted
 class_name EntityCaps
 
 ## EntityCaps (P1.3; MASTER_SDLC.md > Provisional Values Register >
-## Technical Caps & Performance > "Entity caps" row: "Enemies 300 (never
+## Technical Caps & Performance > "Entity caps" row (PT-SWARM D345: enemies
+## 400 desktop / 180 mobile, enemy bullets 320; the quote below is the P1.3 text): "Enemies 300 (never
 ## exceeded; Overtime finishers count against it and throttle like any
 ## spawn, C-OVERTIME-CAP), pickups 150, projectiles 400 (oldest recycled),
 ## damage numbers 30, simultaneous telegraphs 40 (player-aimed telegraphs
@@ -23,9 +24,28 @@ class_name EntityCaps
 ## (this project has shipped that exact defect three times per the carried
 ## lesson).
 
-const MAX_ENEMIES: int = 300
+## PT-SWARM (D345): 400 alive on desktop (was 300), 180 on mobile.
+const MAX_ENEMIES: int = 400
+const MAX_ENEMIES_MOBILE: int = 180
 const MAX_PICKUPS: int = 150
 const MAX_PROJECTILES: int = 400
 const MAX_DAMAGE_NUMBERS: int = 30
 const MAX_TELEGRAPHS: int = 40
 const MAX_HIGH_INTENSITY_VFX: int = 24
+## PT-SWARM (D347): enemy bullets alive at once (boss patterns, Shamans); the
+## oldest is recycled past it.
+const MAX_ENEMY_BULLETS: int = 320
+
+## Test seam: -1 = ask the OS, 0 = force desktop, 1 = force mobile.
+static var mobile_override: int = -1
+
+
+static func is_mobile() -> bool:
+	if mobile_override >= 0:
+		return mobile_override == 1
+	return OS.has_feature("mobile")
+
+
+## The enemy alive cap for this platform.
+static func max_enemies() -> int:
+	return MAX_ENEMIES_MOBILE if is_mobile() else MAX_ENEMIES

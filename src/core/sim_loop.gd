@@ -252,7 +252,12 @@ func _run_step(step: int, delta: float) -> void:
 	if list.is_empty():
 		return
 	var ordered: Array = list.duplicate() # snapshot -- see class doc
-	ordered.sort_custom(_registration_less_than)
+	# PT-SWARM (D341): register() appends in ascending reg_serial order and
+	# unregister() preserves order, so the list is already sorted unless the
+	# registry supplies its own serials. Skipping the no-op sort saved ~3 ms a
+	# tick at 300 enemies (the comparator called has_method twice per compare).
+	if _entity_registry != null and _entity_registry.has_method(&"get_registration_serial"):
+		ordered.sort_custom(_registration_less_than)
 	for entry in ordered:
 		var node: Variant = entry.get("node")
 		if node == null or not is_instance_valid(node):

@@ -3,59 +3,66 @@
 [ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="1_enc"]
 [ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
 
-; v1.0 wave 14 (docs/31 6.1; decision D171). Group counts, offsets and
-; intervals are Register "v1.0 Enemies, Bosses & Waves" > "Wave sequence"
-; starting values (Soldier, spawn count x1.0); the difficulty profile scales
-; the counts at spawn time. minimum_recovery_gap_seconds is the Register's
-; 8 s inter-wave gap (12 s before a boss wave; WP-BALANCE, D270).
+; PT-SWARM wave 14, grand assault (docs/33 C1-C3; decisions D344, D346). Group counts,
+; offsets, intervals, bursts and the encounter alive cap are Register "v1.0
+; Enemies, Bosses & Waves" > "Wave sequence" (about 10x the v1.0 counts;
+; difficulty scales counts at spawn).
 
 [sub_resource type="Resource" id="Resource_group_1"]
 script = ExtResource("2_group")
 enemy_definition_id = "tower_seeker"
-count = 40
+count = 507
 start_offset_seconds = 3.0
-spawn_interval_seconds = 1.2
-burst_size = 8
+spawn_interval_seconds = 0.072
+burst_size = 12
 
 [sub_resource type="Resource" id="Resource_group_2"]
 script = ExtResource("2_group")
 enemy_definition_id = "player_hunter"
-count = 10
+count = 254
 start_offset_seconds = 8.0
-spawn_interval_seconds = 3.0
-burst_size = 1
+spawn_interval_seconds = 0.15
+burst_size = 10
 
 [sub_resource type="Resource" id="Resource_group_3"]
 script = ExtResource("2_group")
 enemy_definition_id = "opportunist"
-count = 8
-start_offset_seconds = 10.0
-spawn_interval_seconds = 1.0
-burst_size = 1
+count = 152
+start_offset_seconds = 12.0
+spawn_interval_seconds = 0.18
+burst_size = 10
 
 [sub_resource type="Resource" id="Resource_group_4"]
 script = ExtResource("2_group")
-enemy_definition_id = "bomber"
-count = 5
-start_offset_seconds = 20.0
-spawn_interval_seconds = 2.5
-burst_size = 1
+enemy_definition_id = "goblin_shaman"
+count = 76
+start_offset_seconds = 18.0
+spawn_interval_seconds = 0.6
+burst_size = 5
 
 [sub_resource type="Resource" id="Resource_group_5"]
 script = ExtResource("2_group")
-enemy_definition_id = "brute"
-count = 4
-start_offset_seconds = 25.0
-spawn_interval_seconds = 8.0
-burst_size = 1
+enemy_definition_id = "bomber"
+count = 61
+start_offset_seconds = 22.0
+spawn_interval_seconds = 0.72
+burst_size = 4
 
 [sub_resource type="Resource" id="Resource_group_6"]
 script = ExtResource("2_group")
+enemy_definition_id = "brute"
+count = 25
+start_offset_seconds = 26.0
+spawn_interval_seconds = 2.4
+burst_size = 1
+
+[sub_resource type="Resource" id="Resource_group_7"]
+script = ExtResource("2_group")
 enemy_definition_id = "tower_seeker"
-count = 14
+count = 203
 start_offset_seconds = 50.0
-spawn_interval_seconds = 1.2
-burst_size = 7
+spawn_interval_seconds = 0.09
+burst_size = 10
 
 [resource]
 script = ExtResource("1_enc")
@@ -65,14 +72,14 @@ design_intent = "grand assault wave 14"
 pressure_target = 0.0
 player_answer = ""
 failure_signature = ""
-spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("Resource_group_2"), SubResource("Resource_group_3"), SubResource("Resource_group_4"), SubResource("Resource_group_5"), SubResource("Resource_group_6")])
+spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("Resource_group_2"), SubResource("Resource_group_3"), SubResource("Resource_group_4"), SubResource("Resource_group_5"), SubResource("Resource_group_6"), SubResource("Resource_group_7")])
 intent_budget_overrides = Array[IntentBudgetOverride]([])
 directional_weighting_override = null
 telegraph_requirements = Array[TelegraphData]([])
 minimum_recovery_gap_seconds = 12.0
 priority = 80
 entity_cap_behavior = 0
-encounter_alive_cap = 140
+encounter_alive_cap = 360
 allowed_encounter_tags = Array[String]([])
 excluded_encounter_tags = Array[String]([])
 reward = null

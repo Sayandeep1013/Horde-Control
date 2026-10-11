@@ -306,6 +306,9 @@ func _resolve_drop_table_for(entity: Node2D) -> DropTable:
 		elite_table.scrap = ELITE_SCRAP
 		elite_table.cores = 0
 		return elite_table
+	var drop_override: Variant = entity.get("drop_table_override") # PT-SWARM (D345): swarm fodder that drops nothing
+	if drop_override is DropTable:
+		return drop_override
 	var is_finisher: Variant = entity.get("is_finisher")
 	if is_finisher == true:
 		var override: DropTable = DropTable.new()

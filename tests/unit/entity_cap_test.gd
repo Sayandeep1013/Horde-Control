@@ -15,7 +15,7 @@ extends GdUnitTestSuite
 ## make this test pass by agreeing with itself (this project has shipped
 ## that exact defect three times per the carried lesson).
 
-const REGISTER_MAX_ENEMIES: int = 300
+const REGISTER_MAX_ENEMIES: int = 400 # PT-SWARM (D345): desktop 400 (was 300); mobile 180 in pt_swarm_swarm_test.gd
 const REGISTER_MAX_PICKUPS: int = 150
 const REGISTER_MAX_PROJECTILES: int = 400
 const REGISTER_MAX_DAMAGE_NUMBERS: int = 30
@@ -46,7 +46,7 @@ func after_test() -> void:
 		_spawner.clear_all_for_test()
 
 
-# --- Enemy cap (300) -------------------------------------------------------
+# --- Enemy cap (400 desktop) -------------------------------------------------------
 
 func test_enemy_cap_is_never_exceeded() -> void:
 	var observed_max: int = 0

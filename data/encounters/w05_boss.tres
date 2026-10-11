@@ -1,0 +1,64 @@
+[gd_resource type="Resource" script_class="EncounterDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="1_enc"]
+[ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
+
+; PT-SWARM wave 5, boss (docs/33 C1-C3; decisions D344, D346). Group counts,
+; offsets, intervals, bursts and the encounter alive cap are Register "v1.0
+; Enemies, Bosses & Waves" > "Wave sequence" (about 10x the v1.0 counts;
+; difficulty scales counts at spawn). Boss wave: the minion groups re-arm
+; while the boss lives (D344), at about 40% of a normal wave's spawn rate.
+
+[sub_resource type="Resource" id="Resource_group_1"]
+script = ExtResource("2_group")
+enemy_definition_id = "goblin_warchief"
+count = 1
+start_offset_seconds = 0.0
+spawn_interval_seconds = 1.0
+burst_size = 1
+
+[sub_resource type="Resource" id="Resource_group_2"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 6
+start_offset_seconds = 3.0
+spawn_interval_seconds = 2.5
+burst_size = 3
+
+[sub_resource type="Resource" id="Resource_group_3"]
+script = ExtResource("2_group")
+enemy_definition_id = "tower_seeker"
+count = 8
+start_offset_seconds = 6.0
+spawn_interval_seconds = 2.5
+burst_size = 4
+
+[sub_resource type="Resource" id="Resource_group_4"]
+script = ExtResource("2_group")
+enemy_definition_id = "bomber"
+count = 2
+start_offset_seconds = 12.0
+spawn_interval_seconds = 5.0
+burst_size = 1
+
+[resource]
+script = ExtResource("1_enc")
+unique_id = "w05_boss"
+encounter_type = 0
+design_intent = "boss wave 5"
+pressure_target = 0.0
+player_answer = ""
+failure_signature = ""
+spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("Resource_group_2"), SubResource("Resource_group_3"), SubResource("Resource_group_4")])
+intent_budget_overrides = Array[IntentBudgetOverride]([])
+directional_weighting_override = null
+telegraph_requirements = Array[TelegraphData]([])
+minimum_recovery_gap_seconds = 8.0
+priority = 20
+entity_cap_behavior = 0
+encounter_alive_cap = 120
+allowed_encounter_tags = Array[String]([])
+excluded_encounter_tags = Array[String]([])
+reward = null
+failure_resolution = 0
+partial_reward_rules = null
