@@ -101,6 +101,9 @@ const FALLBACK_MIN_SIZE: Vector2 = Vector2(240, 22) ## defensive default only; e
 @export var background_color: Color
 @export var border_color: Color
 @export var tick_color: Color
+## Fraction (0-1) of an extra phase marker, or -1 for none (the boss bar's
+## enrage threshold, docs/31 section 5.3).
+@export var marker_fraction: float = -1.0
 
 var _value: float = 0.0
 var _max_value: float = 1.0
@@ -120,6 +123,8 @@ var _shake_remaining: float = 0.0
 ## Second UI pass: gain-glow alpha, counting down from 1.0 to 0 over
 ## `UiPalette.XP_GLOW` seconds on a rise; never read outside `_process()`/`_draw()`.
 var _gain_glow_alpha: float = 0.0
+## Optional "cur/max" text centred inside the bar (v1.0 HUD, docs/31 8.1).
+var _text_label: Label = null
 
 
 ## Defaults every colour export from UiPalette. Done here, not as an inline
@@ -200,14 +205,16 @@ func set_value(current: float, max_v: float) -> void:
 		_value = current
 		_max_value = max_v
 		var new_fraction: float = get_fraction()
+		var strobe_ok: bool = not GameSettings.is_reduce_flashing() # Reduce flashing: no flash, shake or glow; the ghost segment stays
 		if new_fraction < old_fraction - 0.0005:
 			_ghost_fraction = maxf(_ghost_fraction, old_fraction)
-			_flash_alpha = 1.0
-			_shake_remaining = UiPalette.BAR_SHAKE # second UI pass: "a shake/flash when taking damage" -- same trigger as the flash above
+			if strobe_ok:
+				_flash_alpha = 1.0
+				_shake_remaining = UiPalette.BAR_SHAKE
 		else:
 			_ghost_fraction = maxf(_ghost_fraction, new_fraction)
-			if new_fraction > old_fraction + 0.0005:
-				_gain_glow_alpha = 1.0 # second UI pass: "a fill glow/animation on gain" -- see class header
+			if new_fraction > old_fraction + 0.0005 and strobe_ok:
+				_gain_glow_alpha = 1.0
 		queue_redraw()
 	else:
 		_value = current
@@ -217,6 +224,30 @@ func set_value(current: float, max_v: float) -> void:
 ## Typed command: sets the overlaid shield segment (Tower bar only; a
 ## caller may still call this on a bar with `enable_shield_segment = false`,
 ## it will simply never be drawn).
+## Text centred inside the bar ("82/100"); "" hides it. A child Label, so the
+## theme's outlined HUD font and the 37 px floor apply.
+func set_text(text: String) -> void:
+	if text == "" and _text_label == null:
+		return
+	if _text_label == null:
+		_text_label = Label.new()
+		_text_label.name = "BarText"
+		_text_label.theme_type_variation = UiTheme.HUD_VALUE
+		_text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_text_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_text_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		_text_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		_text_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(_text_label)
+	_text_label.text = text
+	_text_label.visible = text != ""
+
+
+func get_text_label() -> Label:
+	return _text_label
+
+
 func set_shield(current: float, max_v: float) -> void:
 	var changed: bool = not is_equal_approx(current, _shield_value) or not is_equal_approx(max_v, _shield_max_value)
 	_shield_value = current
@@ -315,6 +346,10 @@ func _draw() -> void:
 	if enable_health_tick_rule:
 		var tick_x: float = round(inner.position.x + inner.size.x * TICK_FRACTION)
 		draw_rect(Rect2(Vector2(tick_x, inner.position.y), Vector2(2.0, inner.size.y)), tick_color, true)
+
+	if marker_fraction >= 0.0 and marker_fraction <= 1.0:
+		var marker_x: float = round(inner.position.x + inner.size.x * marker_fraction)
+		draw_rect(Rect2(Vector2(marker_x, inner.position.y), Vector2(2.0, inner.size.y)), UiPalette.TEXT, true)
 
 	# Cosmetic: a brief flash across the whole bar on a value LOSS.
 	if _flash_alpha > 0.0:

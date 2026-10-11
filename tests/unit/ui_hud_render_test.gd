@@ -41,7 +41,7 @@ const VIEWPORT_SIZE: Vector2i = Vector2i(1920, 1080)
 ## height row; "pill" itself is a UI-pass addition, not a pre-existing
 ## Register concept. This bound is local to this test.
 ## 112 (was 100): the pixel-grid type sizes (D156) put HUD values at 37 px (was 30), which adds 8 px to the two-row pills; the defect this test catches still starts at about 125 px.
-const MAX_SANE_PILL_HEIGHT_PX: float = 112.0
+const MAX_SANE_PILL_HEIGHT_PX: float = 160.0 # v1.0 clusters carry a bar plus an info line; the character-wrap defect this catches reaches 235 px
 
 var _hud: Hud
 var _viewport_size_saved: Vector2i
@@ -58,7 +58,6 @@ func before_test() -> void:
 	_hud.economy_state.wave_current = 8
 	_hud.economy_state.wave_total = 8
 	_hud.economy_state.level = 12
-	_hud.economy_state.rerolls_remaining = 1
 	_hud.economy_state.scrap_current = 200
 	_hud.economy_state.scrap_cap = 200
 	_hud.economy_state.hopper_amount = 17
@@ -78,13 +77,7 @@ func _find(node_name: String) -> Node:
 
 
 func test_every_hud_label_renders_on_a_single_line() -> void:
-	var label_names: Array = [
-		"PlayerHealthGlyph", "TowerHealthGlyph", "ScrapGlyph", "XpGlyph",
-		"WaveCaptionLabel", "WaveLabel",
-		"LevelCaptionLabel", "LevelLabel",
-		"RerollsCaptionLabel", "RerollsLabel",
-		"ScrapValueLabel", "FullBadgeLabel", "HopperLabel",
-	]
+	var label_names: Array = ["WaveLabel", "TimerLabel", "KillsLabel", "LevelLabel", "ScrapValueLabel", "FullBadgeLabel", "HopperLabel", "BarText"]
 	for label_name in label_names:
 		var label: Label = _find(label_name) as Label
 		assert_object(label).append_failure_message("%s was not found in the built HUD tree" % label_name).is_not_null()
@@ -93,7 +86,7 @@ func test_every_hud_label_renders_on_a_single_line() -> void:
 
 
 func test_every_pill_stays_under_a_sane_height() -> void:
-	var pill_names: Array = ["PlayerHealthPill", "TowerHealthPill", "ScrapPill", "XpPill"]
+	var pill_names: Array = ["PlayerHealthField", "TowerHealthPill", "ScrapField"]
 	for pill_name in pill_names:
 		var pill: Control = _find(pill_name) as Control
 		assert_object(pill).append_failure_message("%s was not found in the built HUD tree" % pill_name).is_not_null()

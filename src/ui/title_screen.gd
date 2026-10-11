@@ -75,7 +75,7 @@ const MUSIC_STREAM_PATH: String = "res://assets/third_party/opengameart/music/ba
 const GRASS_TILE_REGION: Rect2 = Rect2(64.0, 64.0, 64.0, 64.0)
 
 const CASTLE_SIZE: Vector2 = Vector2(576.0, 461.0) ## 1.8x Castle_Blue.png's native 320x256
-const CASTLE_TOP_LEFT: Vector2 = Vector2(672.0, 250.0)
+const CASTLE_TOP_LEFT: Vector2 = Vector2(1090.0, 300.0) ## v1.0: the menu card owns the left half, the castle stands to its right (it used to sit behind the card)
 
 const TREE_FRAME: Vector2i = Vector2i(192, 192)
 const TREE_SIZE: Vector2 = Vector2(460.0, 460.0)
@@ -87,16 +87,15 @@ const GOBLIN_SIZE: Vector2 = Vector2(240.0, 240.0)
 ## footprint (roughly x 730-1190, see `_build_menu_card()`) so no goblin is
 ## fully hidden behind it.
 const GOBLIN_SPOTS: Array = [
-	[Vector2(60.0, 850.0), false],
-	[Vector2(380.0, 880.0), true],
-	[Vector2(1300.0, 880.0), false],
-	[Vector2(1620.0, 850.0), true],
+	[Vector2(-30.0, 880.0), false],
+	[Vector2(1020.0, 790.0), false],
+	[Vector2(1620.0, 860.0), true],
 ]
 
 const MUSIC_VOLUME_DB: float = -14.0
 
 const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 56.0)
-const MENU_BAND_TOP: float = 540.0 # 1080-base px; UX review P0-2
+const MENU_BAND_TOP: float = 290.0 # 1080-base px; below the tagline; six buttons fit the band
 const MENU_BAND_BOTTOM: float = 1060.0
 const MENU_CARD_MIN_WIDTH: float = 460.0
 ## D147: the mobile layout draws the title on a 720 px tall logical canvas, so
@@ -110,6 +109,7 @@ const COMPACT_TAGLINE_BOTTOM: float = 190.0
 const COMPACT_MENU_BAND_TOP: float = 198.0
 const COMPACT_MENU_BAND_BOTTOM: float = 712.0
 const COMPACT_SUB_PANEL_SCROLL_HEIGHT: float = 260.0
+const HOW_TO_PLAY_TOP_PX: float = 40.0 ## the How to Play page hides the logo and starts near the top
 const SUB_PANEL_MIN_WIDTH: float = 900.0
 const SUB_PANEL_SCROLL_MAX_HEIGHT: float = 480.0 ## docs/19 > "UI Layout & Dynamic Container Rules": a container over roughly 30% of screen height should scroll, not truncate -- both sub-panels wrap their list in a ScrollContainer capped near that budget.
 
@@ -118,7 +118,11 @@ var _menu_center: CenterContainer
 var _controls_center: CenterContainer
 var _credits_center: CenterContainer
 var _play_button: Button
+var _how_to_play_button: Button
 var _controls_button: Button
+var _how_to_play_center: CenterContainer
+var _how_to_play_back_button: Button
+var _how_to_play_scroll: ScrollContainer
 var _credits_button: Button
 var _settings_button: Button
 var _quit_button: Button
@@ -174,8 +178,13 @@ func _apply_debug_panel_flag() -> void:
 		_on_controls_pressed()
 	elif requested == "credits":
 		_on_credits_pressed()
+	elif requested == "howto":
+		_on_how_to_play_pressed()
 	elif requested == "settings":
 		_on_settings_pressed()
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--settings-tab="):
+				_settings_menu.show_tab_for_debug(int(arg.trim_prefix("--settings-tab=")))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -196,7 +205,7 @@ func _handle_ui_cancel() -> bool:
 	if _settings_menu.visible:
 		_on_settings_closed()
 		return true
-	if _controls_center.visible or _credits_center.visible:
+	if _controls_center.visible or _credits_center.visible or _how_to_play_center.visible:
 		_hide_panels_and_return()
 		return true
 	return false
@@ -227,6 +236,7 @@ func _build_ui() -> void:
 	_build_background()
 	_build_scrim()
 	_build_foreground()
+	_build_how_to_play_panel()
 	_build_controls_panel()
 	_build_credits_panel()
 
@@ -240,8 +250,8 @@ func _build_background() -> void:
 	_root.add_child(background)
 
 	_add_grass(background)
-	_add_tree(background, Vector2(-40.0, 500.0), false)
-	_add_tree(background, Vector2(1500.0, 500.0), true)
+	_add_tree(background, Vector2(-290.0, 540.0), false)
+	_add_tree(background, Vector2(1620.0, 520.0), true)
 	_add_castle(background)
 	for spot in GOBLIN_SPOTS:
 		_add_goblin(background, spot[0], spot[1])
@@ -380,8 +390,7 @@ func _build_menu_card(parent: Control) -> void:
 	# 720p; the card is centred in a taller band so Quit stays on screen.
 	_menu_center.offset_top = COMPACT_MENU_BAND_TOP if TouchUi.is_mobile_layout() else MENU_BAND_TOP
 	_menu_center.offset_bottom = COMPACT_MENU_BAND_BOTTOM if TouchUi.is_mobile_layout() else MENU_BAND_BOTTOM
-	if TouchUi.is_mobile_layout():
-		_menu_center.anchor_right = 0.55 # D167: left half, clear of the castle on the right
+	_menu_center.anchor_right = 0.55 if TouchUi.is_mobile_layout() else 0.5 # left half, clear of the castle on the right (D167; v1.0 on desktop too)
 	parent.add_child(_menu_center)
 
 	var card := PanelContainer.new()
@@ -400,6 +409,10 @@ func _build_menu_card(parent: Control) -> void:
 	_play_button = _make_menu_button(tr("TITLE_PLAY"))
 	_play_button.pressed.connect(_on_play_pressed)
 	column.add_child(_play_button)
+
+	_how_to_play_button = _make_menu_button(tr("TITLE_HOW_TO_PLAY"))
+	_how_to_play_button.pressed.connect(_on_how_to_play_pressed)
+	column.add_child(_how_to_play_button)
 
 	_controls_button = _make_menu_button(tr("TITLE_CONTROLS"))
 	_controls_button.pressed.connect(_on_controls_pressed)
@@ -428,6 +441,21 @@ func _make_menu_button(text: String) -> Button:
 	return button
 
 
+# --- How to Play panel (docs/31 8.5) ----------------------------------------
+
+func _build_how_to_play_panel() -> void:
+	var parts: Dictionary = _build_sub_panel("HowToPlayPanel")
+	_how_to_play_center = parts["center"]
+	_how_to_play_center.offset_top = HOW_TO_PLAY_TOP_PX
+	var column: VBoxContainer = parts["column"]
+	column.add_child(_make_panel_title(tr("HOWTO_TITLE")))
+	column.add_child(HSeparator.new())
+	_how_to_play_scroll = HowToPlay.build_content(column, COMPACT_SUB_PANEL_SCROLL_HEIGHT if TouchUi.is_mobile_layout() else SUB_PANEL_SCROLL_MAX_HEIGHT)
+	_how_to_play_back_button = _make_menu_button(tr("TITLE_BACK"))
+	_how_to_play_back_button.pressed.connect(_on_how_to_play_back_pressed)
+	column.add_child(_how_to_play_back_button)
+
+
 # --- Controls panel --------------------------------------------------------
 
 ## Real bindings, decoded directly from this project's own `project.godot`
@@ -441,19 +469,22 @@ func _controls_rows() -> Array:
 		# D147: a phone has no keys. Same rows the player needs, touch wording.
 		return [
 			[tr("TITLE_CONTROLS_MOVE"), "Drag on the left side"],
+			[tr("TITLE_CONTROLS_DASH"), "Dash button"],
+			[tr("TITLE_CONTROLS_SKILL"), "Battle Skill button"],
 			[tr("TITLE_CONTROLS_DRAFT_SELECT"), "Tap a card"],
 			[tr("TITLE_CONTROLS_REROLL"), "Tap Reroll"],
 			[tr("TITLE_CONTROLS_PAUSE"), "Pause button, or Back"],
 		]
+	# Keys are read from the Input Map, so a rebinding in Settings shows here too.
 	return [
-		[tr("TITLE_CONTROLS_MOVE"), "WASD / Arrow Keys / Left Stick"],
+		[tr("TITLE_CONTROLS_MOVE"), "%s / Left Stick" % " ".join([InputHints.key_text(&"move_up"), InputHints.key_text(&"move_left"), InputHints.key_text(&"move_down"), InputHints.key_text(&"move_right")])],
+		[tr("TITLE_CONTROLS_DASH"), "%s, B / LB" % InputHints.joined(&"dash", ", ")],
+		[tr("TITLE_CONTROLS_SKILL"), "%s, Y / RB" % InputHints.joined(&"battle_skill", ", ")],
 		[tr("TITLE_CONTROLS_DRAFT_CYCLE"), "A/D, Left Stick, D-Pad"],
 		[tr("TITLE_CONTROLS_DRAFT_SELECT"), "1 / 2 / 3"],
 		[tr("TITLE_CONTROLS_CONFIRM"), "Space, Enter, Left Click, A / Cross"],
 		[tr("TITLE_CONTROLS_REROLL"), "R, X / Square"],
-		# D115 (no in-run shop): the three Console control rows (cycle/
-		# select/cancel) are removed along with the Console itself.
-		[tr("TITLE_CONTROLS_PAUSE"), "Escape, Start"],
+		[tr("TITLE_CONTROLS_PAUSE"), "%s, Start" % InputHints.joined(&"pause", ", ")],
 		[tr("TITLE_CONTROLS_DEBUG_OVERLAY"), "F1"],
 		[tr("TITLE_CONTROLS_DEBUG_PSEUDOLOC"), "F2"],
 	]
@@ -598,6 +629,29 @@ func _on_play_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/hub.tscn")
 
 
+func _on_how_to_play_pressed() -> void:
+	_show_panel(_how_to_play_center, _how_to_play_button, _how_to_play_back_button)
+	_set_title_block_visible(false) # a reading page gets the whole screen
+	_fit_how_to_play.call_deferred()
+
+
+func _set_title_block_visible(shown: bool) -> void:
+	for node_name: String in ["GameTitle", "Tagline"]:
+		var node: Control = _root.find_child(node_name, true, false) as Control
+		if node != null:
+			node.visible = shown
+
+
+## Sizes the page to its text once laid out, under the title band and above the card's Back button.
+func _fit_how_to_play() -> void:
+	await get_tree().process_frame
+	HowToPlay.fit(_how_to_play_scroll, get_viewport().get_visible_rect().size.y - HOW_TO_PLAY_TOP_PX - 260.0)
+
+
+func _on_how_to_play_back_pressed() -> void:
+	_hide_panels_and_return()
+
+
 func _on_controls_pressed() -> void:
 	_show_panel(_controls_center, _controls_button, _controls_back_button)
 
@@ -655,6 +709,8 @@ func _show_panel(center: CenterContainer, opener: Button, focus_target: Button) 
 func _hide_panels_and_return() -> void:
 	_controls_center.visible = false
 	_credits_center.visible = false
+	_how_to_play_center.visible = false
+	_set_title_block_visible(true)
 	_menu_center.visible = true
 	var target: Button = _last_focused_main_button if _last_focused_main_button != null else _play_button
 	target.grab_focus()
@@ -682,6 +738,14 @@ func _on_music_finished() -> void:
 
 func get_play_button_for_test() -> Button:
 	return _play_button
+
+
+func get_how_to_play_button_for_test() -> Button:
+	return _how_to_play_button
+
+
+func is_how_to_play_panel_active_for_test() -> bool:
+	return _how_to_play_center.visible
 
 
 func get_controls_button_for_test() -> Button:

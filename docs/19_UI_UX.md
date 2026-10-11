@@ -35,95 +35,46 @@ The Tower Console (the second, priced, non-pausing upgrade interface this sectio
 
 ## Settings
 
-Review Decision Log D121 (MASTER_SDLC.md): the Settings screen (author brief:
-"one option in settings to mute or lower the volume of music and other sound
-effects ... and more quality settings if needed") is a vertical list of rows
-— label on the left, "< value >" on the right — rather than sliders or a
-single mute toggle. Provisional Values Register > "Interfaces" > "Settings"
-row carries the defaults and the volume step; `src/core/game_settings.gd`
-persists them at `user://settings.cfg`.
+Review Decision Log D121 made Settings a vertical list of rows (label on the left, "< value >" on the right) and D233 (v1.0) split it into five tabs. The Register's "Settings" row and "Settings tabs" row (v1.0 Interface) carry the defaults, ranges and timings; `src/core/game_settings.gd` persists them at `user://settings.cfg`.
 
-- **Rows, in order:** Master Volume, Music Volume, Sound Effects Volume
-  (drives SFX, SFX_Priority, UI, and Ambience — see the Register row;
-  TowerCue is reached only by sending through SFX_Priority, so it is not
-  driven a second time, which would attenuate it twice), Mute All (mutes
-  Master only), Display Mode (Windowed / Fullscreen / Borderless), V-Sync,
-  Screen Shake, Damage Numbers, Movement-only controls, Back.
-- **Volume steps:** 0–100% in 10% steps (Register > "Settings" row); 0%
-  mutes that row's own bus (not merely a very quiet volume).
-- **Change cadence:** only the three volume rows repeat while a direction is
-  held, at the Register's own "Draft input" row cadence (reused, not
-  restated, exactly like the Draft's own card-cycle — Upgrade Draft UI &
-  Navigation, above). Every other row (Mute All, Display Mode, Screen Shake,
-  Damage Numbers, Movement-only controls) changes ONCE per press and never
-  auto-repeats, so holding a direction on a toggle cannot flicker it back and
-  forth or skip past the Display Mode the player actually wanted.
-- **Opening:** like every other paused menu, Settings opens with the
-  Register's own "Draft input" row's 0.4 s input lockout (Platform Direction
-  line 242; Author decision D3) during which no input is read at all, and
-  always highlights the first row (Master Volume) — never wherever the
-  highlight was left the previous time it was open.
-- **Input, keyboard/gamepad:** once the lockout ends, Up/Down
-  (`move_up`/`move_down`) move the highlighted row. Left/Right
-  (`move_left`/`move_right`) change the highlighted row's value, applied and
-  saved immediately (subject to the change-cadence rule above).
-- **Back / leaving:** the `confirm` action's instant press closes the screen
-  from the Back row; holding EITHER `move_left` or `move_right` for the
-  Register's own hold-to-confirm duration while Back is highlighted also
-  closes it (a movement-only player never needs a button at all) — the same
-  neutral-return arming rule the Draft's own hold-to-confirm uses (Upgrade
-  Draft UI & Navigation, above) applies here too, so a direction already
-  held cannot auto-confirm it, whether held before the screen opened or
-  before Back was reached.
-- **Mouse:** hovering a row highlights it; clicking a row's own "<"/">"
-  changes its value; clicking the Back row closes the screen immediately,
-  with no hold required (matching every other paused menu's own mouse
-  behaviour).
-- **Platform input floor carve-out:** the Register's "Platform input floor"
-  row (and Platform Direction line 242) states every paused menu "lays
-  choices out horizontally." Settings is the one exception, named here
-  rather than left as a silent contradiction: nine adjustable rows plus Back
-  do not read as one legible horizontal row, and D121 chose the vertical
-  list over shrinking the row count or overflowing a single bar — D121's own
-  Review Decision Log row has the full reasoning for why this still honours
-  Author decision D3.
-- **Reachability:** the pause menu and the run-end screens (via
-  `RunFlowController`, unchanged since P2.14), the title screen, and the Hub
-  (War Camp) each open their own `SettingsMenu` instance, releasing keyboard
-  focus from (and, on the Hub, hiding) whatever menu sits behind it so
-  arrow/Enter input drives Settings, not the screen underneath; closing
-  restores it. Esc (`ui_cancel`) closes Settings on the title screen and the
-  Hub, the same way `pause` already closes it in-run. All four instances
-  read and write the same `GameSettings` state, so a change from any one of
-  them is visible from the others immediately.
-- **Applied at boot:** `GameSettings.load_from_disk()` + `.apply()` run once,
-  from the title screen's own `_ready()` (the game's `run/main_scene`),
-  BEFORE the title music starts — see `src/core/game_settings.gd`'s header
-  for why an Autoload's `_ready()` was rejected (it would run for every
-  headless test in the suite, not only real launches).
-- **Live during a run:** `src/audio/audio_ducking.gd`'s ramp reads Music and
-  Sound Effects volume from `GameSettings` on every tick rather than a
-  one-time snapshot, so a volume change made from pause → Settings → back
-  takes effect immediately, even mid-duck.
+- **Tabs.** Audio, Video, Gameplay, Controls, Accessibility. The tab strip shows the active tab with an accent underline (a shape cue, not colour alone) and Q / E keycaps. Q / E, LB / RB, a click or a tap switch tab and wrap round. Reset to Defaults and Back sit under every tab. The Controls tab is keyboard-only and is hidden on a phone, as are Display Mode, Window Size and V-Sync.
+- **Rows.** Audio: Master, Music, Sound Effects (SFX, SFX_Priority, Ambience), Interface (the UI bus), Mute All. Video: Display Mode, Window Size (windowed only), V-Sync, FPS Limit, Show FPS. Gameplay: Auto-cast Battle Skill, Damage Numbers, Screen Shake (0-100%), Show Overhead Bars, Pause When Unfocused, Movement-only controls. Controls: Move up / down / left / right, Dash, Battle Skill, Pause, Reset Controls. Accessibility: HUD Scale, Reduce Flashing, Enemy Outlines. TowerCue is reached only by sending through SFX_Priority, so it is not driven a second time.
+- **Change cadence.** Only the volume rows, Screen Shake and HUD Scale repeat while a direction is held, at the Draft's cadence. Every other row changes once per press, so a toggle cannot flicker and Display Mode cannot skip.
+- **Opening.** Settings opens with the 0.4 s input lockout, on the first tab and first row, with keys already held at open seeded so they do not read as presses.
+- **Input, keyboard and gamepad.** Up / Down move the highlighted row; Left / Right change its value, applied and saved at once. Holding Left or Right for the hold-to-confirm duration on Back closes the screen, and on Reset to Defaults resets at once; `confirm` closes from Back, and a first `confirm` on Reset shows "Press again" (lapses after 3 s or when the highlight moves) before a second one resets. A direction already held cannot auto-confirm (the neutral-return rule). A movement-only player therefore never needs a button.
+- **Rebinding.** Each Controls row shows two key slots ("[W] / Up"; the bracket marks the targeted slot). Left / Right picks the slot, `confirm` or a click starts listening ("Press a key..."), the next key becomes the binding, Esc cancels. A key already used by another action swaps with the slot's old key, so no action is left without one. Bindings are saved under `[controls]` and applied by `GameSettings.apply()` on boot; gamepad and mouse bindings are fixed and listed in a note under the rows. Reset Controls restores the project keys.
+- **Mouse and touch.** Hovering a row highlights it; the "<" / ">" arrows change the value; clicking Back closes at once; clicking a binding row starts a rebind; clicking Reset shows "Press again".
+- **Long tabs.** The row list scrolls inside a card capped to the canvas and keeps the highlighted row in view.
+- **Platform input floor carve-out.** Settings is the one paused menu that does not lay its choices out horizontally (D121); it keeps hold-to-confirm and the movement-only path on the vertical shape's own axes.
+- **Reachability.** The pause menu and the run-end screens (via `RunFlowController`), the title screen and the Hub (War Camp) each open their own `SettingsMenu`, releasing keyboard focus from whatever sits behind it; Esc closes it on the title and the Hub, `pause` in a run. All instances read and write the same `GameSettings` state.
+- **Applied at boot.** `GameSettings.load_from_disk()` and `.apply()` run once from the title screen's `_ready()`, before the title music; apply covers bus volumes, display mode, window size, V-Sync, the FPS cap, the FPS readout and the saved key bindings.
+- **Live during a run.** `src/audio/audio_ducking.gd` reads Music and Sound Effects volume from `GameSettings` every tick, so a change made from pause takes effect at once. "Pause when unfocused" is read by `RunFlowController` at the moment focus is lost.
 
 ---
 
 ## HUD
 
-- **Player Health:** A health bar top-left showing the player's current health.
-- **Tower Health:** A health bar top-centre, always on screen regardless of camera position, with the Tower's shield drawn as an overlaid segment on the health bar and the Tower's own "current/max" number beside it (D132); directly below it, as a separate ribbon that is a sibling of the Tower's frame, not nested inside it (D132), "Wave n/8" shows wave progress (teaching waves are shown as T1–T4 in the slice). Both the player and Tower health bars carry a tick mark at 40% of maximum and change border shape once health drops below it.
-- **Scrap:** Top-right, showing current Scrap as "n/200"; a "FULL" badge appears at the cap, and the overflow hopper's amount is shown alongside it whenever the hopper is non-empty. A second line under it, drawn at body size in the bright text colour (D145), reads "~ n Cores at run end", the live Core equivalent of the carried Scrap at the Register's Scrap-per-Core rate (D132), so Scrap's only use is visible in the run.
-- **XP:** A bar along the bottom of the screen showing XP progress together with the player's current level and the number of rerolls remaining. The level is shown as "Lv n" where n is the internal level plus one, so a fresh run reads "Lv 1" rather than "Level 0" (display offset only; the internal starting level is unchanged; D133). The "XP" caption is centred on the bar.
-- **Run announcements (D129, D130):** Non-pausing, non-interactive text in a band under the top HUD (the wave banner first, the toasts below it, so neither covers the Tower at spawn; D145): a centred "Wave N" banner at every wave start, with a second "Siege incoming" banner when the wave holds a Siege (docs/11 > Siege warning: the first Seeker spawns 3 s after the wave opens); a one-line objective at run start ("Protect yourself and the Tower - survive n waves"); and, only until seen, three first-run hint toasts during wave 1 (the bow fires automatically; walk over crystals and gold to collect them; red torch goblins attack the Tower, yellow TNT goblins hunt you, purple barrels go for whichever is exposed). "Seen" is a `first_run_hints_seen` flag in the MetaProgress profile, set once all three have been shown; a profile without the key reads as not seen. Timings: Register > "Run announcements". They run on pausable time (D140): while the Draft or the pause menu is open they are hidden and their timers stand still, so the hints are never spent behind a menu.
+v1.0 redesign (D232; docs/31 §8.1). Numbers are in the Register's "v1.0 Interface" table. Five clusters, each pinned to a screen edge by anchors; the whole HUD scales with the HUD Scale setting. No cluster carries a word caption: the icon and the colour mean the thing (docs/19 shape language, below).
+
+- **Player (top-left):** a level badge showing the level (the internal level plus one, D133), the HP bar with "cur/max" inside it, and a thin XP bar under it. The XP bar has a visible empty track.
+- **Tower (top-centre):** the Tower bar with the shield as a strip across its top and "cur/max" inside it; one info line under it, "WAVE n/15 · TYPE" with a REPAIRING tag while Scrap repairs the Tower and the run timer on the right; a thin wave-progress bar under that. In a boss wave the boss bar hangs below the cluster with the boss's name and a phase mark. Both health bars tick at 40% of maximum and change border shape below it. While a Siege warning runs, the Tower pill pulses red.
+- **Scrap and kills (top-right):** the Scrap pouch with "n/cap" (FULL at the cap, the full value in a focus tooltip when truncated) and a skull with the kill count.
+- **Build bar (bottom-left):** four player ability slots and three Tower ability slots with icons and 1-5 level pips; empty slots are dimmed. Passives are listed in the pause menu, not here.
+- **Action cluster (bottom-right):** Dash with one pip per charge and a radial cooldown wipe; Battle Skill with a 96 px icon, a radial wipe and the seconds left; each has its key hint under it, read from the live Input Map. On touch the TouchControls buttons replace this cluster (they are the same widget).
+- **Removed in v1.0:** the full-width XP ribbon, the Rerolls count (shown only in the Draft), the word captions, the "~ n Cores at run end" line (now in the pause menu's Run stats) and the floating Tower value beside the off-screen arrow (the arrow stays).
+- **Overhead bars:** the player and Tower overhead bars stay behind the Show Overhead Bars setting.
+- **Text size:** HUD numbers are 37 px, the legibility floor, at HUD Scale 100%; the scale setting caps itself on a narrow canvas so the top row never collides.
+- **Run announcements (D129, D130):** Non-pausing, non-interactive text in a band under the top HUD (the wave banner first, the toasts below it, so neither covers the Tower at spawn; D145): a centred banner at every wave start reading "WAVE n · TYPE" (red for a boss wave) with the wave horn, a red "SIEGE INCOMING" line when a Siege warning starts (docs/11 > Siege warning: the first Seeker spawns 3 s after the wave opens), the boss's name for 2 s with the boss roar, and a short "ELITE · AFFIX" toast; the old director signal still produces a plain "Wave N" banner (and "Siege incoming") if nothing emits `wave_started`. Off-screen spawns show an intent-coloured chevron at the screen edge, at most one per 30° sector, for the warning's lead time. The banner starts under the Tower cluster; toasts sit at the bottom centre. a one-line objective at run start ("Protect yourself and the Tower - survive n waves"); and, only until seen, three first-run hint toasts during wave 1 (the bow fires automatically; walk over crystals and gold to collect them; red torch goblins attack the Tower, yellow TNT goblins hunt you, purple barrels go for whichever is exposed). "Seen" is a `first_run_hints_seen` flag in the MetaProgress profile, set once all three have been shown; a profile without the key reads as not seen. Timings: Register > "Run announcements". They run on pausable time (D140): while the Draft or the pause menu is open they are hidden and their timers stand still, so the hints are never spent behind a menu.
 - **Ground symbols (D131):** The XP crystal is drawn in the XP bar's purple so the pickup and the bar read as one thing; pickups bob 4 px; an attack telegraph is one danger colour for every enemy (enemy identity stays in the sprite) and its ground disc grows from nothing to the full ring as the wind-up reaches the strike moment.
 - **Tower occlusion (D127):** The Tower and the player share one Y-sorted band, so a player standing north of the Tower is drawn behind it; while the player is inside the Tower sprite's on-screen rectangle the Tower fades to the Register's occlusion alpha and restores when the player leaves it.
-- **Off-screen Tower indicator (D134):** The arrow always points at the Tower; below 40% health it turns the danger colour and the Tower icon gets a pulsing red ring (never a rhombus, which means XP only; D142), so the shape still changes without losing the direction. The arrow keeps its screen position between the top HUD and the bottom XP ribbon (Register > "Threat arrow margins").
-- **Pause menu (D134):** The third choice reads "Abandon run" and asks again ("Abandon run? Progress so far still earns Cores": Keep playing / Abandon, Keep playing first) before the run is abandoned; closing the menu resets the question.
+- **How to Play (D236):** four short sections (protect yourself and the Tower; Dash and Battle Skill; the Draft; repair with Scrap) naming the live key bindings, reachable from the title screen and from the pause menu. The title screen's logo hides while the page is open so the four sections fit without scrolling. The title card now sits on the left half and the castle on the right (it used to be drawn behind the card).
+- **Off-screen Tower indicator (D134):** The arrow always points at the Tower; below 40% health it turns the danger colour and the Tower icon gets a pulsing red ring (never a rhombus, which means XP only; D142), so the shape still changes without losing the direction. The arrow keeps its screen position between the top HUD and the bottom HUD (Register > "Threat arrow margins").
+- **Pause menu (D134, D235):** Four horizontal choices, Resume, Settings, How to Play and Abandon run, with the hold-to-confirm ring, then Build / Passives / Run stats columns read from the live run (Battle Skill, difficulty, seed, abilities with levels, Tower abilities, passives with ranks; time, kills, elites, damage taken, Scrap repaired, estimated Cores). The last choice reads "Abandon run" and asks again ("Abandon run? Progress so far still earns Cores": Keep playing / Abandon, Keep playing first) before the run is abandoned; closing the menu resets the question.
 - **Text on parchment (D132):** Secondary text on parchment panels (Records, Achievements, Controls, Credits, Hub hint) uses a dark umber token (`TEXT_ON_PARCHMENT`) instead of the dim tan used on dark wood. Achievement rows show their reward ("Unlocks card: ..." or the perk) and an unlocked row's state is tinted.
 - **Skill Tree nodes (D132):** Node names and prices are drawn at 20 / 18 px at the 1080 base; nodes are wider than tall; "can't afford" is a dimmed tablet with an amber price rather than red.
-- **Menu cards (D127):** The Title and Hub menu cards are centred in a tall band so every button, including Quit, Settings and Back to Title, lies inside 1280 x 720 (a test asserts it).
+- **Menu cards (D127):** The Title menu card (now six buttons, with How to Play) and the Hub menu card sit in a tall band so every button, including Quit, Settings and Back to Title, lies inside 1280 x 720 (a test asserts it).
 - **Truncation:** Any HUD number may truncate with an ellipsis when space is tight, with the full value shown in a custom focus tooltip, per UI Layout & Dynamic Container Rules.
-- **Camera and HUD bands (D141):** The camera may scroll past each arena wall by the HUD band (Register > "Camera HUD margin"), so a player standing at any wall is drawn clear of the top Tower pill and Wave ribbon, the bottom XP ribbon and the screen sides, never under them.
+- **Camera and HUD bands (D141, D230):** The camera may scroll past each arena wall by the HUD band (Register > "Camera HUD margin"), so a player standing at any wall is drawn clear of the Tower cluster with its boss bar, the bottom build bar and action cluster and the screen sides, never under them; the band grows with the HUD Scale.
 - **Run-end seed (D143):** The run-end screen prints "Seed: N" small above the choices, for bug reports.
 - **Draft footer and badge (D145):** The Draft's footer lines (how to pick, the hold caption, Reroll) use the bright value text, not the dim tan; the 1/2/3 key badge on each card is a square of at least 48 px, not a sliver.
 
@@ -141,6 +92,10 @@ One shape, one meaning. A shape that means one thing must not be reused for anot
 | Pulsing red ring round the Tower icon | The Tower is below 40% health | off-screen Tower arrow |
 | White tick inside a bar | The 40% low mark | player and Tower health bars |
 | Blue strip on the Tower bar | Tower shield | Tower health bar |
+| Chevron at the screen edge, red / yellow / purple | An enemy of that intent is about to spawn off-screen (Seeker / Hunter / Opportunist) | spawn markers |
+| Skull | Kills | HUD top-right |
+| Green frame / orange frame on a slot | Player ability / Tower ability | build bar |
+| Radial wipe over an icon | Cooldown remaining | Dash and Battle Skill buttons |
 
 ---
 
@@ -170,7 +125,7 @@ To prevent UI breakage across languages and scaling damage numbers, strict layou
 
 This is the single source for input-to-action bindings; other sections reference it rather than restating key lists.
 
-Move WASD / arrows / left stick · Draft cycle A/D, ←/→, D-pad, left stick (Draft is paused) · Draft number keys 1/2/3 select and confirm · Confirm Space, Enter, left mouse, A/Cross · Reroll R / X/Square · Pause Escape / Start · Debug overlay toggle F1 · Pseudo-localization toggle F2.
+Move WASD / arrows / left stick · Dash Space, Shift, B, LB · Battle Skill E, Q, right mouse, Y, RB (keyboard bindings for Move, Dash, Battle Skill and Pause are rebindable in Settings > Controls; the lists here are the defaults) · Draft cycle A/D, ←/→, D-pad, left stick (Draft is paused) · Draft number keys 1/2/3 select and confirm · Confirm Space, Enter, left mouse, A/Cross · Reroll R / X/Square · Pause Escape / Start · Debug overlay toggle F1 · Pseudo-localization toggle F2.
 
 D115 (no in-run shop, 2026-09-23) removed the Tower Console and, with it, the eleven `console_open`/`console_cycle_next`/`console_cycle_prev`/`console_select_1`–`7`/`console_cancel` actions this row used to list — none of them exist in `project.godot`'s `[input]` block any more.
 
@@ -186,9 +141,10 @@ Decisions D146 and D147; numbers in the Provisional Values Register ("Touch cont
 
 - **When it applies.** The touch controls show on a touchscreen device, on a mobile build, or with the `--touch-ui` user argument (`--no-touch-ui` forces them off). The mobile layout (compact screens, touch wording, hidden desktop rows) applies on a mobile build or with `--touch-ui`; a Windows laptop that merely has a touchscreen gets the joystick and keeps the desktop layout.
 - **Movement.** A floating joystick appears where the thumb lands in the left half of the screen. It drives `move_left/right/up/down`, so the Draft's hold-up path and the movement-only controls work with it. The bow still fires on its own.
-- **Pause.** A pause button sits at the top right, below the Scrap panel and clear of the three HUD panels. It sends the `pause` action; it hides while the Draft or the pause menu is up. Android Back does the same as Pause during a run, closes the open panel in the Hub, and leaves the app from the bare Title.
+- **Dash and Battle Skill.** Two thumb buttons sit at the bottom right (Battle Skill 120 px, Dash 96 px) and show the same cooldown wipe as the desktop HUD, which hides its own action cluster on touch. Auto-cast (on by default on a phone) fires the Battle Skill for you.
+- **Pause.** A pause button sits at the top right, below the Scrap and kills panel and clear of the HUD clusters. It sends the `pause` action; it hides while the Draft or the pause menu is up. Android Back does the same as Pause during a run, closes the open panel in the Hub, and leaves the app from the bare Title.
 - **Everything is tappable.** Title, Hub, Settings (the < and > arrows and the Back row), Records, Achievements, the pause menu and its Abandon confirm, the Draft (tap a card picks that card; the Reroll pill is tappable) and the run-end buttons all work by tap. The Draft's hold ring and the menus' hold footers are the keyboard and gamepad way; on a phone the footers are hidden and the Draft says "Tap a card to pick it". In the Skill Tree, a finger pressed on a node selects it and holding buys it (the hold-to-buy fill); a finger held there stands in for the `confirm` action, which the engine's emulated mouse does not drive.
-- **Hidden on a phone.** The Display mode and V-Sync rows. A phone window is always the whole screen.
-- **Size.** The UI is scaled up to 1.5 (on 16:9 phones less, so the HUD's top row still fits), which makes the 37 px body text about 20 dp. Menu rows are at least 64 px and the Title / Hub / Back buttons 80 px (logical px). Title and Hub use compact layouts. Achievements scrolls by finger drag (the engine pans only on a device that reports a touchscreen). The Skill Tree board runs unscaled while open: nodes are 140 px (about 65 dp) and show icon, pips and price; the name is in the detail panel, and the board scrolls if it does not fit (D168). On the compact layout (D167) the run-end body scrolls inside a card capped to the screen; the Draft heading starts 160 px down, cards are shorter, the rarity word sits in the header row, the hold caption and the XP ribbon are hidden and "Tap a card to pick it" shares the footer row with Reroll; the Hub hint banner sits in the free column left of the menu; the Title menu is in the left half with the castle on the right; Credits scrolls.
+- **Hidden on a phone.** The Display Mode, Window Size and V-Sync rows and the whole Controls tab (it is for keyboards). A phone window is always the whole screen.
+- **Size.** The UI is scaled up to 1.5 (on 16:9 phones less, so the HUD's top row still fits), which makes the 37 px body text about 20 dp. Menu rows are at least 64 px and the Title / Hub / Back buttons 80 px (logical px). Title and Hub use compact layouts. Achievements scrolls by finger drag (the engine pans only on a device that reports a touchscreen). The Skill Tree board runs unscaled while open: nodes are 140 px (about 65 dp) and show icon, pips and price; the name is in the detail panel, and the board scrolls if it does not fit (D168). On the compact layout (D167) the run-end body scrolls inside a card capped to the screen; the Draft heading starts 160 px down, cards are shorter, the rarity word sits in the header row, the hold caption is hidden (the v1.0 HUD has no XP ribbon) and "Tap a card to pick it" shares the footer row with Reroll; the Hub hint banner sits in the free column left of the menu; the Title menu is in the left half with the castle on the right; Credits scrolls.
 - **Limits.** 48 dp is 132 px of the 1080 canvas; seven menu rows of that height do not fit, so menu rows are about 38 dp. The pause button is about 51 dp.
 - **Test aid.** `src/dev/touch_selftest.tscn` drives the real game with synthetic finger events and prints SELFTEST PASS or FAIL lines; it needs a window (the headless runner does not deliver input to the GUI).

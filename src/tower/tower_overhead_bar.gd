@@ -102,6 +102,8 @@ func _refresh_follow_offset() -> void:
 
 func _process(delta: float) -> void:
 	_refresh_follow_offset()
+	if _drawn_visible != GameSettings.is_show_overhead_bars():
+		queue_redraw() # the Show overhead bars setting changed
 	if _death_state == null:
 		set_process(false)
 		return
@@ -118,8 +120,12 @@ func _on_pool_changed(_current: float, _max_v: float) -> void:
 	queue_redraw()
 
 
+var _drawn_visible: bool = true
+
+
 func _draw() -> void:
-	if _tower_health == null:
+	_drawn_visible = GameSettings.is_show_overhead_bars()
+	if _tower_health == null or not _drawn_visible:
 		return
 	var max_health: float = maxf(_tower_health.max_health, 0.001)
 	var current_health: float = clampf(_tower_health.get_current_health(), 0.0, max_health)

@@ -113,6 +113,8 @@ func set_economy_state(state: HudEconomyState) -> void:
 
 func _process(delta: float) -> void:
 	var redraw_needed: bool = false
+	if _drawn_visible != GameSettings.is_show_overhead_bars():
+		redraw_needed = true # the Show overhead bars setting changed
 	if _death_state != null and _trail_hp > _death_state.current_hp:
 		_trail_hp = maxf(_death_state.current_hp, _trail_hp - _death_state.max_hp * TRAIL_CATCHUP_FRACTION_PER_SECOND * delta)
 		redraw_needed = true
@@ -126,7 +128,13 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
+var _drawn_visible: bool = true
+
+
 func _draw() -> void:
+	_drawn_visible = GameSettings.is_show_overhead_bars()
+	if not _drawn_visible:
+		return
 	_draw_hp_bar()
 	if economy_state != null:
 		_draw_xp_bar()

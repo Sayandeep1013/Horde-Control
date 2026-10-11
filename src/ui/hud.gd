@@ -1,361 +1,210 @@
 extends CanvasLayer
 class_name Hud
 
-## Hud (P2.6). docs/19_UI_UX.md > "HUD" (the four fields and the truncation
-## rule) and > "UI Layout & Dynamic Container Rules"; MASTER_SDLC.md >
-## Provisional Values Register > Interfaces > "HUD" row (every number and
-## behaviour below is cited from there, never restated as an independent
-## literal). MASTER_SDLC.md > Visual Edge Cases > "Colour-only
-## distinctions" governs the two health bars' border-shape rule, delegated
-## to src/ui/hud_bar.gd.
+## Hud (v1.0 redesign, docs/31 §8.1). docs/19 > "HUD"; MASTER_SDLC.md >
+## Provisional Values Register > Interfaces > "HUD" and > v1.0 Interface >
+## "HUD layout" (every design size below is cited there).
 ##
-## ## Why this scene is built entirely in code, not authored as a nested
-## .tscn tree
-## Matches this phase's own established convention: src/camera/
-## game_camera.gd's `_setup_vignette()` builds its CanvasLayer/ColorRect the
-## same way, for the same reason -- a procedurally-built tree keeps the
-## whole layout in version-controlled, testable GDScript instead of a
-## hand-authored scene file, and a gdUnit4 test can instance `Hud.new()`
-## directly with no scene load at all. `scenes/ui/hud.tscn` is therefore
-## just this script attached to a bare CanvasLayer.
+## Five clusters, each a container anchored to one screen corner or edge, so
+## nothing is placed by position:
+##   top-left      Player: level badge, HP bar with "cur/max" inside, thin XP bar
+##   top-centre    Tower: bar (shield strip + "cur/max" inside), one info line
+##                 "WAVE n/15 · TYPE" + REPAIRING tag + run timer, a thin wave
+##                 progress bar; the boss bar hangs under it during boss waves
+##   top-right     Scrap (coin + n/cap) and kills (skull + count)
+##   bottom-left   Build bar: 4 player + 3 Tower ability slots with level pips
+##   bottom-right  Action cluster: Dash and Battle Skill (hidden on touch,
+##                 where TouchControls shows the same buttons)
+## No captions: the icon and the colour carry the meaning. Built in code, like
+## the rest of src/ui (a test can instance `Hud.new()` with no scene load).
 ##
-## ## Container-driven layout (docs/19 > "UI Layout & Dynamic Container
-## Rules"), not manual position/size
-## The top strip is one `HBoxContainer` with three slots: the player health
-## field (natural width, left), a `CenterContainer` with
-## `size_flags_horizontal = SIZE_EXPAND_FILL` holding the Tower field
-## (natural width, centred WITHIN the remaining space between the other two
-## fields), and the Scrap field (natural width, right - HBoxContainer's
-## standard "two fixed ends, one expanding middle" layout puts it flush
-## against the row's right edge). This is a deliberate reading of "top-
-## centre", named rather than silently assumed: it recentres the Tower
-## field automatically as its content's minimum size changes (e.g. under
-## the F2 pseudo-localization toggle), which a one-time computed anchor
-## offset would not do, at the cost of being centred relative to the two
-## side fields rather than to the literal screen midpoint. At 1920x1080
-## with this task's field sizes the difference is not visible; recorded in
-## the P2.6 evidence report as an interpretation. The bottom XP field uses
-## the same `CenterContainer` recentring trick, alone in its own row.
+## Everything lives under `ScaleRoot`, whose `scale` is the HUD Scale setting
+## and whose size is the viewport divided by that scale, so the clusters stay
+## on the screen edges at any scale.
 ##
-## ## Two cross-task seams named, not silently invented (see the P2.6
-## evidence report, "Cross-task seams," for the full list and every
-## EventBus signal this HUD would want if EventBus already carried it):
-## 1. Player/Tower state. `src/core/event_bus.gd` (outside this task's
-##    write scope) declares only `enemy_died`, `tower_damaged`,
-##    `draft_opened` -- no `player_damaged`/`player_died`/`scrap_changed`/
-##    `xp_changed` signal exists yet, and `death_state.gd`'s own
-##    `enemy_died` emission is unconditional even for the player's own death
-##    (Phase 03 LEDGER F03-06), so this HUD never listens to `enemy_died`
-##    for player state. Instead it holds direct typed references
-##    (`set_player_ref`/`set_tower_ref`, below) and POLLS their already-
-##    public state every frame (`Player.death_state.current_hp`/`max_hp`;
-##    `TowerHealth.get_current_health()`/`max_health`/`current_shield`/
-##    `max_shield`) -- a read-only query every frame, matching docs/20 >
-##    "Communication, queries", not a new signal this task cannot add.
-## 2. Scrap/XP/level/rerolls/wave. No Economy (Phase 05) or Wave Director
-##    (Phase 04) system exists yet. This HUD reads them from
-##    `HudEconomyState` (src/ui/hud_economy_state.gd), a small typed read
-##    interface this task owns; a future system populates an instance of it
-##    (or a subclass) and this file never needs to change when that lands.
-##
-## Wiring this scene under `scenes/main.tscn` (assigning real Player/Tower
-## references via `set_player_ref`/`set_tower_ref`) is left to whichever
-## future task next owns that file, matching every other P2.x task's own
-## standalone scene in this phase (see e.g. `src/tower/tower.gd`'s header).
-##
-## ## UI pass (phases/UI_PASS/PLAN.md, package A): pills, palette, glyphs
-## Every field's content now sits inside a `PanelContainer` themed
-## `UiTheme.PILL`, wrapped INSIDE the same outer Control the four
-## `get_*_field()` getters already returned -- those getters, the four
-## fields' identity, and every value/format the tests read are unchanged.
-## Every field also gets a fixed, plain-text glyph/short header (docs/19's
-## HUD names four fields: player health, Tower health, Scrap, XP), so each
-## is identifiable without colour even before its bar or number is read.
-## The Wave/Level/Rerolls labels the tests already hold references to now
-## show ONLY their number (`hud.get_wave_label().text == "3/8"`, not
-## "Wave 3/8") -- every test that reads them uses `.contains(<digits>)` or
-## exact-equals-on-the-Scrap-label only (see hud_layout_test.gd,
-## hud_economy_display_test.gd), so this still passes, and it is what makes
-## "the number is prominent, the caption is dim" (BRIEF item 5) possible at
-## all: the caption word moves into a NEW sibling label (UiTheme.DIM) beside
-## the number (UiTheme.VALUE), rather than fighting over one Label's
-## uniform font size. `root.theme = UiTheme.get_theme()` is set once, here,
-## on `Root` (the first Control under this CanvasLayer) -- see
-## `_build_ui()`.
-##
-## ## UI pass round 2 (phases/UI_PASS/BRIEF_R2.md)
-## UR-06: every `add_theme_constant_override("separation", ...)` on an
-## HBoxContainer/VBoxContainer either became `theme_type_variation =
-## UiTheme.hbox(step)`/`vbox(step)`, or was deleted outright where the value
-## was `SPACE_S` (the theme's own HBoxContainer/VBoxContainer default,
-## needing no override at all) -- see each site's own `# UR-06` comment.
-## UR-08: `UiStrings.ensure_registered()` is now called explicitly as the
-## first line of `_build_ui()`, not left as a side effect reached only
-## through `UiTheme.get_theme()`. UR-03: every string this file puts on
-## screen (`HUD_WAVE`/`HUD_LEVEL`/`HUD_REROLLS`/`HUD_FULL`/`HUD_HOPPER`/the
-## four `HUD_GLYPH_*` keys, `src/ui/theme/ui_strings.gd`) is plain ASCII
-## Latin text ("Wave", "Level", "Rerolls", "FULL", "hopper", "HP", "TOWER",
-## "SCRAP", "XP") -- no character needed checking against
-## the shipped font (`UiPalette.FONT_PATH`) via `Font.has_char()`, since none of them is
-## outside the ASCII range the font trivially covers.
-## HUD polish: the Wave/Level/Rerolls caption+value pairs now read as a
-## single adjacent unit instead of sitting ~100px apart -- see WaveRow's,
-## and `_new_hud_label()`'s, own comments for the two distinct causes (an
-## HBoxContainer stretched wide by a VBoxContainer's cross-axis fill, and a
-## caption's own box being wider than its text) and their fixes.
-##
-## ## Second UI pass: Tiny Swords medieval restyle
-## Every field's pill/ribbon now renders through `UiTheme`'s carved-wood/
-## parchment `StyleBoxTexture`s (see ui_theme.gd) instead of a flat colour --
-## no change needed in this file for that half of the restyle. What DID
-## change here: every field gained a real icon (a vector `UiShapeGlyph`
-## heart/tower/recycle shape, or the real gold-coin texture for Scrap -- see
-## each `_build_*_field()`'s own comment), the two health bars and the XP
-## bar grew ("bigger and bolder", task instruction), the Wave line sits in a
-## small ribbon banner, the XP field is now a full-width bottom ribbon with
-## the level number in a round emblem (`HudLevelEmblem`), and the Scrap
-## count punches on change. Every field the tests already hold a reference
-## to (`get_*_field()`, `get_*_label()`, `get_*_bar()`) is the SAME node,
-## same name, same text/format -- this pass only adds new sibling/child
-## nodes and re-styles existing ones, never renames or removes one the tests
-## or `_refresh_*()` already depend on.
+## Data sources. Player/Tower health, Scrap, XP and level come from the
+## references and `HudEconomyState` the integration wires, as before. The v1.0
+## systems other packages build are found defensively (group lookups plus
+## `has_method`) and render an empty state until they exist:
+##   "player" get_dash_state, "battle_skill" get_state, "ability_manager"
+##   get_owned_abilities, "tower_repair" is_repairing, "wave_director"
+##   get_current_wave_number / get_wave_count / get_current_wave_type /
+##   get_wave_progress / get_run_elapsed_seconds / is_boss_wave.
+## EventBus supplies wave_started, siege_warning and the boss_* signals.
 
-## Chosen to sit above `src/camera/game_camera.gd`'s cosmetic vignette
-## CanvasLayer (layer 4, itself flagged there as tentative pending this
-## task) and below `src/ui/threat_feedback.gd`'s own CanvasLayer (layer 11)
-## -- Readability's intent is that threat feedback (a telegraph-adjacent
-## warning) outranks the HUD's passive chrome, which in turn outranks the
-## cosmetic world vignette. Not a Provisional Values Register number: no
-## Register row assigns CanvasLayer indices, only the world-space `z_index`
-## values under Godot 4.x Implementation Standards > "Scene Tree", which do
-## not apply to CanvasLayer-space UI at all.
+## Above the camera vignette (4), below ThreatFeedback (11). Not a Register number.
 const HUD_CANVAS_LAYER: int = 10
 
-## Widget metrics with no matching UiPalette scale (UiPalette's scale is
-## spacing/radius/font/motion; bar and label minimum sizes are one-off
-## widget dimensions the palette does not model).
-## TODO(ui-pass): promote to UiPalette if a later pass wants a shared "HUD
-## widget size" scale.
-##
-## UI-pass follow-up: bars slimmed to the coordinator's target sizes
-## (~240x18 / 320x20 / 760x12) -- the "small pill-shaped edge widgets"
-## direction (phases/UI_PASS/PLAN.md) reads better slim, and a slimmer bar
-## keeps every pill's total height down even once the label-width bug
-## below is fixed.
-## Second UI pass (Tiny Swords restyle): bars grown noticeably ("bigger and
-## bolder", task instruction) now that the carved-wood pill frame itself
-## reads as a proper wood-and-parchment widget rather than a slim flat pill.
-## HUD polish (coordinator review, third pass): scaled back down again --
-## the coordinator's own capture called the corner pills "huge" once the
-## carved-wood frame, the bigger bars, and an icon were all stacked
-## together. `TOWER_BAR_MIN_SIZE` and `PLAYER_BAR_MIN_SIZE` now sit close in
-## height (26/24) per the coordinator's own instruction ("height matching
-## the Tower bar") rather than the earlier, more dramatic size gap.
-const PLAYER_BAR_MIN_SIZE: Vector2 = Vector2(200, 24)
-const TOWER_BAR_MIN_SIZE: Vector2 = Vector2(260, 26)
-## Width is a floor, not the rendered size: the XP bar is now `SIZE_EXPAND_
-## FILL` horizontally inside a full-width ribbon banner (task instruction:
-## "full-width bottom ribbon") -- see _build_xp_field()/_build_bottom_row().
-const XP_BAR_MIN_SIZE: Vector2 = Vector2(400, 22)
-## Icon sizes for the new field glyphs (a vector heart/tower/recycle shape,
-## UiShapeGlyph -- see that file's header for why a drawn shape, not a font
-## character or a new binary asset) and the Scrap field's real gold-icon
-## texture. Two tiers: LARGE for the two health fields (player heart, Tower
-## turret), SMALL for the two lighter fields (Scrap coin, XP recycle).
-## HUD polish (third pass): scaled down alongside the bars above, for the
-## same "compact, not huge" reason.
-const ICON_SIZE_LARGE: int = 32
-const ICON_SIZE_SMALL: int = 32
-## The XP bar's round level emblem (task instruction: "the level shown in a
-## round emblem") -- see hud_level_emblem.gd.
-const LEVEL_EMBLEM_SIZE: float = 48.0
-const WAVE_VALUE_MIN_WIDTH: float = 110.0
-const LEVEL_VALUE_MIN_WIDTH: float = 60.0
-const REROLLS_VALUE_MIN_WIDTH: float = 60.0
-## HUD polish (coordinator review, third pass): "show the numeric value on
-## the HP bar ('84/100') like the Tower bar" -- the player field had none
-## before (only the glyph + the bar's own fill fraction). Sized for the
-## worst case a health value can print at (four digits before the slash is
-## generous headroom; real max HP values are far smaller).
-const PLAYER_HP_VALUE_MIN_WIDTH: float = 150.0
-## UI-pass follow-up: was 70 -- too narrow for "n/200" at UiTheme.VALUE's
-## 24px display-weight font, which silently truncated the Scrap value
-## itself ("0/200" rendered as "0/20") because nothing else in the row
-## forced more width. Sized for the Register's own worst case, "200/200"
-## (Provisional Values Register > Economy & Pickups > "Scrap": cap 200).
-const SCRAP_VALUE_MIN_WIDTH: float = 160.0
-const FULL_BADGE_MIN_WIDTH: float = 60.0
-const HOPPER_MIN_WIDTH: float = 120.0
+# --- Design sizes (Register > v1.0 Interface > "HUD layout") -------------------
+const PLAYER_BAR_MIN_SIZE: Vector2 = Vector2(250, 44)
+const XP_BAR_MIN_SIZE: Vector2 = Vector2(250, 14)
+const TOWER_BAR_MIN_SIZE: Vector2 = Vector2(440, 44)
+const WAVE_PROGRESS_MIN_SIZE: Vector2 = Vector2(440, 14)
+const BOSS_BAR_MIN_SIZE: Vector2 = Vector2(480, 36)
+const LEVEL_EMBLEM_SIZE: float = 56.0
+const ICON_SIZE: int = 32
+const SCRAP_VALUE_MIN_WIDTH: float = 140.0
+const KILLS_VALUE_MIN_WIDTH: float = 140.0
+const TIMER_MIN_WIDTH: float = 96.0
+const SLOT_DIVIDER_WIDTH: float = 4.0
+## Widest row of clusters at scale 1 (player + Tower + Scrap + gaps); the HUD Scale
+## is capped so a scaled row never outgrows a narrow canvas.
+const HUD_REFERENCE_WIDTH_PX: float = 1280.0
+const HUD_MIN_EFFECTIVE_SCALE: float = 0.6
+const SIEGE_PULSE_HZ: float = 2.0
+const REPAIR_TAG_HOLD_SECONDS: float = 0.5
+const BOSS_FADE_SECONDS: float = 1.2
+## Boss phase marks, as a fraction of boss HP (docs/31 §5.3: the Warchief enrages
+## below 40%, the King changes pattern below 50%).
+const BOSS_PHASE_MARKS: Dictionary = {"warchief": 0.4, "king": 0.5}
 
-## UI-pass follow-up (the coordinator's screenshot review): every one of
-## these short, FIXED-text labels -- the four glyph headers and the three
-## captions -- was rendering ONE CHARACTER PER LINE. Root cause: each was
-## built with `size_flags_horizontal = SIZE_EXPAND_FILL` and NO
-## `custom_minimum_size`, and `AUTOWRAP_WORD_SMART` reports a
-## near-zero natural minimum width for a label free to wrap (there is
-## nothing here to gain by reserving width up front, from the text
-## server's point of view -- it can always wrap). With every ancestor
-## Container in this tree shrink-wrapping to its content (no fixed
-## viewport-relative width anywhere above a pill), the ROW's own assigned
-## width ends up close to the SUM of its children's minimums; a sibling
-## `HudBar` (240-760px, fixed) or another label with an explicit minimum
-## eats nearly all of that, leaving this label ~0px -- and a single WORD
-## with no spaces to wrap on (e.g. "TOWER") falls back to wrapping between
-## CHARACTERS instead. That single tall, narrow column then set the whole
-## row's, and the whole pill's, height (a sibling `HudBar` at the Control
-## default `size_flags_vertical = SIZE_FILL` then stretched to match --
-## see hud_bar.gd's own follow-up fix for the second half of this).
-## The fix is a real `custom_minimum_size.x`, generous rather than exact
-## (a wider pill is a far safer failure mode than a vertically-wrapped
-## one): these constants are sized for the ENGLISH text `src/ui/theme/
-## ui_strings.gd` registers, with headroom for the F2 pseudo-localization
-## toggle's growth, since every one of these labels is set from `tr()`.
-## UI-pass follow-up #2: the first pass of these numbers was measured
-## against the plain English text and left `[[Level]]` (the F2 pseudo-
-## localization toggle's own accent-bracket wrapping, docs/19) wrapping to
-## a second line at 80px -- caught by actually running the capture tool
-## with `--pseudo` and looking, not by inspection. Re-measured with real
-## headroom against the WRAPPED form, not the bare word, and matched to
-## the ratio that already held up for "Rerolls"/105 (~15px/char at
-## FONT_SIZE_BODY): 90 was fine for "((TOWER))"/"((SCRAP))" at the
-## smaller FONT_SIZE_SMALL, so DIM-variation (FONT_SIZE_BODY, larger)
-## captions get more.
-## HUD polish (coordinator review, third pass): "HP and Scrap panels ...
-## their labels are tiny. ... The Tower bar's small 'TOWER' label likewise
-## needs to be larger and readable." All four glyph headers move from
-## UiTheme.SMALL (20px) to UiTheme.DIM (26px, see each _build_*_field()) --
-## these two widths grow with them, at the same measured ratio the
-## original author already used for this exact kind of change.
-const GLYPH_SHORT_MIN_WIDTH: float = 80.0 ## "HP", "XP" (2 letters) at UiTheme.DIM
-const GLYPH_LONG_MIN_WIDTH: float = 150.0 ## "TOWER", "SCRAP" (5 letters) at UiTheme.DIM
-const CAPTION_WAVE_MIN_WIDTH: float = 110.0 ## "Wave"
-const CAPTION_LEVEL_MIN_WIDTH: float = 100.0 ## "Level" -- was 80, confirmed too narrow: "[[Level]]" wrapped to 2 lines under F2 pseudo-localization
-const CAPTION_REROLLS_MIN_WIDTH: float = 140.0 ## "Rerolls"
+const WAVE_TYPE_KEYS: Dictionary = {
+	"standard": "WAVE_TYPE_STANDARD", "split": "WAVE_TYPE_SPLIT", "siege": "WAVE_TYPE_SIEGE",
+	"hunt": "WAVE_TYPE_HUNT", "grand_assault": "WAVE_TYPE_GRAND_ASSAULT", "boss": "WAVE_TYPE_BOSS",
+}
 
 var economy_state: HudEconomyState = null
 
+var _scale_root: Control
+var _frame: Control
+var _applied_scale: float = -1.0
+var _applied_canvas: Vector2 = Vector2.ZERO
+
+var _player_field: Control
 var _player_health_bar: HudBar
-## HUD polish (coordinator review, third pass): "show the numeric value on
-## the HP bar ('84/100') like the Tower bar" -- new; every other HUD value
-## label already existed before this pass.
-var _player_hp_label: Label
+var _xp_bar: HudBar
+var _level_emblem: HudLevelEmblem
+var _level_label: Label
+
+var _tower_field: Control
+var _tower_pill: PanelContainer
 var _tower_health_bar: HudBar
 var _wave_label: Label
-var _announcer: RunAnnouncer
-var _scrap_cores_label: Label
-var _tower_hp_label: Label
-var _wave_caption_label: Label
+var _repair_tag: Label
+var _timer_label: Label
+var _wave_progress_bar: HudBar
+var _boss_box: VBoxContainer
+var _boss_name_label: Label
+var _boss_bar: HudBar
+
+var _scrap_field: Control
+var _scrap_icon: TextureRect
 var _scrap_label: HudTruncatableLabel
 var _full_badge: Label
 var _hopper_label: Label
-var _xp_bar: HudBar
-var _level_label: Label
-var _level_caption_label: Label
-var _rerolls_label: Label
-var _rerolls_caption_label: Label
+var _kills_label: Label
 
-var _player_glyph_label: Label
-var _tower_glyph_label: Label
-var _scrap_glyph_label: Label
-var _xp_glyph_label: Label
+var _build_bar: HBoxContainer
+var _player_slots: Array[HudAbilitySlot] = []
+var _tower_slots: Array[HudAbilitySlot] = []
+var _action_cluster: HBoxContainer
+var _dash_button: HudActionButton
+var _skill_button: HudActionButton
 
-## Second UI pass: vector-drawn field icons (UiShapeGlyph) and the Scrap
-## field's real gold-icon texture, plus the XP bar's round level emblem.
-## None of these are read by any test -- purely additive visuals alongside
-## the unchanged glyph/value labels above.
-var _player_icon: UiShapeGlyph
-var _tower_icon: UiShapeGlyph
-var _scrap_icon: TextureRect
-var _rerolls_icon: UiShapeGlyph
-var _level_emblem: HudLevelEmblem
-
-var _player_health_field: Control
-var _tower_health_field: Control
-var _scrap_field: Control
-var _xp_field: Control
+var _announcer: RunAnnouncer
 
 var _player: Player = null
 var _tower: Tower = null
 
-## Second UI pass: change-detection for the two "reacts to a value changing"
-## cosmetic effects (Scrap punch, level-up burst). -1 is a sentinel meaning
-## "no refresh has run yet" so the very first _refresh_*() call never fires
-## either effect off the neutral-to-real-value jump.
 var _last_scrap_current: int = -1
 var _last_level: int = -1
 var _scrap_punch_tween: Tween = null
+var _clock_origin: float = 0.0
+
+# Event-fed state, used when the Wave Director group node is absent.
+var _event_wave_number: int = 0
+var _event_wave_count: int = 0
+var _event_wave_type: String = ""
+var _event_is_boss: bool = false
+var _boss_id: String = ""
+var _siege_remaining: float = 0.0
+var _repair_hold: float = 0.0
 
 
 func _ready() -> void:
 	layer = HUD_CANVAS_LAYER
-	# HUD keeps reading/displaying state while paused (Level-Up Draft, pause
-	# menu, Tower Console) -- matches Global Simulation Authority's own
-	# PROCESS_MODE_ALWAYS group (PauseAuthority, EventBus, "the UI
-	# CanvasLayer ... so a paused UI can still receive and react").
+	add_to_group(&"hud") # the pause menu reads run time and wave from here
+	# The HUD keeps reading state while a menu or the Draft has paused the tree.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if economy_state == null:
 		economy_state = HudEconomyState.new()
+	_clock_origin = SimClock.now
 	_build_ui()
 	_build_run_announcer()
+	_connect_events()
+	_apply_scale()
 	_refresh_all()
 
 
-## UX review items 4 and 9: wave banners, the run objective and first-run
-## hints. The Wave Director sits beside the HUD in the run scene
-## (Main/WaveDirector); absent in isolated HUD tests, where nothing is bound.
-func _build_run_announcer() -> void:
-	_announcer = RunAnnouncer.new()
-	_announcer.name = "RunAnnouncer"
-	add_child(_announcer)
-	var parent: Node = get_parent()
-	if parent != null:
-		_announcer.bind_wave_director(parent.get_node_or_null("Main/WaveDirector")) # nodes already exist; binding now cannot miss wave 1's wave_opened
+func _exit_tree() -> void:
+	_disconnect_events()
 
+
+# --- Public API (kept from the P2.6 HUD; the integration and tests use it) ----
 
 func get_run_announcer() -> RunAnnouncer:
 	return _announcer
 
 
-func _process(_delta: float) -> void:
-	# D167: on a phone the Draft needs the bottom of the canvas, so the XP
-	# ribbon steps aside while it is open.
-	if _xp_field != null:
-		_xp_field.visible = not (TouchUi.is_mobile_layout() and PauseAuthority.get_active_reasons().has(&"draft"))
-	_refresh_all()
-
-
-## Typed command. The integration task that wires this scene into
-## scenes/main.tscn calls this once the real Player exists.
 func set_player_ref(player: Player) -> void:
 	_player = player
 
 
-## Typed command. The integration task that wires this scene into
-## scenes/main.tscn calls this once the real Tower exists.
 func set_tower_ref(tower: Tower) -> void:
 	_tower = tower
 
 
-## Typed command. Lets a future Economy/Wave Director system (or a test)
-## swap in its own `HudEconomyState` instance wholesale.
 func set_economy_state(state: HudEconomyState) -> void:
 	economy_state = state
 
 
 func get_player_health_field() -> Control:
-	return _player_health_field
+	return _player_field
 
 
 func get_tower_health_field() -> Control:
-	return _tower_health_field
+	return _tower_field
 
 
 func get_scrap_field() -> Control:
 	return _scrap_field
 
 
+## The thin XP bar under the HP bar (there is no separate XP ribbon any more).
 func get_xp_field() -> Control:
-	return _xp_field
+	return _xp_bar
+
+
+func get_build_bar() -> Control:
+	return _build_bar
+
+
+func get_action_cluster() -> Control:
+	return _action_cluster
+
+
+func get_boss_box() -> Control:
+	return _boss_box
+
+
+func get_boss_bar() -> HudBar:
+	return _boss_bar
+
+
+func get_dash_button() -> HudActionButton:
+	return _dash_button
+
+
+func get_skill_button() -> HudActionButton:
+	return _skill_button
+
+
+func get_player_slots() -> Array[HudAbilitySlot]:
+	return _player_slots
+
+
+func get_tower_slots() -> Array[HudAbilitySlot]:
+	return _tower_slots
 
 
 func get_player_health_bar() -> HudBar:
@@ -363,15 +212,35 @@ func get_player_health_bar() -> HudBar:
 
 
 func get_player_hp_label() -> Label:
-	return _player_hp_label
+	return _player_health_bar.get_text_label()
 
 
 func get_tower_health_bar() -> HudBar:
 	return _tower_health_bar
 
 
+func get_tower_hp_label() -> Label:
+	return _tower_health_bar.get_text_label()
+
+
 func get_wave_label() -> Label:
 	return _wave_label
+
+
+func get_wave_progress_bar() -> HudBar:
+	return _wave_progress_bar
+
+
+func get_timer_label() -> Label:
+	return _timer_label
+
+
+func get_repair_tag() -> Label:
+	return _repair_tag
+
+
+func get_kills_label() -> Label:
+	return _kills_label
 
 
 func get_scrap_label() -> HudTruncatableLabel:
@@ -394,16 +263,72 @@ func get_level_label() -> Label:
 	return _level_label
 
 
-func get_rerolls_label() -> Label:
-	return _rerolls_label
+func get_scale_root() -> Control:
+	return _scale_root
+
+
+## Run time shown by the timer: the director's, else SimClock since the HUD opened.
+func get_elapsed_seconds() -> float:
+	var director: Node = get_tree().get_first_node_in_group("wave_director") if is_inside_tree() else null
+	if director != null and director.has_method("get_run_elapsed_seconds"):
+		return float(director.get_run_elapsed_seconds())
+	return maxf(0.0, SimClock.now - _clock_origin)
+
+
+## The wave number shown on the info line (0 before the first wave).
+func get_wave_number() -> int:
+	var director: Node = get_tree().get_first_node_in_group("wave_director") if is_inside_tree() else null
+	if director != null and director.has_method("get_current_wave_number"):
+		return int(director.get_current_wave_number())
+	return _event_wave_number if _event_wave_number > 0 else economy_state.wave_current
+
+
+func is_siege_pulsing() -> bool:
+	return _siege_remaining > 0.0
+
+
+# --- Frame loop ------------------------------------------------------------------
+
+func _process(delta: float) -> void:
+	_apply_scale()
+	var running: bool = not get_tree().paused
+	if running:
+		if _siege_remaining > 0.0:
+			_siege_remaining = maxf(0.0, _siege_remaining - delta)
+		if _repair_hold > 0.0:
+			_repair_hold = maxf(0.0, _repair_hold - delta)
+	_action_cluster.visible = not TouchUi.is_enabled()
+	_refresh_all()
+	_update_siege_pulse()
 
 
 func _refresh_all() -> void:
 	_refresh_player_health()
 	_refresh_tower_health()
+	_refresh_wave_line()
 	_refresh_scrap()
+	_refresh_kills()
 	_refresh_xp()
-	_refresh_glyphs()
+	_refresh_build_bar()
+
+
+## HUD Scale: `ScaleRoot` is scaled and resized so its children keep filling
+## the viewport. Re-applied on a setting or viewport change.
+func _apply_scale() -> void:
+	var canvas: Vector2 = get_viewport().get_visible_rect().size
+	var s: float = effective_scale(GameSettings.get_hud_scale(), canvas.x)
+	if is_equal_approx(s, _applied_scale) and canvas == _applied_canvas:
+		return
+	_applied_scale = s
+	_applied_canvas = canvas
+	_scale_root.scale = Vector2(s, s)
+	_scale_root.position = Vector2.ZERO
+	_scale_root.size = canvas / s
+
+
+## The HUD Scale setting, capped so the top row still fits a narrow canvas.
+static func effective_scale(setting: float, canvas_width: float) -> float:
+	return clampf(minf(setting, canvas_width / HUD_REFERENCE_WIDTH_PX), HUD_MIN_EFFECTIVE_SCALE, setting)
 
 
 func _refresh_player_health() -> void:
@@ -413,11 +338,7 @@ func _refresh_player_health() -> void:
 		current = _player.death_state.current_hp
 		max_v = _player.death_state.max_hp
 	_player_health_bar.set_value(current, max_v)
-	# HUD polish (coordinator review, third pass): "show the numeric value
-	# on the HP bar ('84/100') like the Tower bar" -- rounded the same way
-	# the Console already rounds a health value for display (this project
-	# has no other precedent for formatting a float health value as text).
-	_player_hp_label.text = "%d/%d" % [int(round(current)), int(round(max_v))]
+	_player_health_bar.set_text("%d/%d" % [int(round(current)), int(round(max_v))])
 
 
 func _refresh_tower_health() -> void:
@@ -431,54 +352,95 @@ func _refresh_tower_health() -> void:
 		shield = _tower.health.current_shield
 		shield_max = _tower.health.max_shield
 	_tower_health_bar.set_value(current, max_v)
-	_tower_hp_label.text = "%d/%d" % [int(round(current)), int(round(max_v))]
 	_tower_health_bar.set_shield(shield, shield_max)
-	# docs/19 > "HUD": "'Wave n/8' shows wave progress (teaching waves shown
-	# as T1-T4 in the slice)" -- the slice's T1-T4 form is out of scope for
-	# this prototype-phase task; only the numeric "Wave n/8" form is built.
-	# UI pass: the "Wave" word now lives in `_wave_caption_label` (UiTheme.
-	# DIM), not in this label -- `_wave_label` (UiTheme.VALUE) carries only
-	# the digits, per BRIEF item 5's "number prominent, caption dim". Every
-	# test reading this label checks `.contains("<wave>/<total>")`, which
-	# still holds.
-	_wave_caption_label.text = tr("HUD_WAVE")
-	_wave_label.text = "%d/%d" % [economy_state.wave_current, economy_state.wave_total]
+	_tower_health_bar.set_text("%d/%d" % [int(round(current)), int(round(max_v))])
+	var repairing: bool = _repair_hold > 0.0 or _query_repairing()
+	_repair_tag.visible = repairing
+	if repairing:
+		var pulse: float = 1.0 if GameSettings.is_reduce_flashing() else 0.85 + 0.15 * sin(SimClock.now * TAU * SIEGE_PULSE_HZ)
+		_repair_tag.modulate.a = pulse
+
+
+func _query_repairing() -> bool:
+	var node: Node = get_tree().get_first_node_in_group("tower_repair") if is_inside_tree() else null
+	return node != null and node.has_method("is_repairing") and bool(node.is_repairing())
+
+
+## The info line under the Tower bar: wave, type, timer and progress.
+func _refresh_wave_line() -> void:
+	var number: int = economy_state.wave_current
+	var count: int = economy_state.wave_total
+	var type_id: String = _event_wave_type
+	var is_boss: bool = _event_is_boss
+	var progress: float = 0.0
+	var elapsed: float = maxf(0.0, SimClock.now - _clock_origin)
+	if _event_wave_number > 0:
+		number = _event_wave_number
+		count = _event_wave_count
+	var director: Node = get_tree().get_first_node_in_group("wave_director") if is_inside_tree() else null
+	if director != null:
+		if director.has_method("get_current_wave_number"):
+			number = int(director.get_current_wave_number())
+		if director.has_method("get_wave_count"):
+			count = int(director.get_wave_count())
+		if director.has_method("get_current_wave_type"):
+			type_id = str(director.get_current_wave_type())
+		if director.has_method("is_boss_wave"):
+			is_boss = bool(director.is_boss_wave())
+		if director.has_method("get_wave_progress"):
+			progress = float(director.get_wave_progress())
+		if director.has_method("get_run_elapsed_seconds"):
+			elapsed = float(director.get_run_elapsed_seconds())
+	_wave_label.text = format_wave_line(number, count, type_id)
+	_timer_label.text = format_time(elapsed)
+	if is_boss and _boss_bar.get_max_value() > 0.0 and _boss_box.visible:
+		progress = 1.0 - _boss_bar.get_fraction() # the boss wave fills as the boss falls
+	_wave_progress_bar.fill_color = UiPalette.DANGER if is_boss else UiPalette.ACCENT
+	_wave_progress_bar.set_value(clampf(progress, 0.0, 1.0), 1.0)
+
+
+## "WAVE 6/15 · SPLIT"; Endless (count < 0) drops the total; an unknown type
+## drops the type. `wave_type` is the director's lower-case id.
+static func format_wave_line(number: int, count: int, wave_type: String) -> String:
+	var head: String = ("WAVE %d/%d" % [number, count]) if count > 0 else ("WAVE %d" % number)
+	var type_key: String = String(WAVE_TYPE_KEYS.get(wave_type.to_lower(), ""))
+	if type_key == "":
+		return head
+	return "%s · %s" % [head, TranslationServer.translate(StringName(type_key))]
+
+
+static func format_time(seconds: float) -> String:
+	var total: int = maxi(0, int(seconds))
+	return "%02d:%02d" % [total / 60, total % 60]
 
 
 func _refresh_scrap() -> void:
 	_scrap_label.set_full_text("%d/%d" % [economy_state.scrap_current, economy_state.scrap_cap])
 	_full_badge.text = tr("HUD_FULL")
-	_scrap_cores_label.text = tr("HUD_SCRAP_CORES") % scrap_to_cores(economy_state.scrap_current)
 	_full_badge.visible = economy_state.scrap_current >= economy_state.scrap_cap
 	_hopper_label.visible = economy_state.hopper_amount > 0
 	if _hopper_label.visible:
 		_hopper_label.text = "+%d %s" % [economy_state.hopper_amount, tr("HUD_HOPPER")]
-	# Second UI pass: "a count that punches on change" (task instruction).
 	if _last_scrap_current >= 0 and economy_state.scrap_current != _last_scrap_current:
 		_play_scrap_punch()
 	_last_scrap_current = economy_state.scrap_current
 
 
-## Live Core equivalent of carried Scrap (MetaProgress.SETTLEMENT_SCRAP_PER_CORE,
-## Register > "Meta: Run-End Settlement"); display only, the real settlement
-## runs at run end.
+## Live Core equivalent of carried Scrap (Register > "Meta: Run-End Settlement"),
+## shown in the pause menu's run stats.
 static func scrap_to_cores(scrap: int) -> int:
 	return int(floor(float(maxi(0, scrap)) / float(MetaProgress.SETTLEMENT_SCRAP_PER_CORE)))
 
 
-## Cosmetic-only: a short scale punch on the Scrap value label, purely
-## visual (`offset_transform_scale`, never `size`/`position` -- matches
-## hud_bar.gd's own damage-shake convention and draft_card_view.gd's
-## established use of the same property). Never gates or delays the real
-## text `_refresh_scrap()` already set above.
+## Cosmetic scale punch on the Scrap value (offset_transform, never size).
 func _play_scrap_punch() -> void:
-	if not _scrap_label.is_inside_tree():
+	if not _scrap_label.is_inside_tree() or GameSettings.is_reduce_flashing():
 		return
 	if _scrap_punch_tween != null and _scrap_punch_tween.is_running():
 		_scrap_punch_tween.kill()
 	_scrap_label.offset_transform_scale = Vector2.ONE
 	var tween: Tween = _scrap_label.create_tween()
-	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS) # the HUD is PROCESS_MODE_ALWAYS; this tween must keep up with it, matching draft_card_view.gd's own reasoning
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.set_trans(Tween.TRANS_BACK)
 	tween.set_ease(Tween.EASE_OUT)
 	tween.tween_property(_scrap_label, "offset_transform_scale", Vector2(UiPalette.VALUE_PUNCH_SCALE, UiPalette.VALUE_PUNCH_SCALE), UiPalette.VALUE_PUNCH * 0.4)
@@ -486,260 +448,288 @@ func _play_scrap_punch() -> void:
 	_scrap_punch_tween = tween
 
 
+func _refresh_kills() -> void:
+	_kills_label.text = str(int(CombatStats.get_run_counter("kills")))
+
+
 func _refresh_xp() -> void:
 	_xp_bar.set_value(economy_state.xp_current, economy_state.xp_required_for_next_level)
-	# UI pass: same split as the Wave label above -- the caption word moves
-	# to `_level_caption_label`/`_rerolls_caption_label` (UiTheme.DIM);
-	# these two keep only their digits (UiTheme.VALUE). Every test reading
-	# them checks `.contains("<digits>")`, which still holds.
-	_level_caption_label.text = tr("HUD_LEVEL")
 	_level_label.text = "%d" % displayed_level(economy_state.level)
-	_rerolls_caption_label.text = tr("HUD_REROLLS")
-	_rerolls_label.text = "%d" % economy_state.rerolls_remaining
-	# Second UI pass: "a burst when a level-up is ready" -- read here as "a
-	# level-up just landed" (see hud_level_emblem.gd's own header for why:
-	# the one moment this HUD can observe with the data it already has,
-	# without a new EventBus signal outside this task's write scope).
 	if _last_level >= 0 and economy_state.level > _last_level:
 		_level_emblem.trigger_burst()
 	_last_level = economy_state.level
 
 
-## UX review item 6 (D133): runs start at internal level 0 (MASTER_SDLC.md);
-## the player is shown "Lv 1". Display offset only: no gameplay value changes.
+## UX review item 6 (D133): runs start at internal level 0; the player is shown "Lv 1".
 static func displayed_level(internal_level: int) -> int:
 	return internal_level + 1
 
 
-## UI pass: refreshes the four fixed glyph/short headers every frame so
-## they react correctly to a runtime locale or pseudo-localization change,
-## matching how every other tr()-driven HUD label already behaves (see
-## _refresh_tower_health()/_refresh_xp()) rather than being set once and
-## going stale.
-func _refresh_glyphs() -> void:
-	_player_glyph_label.text = tr("HUD_GLYPH_PLAYER")
-	_tower_glyph_label.text = tr("HUD_GLYPH_TOWER")
-	_scrap_glyph_label.text = tr("HUD_GLYPH_SCRAP")
-	_xp_glyph_label.text = tr("HUD_GLYPH_XP")
+func _refresh_build_bar() -> void:
+	var manager: Node = get_tree().get_first_node_in_group("ability_manager") if is_inside_tree() else null
+	_fill_slots(_player_slots, manager, "player")
+	_fill_slots(_tower_slots, manager, "tower")
 
 
-## `Root` is a `VBoxContainer`, not a plain `Control` with two independently
-## raw-anchored top/bottom regions. A raw-anchored Control whose two
-## opposite anchors coincide (PRESET_TOP_WIDE / PRESET_BOTTOM_WIDE) only
-## gets its "shrink to content" behaviour from `grow_horizontal`/
-## `grow_vertical` AFTER at least one layout pass has already measured its
-## children -- calling `set_anchors_preset()` on a freshly created,
-## still-empty node (as this method used to, before children existed and
-## before the node was even inside the tree) freezes a zero-height offset
-## that a later minimum-size change does not reliably widen back out. A
-## `VBoxContainer` with an EXPAND_FILL spacer between the top and bottom
-## rows gets the same "top row hugs the top, bottom row hugs the bottom,
-## empty space in between" layout through ordinary Container arrangement
-## instead, which Godot recomputes correctly on every layout pass
-## regardless of when children were added -- no anchor/offset math at all.
-## Found by this task's own scripted acceptance test (see the P2.6 evidence
-## report, "Falsification" / "Discovered during execution"): the raw-anchor
-## version passed for the three TOP fields (whose region happened to grow
-## in the correct direction, y=0 downward) and only failed for the bottom
-## XP field, which stayed pinned at y=1080 instead of growing upward.
-##
-## UI pass: also the one place the shared theme is applied
-## (`root.theme = UiTheme.get_theme()`, phases/UI_PASS/BRIEF.md step 1 --
-## `Root` is "the first Control beneath" this CanvasLayer). Fetching the
-## theme also registers the UI's strings (`UiStrings`), the HUD's field
-## headers among them, before any label text is set.
+func _fill_slots(slots: Array[HudAbilitySlot], manager: Node, slot_kind: String) -> void:
+	var owned: Array = []
+	if manager != null and manager.has_method("get_owned_abilities"):
+		owned = manager.get_owned_abilities(slot_kind)
+	for i: int in slots.size():
+		if i < owned.size():
+			var entry: Dictionary = owned[i]
+			slots[i].set_ability(str(entry.get("id", "")), int(entry.get("level", 1)))
+		else:
+			slots[i].set_ability("", 0)
+
+
+# --- Events ----------------------------------------------------------------------
+
+func _connect_events() -> void:
+	EventBus.wave_started.connect(_on_wave_started)
+	EventBus.siege_warning.connect(_on_siege_warning)
+	EventBus.boss_spawned.connect(_on_boss_spawned)
+	EventBus.boss_health_changed.connect(_on_boss_health_changed)
+	EventBus.boss_defeated.connect(_on_boss_defeated)
+	EventBus.ability_leveled.connect(_on_ability_leveled)
+	EventBus.tower_repaired.connect(_on_tower_repaired)
+
+
+func _disconnect_events() -> void:
+	if not is_instance_valid(EventBus):
+		return
+	for pair: Array in [
+		[EventBus.wave_started, _on_wave_started], [EventBus.siege_warning, _on_siege_warning],
+		[EventBus.boss_spawned, _on_boss_spawned], [EventBus.boss_health_changed, _on_boss_health_changed],
+		[EventBus.boss_defeated, _on_boss_defeated], [EventBus.ability_leveled, _on_ability_leveled],
+		[EventBus.tower_repaired, _on_tower_repaired],
+	]:
+		var sig: Signal = pair[0]
+		if sig.is_connected(pair[1]):
+			sig.disconnect(pair[1])
+
+
+func _on_wave_started(wave_number: int, wave_count: int, wave_type: String, is_boss: bool, _timestamp: float) -> void:
+	_event_wave_number = wave_number
+	_event_wave_count = wave_count
+	_event_wave_type = wave_type
+	_event_is_boss = is_boss
+
+
+## The warning seconds pulse the Tower bar (docs/31 §5.4).
+func _on_siege_warning(seconds: float, _timestamp: float) -> void:
+	_siege_remaining = maxf(_siege_remaining, seconds)
+
+
+func _on_boss_spawned(_boss: Node2D, boss_id: String, display_name: String, max_health: float, _timestamp: float) -> void:
+	_boss_id = boss_id
+	_boss_name_label.text = display_name.to_upper()
+	_boss_bar.marker_fraction = float(BOSS_PHASE_MARKS.get(boss_id, -1.0))
+	_boss_bar.set_value(max_health, max_health)
+	_boss_bar.set_text("")
+	_boss_box.modulate.a = 1.0
+	_boss_box.visible = true
+
+
+func _on_boss_health_changed(boss_id: String, current_health: float, max_health: float, _timestamp: float) -> void:
+	if boss_id != _boss_id and _boss_box.visible:
+		return
+	_boss_bar.set_value(current_health, maxf(max_health, 1.0))
+
+
+func _on_boss_defeated(boss_id: String, _position: Vector2, _timestamp: float) -> void:
+	if boss_id != _boss_id:
+		return
+	_boss_bar.set_value(0.0, maxf(_boss_bar.get_max_value(), 1.0))
+	if not is_inside_tree():
+		_boss_box.visible = false
+		return
+	var tween: Tween = _boss_box.create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.tween_interval(0.4)
+	tween.tween_property(_boss_box, "modulate:a", 0.0, BOSS_FADE_SECONDS)
+	tween.tween_callback(func() -> void: _boss_box.visible = false)
+
+
+func _on_ability_leveled(ability_id: String, _level: int, slot_kind: String, _timestamp: float) -> void:
+	if GameSettings.is_reduce_flashing():
+		return
+	_refresh_build_bar()
+	var slots: Array[HudAbilitySlot] = _player_slots if slot_kind == "player" else _tower_slots
+	for slot: HudAbilitySlot in slots:
+		if slot.ability_id == ability_id and slot.is_inside_tree():
+			slot.offset_transform_scale = Vector2.ONE
+			var tween: Tween = slot.create_tween()
+			tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+			tween.set_trans(Tween.TRANS_BACK)
+			tween.set_ease(Tween.EASE_OUT)
+			tween.tween_property(slot, "offset_transform_scale", Vector2(1.18, 1.18), 0.08)
+			tween.tween_property(slot, "offset_transform_scale", Vector2.ONE, 0.16)
+			return
+
+
+func _on_tower_repaired(_restored: float, _scrap_spent: int, _timestamp: float) -> void:
+	_repair_hold = REPAIR_TAG_HOLD_SECONDS
+
+
+## During the warning the Tower pill is tinted danger-red; it pulses unless
+## Reduce flashing is on, which holds a steady tint.
+func _update_siege_pulse() -> void:
+	if _siege_remaining <= 0.0:
+		_tower_pill.self_modulate = Color.WHITE
+		return
+	var strength: float = 0.55 if GameSettings.is_reduce_flashing() else 0.3 + 0.35 * (0.5 + 0.5 * sin(SimClock.now * TAU * SIEGE_PULSE_HZ))
+	_tower_pill.self_modulate = Color.WHITE.lerp(UiPalette.DANGER, strength)
+
+
+# --- Assembly --------------------------------------------------------------------
+
+func _build_run_announcer() -> void:
+	_announcer = RunAnnouncer.new()
+	_announcer.name = "RunAnnouncer"
+	_frame.add_child(_announcer)
+	var parent: Node = get_parent()
+	if parent != null:
+		_announcer.bind_wave_director(parent.get_node_or_null("Main/WaveDirector"))
+
+
 func _build_ui() -> void:
-	UiStrings.ensure_registered() # UR-08: explicit, not left as a side effect of UiTheme.get_theme() alone
-	var root := VBoxContainer.new()
-	root.name = "Root"
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.theme = UiTheme.get_theme()
-	add_child(root)
+	UiStrings.ensure_registered()
+	_scale_root = Control.new()
+	_scale_root.name = "ScaleRoot"
+	_scale_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_scale_root)
 
-	_build_top_row(root)
+	_frame = Control.new()
+	_frame.name = "Root"
+	_frame.theme = UiTheme.get_theme()
+	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_scale_root.add_child(_frame)
 
-	var spacer := Control.new()
-	spacer.name = "MiddleSpacer"
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(spacer)
-
-	_build_bottom_row(root)
-
-
-func _build_top_row(root: Control) -> void:
-	var margin := MarginContainer.new()
-	margin.name = "TopMargin"
-	# No anchor preset: `margin` is a child of `root`, a VBoxContainer, so
-	# Container-managed layout positions and sizes it directly -- anchors on
-	# a Container-managed child are ignored by the engine. See _build_ui()'s
-	# header for why this replaced an earlier raw-anchor approach.
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_theme_constant_override("margin_left", UiPalette.SCREEN_MARGIN)
-	margin.add_theme_constant_override("margin_top", UiPalette.SCREEN_MARGIN)
-	margin.add_theme_constant_override("margin_right", UiPalette.SCREEN_MARGIN)
-	root.add_child(margin)
-
-	var row := HBoxContainer.new()
-	row.name = "TopRow"
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.theme_type_variation = UiTheme.hbox("XL") # UR-06
-	margin.add_child(row)
-
-	_player_health_field = _build_player_health_field()
-	row.add_child(_player_health_field)
-
-	var center := CenterContainer.new()
-	center.name = "TowerCenter"
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(center)
-	_tower_health_field = _build_tower_health_field()
-	center.add_child(_tower_health_field)
-
-	_scrap_field = _build_scrap_field()
-	row.add_child(_scrap_field)
+	_build_player_cluster()
+	_build_tower_cluster()
+	_build_scrap_cluster()
+	_build_build_bar()
+	_build_action_cluster()
 
 
-## Builds the pill every field's content sits inside (phases/UI_PASS/
-## BRIEF.md, package A, item 2): a `PanelContainer` themed `UiTheme.PILL`.
-## `mouse_filter` is a parameter, not always IGNORE, because the Scrap
-## field's pill must stay PASS -- see `_build_scrap_field()`.
-func _make_pill(node_name: String, mouse_filter: int) -> PanelContainer:
+## Pins `control` to a screen corner or edge: `h` -1 left / 0 centre / 1 right,
+## `v` 0 top / 1 bottom. Anchors plus grow direction, so the cluster keeps its
+## edge as its content changes size (a layout preset alone does not set growth).
+func _anchor(control: Control, h: int, v: int) -> void:
+	_frame.add_child(control)
+	var margin: float = float(UiPalette.SCREEN_MARGIN)
+	control.anchor_left = float(h + 1) * 0.5
+	control.anchor_right = control.anchor_left
+	control.anchor_top = float(v)
+	control.anchor_bottom = control.anchor_top
+	control.offset_left = -margin * float(h)
+	control.offset_right = control.offset_left
+	control.offset_top = margin if v == 0 else -margin
+	control.offset_bottom = control.offset_top
+	control.grow_horizontal = Control.GROW_DIRECTION_BEGIN if h > 0 else (Control.GROW_DIRECTION_END if h < 0 else Control.GROW_DIRECTION_BOTH)
+	control.grow_vertical = Control.GROW_DIRECTION_END if v == 0 else Control.GROW_DIRECTION_BEGIN
+
+
+func _make_pill(node_name: String) -> PanelContainer:
 	var pill := PanelContainer.new()
 	pill.name = node_name
 	pill.theme_type_variation = UiTheme.PILL
-	pill.mouse_filter = mouse_filter
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return pill
 
 
-## Builds a Label with this project's own container rules already applied
-## (docs/19 > "UI Layout & Dynamic Container Rules": autowrap +
-## expand-fill, so it grows instead of truncating -- the same rule every
-## other dynamic HUD label already follows) and a UiTheme label variation,
-## for the HUD's static glyph/caption text. The five labels the tests read
-## (Wave/Level/Rerolls/FullBadge/Hopper) keep setting their own properties
-## explicitly, unchanged beyond the added `theme_type_variation`, so a diff
-## reviewer can see nothing about THEIR construction changed.
-##
-## `min_width` is REQUIRED, not optional: see the constants block above
-## ("every one of these short, FIXED-text labels was rendering ONE
-## CHARACTER PER LINE") for why `SIZE_EXPAND_FILL` alone, with no
-## `custom_minimum_size`, is not safe for a short word inside a
-## shrink-to-fit pill.
-##
-## UI-pass round 2: `alignment` defaults to LEFT (unchanged behaviour for
-## every existing caller -- the four glyph headers). A caption label paired
-## immediately beside a value label passes RIGHT instead, so its text sits
-## flush against the value rather than floating inside its own
-## deliberately oversized (pseudo-localization-sized) box -- see the Wave/
-## Level/Rerolls caption call sites.
-func _new_hud_label(node_name: String, variation: StringName, min_width: float, alignment: int = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
+func _make_value_label(node_name: String, min_width: float) -> Label:
 	var label := Label.new()
 	label.name = node_name
-	label.theme_type_variation = variation
+	label.theme_type_variation = UiTheme.HUD_VALUE
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.custom_minimum_size = Vector2(min_width, 0)
-	label.horizontal_alignment = alignment
 	return label
 
 
-func _build_player_health_field() -> Control:
-	var field := MarginContainer.new()
-	field.name = "PlayerHealthField"
-	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	var pill := _make_pill("PlayerHealthPill", Control.MOUSE_FILTER_IGNORE)
-	field.add_child(pill)
+func _build_player_cluster() -> void:
+	var pill := _make_pill("PlayerHealthPill")
+	pill.name = "PlayerHealthField"
+	_player_field = pill
+	_anchor(pill, -1, 0)
 
 	var row := HBoxContainer.new()
-	row.name = "PlayerHealthRow"
+	row.name = "PlayerRow"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# UR-06: SPACE_S is the HBoxContainer theme default (ui_theme.gd
-	# _build_containers()) -- no override needed.
+	row.theme_type_variation = UiTheme.hbox("M")
 	pill.add_child(row)
 
-	# Fixed glyph/short header (BRIEF item 3): identifies this field without
-	# colour, even before the bar itself is read.
-	# Second UI pass: a vector heart icon identifies the player field even
-	# before any text is read (task instruction: "a heart ... for the
-	# player"). UiShapeGlyph, not a new binary asset -- see that file's
-	# header.
-	_player_icon = UiShapeGlyph.new()
-	_player_icon.name = "PlayerIcon"
-	_player_icon.shape = UiShapeGlyph.Shape.HEART
-	_player_icon.glyph_color = UiPalette.PLAYER
-	_player_icon.set_side(ICON_SIZE_LARGE)
-	row.add_child(_player_icon)
+	_level_emblem = HudLevelEmblem.new()
+	_level_emblem.name = "LevelEmblem"
+	_level_emblem.custom_minimum_size = Vector2(LEVEL_EMBLEM_SIZE, LEVEL_EMBLEM_SIZE)
+	_level_emblem.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_level_emblem)
+	_level_label = Label.new()
+	_level_label.name = "LevelLabel"
+	_level_label.theme_type_variation = UiTheme.HUD_VALUE
+	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_level_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_level_emblem.add_child(_level_label)
 
-	# HUD polish (coordinator review, third pass): UiTheme.DIM (26px), not
-	# UiTheme.SMALL (20px) -- "labels are tiny" -- see GLYPH_SHORT_MIN_WIDTH's
-	# own updated header for the matching width bump.
-	_player_glyph_label = _new_hud_label("PlayerHealthGlyph", UiTheme.DIM, GLYPH_SHORT_MIN_WIDTH)
-	_player_glyph_label.visible = false # D166: the icon carries the meaning; a 19 px caption cannot be read
-	row.add_child(_player_glyph_label)
+	var bars := VBoxContainer.new()
+	bars.name = "PlayerBars"
+	bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bars.alignment = BoxContainer.ALIGNMENT_CENTER
+	bars.theme_type_variation = UiTheme.vbox("XS")
+	row.add_child(bars)
 
 	_player_health_bar = HudBar.new()
 	_player_health_bar.name = "PlayerHealthBar"
 	_player_health_bar.enable_health_tick_rule = true
 	_player_health_bar.fill_color = UiPalette.PLAYER
 	_player_health_bar.custom_minimum_size = PLAYER_BAR_MIN_SIZE
-	row.add_child(_player_health_bar)
+	bars.add_child(_player_health_bar)
+	_player_health_bar.set_text("0/0")
 
-	# HUD polish (coordinator review, third pass): the numeric HP value,
-	# matching the Tower/Scrap fields' own existing value labels -- see
-	# _refresh_player_health().
-	_player_hp_label = Label.new()
-	_player_hp_label.name = "PlayerHpLabel"
-	_player_hp_label.theme_type_variation = UiTheme.HUD_VALUE
-	_player_hp_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_player_hp_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_player_hp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_player_hp_label.custom_minimum_size = Vector2(PLAYER_HP_VALUE_MIN_WIDTH, 0)
-	row.add_child(_player_hp_label)
-
-	return field
+	_xp_bar = HudBar.new()
+	_xp_bar.name = "XpBar"
+	_xp_bar.fill_color = UiPalette.XP
+	_xp_bar.background_color = UiPalette.with_alpha(UiPalette.SURFACE_HOVER, 0.92) # a visible empty track
+	_xp_bar.custom_minimum_size = XP_BAR_MIN_SIZE
+	bars.add_child(_xp_bar)
 
 
-func _build_tower_health_field() -> Control:
+func _build_tower_cluster() -> void:
 	var field := VBoxContainer.new()
 	field.name = "TowerHealthField"
 	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	field.alignment = BoxContainer.ALIGNMENT_CENTER
-	field.theme_type_variation = UiTheme.vbox("XS") # UR-06
+	field.theme_type_variation = UiTheme.vbox("XS")
+	_tower_field = field
+	_anchor(field, 0, 0)
 
-	var pill := _make_pill("TowerHealthPill", Control.MOUSE_FILTER_IGNORE)
-	field.add_child(pill)
+	_tower_pill = _make_pill("TowerHealthPill")
+	field.add_child(_tower_pill)
 
 	var inner := VBoxContainer.new()
 	inner.name = "TowerHealthInner"
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inner.alignment = BoxContainer.ALIGNMENT_CENTER
-	inner.theme_type_variation = UiTheme.vbox("XS") # UR-06
-	pill.add_child(inner)
+	inner.theme_type_variation = UiTheme.vbox("XS")
+	_tower_pill.add_child(inner)
 
 	var bar_row := HBoxContainer.new()
 	bar_row.name = "TowerHealthBarRow"
 	bar_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
 	inner.add_child(bar_row)
 
-	# Second UI pass: a vector tower icon (task instruction: "the tower for
-	# the Tower").
-	_tower_icon = UiShapeGlyph.new()
-	_tower_icon.name = "TowerIcon"
-	_tower_icon.shape = UiShapeGlyph.Shape.TOWER
-	_tower_icon.glyph_color = UiPalette.TOWER
-	_tower_icon.set_side(ICON_SIZE_LARGE)
-	bar_row.add_child(_tower_icon)
-
-	_tower_glyph_label = _new_hud_label("TowerHealthGlyph", UiTheme.DIM, GLYPH_LONG_MIN_WIDTH)
-	_tower_glyph_label.visible = false # D166: the icon carries the meaning; a 19 px caption cannot be read
-	bar_row.add_child(_tower_glyph_label)
+	var tower_icon := UiShapeGlyph.new()
+	tower_icon.name = "TowerIcon"
+	tower_icon.shape = UiShapeGlyph.Shape.TOWER
+	tower_icon.glyph_color = UiPalette.TOWER
+	tower_icon.set_side(ICON_SIZE)
+	tower_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar_row.add_child(tower_icon)
 
 	_tower_health_bar = HudBar.new()
 	_tower_health_bar.name = "TowerHealthBar"
@@ -749,340 +739,168 @@ func _build_tower_health_field() -> Control:
 	_tower_health_bar.shield_color = UiPalette.SHIELD
 	_tower_health_bar.custom_minimum_size = TOWER_BAR_MIN_SIZE
 	bar_row.add_child(_tower_health_bar)
+	_tower_health_bar.set_text("0/0")
 
-	# UX review item 6 (D132): the Tower's HP number, like the player's.
-	_tower_hp_label = Label.new()
-	_tower_hp_label.name = "TowerHpLabel"
-	_tower_hp_label.theme_type_variation = UiTheme.HUD_VALUE
-	_tower_hp_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_tower_hp_label.custom_minimum_size = Vector2(PLAYER_HP_VALUE_MIN_WIDTH, 0)
-	bar_row.add_child(_tower_hp_label)
+	var info_row := HBoxContainer.new()
+	info_row.name = "WaveRow"
+	info_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(info_row)
 
-	var wave_row := HBoxContainer.new()
-	wave_row.name = "WaveRow"
-	wave_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wave_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	wave_row.theme_type_variation = UiTheme.hbox("M") # UR-06
-	# UI-pass round 2 (HUD polish): TowerHealthInner is a VBoxContainer, so
-	# WaveRow -- like any of its children -- fills its FULL cross-axis width
-	# by default (matching TowerHealthBarRow's own width, ~440px), not its
-	# own minimum content width. With both children below carrying
-	# SIZE_EXPAND_FILL (required by docs/19's container rule so they can
-	# still grow under pseudo-localization), that leftover width was split
-	# between the caption and the value, opening a ~100px gap between "Wave"
-	# and its digits instead of the two sitting together. SHRINK_CENTER
-	# keeps WaveRow at its own true minimum size, centred in the space above
-	# -- no leftover left for the children to be pushed apart by.
-	wave_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	# Second UI pass: "wave shown on a banner" (task instruction) -- a small
-	# ribbon panel behind WaveRow. WaveRow itself, and everything inside it,
-	# is unchanged: this only adds one new ancestor Control.
-	var wave_ribbon := PanelContainer.new()
-	wave_ribbon.name = "WaveRibbon"
-	wave_ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wave_ribbon.theme_type_variation = UiTheme.RIBBON
-	# UX review item 6 (D132): a sibling BELOW the Tower pill (child of the
-	# field, not of TowerHealthInner), so the pill frame and the ribbon's flag
-	# ends no longer collide.
-	field.add_child(wave_ribbon)
-	wave_ribbon.add_child(wave_row)
-
-	# UI pass: caption (dim) + number (value) pair -- see _refresh_tower_
-	# health() for why the word and the digits now live in two labels.
-	# UI-pass round 2: the caption is RIGHT-aligned within its own
-	# (deliberately generous, pseudo-localization-sized) box, so its text
-	# sits flush against the value that follows rather than floating in
-	# whatever blank space the box's extra width leaves -- see
-	# _new_hud_label()'s `alignment` parameter.
-	_wave_caption_label = _new_hud_label("WaveCaptionLabel", UiTheme.HUD_VALUE, CAPTION_WAVE_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
-	wave_row.add_child(_wave_caption_label)
-
-	_wave_label = Label.new()
-	_wave_label.name = "WaveLabel"
-	_wave_label.theme_type_variation = UiTheme.HUD_VALUE
-	# UI-pass round 2: left-aligned (the Label default), not centred -- so
-	# the digits sit flush against the caption immediately to their left,
-	# matching the Level/Rerolls value labels below.
-	# docs/19 > "UI Layout & Dynamic Container Rules": autowrap + expand-fill
-	# so this label GROWS under pseudo-localization instead of truncating.
-	_wave_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_wave_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_wave_label = _make_value_label("WaveLabel", 0.0)
 	_wave_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_wave_label.custom_minimum_size = Vector2(WAVE_VALUE_MIN_WIDTH, 0)
-	wave_row.add_child(_wave_label)
+	info_row.add_child(_wave_label)
 
-	return field
+	_repair_tag = _make_value_label("RepairTag", 0.0)
+	_repair_tag.text = tr("HUD_REPAIRING")
+	_repair_tag.add_theme_color_override("font_color", UiPalette.SUCCESS)
+	_repair_tag.add_theme_constant_override("outline_size", UiPalette.OUTLINE_DISPLAY)
+	_repair_tag.visible = false
+	info_row.add_child(_repair_tag)
+
+	_timer_label = _make_value_label("TimerLabel", TIMER_MIN_WIDTH)
+	_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	info_row.add_child(_timer_label)
+
+	_wave_progress_bar = HudBar.new()
+	_wave_progress_bar.name = "WaveProgressBar"
+	_wave_progress_bar.fill_color = UiPalette.ACCENT
+	_wave_progress_bar.custom_minimum_size = WAVE_PROGRESS_MIN_SIZE
+	_wave_progress_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner.add_child(_wave_progress_bar)
+
+	_boss_box = VBoxContainer.new()
+	_boss_box.name = "BossBox"
+	_boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_box.theme_type_variation = UiTheme.vbox("XS")
+	_boss_box.visible = false
+	field.add_child(_boss_box)
+
+	_boss_name_label = _make_value_label("BossNameLabel", 0.0)
+	_boss_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boss_name_label.add_theme_constant_override("outline_size", UiPalette.OUTLINE_DISPLAY)
+	_boss_box.add_child(_boss_name_label)
+
+	_boss_bar = HudBar.new()
+	_boss_bar.name = "BossBar"
+	_boss_bar.fill_color = UiPalette.DANGER
+	_boss_bar.low_fill_color = UiPalette.DANGER
+	_boss_bar.custom_minimum_size = BOSS_BAR_MIN_SIZE
+	_boss_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_boss_box.add_child(_boss_bar)
 
 
-func _build_scrap_field() -> Control:
-	var field := HBoxContainer.new()
-	field.name = "ScrapField"
-	# PASS, not IGNORE: this is the one HUD row that must still receive
-	# mouse hover for ScrapValueLabel's custom focus tooltip. The pill and
-	# its inner row below stay PASS too, for the same reason.
-	field.mouse_filter = Control.MOUSE_FILTER_PASS
-	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
+func _build_scrap_cluster() -> void:
+	var pill := _make_pill("ScrapPill")
+	pill.name = "ScrapField"
+	# PASS: the Scrap value keeps its hover tooltip (full value when truncated).
+	pill.mouse_filter = Control.MOUSE_FILTER_PASS
+	_scrap_field = pill
+	_anchor(pill, 1, 0)
 
-	var pill := _make_pill("ScrapPill", Control.MOUSE_FILTER_PASS)
-	field.add_child(pill)
+	var column := VBoxContainer.new()
+	column.name = "ScrapColumn"
+	column.mouse_filter = Control.MOUSE_FILTER_PASS
+	column.theme_type_variation = UiTheme.vbox("XS")
+	pill.add_child(column)
 
-	var row := HBoxContainer.new()
-	row.name = "ScrapRow"
-	row.mouse_filter = Control.MOUSE_FILTER_PASS
-	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
-	# UX review item 8 (D132): a second line under the Scrap row shows what the
-	# Scrap turns into at run end ("= n Cores"), so Scrap has a visible purpose.
-	var scrap_inner := VBoxContainer.new()
-	scrap_inner.name = "ScrapInner"
-	scrap_inner.mouse_filter = Control.MOUSE_FILTER_PASS
-	scrap_inner.theme_type_variation = UiTheme.vbox("XS")
-	pill.add_child(scrap_inner)
-	scrap_inner.add_child(row)
-	_scrap_cores_label = Label.new()
-	_scrap_cores_label.name = "ScrapCoresLabel"
-	_scrap_cores_label.theme_type_variation = &"" # D145: default Label = body size, bright text (was small dim text)
-	_scrap_cores_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_scrap_cores_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	scrap_inner.add_child(_scrap_cores_label)
+	var scrap_row := HBoxContainer.new()
+	scrap_row.name = "ScrapRow"
+	scrap_row.mouse_filter = Control.MOUSE_FILTER_PASS
+	column.add_child(scrap_row)
 
-	# Second UI pass: the real gold-icon texture (task instruction: "Scrap
-	# shown with the gold icon"), not a vector shape -- G_Idle_NoShadow.png
-	# is exactly a coin-pouch icon already.
 	_scrap_icon = TextureRect.new()
 	_scrap_icon.name = "ScrapIcon"
-	# Cropped to the pouch's own alpha bounds (48,51)-(91,96) of the 128 px
-	# frame: uncropped, the pouch is a third of the texture and shrinks to a
-	# dot at the HUD's icon size.
-	var scrap_atlas: AtlasTexture = AtlasTexture.new()
-	scrap_atlas.atlas = load(UiPalette.TEX_SCRAP_ICON)
-	scrap_atlas.region = Rect2(47, 50, 45, 47)
-	_scrap_icon.texture = scrap_atlas
+	var atlas := AtlasTexture.new()
+	atlas.atlas = load(UiPalette.TEX_SCRAP_ICON)
+	atlas.region = Rect2(47, 50, 45, 47) # the pouch's own alpha bounds
+	_scrap_icon.texture = atlas
 	_scrap_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	# TextureRect's default expand_mode (EXPAND_KEEP_SIZE) reports the
-	# TEXTURE's own native pixel size (128x128, G_Idle_NoShadow.png) as its
-	# minimum size, ignoring custom_minimum_size below entirely -- caught by
-	# a real render measurement, not by inspection: it silently inflated
-	# ScrapField's row to 128px tall, which in turn stretched the WHOLE
-	# TopRow (and every sibling in it, including PlayerHealthPill, since an
-	# HBoxContainer's default SIZE_FILL vertical stretches every child to
-	# the row's own tallest minimum) to 144px, failing
-	# ui_hud_render_test.gd's pill-height bound for a field that never
-	# touched a texture at all. EXPAND_IGNORE_SIZE makes custom_minimum_size
-	# the only thing that matters, as intended.
 	_scrap_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_scrap_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	# Native size (45x47 crop), never rescaled: one texel scale (D157).
 	_scrap_icon.custom_minimum_size = Vector2(45, 47)
 	_scrap_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(_scrap_icon)
-
-	_scrap_glyph_label = _new_hud_label("ScrapGlyph", UiTheme.DIM, GLYPH_LONG_MIN_WIDTH)
-	_scrap_glyph_label.visible = false # D166: the icon carries the meaning; a 19 px caption cannot be read
-	row.add_child(_scrap_glyph_label)
+	scrap_row.add_child(_scrap_icon)
 
 	_scrap_label = HudTruncatableLabel.new()
 	_scrap_label.name = "ScrapValueLabel"
 	_scrap_label.theme_type_variation = UiTheme.HUD_VALUE
 	_scrap_label.custom_minimum_size = Vector2(SCRAP_VALUE_MIN_WIDTH, 0)
 	_scrap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	# Second UI pass: offset_transform_* is visual-only (see hud_bar.gd's own
-	# note on the same property) -- enables the punch-on-change tween in
-	# _play_scrap_punch() without perturbing this label's real position/size
-	# inside ScrapRow.
+	_scrap_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_scrap_label.offset_transform_enabled = true
 	_scrap_label.offset_transform_pivot_ratio = Vector2(0.5, 0.5)
-	row.add_child(_scrap_label)
+	scrap_row.add_child(_scrap_label)
 
-	_full_badge = Label.new()
-	_full_badge.name = "FullBadgeLabel"
-	_full_badge.theme_type_variation = UiTheme.SMALL
-	_full_badge.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_full_badge.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_full_badge.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_full_badge.custom_minimum_size = Vector2(FULL_BADGE_MIN_WIDTH, 0)
+	_full_badge = _make_value_label("FullBadgeLabel", 0.0)
+	_full_badge.add_theme_color_override("font_color", UiPalette.GOLD)
 	_full_badge.visible = false
-	row.add_child(_full_badge)
+	scrap_row.add_child(_full_badge)
 
-	_hopper_label = Label.new()
-	_hopper_label.name = "HopperLabel"
-	_hopper_label.theme_type_variation = UiTheme.SMALL
-	_hopper_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hopper_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_hopper_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_hopper_label.custom_minimum_size = Vector2(HOPPER_MIN_WIDTH, 0)
+	_hopper_label = _make_value_label("HopperLabel", 0.0)
 	_hopper_label.visible = false
-	row.add_child(_hopper_label)
+	scrap_row.add_child(_hopper_label)
 
-	return field
+	var kills_row := HBoxContainer.new()
+	kills_row.name = "KillsRow"
+	kills_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(kills_row)
 
+	var skull := HudKillsGlyph.new()
+	skull.name = "KillsIcon"
+	skull.custom_minimum_size = Vector2(45, 40)
+	kills_row.add_child(skull)
 
-func _build_bottom_row(root: Control) -> void:
-	var margin := MarginContainer.new()
-	margin.name = "BottomMargin"
-	# No anchor preset -- see _build_top_row()'s identical note.
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Second UI pass: side margins added (there were none before) now that the
-	# XP field is a full-width ribbon (task instruction: "full-width bottom
-	# ribbon") rather than a CenterContainer-shrunk pill -- without them the
-	# ribbon's own carved flag-end corners would touch the literal screen edge.
-	margin.add_theme_constant_override("margin_left", UiPalette.SCREEN_MARGIN)
-	margin.add_theme_constant_override("margin_right", UiPalette.SCREEN_MARGIN)
-	margin.add_theme_constant_override("margin_bottom", UiPalette.SCREEN_MARGIN)
-	root.add_child(margin)
-
-	_xp_field = _build_xp_field()
-	margin.add_child(_xp_field)
+	_kills_label = _make_value_label("KillsLabel", KILLS_VALUE_MIN_WIDTH)
+	_kills_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	kills_row.add_child(_kills_label)
 
 
-func _build_xp_field() -> Control:
-	var field := VBoxContainer.new()
-	field.name = "XpField"
-	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	field.theme_type_variation = UiTheme.vbox("XS") # UR-06
-	# Second UI pass: SIZE_EXPAND_FILL so this field claims the full width
-	# BottomMargin now leaves available (task instruction: "full-width bottom
-	# ribbon") instead of shrink-wrapping to its own content.
-	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+func _build_build_bar() -> void:
+	_build_bar = HBoxContainer.new()
+	_build_bar.name = "BuildBar"
+	_build_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_anchor(_build_bar, -1, 1)
 
-	# UiTheme.RIBBON (a folded-cloth banner), not UiTheme.PILL, and built
-	# directly rather than through _make_pill() (which always applies
-	# UiTheme.PILL) -- same node name "XpPill" as before, so every existing
-	# `_find("XpPill")` test seam is unaffected; only its theme variation and
-	# its own SIZE_EXPAND_FILL (for the same full-width reason as `field`
-	# above) changed.
-	var pill := PanelContainer.new()
-	pill.name = "XpPill"
-	pill.theme_type_variation = UiTheme.RIBBON
-	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field.add_child(pill)
+	for i: int in AbilityIds.MAX_PLAYER_ABILITIES:
+		var slot := HudAbilitySlot.new()
+		slot.name = "PlayerSlot%d" % (i + 1)
+		slot.slot_owner = HudAbilitySlot.Owner.PLAYER
+		slot.offset_transform_enabled = true
+		slot.offset_transform_pivot_ratio = Vector2(0.5, 0.5)
+		_build_bar.add_child(slot)
+		_player_slots.append(slot)
 
-	var inner := VBoxContainer.new()
-	inner.name = "XpInner"
-	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inner.theme_type_variation = UiTheme.vbox("XS") # UR-06
-	pill.add_child(inner)
+	var divider := ColorRect.new()
+	divider.name = "SlotDivider"
+	divider.color = UiPalette.with_alpha(UiPalette.LINE_STRONG, 0.9)
+	divider.custom_minimum_size = Vector2(SLOT_DIVIDER_WIDTH, HudAbilitySlot.SLOT_SIZE_PX)
+	divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_build_bar.add_child(divider)
 
-	var bar_row := HBoxContainer.new()
-	bar_row.name = "XpBarRow"
-	bar_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# UR-06: SPACE_S is the HBoxContainer theme default -- no override needed.
-	inner.add_child(bar_row)
+	for i: int in AbilityIds.MAX_TOWER_ABILITIES:
+		var slot := HudAbilitySlot.new()
+		slot.name = "TowerSlot%d" % (i + 1)
+		slot.slot_owner = HudAbilitySlot.Owner.TOWER
+		slot.offset_transform_enabled = true
+		slot.offset_transform_pivot_ratio = Vector2(0.5, 0.5)
+		_build_bar.add_child(slot)
+		_tower_slots.append(slot)
 
-	_xp_glyph_label = _new_hud_label("XpGlyph", UiTheme.HUD_VALUE, GLYPH_SHORT_MIN_WIDTH)
-	# UX review item 6 (D132): the "XP" caption was clipped at the ribbon's
-	# top-left corner; centre it on the bar and use the legible VALUE style.
-	_xp_glyph_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_xp_glyph_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	# Second UI pass: _new_hud_label() always sets SIZE_EXPAND_FILL (every
-	# OTHER glyph label relies on that -- see that method's own header), but
-	# with _xp_bar ALSO now EXPAND_FILL (below) in a row that finally has
-	# real leftover width to hand out (the full-width ribbon), an
-	# HBoxContainer splits that leftover EVENLY between every EXPAND child --
-	# this glyph label was silently claiming half of it as invisible padding
-	# around its own left-aligned text, leaving the bar only the other half
-	# (caught by actually looking at a capture, not by inspection). FILL
-	# alone (no EXPAND) makes it take exactly its own minimum width, so
-	# _xp_bar is the row's only EXPAND child and gets 100% of the leftover.
-	_xp_glyph_label.size_flags_horizontal = Control.SIZE_FILL
-	bar_row.add_child(_xp_glyph_label)
 
-	_xp_bar = HudBar.new()
-	_xp_bar.name = "XpBar"
-	_xp_bar.fill_color = UiPalette.XP
-	# HUD polish (coordinator review, third pass): "the empty XP bar is a
-	# flat dark strip; give it a visible frame/fill contrast." HudBar always
-	# draws a border (hud_bar.gd's own _draw()), but the default
-	# UiPalette.LINE_STRONG (bronze) sat too close in value to the ribbon's
-	# own khaki fabric behind it to read as a frame when the bar is empty.
-	# A bright accent border reads as a frame regardless of fill state.
-	_xp_bar.border_color = UiPalette.INK_PIXEL
-	_xp_bar.custom_minimum_size = XP_BAR_MIN_SIZE
-	# SIZE_EXPAND_FILL: the bar itself stretches across the ribbon's full
-	# width (task instruction: "full-width bottom ribbon") instead of staying
-	# pinned at its minimum size.
-	_xp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar_row.add_child(_xp_bar)
+func _build_action_cluster() -> void:
+	_action_cluster = HBoxContainer.new()
+	_action_cluster.name = "ActionCluster"
+	_action_cluster.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_action_cluster.alignment = BoxContainer.ALIGNMENT_END
+	_action_cluster.theme_type_variation = UiTheme.hbox("M")
+	_anchor(_action_cluster, 1, 1)
 
-	var info_row := HBoxContainer.new()
-	info_row.name = "XpInfoRow"
-	info_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	info_row.theme_type_variation = UiTheme.hbox("L") # UR-06
-	info_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	inner.add_child(info_row)
+	_dash_button = HudActionButton.new(HudActionButton.Kind.DASH)
+	_dash_button.name = "DashButton"
+	_dash_button.size_flags_vertical = Control.SIZE_SHRINK_END
+	_action_cluster.add_child(_dash_button)
 
-	# UI pass: each stat is a caption (dim) + number (value) pair, grouped
-	# in its own row so the pairing reads clearly -- see _refresh_xp() for
-	# why the word and the digits now live in two labels each.
-	var level_group := HBoxContainer.new()
-	level_group.name = "LevelGroup"
-	level_group.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	level_group.theme_type_variation = UiTheme.hbox("XS") # UR-06
-	info_row.add_child(level_group)
-
-	# UI-pass round 2: RIGHT-aligned, same reason as WaveCaptionLabel above --
-	# keeps the caption flush against its value instead of floating inside
-	# its own (pseudo-localization-sized) box.
-	_level_caption_label = _new_hud_label("LevelCaptionLabel", UiTheme.HUD_VALUE, CAPTION_LEVEL_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
-	# HUD polish (coordinator review, third pass): "make 'Level 0' and
-	# 'Rerolls 1' readable (bigger, outlined), consistent with the rest" --
-	# bumped to match the VALUE beside it (FONT_SIZE_VALUE) rather than
-	# DIM's own smaller default; a genuine one-off override (UiTheme's own
-	# header: "per-node add_theme_*_override is for genuine one-offs only").
-	level_group.add_child(_level_caption_label)
-
-	# Second UI pass: "the level shown in a round emblem" (task instruction)
-	# -- LevelLabel keeps its exact name/object identity/get_level_label()
-	# seam, just reparented inside the round backdrop instead of sitting
-	# directly in LevelGroup. See hud_level_emblem.gd.
-	_level_emblem = HudLevelEmblem.new()
-	_level_emblem.name = "LevelEmblem"
-	_level_emblem.custom_minimum_size = Vector2(LEVEL_EMBLEM_SIZE, LEVEL_EMBLEM_SIZE)
-	_level_emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	level_group.add_child(_level_emblem)
-
-	_level_label = Label.new()
-	_level_label.name = "LevelLabel"
-	_level_label.theme_type_variation = UiTheme.HUD_VALUE
-	# A smaller font than the theme's own VALUE size so two digits fit
-	# comfortably inside the round emblem -- a genuine one-off override
-	# (UiTheme's own header: "per-node add_theme_*_override is for genuine
-	# one-offs only").
-	_level_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_level_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_level_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_level_emblem.add_child(_level_label)
-
-	var rerolls_group := HBoxContainer.new()
-	rerolls_group.name = "RerollsGroup"
-	rerolls_group.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rerolls_group.theme_type_variation = UiTheme.hbox("XS") # UR-06
-	info_row.add_child(rerolls_group)
-
-	# UI-pass round 2: RIGHT-aligned, same reason as the other two captions.
-	# Second UI pass: a vector "recycle" icon (task instruction: "Rerolls
-	# with an icon").
-	_rerolls_icon = UiShapeGlyph.new()
-	_rerolls_icon.name = "RerollsIcon"
-	_rerolls_icon.shape = UiShapeGlyph.Shape.RECYCLE
-	_rerolls_icon.glyph_color = UiPalette.ACCENT
-	_rerolls_icon.set_side(ICON_SIZE_SMALL)
-	rerolls_group.add_child(_rerolls_icon)
-
-	_rerolls_caption_label = _new_hud_label("RerollsCaptionLabel", UiTheme.HUD_VALUE, CAPTION_REROLLS_MIN_WIDTH, HORIZONTAL_ALIGNMENT_RIGHT)
-	# HUD polish (coordinator review, third pass): same size bump as
-	# LevelCaptionLabel above, same reason.
-	rerolls_group.add_child(_rerolls_caption_label)
-
-	_rerolls_label = Label.new()
-	_rerolls_label.name = "RerollsLabel"
-	_rerolls_label.theme_type_variation = UiTheme.HUD_VALUE
-	_rerolls_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_rerolls_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_rerolls_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_rerolls_label.custom_minimum_size = Vector2(REROLLS_VALUE_MIN_WIDTH, 0)
-	rerolls_group.add_child(_rerolls_label)
-
-	return field
+	_skill_button = HudActionButton.new(HudActionButton.Kind.SKILL)
+	_skill_button.name = "SkillButton"
+	_skill_button.size_flags_vertical = Control.SIZE_SHRINK_END
+	_action_cluster.add_child(_skill_button)

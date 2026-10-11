@@ -117,6 +117,7 @@ const SECTION_AUDIO: String = "audio"
 const SECTION_VIDEO: String = "video"
 const SECTION_GAMEPLAY: String = "gameplay"
 const SECTION_ACCESSIBILITY: String = "accessibility"
+const SECTION_CONTROLS: String = "controls"
 
 ## Register > "Settings" row defaults.
 const DEFAULT_MASTER_VOLUME_PCT: int = 100
@@ -125,7 +126,6 @@ const DEFAULT_EFFECTS_VOLUME_PCT: int = 80
 const DEFAULT_MUTE_ALL: bool = false
 const DEFAULT_DISPLAY_MODE: int = DisplayMode.WINDOWED
 const DEFAULT_VSYNC_ENABLED: bool = true
-const DEFAULT_SCREEN_SHAKE_ENABLED: bool = true
 const DEFAULT_DAMAGE_NUMBERS_ENABLED: bool = true
 const DEFAULT_MOVEMENT_ONLY_ENABLED: bool = false
 # v1.0 shared contract keys (WP0, decision D174; docs/31 §8.4). Readers:
@@ -140,6 +140,21 @@ const DEFAULT_HUD_SCALE_PCT: int = 100
 const HUD_SCALE_MIN_PCT: int = 75
 const HUD_SCALE_MAX_PCT: int = 150
 const HUD_SCALE_STEP_PCT: int = 5
+# WP-UI (decision D230+; docs/31 §8.4, Register "v1.0 Interface").
+const DEFAULT_INTERFACE_VOLUME_PCT: int = 80
+const DEFAULT_SCREEN_SHAKE_PCT: int = 100
+const SCREEN_SHAKE_STEP_PCT: int = 10
+const DEFAULT_PAUSE_WHEN_UNFOCUSED: bool = true
+const DEFAULT_SHOW_FPS: bool = false
+const DEFAULT_WINDOW_SIZE_INDEX: int = 2
+const WINDOW_SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080), Vector2i(2560, 1440)]
+## 0 = Unlimited (Engine.max_fps = 0).
+const FPS_LIMITS: Array[int] = [30, 60, 120, 144, 240, 0]
+const DEFAULT_FPS_LIMIT: int = 0
+## Keyboard actions the Controls tab can rebind (docs/31 §8.4). Two key slots
+## each: the first and one alternative. Gamepad/mouse events are never touched.
+const REBINDABLE_ACTIONS: Array[StringName] = [&"move_up", &"move_down", &"move_left", &"move_right", &"dash", &"battle_skill", &"pause"]
+const BINDING_SLOTS: int = 2
 
 ## Register > "Settings" row: "each 0-100% in 10% steps".
 const VOLUME_STEP_PCT: int = 10
@@ -152,7 +167,9 @@ const MUSIC_BUS: String = "Music"
 ## these (default_bus_layout.tres; MASTER_SDLC.md > Audio > "Buses").
 ## `TowerCue` is deliberately NOT in this list -- see class header, "TowerCue
 ## is NOT driven directly."
-const EFFECTS_BUSES: Array[String] = ["SFX", "SFX_Priority", "UI", "Ambience"]
+const EFFECTS_BUSES: Array[String] = ["SFX", "SFX_Priority", "Ambience"]
+## WP-UI: the UI bus has its own Interface volume (was part of Effects).
+const INTERFACE_BUS: String = "UI"
 ## Named for tests/comments that need to point at it without a magic string
 ## -- never iterated over for a direct volume/mute write (see class header).
 const TOWER_CUE_BUS: String = "TowerCue"
@@ -172,7 +189,6 @@ static var _effects_volume_pct: int = DEFAULT_EFFECTS_VOLUME_PCT
 static var _mute_all: bool = DEFAULT_MUTE_ALL
 static var _display_mode: int = DEFAULT_DISPLAY_MODE
 static var _vsync_enabled: bool = DEFAULT_VSYNC_ENABLED
-static var _screen_shake_enabled: bool = DEFAULT_SCREEN_SHAKE_ENABLED
 static var _damage_numbers_enabled: bool = DEFAULT_DAMAGE_NUMBERS_ENABLED
 static var _movement_only_controls_enabled: bool = DEFAULT_MOVEMENT_ONLY_ENABLED
 static var _auto_cast_set: bool = false # false = never chosen; default follows the device
@@ -181,6 +197,15 @@ static var _show_overhead_bars: bool = DEFAULT_SHOW_OVERHEAD_BARS
 static var _reduce_flashing: bool = DEFAULT_REDUCE_FLASHING
 static var _enemy_outlines: bool = DEFAULT_ENEMY_OUTLINES
 static var _hud_scale_pct: int = DEFAULT_HUD_SCALE_PCT
+static var _interface_volume_pct: int = DEFAULT_INTERFACE_VOLUME_PCT
+static var _screen_shake_pct: int = DEFAULT_SCREEN_SHAKE_PCT
+static var _pause_when_unfocused: bool = DEFAULT_PAUSE_WHEN_UNFOCUSED
+static var _show_fps: bool = DEFAULT_SHOW_FPS
+static var _window_size_set: bool = false # false = never chosen; the window is left as the OS/project made it
+static var _window_size_index: int = DEFAULT_WINDOW_SIZE_INDEX
+static var _fps_limit: int = DEFAULT_FPS_LIMIT
+static var _default_keys: Dictionary = {} # StringName -> Array[int] (physical keycodes), captured once from the project Input Map
+static var _custom_keys: Dictionary = {} # StringName -> Array[int]; only actions the player changed
 
 
 # --- Persistence -------------------------------------------------------------
@@ -201,7 +226,11 @@ static func load_from_disk() -> void:
 	_mute_all = bool(cfg.get_value(SECTION_AUDIO, "mute_all", _mute_all))
 	_display_mode = _clamp_display_mode(int(cfg.get_value(SECTION_VIDEO, "display_mode", _display_mode)))
 	_vsync_enabled = bool(cfg.get_value(SECTION_VIDEO, "vsync_enabled", _vsync_enabled))
-	_screen_shake_enabled = bool(cfg.get_value(SECTION_GAMEPLAY, "screen_shake_enabled", _screen_shake_enabled))
+	var legacy_shake_on: bool = bool(cfg.get_value(SECTION_GAMEPLAY, "screen_shake_enabled", true))
+	if cfg.has_section_key(SECTION_GAMEPLAY, "screen_shake_pct"):
+		_screen_shake_pct = _clamp_shake(int(cfg.get_value(SECTION_GAMEPLAY, "screen_shake_pct", _screen_shake_pct)))
+	elif cfg.has_section_key(SECTION_GAMEPLAY, "screen_shake_enabled"):
+		_screen_shake_pct = DEFAULT_SCREEN_SHAKE_PCT if legacy_shake_on else 0 # migrate the pre-v1.0 on/off toggle
 	_damage_numbers_enabled = bool(cfg.get_value(SECTION_GAMEPLAY, "damage_numbers_enabled", _damage_numbers_enabled))
 	_movement_only_controls_enabled = bool(cfg.get_value(SECTION_GAMEPLAY, "movement_only_controls_enabled", _movement_only_controls_enabled))
 	if cfg.has_section_key(SECTION_GAMEPLAY, "auto_cast_enabled"):
@@ -211,6 +240,22 @@ static func load_from_disk() -> void:
 	_reduce_flashing = bool(cfg.get_value(SECTION_ACCESSIBILITY, "reduce_flashing", _reduce_flashing))
 	_enemy_outlines = bool(cfg.get_value(SECTION_ACCESSIBILITY, "enemy_outlines", _enemy_outlines))
 	_hud_scale_pct = _clamp_hud_scale(int(cfg.get_value(SECTION_ACCESSIBILITY, "hud_scale_pct", _hud_scale_pct)))
+	_interface_volume_pct = _snap_to_step(int(cfg.get_value(SECTION_AUDIO, "interface_volume_pct", _interface_volume_pct)))
+	_pause_when_unfocused = bool(cfg.get_value(SECTION_GAMEPLAY, "pause_when_unfocused", _pause_when_unfocused))
+	_show_fps = bool(cfg.get_value(SECTION_VIDEO, "show_fps", _show_fps))
+	_fps_limit = _clamp_fps_limit(int(cfg.get_value(SECTION_VIDEO, "fps_limit", _fps_limit)))
+	if cfg.has_section_key(SECTION_VIDEO, "window_size_index"):
+		_window_size_set = true
+		_window_size_index = clampi(int(cfg.get_value(SECTION_VIDEO, "window_size_index", _window_size_index)), 0, WINDOW_SIZES.size() - 1)
+	_custom_keys.clear()
+	_ensure_default_keys()
+	for action: StringName in REBINDABLE_ACTIONS:
+		if cfg.has_section_key(SECTION_CONTROLS, String(action) + "_1") or cfg.has_section_key(SECTION_CONTROLS, String(action) + "_2"):
+			var slots: Array[int] = []
+			for i: int in BINDING_SLOTS:
+				slots.append(int(cfg.get_value(SECTION_CONTROLS, "%s_%d" % [action, i + 1], 0)))
+			_custom_keys[action] = slots
+
 
 
 ## Writes every field to `_path`, creating its parent directory first (a
@@ -227,7 +272,7 @@ static func save() -> void:
 	cfg.set_value(SECTION_AUDIO, "mute_all", _mute_all)
 	cfg.set_value(SECTION_VIDEO, "display_mode", _display_mode)
 	cfg.set_value(SECTION_VIDEO, "vsync_enabled", _vsync_enabled)
-	cfg.set_value(SECTION_GAMEPLAY, "screen_shake_enabled", _screen_shake_enabled)
+	cfg.set_value(SECTION_GAMEPLAY, "screen_shake_pct", _screen_shake_pct)
 	cfg.set_value(SECTION_GAMEPLAY, "damage_numbers_enabled", _damage_numbers_enabled)
 	cfg.set_value(SECTION_GAMEPLAY, "movement_only_controls_enabled", _movement_only_controls_enabled)
 	if _auto_cast_set:
@@ -236,6 +281,16 @@ static func save() -> void:
 	cfg.set_value(SECTION_ACCESSIBILITY, "reduce_flashing", _reduce_flashing)
 	cfg.set_value(SECTION_ACCESSIBILITY, "enemy_outlines", _enemy_outlines)
 	cfg.set_value(SECTION_ACCESSIBILITY, "hud_scale_pct", _hud_scale_pct)
+	cfg.set_value(SECTION_AUDIO, "interface_volume_pct", _interface_volume_pct)
+	cfg.set_value(SECTION_GAMEPLAY, "pause_when_unfocused", _pause_when_unfocused)
+	cfg.set_value(SECTION_VIDEO, "show_fps", _show_fps)
+	cfg.set_value(SECTION_VIDEO, "fps_limit", _fps_limit)
+	if _window_size_set:
+		cfg.set_value(SECTION_VIDEO, "window_size_index", _window_size_index)
+	for action: StringName in _custom_keys:
+		var slots: Array = _custom_keys[action]
+		for i: int in BINDING_SLOTS:
+			cfg.set_value(SECTION_CONTROLS, "%s_%d" % [action, i + 1], int(slots[i]))
 	cfg.save(_path)
 
 
@@ -248,8 +303,13 @@ static func apply() -> void:
 	_apply_master_bus()
 	_apply_music_bus()
 	_apply_effects_buses()
+	_apply_interface_bus()
 	_apply_display_mode()
+	_apply_window_size()
 	_apply_vsync()
+	_apply_fps_limit()
+	_apply_controls()
+	FpsOverlay.sync()
 
 
 # --- Getters -------------------------------------------------------------
@@ -279,7 +339,40 @@ static func is_vsync_enabled() -> bool:
 
 
 static func is_screen_shake_enabled() -> bool:
-	return _screen_shake_enabled
+	return _screen_shake_pct > 0
+
+
+## 0.0-1.0; the camera multiplies every shake by it.
+static func get_screen_shake_scale() -> float:
+	return float(_screen_shake_pct) / 100.0
+
+
+static func get_screen_shake_pct() -> int:
+	return _screen_shake_pct
+
+
+static func get_interface_volume_pct() -> int:
+	return _interface_volume_pct
+
+
+static func is_pause_when_unfocused() -> bool:
+	return _pause_when_unfocused
+
+
+static func is_show_fps() -> bool:
+	return _show_fps
+
+
+static func get_fps_limit() -> int:
+	return _fps_limit
+
+
+static func get_window_size_index() -> int:
+	return _window_size_index
+
+
+static func get_window_size() -> Vector2i:
+	return WINDOW_SIZES[_window_size_index]
 
 
 static func are_damage_numbers_enabled() -> bool:
@@ -425,7 +518,119 @@ static func set_vsync_enabled(enabled: bool) -> void:
 ## No engine push: `src/camera/game_camera.gd`'s `add_trauma()` reads this
 ## flag directly at the point of effect (task brief: "gate the shake").
 static func set_screen_shake_enabled(enabled: bool) -> void:
-	_screen_shake_enabled = enabled
+	set_screen_shake_pct(DEFAULT_SCREEN_SHAKE_PCT if enabled else 0)
+
+
+static func set_screen_shake_pct(pct: int) -> void:
+	_screen_shake_pct = _clamp_shake(pct)
+	save()
+
+
+static func adjust_screen_shake(direction: int) -> void:
+	set_screen_shake_pct(_screen_shake_pct + direction * SCREEN_SHAKE_STEP_PCT)
+
+
+static func set_interface_volume_pct(pct: int) -> void:
+	_interface_volume_pct = _clamp_pct(_snap_to_step(pct))
+	_apply_interface_bus()
+	save()
+
+
+static func adjust_interface_volume(direction: int) -> void:
+	set_interface_volume_pct(_interface_volume_pct + direction * VOLUME_STEP_PCT)
+
+
+static func set_pause_when_unfocused(enabled: bool) -> void:
+	_pause_when_unfocused = enabled
+	save()
+
+
+static func set_show_fps(enabled: bool) -> void:
+	_show_fps = enabled
+	FpsOverlay.sync()
+	save()
+
+
+static func set_fps_limit(fps: int) -> void:
+	_fps_limit = _clamp_fps_limit(fps)
+	_apply_fps_limit()
+	save()
+
+
+static func cycle_fps_limit(direction: int) -> void:
+	set_fps_limit(FPS_LIMITS[wrapi(FPS_LIMITS.find(_fps_limit) + direction, 0, FPS_LIMITS.size())])
+
+
+static func set_window_size_index(index: int) -> void:
+	_window_size_set = true
+	_window_size_index = clampi(index, 0, WINDOW_SIZES.size() - 1)
+	_apply_window_size()
+	save()
+
+
+static func cycle_window_size(direction: int) -> void:
+	set_window_size_index(wrapi(_window_size_index + direction, 0, WINDOW_SIZES.size()))
+
+
+# --- Key bindings (Controls tab) ---------------------------------------------
+
+## Physical keycode in `slot` (0 or 1) of `action`; 0 = unbound.
+static func get_key_binding(action: StringName, slot: int) -> int:
+	_ensure_default_keys()
+	var keys: Array = _custom_keys.get(action, _default_keys.get(action, [0, 0]))
+	return int(keys[slot]) if slot >= 0 and slot < keys.size() else 0
+
+
+## Binds `physical_keycode` to `action`'s `slot`. A key already bound to
+## another rebindable action swaps places with this slot's old key, so no
+## movement action is ever left without a key (the movement-only floor).
+static func set_key_binding(action: StringName, slot: int, physical_keycode: int) -> void:
+	_ensure_default_keys()
+	if not REBINDABLE_ACTIONS.has(action) or slot < 0 or slot >= BINDING_SLOTS or physical_keycode <= 0:
+		return
+	var old_key: int = get_key_binding(action, slot)
+	if old_key == physical_keycode:
+		return
+	for other: StringName in REBINDABLE_ACTIONS:
+		for i: int in BINDING_SLOTS:
+			if other == action and i == slot:
+				continue
+			if get_key_binding(other, i) == physical_keycode:
+				var keys: Array = _keys_copy(other)
+				keys[i] = old_key # the displaced key moves to the slot the new key left (0 if that slot was empty)
+				_custom_keys[other] = keys
+	var mine: Array = _keys_copy(action)
+	mine[slot] = physical_keycode
+	_custom_keys[action] = mine
+	_apply_controls()
+	save()
+
+
+static func is_controls_customised() -> bool:
+	return not _custom_keys.is_empty()
+
+
+static func reset_controls() -> void:
+	_custom_keys.clear()
+	_apply_controls()
+	save()
+
+
+## "W" / "Up" ... for a physical keycode; "-" for unbound.
+static func key_label(physical_keycode: int) -> String:
+	if physical_keycode <= 0:
+		return "-"
+	var label: int = 0
+	if DisplayServer.get_name() != "headless":
+		label = DisplayServer.keyboard_get_label_from_physical(physical_keycode as Key)
+	return OS.get_keycode_string((label if label != 0 else physical_keycode) as Key)
+
+
+## Everything back to its Register default, applied and saved (the Settings
+## screen's "Reset to defaults" after its confirm).
+static func reset_to_defaults() -> void:
+	reset_state_for_test()
+	apply()
 	save()
 
 
@@ -475,7 +680,23 @@ static func set_vsync_enabled_for_test(enabled: bool) -> void:
 
 
 static func set_screen_shake_enabled_for_test(enabled: bool) -> void:
-	_screen_shake_enabled = enabled
+	_screen_shake_pct = DEFAULT_SCREEN_SHAKE_PCT if enabled else 0
+
+
+static func set_reduce_flashing_for_test(enabled: bool) -> void:
+	_reduce_flashing = enabled
+
+
+static func set_show_overhead_bars_for_test(enabled: bool) -> void:
+	_show_overhead_bars = enabled
+
+
+static func set_hud_scale_pct_for_test(pct: int) -> void:
+	_hud_scale_pct = _clamp_hud_scale(pct)
+
+
+static func set_screen_shake_pct_for_test(pct: int) -> void:
+	_screen_shake_pct = _clamp_shake(pct)
 
 
 static func set_damage_numbers_enabled_for_test(enabled: bool) -> void:
@@ -511,7 +732,16 @@ static func reset_state_for_test() -> void:
 	_mute_all = DEFAULT_MUTE_ALL
 	_display_mode = DEFAULT_DISPLAY_MODE
 	_vsync_enabled = DEFAULT_VSYNC_ENABLED
-	_screen_shake_enabled = DEFAULT_SCREEN_SHAKE_ENABLED
+	_screen_shake_pct = DEFAULT_SCREEN_SHAKE_PCT
+	_interface_volume_pct = DEFAULT_INTERFACE_VOLUME_PCT
+	_pause_when_unfocused = DEFAULT_PAUSE_WHEN_UNFOCUSED
+	_show_fps = DEFAULT_SHOW_FPS
+	_window_size_set = false
+	_window_size_index = DEFAULT_WINDOW_SIZE_INDEX
+	_fps_limit = DEFAULT_FPS_LIMIT
+	_custom_keys.clear()
+	_apply_controls() # restores the project's Input Map keys
+	FpsOverlay.sync()
 	_damage_numbers_enabled = DEFAULT_DAMAGE_NUMBERS_ENABLED
 	_movement_only_controls_enabled = DEFAULT_MOVEMENT_ONLY_ENABLED
 	_auto_cast_set = false
@@ -530,6 +760,81 @@ static func _clamp_pct(pct: int) -> int:
 
 static func _snap_to_step(pct: int) -> int:
 	return int(roundi(float(pct) / float(VOLUME_STEP_PCT)) * VOLUME_STEP_PCT)
+
+
+static func _clamp_shake(pct: int) -> int:
+	return clampi(int(roundi(float(pct) / float(SCREEN_SHAKE_STEP_PCT))) * SCREEN_SHAKE_STEP_PCT, 0, 100)
+
+
+static func _clamp_fps_limit(fps: int) -> int:
+	return fps if FPS_LIMITS.has(fps) else DEFAULT_FPS_LIMIT
+
+
+static func _keys_copy(action: StringName) -> Array:
+	return [get_key_binding(action, 0), get_key_binding(action, 1)]
+
+
+## Captures the project's own keyboard bindings (first two InputEventKey
+## events of each rebindable action) the first time anything asks.
+static func _ensure_default_keys() -> void:
+	if not _default_keys.is_empty():
+		return
+	for action: StringName in REBINDABLE_ACTIONS:
+		var keys: Array = [0, 0]
+		if InputMap.has_action(action):
+			var n: int = 0
+			for ev: InputEvent in InputMap.action_get_events(action):
+				if ev is InputEventKey and n < BINDING_SLOTS:
+					keys[n] = (ev as InputEventKey).physical_keycode
+					n += 1
+		_default_keys[action] = keys
+
+
+## Rewrites the keyboard events of every rebindable action from the current
+## bindings (custom, else the captured defaults); gamepad and mouse events stay.
+static func _apply_controls() -> void:
+	_ensure_default_keys()
+	for action: StringName in REBINDABLE_ACTIONS:
+		if not InputMap.has_action(action):
+			continue
+		var keep: Array[InputEvent] = []
+		for ev: InputEvent in InputMap.action_get_events(action):
+			if not (ev is InputEventKey):
+				keep.append(ev)
+		InputMap.action_erase_events(action)
+		for i: int in BINDING_SLOTS:
+			var code: int = get_key_binding(action, i)
+			if code > 0:
+				var key := InputEventKey.new()
+				key.physical_keycode = code as Key
+				InputMap.action_add_event(action, key)
+		for ev: InputEvent in keep:
+			InputMap.action_add_event(action, ev)
+
+
+static func _apply_interface_bus() -> void:
+	var idx: int = AudioServer.get_bus_index(INTERFACE_BUS)
+	if idx == -1:
+		return
+	AudioServer.set_bus_volume_db(idx, volume_pct_to_db(_interface_volume_pct))
+	AudioServer.set_bus_mute(idx, _interface_volume_pct <= 0)
+
+
+static func _apply_fps_limit() -> void:
+	Engine.max_fps = _fps_limit
+
+
+static func _apply_window_size() -> void:
+	if not _window_size_set or DisplayServer.get_name() == "headless" or OS.has_feature("mobile"):
+		return
+	if _display_mode != DisplayMode.WINDOWED:
+		return
+	var win: Vector2i = WINDOW_SIZES[_window_size_index]
+	var screen: Vector2i = DisplayServer.screen_get_size()
+	win = Vector2i(mini(win.x, screen.x), mini(win.y, screen.y))
+	DisplayServer.window_set_size(win)
+	var origin: Vector2i = DisplayServer.screen_get_position()
+	DisplayServer.window_set_position(origin + (screen - win) / 2)
 
 
 static func _clamp_display_mode(mode: int) -> int:

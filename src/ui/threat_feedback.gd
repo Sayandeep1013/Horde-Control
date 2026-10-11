@@ -113,6 +113,14 @@ class_name ThreatFeedback
 ##    small off-screen indicator below, where a hard edge is exactly what
 ##    legibility needs.
 
+## ## v1.0 additions (docs/31 section 5.4; Register > v1.0 Interface)
+## - The floating Tower value label beside the off-screen arrow is gone (the HUD
+##   Tower bar carries the number); the arrow stays.
+## - Spawn markers: `EventBus.spawn_warning` draws an intent-coloured chevron at
+##   the screen edge for an OFF-screen spawn, at most one per 30 degree sector,
+##   for the warning's lead time.
+## - Reduce flashing: the low-health ring and the spawn chevrons hold steady
+##   instead of pulsing.
 const SEGMENT_COUNT: int = 8
 const SEGMENT_ANGLE: float = TAU / float(SEGMENT_COUNT)
 
@@ -188,12 +196,17 @@ const ICON_SIZE: float = 20.0
 ## D142: the off-screen Tower arrow stays inside the band between the top HUD
 ## (Tower pill + Wave ribbon) and the bottom XP ribbon, in screen px at the
 ## 1920x1080 canvas. Register "Threat arrow margins" row.
-const INDICATOR_MARGIN_TOP: float = 150.0
+const INDICATOR_MARGIN_TOP: float = 250.0 ## v1.0: below the Tower cluster and the boss bar
 const INDICATOR_MARGIN_BOTTOM: float = 170.0
 const LOW_RING_PULSE_HZ: float = 2.0
 const ICON_INSET: float = 34.0
 ## How far inboard of the indicator the HP readout label sits.
-const HP_LABEL_INSET: float = 62.0
+## Spawn markers (Register > v1.0 Interface > "Spawn markers").
+const MARKER_SECTOR_COUNT: int = 12 ## 360 / 30 degrees
+const MARKER_SIZE_PX: float = 34.0
+const MARKER_THICKNESS_PX: float = 11.0
+const MARKER_EDGE_INSET_PX: float = 48.0
+const MARKER_PULSE_HZ: float = 4.0
 const HIT_ARC_RADIUS: float = 20.0 ## up from 14.0, matching the bigger indicator it now sits beside
 const HIT_ARC_HALF_WIDTH: float = 0.4
 const HIT_ARC_SEGMENTS: int = 12 ## up from 8, for a smoother stroke; the arc's angular SPAN (HIT_ARC_HALF_WIDTH) is unchanged
@@ -221,12 +234,9 @@ var _cue_player: TowerCuePlayer = null
 var _ducking_node: AudioDucking = null
 var _cue_stream: AudioStream = null
 
-## Second UI pass: the off-screen indicator's HP readout (task instruction:
-## "the tower icon and its HP"). A real child Label, not drawn text --
-## `Label` already gives correct outline/legibility through `UiTheme`
-## without reimplementing draw_string() layout. Positioned every frame in
-## _update_tower_hp_label(), alongside the indicator it labels.
-var _tower_hp_label: Label = null
+## Spawn markers by 30 degree sector (v1.0):
+## sector index -> {"direction": Vector2 (unit), "color": Color, "expires": float (sim time)}
+var _spawn_markers: Dictionary = {}
 
 
 func _ready() -> void:
@@ -244,22 +254,17 @@ func _ready() -> void:
 	add_child(_ducking_node)
 	_cue_player.ducking_node = _ducking_node
 
-	# Second UI pass: theme assigned directly (not inherited) since this
-	# CanvasLayer overlay sits outside the HUD's own themed Control tree --
-	# matches HudTruncatableLabel's own established reason for the same
-	# explicit assignment (its _make_custom_tooltip()'s header).
-	_tower_hp_label = Label.new()
-	_tower_hp_label.name = "TowerHpLabel"
-	_tower_hp_label.theme = UiTheme.get_theme()
-	_tower_hp_label.theme_type_variation = UiTheme.SMALL
-	_tower_hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tower_hp_label.visible = false
-	add_child(_tower_hp_label)
+	EventBus.spawn_warning.connect(_on_spawn_warning)
+
+
+func _exit_tree() -> void:
+	if EventBus.spawn_warning.is_connected(_on_spawn_warning):
+		EventBus.spawn_warning.disconnect(_on_spawn_warning)
 
 
 func _process(_delta: float) -> void:
 	recompute(_now())
-	_update_tower_hp_label()
+	_prune_spawn_markers(_now())
 	queue_redraw()
 
 
@@ -483,6 +488,77 @@ func _draw() -> void:
 	_draw_vignette_segments()
 	if is_showing_offscreen_indicator():
 		_draw_offscreen_indicator()
+	_draw_spawn_markers()
+
+
+# --- Spawn markers -----------------------------------------------------------
+
+## Intent colours (docs/09, UiPalette.INTENT_*); `intent` is ContractEnums.TargetIntent.
+static func intent_color(intent: int) -> Color:
+	match intent:
+		ContractEnums.TargetIntent.TowerSeeker:
+			return UiPalette.INTENT_TOWER
+		ContractEnums.TargetIntent.PlayerHunter:
+			return UiPalette.INTENT_PLAYER
+		_:
+			return UiPalette.INTENT_OPPORTUNIST
+
+
+static func marker_sector(direction: Vector2) -> int:
+	var angle: float = wrapf(direction.angle(), 0.0, TAU)
+	return int(floor(angle / (TAU / float(MARKER_SECTOR_COUNT)))) % MARKER_SECTOR_COUNT
+
+
+## EventBus.spawn_warning: an off-screen spawn shows a chevron for its lead time.
+func _on_spawn_warning(world_position: Vector2, intent: int, lead_seconds: float, _timestamp: float) -> void:
+	if _camera == null:
+		return
+	var half_extent: Vector2 = _camera.get_visible_world_size() / 2.0
+	var rel: Vector2 = world_position - _camera.global_position
+	if absf(rel.x) <= half_extent.x and absf(rel.y) <= half_extent.y:
+		return # on screen: the enemy appears in plain sight
+	var direction: Vector2 = rel.normalized()
+	var sector: int = marker_sector(direction)
+	var now: float = _now()
+	if _spawn_markers.has(sector) and float(_spawn_markers[sector]["expires"]) > now:
+		return # one chevron per 30 degree sector
+	_spawn_markers[sector] = {"direction": direction, "color": intent_color(intent), "expires": now + lead_seconds, "lead": lead_seconds}
+
+
+func _prune_spawn_markers(now: float) -> void:
+	for sector: int in _spawn_markers.keys():
+		if float(_spawn_markers[sector]["expires"]) <= now:
+			_spawn_markers.erase(sector)
+
+
+func get_spawn_markers_for_test() -> Dictionary:
+	return _spawn_markers
+
+
+func _marker_screen_position(direction: Vector2) -> Vector2:
+	var half: Vector2 = size / 2.0 - Vector2(MARKER_EDGE_INSET_PX, MARKER_EDGE_INSET_PX)
+	var pos: Vector2 = _rect_edge_point(size / 2.0, half, direction.angle())
+	pos.y = clampf(pos.y, INDICATOR_MARGIN_TOP, maxf(INDICATOR_MARGIN_TOP, size.y - INDICATOR_MARGIN_BOTTOM))
+	return pos.round()
+
+
+func _draw_spawn_markers() -> void:
+	if _spawn_markers.is_empty() or size.x <= 0.0 or size.y <= 0.0:
+		return
+	var now: float = _now()
+	for sector: int in _spawn_markers:
+		var marker: Dictionary = _spawn_markers[sector]
+		var direction: Vector2 = marker["direction"]
+		var color: Color = marker["color"]
+		var remaining: float = float(marker["expires"]) - now
+		var alpha: float = 1.0
+		if not GameSettings.is_reduce_flashing():
+			alpha = 0.6 + 0.4 * (0.5 + 0.5 * sin(now * TAU * MARKER_PULSE_HZ))
+		var pts: PackedVector2Array = HudGlyphs.chevron_points(_marker_screen_position(direction), direction, MARKER_SIZE_PX, MARKER_THICKNESS_PX)
+		var outline: PackedVector2Array = pts.duplicate()
+		outline.append(pts[0])
+		draw_colored_polygon(pts, UiPalette.with_alpha(color, alpha))
+		draw_polyline(outline, UiPalette.INK_PIXEL, 3.0)
 
 
 ## UI pass round 2 (LEDGER UR-02): the point on this Control's own
@@ -605,7 +681,7 @@ func _draw_offscreen_indicator() -> void:
 	icon_pos = icon_pos.round()
 	var half: float = ICON_BADGE_RADIUS
 	if is_indicator_low_health():
-		var pulse: float = 0.5 + 0.5 * sin(SimClock.now * TAU * LOW_RING_PULSE_HZ)
+		var pulse: float = 1.0 if GameSettings.is_reduce_flashing() else 0.5 + 0.5 * sin(SimClock.now * TAU * LOW_RING_PULSE_HZ)
 		var grow: float = 4.0 + roundf(pulse * 4.0)
 		_draw_square_ring(icon_pos, half + grow, 4.0, UiPalette.with_alpha(color, 0.55 + 0.45 * pulse))
 		draw_rect(Rect2(icon_pos - Vector2(half + 2.0, half + 2.0), Vector2(half + 2.0, half + 2.0) * 2.0), UiPalette.INK_PIXEL, true)
@@ -682,44 +758,6 @@ func _arrow_points(pos: Vector2, dir: Vector2, length: float, width: float) -> P
 	return PackedVector2Array([tip, back_left, back_right])
 
 
-## Second UI pass: positions and fills the Tower HP readout beside the
-## off-screen indicator (task instruction: "its HP"). Recomputes the same
-## `pos` _draw_offscreen_indicator() derives from get_pointing_direction()
-## -- a small duplication, matching this project's own tolerance for it
-## elsewhere (e.g. is_tower_on_screen()'s repeated half-extent check) rather
-## than reworking the existing, already-tested draw method's own layout.
-func _update_tower_hp_label() -> void:
-	if _tower_hp_label == null:
-		return
-	if not is_showing_offscreen_indicator() or _tower == null or _tower.health == null or _tower.health.max_health <= 0.0:
-		_tower_hp_label.visible = false
-		return
-	var box_size: Vector2 = size
-	if box_size.x <= 0.0 or box_size.y <= 0.0:
-		_tower_hp_label.visible = false
-		return
-	var dir: Vector2 = get_pointing_direction()
-	if dir == Vector2.ZERO:
-		_tower_hp_label.visible = false
-		return
-	_tower_hp_label.visible = true
-	var current: float = _tower.health.get_current_health()
-	var max_v: float = _tower.health.max_health
-	_tower_hp_label.text = "%d/%d" % [int(round(current)), int(round(max_v))]
-	_tower_hp_label.add_theme_color_override("font_color", get_indicator_color())
-	var pos: Vector2 = _indicator_pos(box_size, dir)
-	var label_pos: Vector2 = pos - dir * HP_LABEL_INSET
-	# This Label is a free child of a plain Control (no Container manages
-	# it), so its own `size` never auto-updates from a text change --
-	# get_combined_minimum_size() reads the font metrics directly and is
-	# always current, unlike `size` itself.
-	_tower_hp_label.size = _tower_hp_label.get_combined_minimum_size()
-	_tower_hp_label.position = label_pos - _tower_hp_label.size * 0.5
-
-
-## See header, "Placeholder cue audio". A short, procedurally generated,
-## decaying low-frequency tone -- no audio asset of any kind exists in this
-## repository yet.
 func _build_placeholder_cue_stream() -> AudioStreamWAV:
 	var sample_rate := 22050
 	var duration_seconds := 0.18
