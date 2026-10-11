@@ -9,6 +9,8 @@ class_name LobbedBomb
 const DYNAMITE_SHEET: Texture2D = preload("res://assets/third_party/tiny_swords/Factions/Goblins/Troops/TNT/Dynamite/Dynamite.png")
 const DYNAMITE_FRAMES: int = 6
 const ARC_HEIGHT_PX: float = 110.0
+const DYNAMITE_DRAW_PX: float = 104.0 # D351: the stick reads at swarm scale (was 64)
+const ROCK_SCALE: float = 1.7
 
 var visual: String = "dynamite" # "dynamite" | "rock"
 var from_pos: Vector2
@@ -83,9 +85,9 @@ func _draw() -> void:
 	var t: float = SimClock.now - _start
 	if visual == "dynamite":
 		var frame: int = int(t * 12.0) % DYNAMITE_FRAMES
-		draw_texture_rect_region(DYNAMITE_SHEET, Rect2(-32, -32, 64, 64), Rect2(frame * 64, 0, 64, 64), Color.WHITE if not _landed or int(t * 14.0) % 2 == 0 else Color(1.6, 1.2, 1.2))
+		draw_texture_rect_region(DYNAMITE_SHEET, Rect2(-DYNAMITE_DRAW_PX * 0.5, -DYNAMITE_DRAW_PX * 0.5, DYNAMITE_DRAW_PX, DYNAMITE_DRAW_PX), Rect2(frame * 64, 0, 64, 64), Color.WHITE if not _landed or int(t * 14.0) % 2 == 0 else Color(1.6, 1.2, 1.2))
 	elif _rock_tex != null:
-		draw_set_transform(Vector2.ZERO, t * 5.0, Vector2.ONE)
+		draw_set_transform(Vector2.ZERO, t * 5.0, Vector2(ROCK_SCALE, ROCK_SCALE))
 		draw_texture(_rock_tex, -_rock_tex.get_size() * 0.5)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	else:

@@ -1,7 +1,7 @@
 extends AbilityNode
 class_name BallistaAbility
-## Ballista (docs/31 §4.3): every 3.0-1.6 s the Tower fires a bolt along the line
-## to the FURTHEST enemy in range; the bolt pierces everything for 40-90.
+## Ballista (docs/31 §4.3): every 2.4-1.2 s the Tower fires a bolt along the line
+## to the FURTHEST enemy in range; the bolt pierces everything for 70-150 (PT-POWER D351).
 
 func _physics_process(_delta: float) -> void:
 	var tower: Node2D = owner_node()
