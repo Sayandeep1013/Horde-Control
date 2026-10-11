@@ -3,7 +3,7 @@ class_name WarchiefBehavior
 ## Goblin Warchief (docs/31 §5.3; Register "v1.0 Enemies, Bosses & Waves" >
 ## "Goblin Warchief"). Heads for the Tower with the ordinary seek/attack-slot
 ## movement but switches to the player while the player is within 220 px.
-## Attacks: Slam (1.0 s ring, 150 px, 38 dmg, every 4 s while in melee),
+## Attacks: Slam (1.0 s ring, 150 px, 30 dmg (WP-BALANCE, D271), every 4 s while in melee),
 ## Charge (0.8 s line telegraph, 520 px at 3x speed, 30 dmg on contact, every
 ## 9 s) and Rally (6 Hunters every 14 s). Below 40% HP it enrages: every
 ## cooldown x0.7.
@@ -14,7 +14,7 @@ const PLAYER_SWITCH_RANGE_PX: float = 220.0
 const SLAM_INTERVAL_SECONDS: float = 4.0
 const SLAM_TELEGRAPH_SECONDS: float = 1.0
 const SLAM_RADIUS_PX: float = 150.0
-const SLAM_DAMAGE: float = 38.0
+const SLAM_DAMAGE: float = 30.0
 const CHARGE_INTERVAL_SECONDS: float = 9.0
 const CHARGE_TELEGRAPH_SECONDS: float = 0.8
 const CHARGE_DISTANCE_PX: float = 520.0

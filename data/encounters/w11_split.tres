@@ -7,7 +7,7 @@
 ; intervals are Register "v1.0 Enemies, Bosses & Waves" > "Wave sequence"
 ; starting values (Soldier, spawn count x1.0); the difficulty profile scales
 ; the counts at spawn time. minimum_recovery_gap_seconds is the Register's
-; 6 s inter-wave gap (10 s before a boss wave).
+; 8 s inter-wave gap (12 s before a boss wave; WP-BALANCE, D270).
 
 [sub_resource type="Resource" id="Resource_group_1"]
 script = ExtResource("2_group")
@@ -69,7 +69,7 @@ spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("
 intent_budget_overrides = Array[IntentBudgetOverride]([])
 directional_weighting_override = null
 telegraph_requirements = Array[TelegraphData]([])
-minimum_recovery_gap_seconds = 6.0
+minimum_recovery_gap_seconds = 8.0
 priority = 60
 entity_cap_behavior = 0
 encounter_alive_cap = 0

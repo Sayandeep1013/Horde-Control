@@ -15,17 +15,17 @@
 [sub_resource type="Resource" id="Resource_attack"]
 script = ExtResource("1_attack")
 attack_type = 0
-damage_per_hit_or_tick = 38
+damage_per_hit_or_tick = 30
 cycle_or_tick_interval_seconds = 4.0
 reach_or_range_px = 30
 
 [sub_resource type="Resource" id="Resource_health"]
 script = ExtResource("2_band")
-value = 2600
+value = 2200
 
 [sub_resource type="Resource" id="Resource_damage"]
 script = ExtResource("2_band")
-value = 38
+value = 30
 
 [sub_resource type="Resource" id="Resource_drop"]
 script = ExtResource("3_drop")

@@ -4,7 +4,7 @@ class_name KingBehavior
 ## Bosses & Waves" > "Bombardier King"). Keeps 300-420 px from the Tower
 ## (circling when inside the band). Attacks: Barrage (5 dynamite on rings
 ## around the player, 1.1 s, 26 dmg each, every 6 s), Siege Bomb (1.6 s large
-## ring on the Tower, 110 dmg to the Tower only, every 10 s), Call the Horde
+## ring on the Tower, 70 dmg to the Tower only (WP-BALANCE, D271), every 10 s), Call the Horde
 ## (8 Seekers + 2 Bombers every 16 s). Barrage blasts hurt the player only. Below 50% HP: Barrage throws 8 and the
 ## Siege Bomb comes every 7 s. Killing him wins the run (WaveDirector ends
 ## the sequence); in Endless he only ends wave 15.
@@ -23,7 +23,7 @@ const BARRAGE_SCATTER_MAX_PX: float = 180.0
 const SIEGE_INTERVAL_SECONDS: float = 10.0
 const SIEGE_INTERVAL_PHASE_TWO_SECONDS: float = 7.0
 const SIEGE_FLIGHT_SECONDS: float = 1.6
-const SIEGE_DAMAGE: float = 110.0
+const SIEGE_DAMAGE: float = 70.0
 const SIEGE_RADIUS_PX: float = 130.0
 const HORDE_INTERVAL_SECONDS: float = 16.0
 const HORDE_SEEKERS: int = 8
@@ -84,7 +84,7 @@ func _run_attacks(now: float, tower: Node2D) -> void:
 		_next_siege = now + (SIEGE_INTERVAL_PHASE_TWO_SECONDS if phase >= 2 else SIEGE_INTERVAL_SECONDS)
 		controller.windup_started.emit()
 		var bomb: EnemyBomb = EnemyBomb.launch(parent, controller.global_position, tower.global_position, SIEGE_FLIGHT_SECONDS, SIEGE_RADIUS_PX, scaled_damage(SIEGE_DAMAGE), true, controller, controller.get_clock(), controller.get_registry())
-		bomb.hit_player = false # the Siege Bomb is aimed at the Tower; only the Tower takes the 110
+		bomb.hit_player = false # the Siege Bomb is aimed at the Tower; only the Tower takes the 70
 	if now >= _next_horde:
 		_next_horde = now + HORDE_INTERVAL_SECONDS
 		request_summon("tower_seeker", HORDE_SEEKERS)

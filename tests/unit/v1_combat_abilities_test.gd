@@ -97,7 +97,7 @@ func test_upgrade_system_levels_abilities_through_cards_and_text_is_honest() -> 
 	assert_int(_us.get_current_rank("ballista")).is_equal(1)
 	var honest: Dictionary = _us.get_honest_card_value("ballista", 1.5)
 	assert_str(honest["level_text"]).is_equal("Lv 1 → 2")
-	assert_str(honest["effect_text"]).contains("79") # Ballista level 2 = 52.5, x1.5 rarity = 78.75: the text must show the scaled value
+	assert_str(honest["effect_text"]).contains("67") # Ballista level 2 = 44.5 (34 to 76 over five levels, WP-BALANCE), x1.5 rarity = 66.75: the text must show the scaled value
 	assert_bool(_us.apply_rank("ballista", 1.5)).is_true()
 	assert_int(_mgr.get_level("ballista")).is_equal(2)
 

@@ -10,16 +10,16 @@ class_name AbilityCatalog
 const DAMAGE_KEYS: Array[String] = ["damage", "dps", "reflect"]
 
 const TABLE: Dictionary = {
-	"flame_arrows": {"every_n": [4.0, 2.0], "dps": [6.0, 14.0], "duration": [3.0, 3.0], "spread_radius": [90.0, 90.0]},
+	"flame_arrows": {"every_n": [4.0, 2.0], "dps": [9.0, 20.0], "duration": [3.0, 3.0], "spread_radius": [90.0, 90.0]},
 	"frost_arrows": {"slow": [0.20, 0.40], "duration": [1.5, 1.5], "freeze_chance": [0.0, 0.12], "freeze_duration": [1.0, 1.0]},
 	"whirling_axes": {"count": [1.0, 4.0], "radius": [72.0, 90.0], "damage": [14.0, 26.0], "rehit": [0.45, 0.45]},
 	"dynamite_satchel": {"interval": [3.2, 2.2], "range": [320.0, 320.0], "fuse": [0.5, 0.5], "damage": [30.0, 60.0], "radius": [70.0, 95.0]},
 	"storm_bolt": {"interval": [2.6, 1.6], "range": [300.0, 300.0], "damage": [22.0, 40.0], "chains": [2.0, 6.0], "chain_range": [140.0, 140.0]},
 	"caltrops": {"interval": [0.9, 0.5], "lifetime": [4.0, 4.0], "damage": [10.0, 20.0], "tick": [0.5, 0.5], "slow": [0.25, 0.25]},
 	"sacred_ground": {"radius": [85.0, 130.0], "dps": [6.0, 20.0], "heal_fraction": [0.0, 0.005]},
-	"ballista": {"interval": [3.0, 1.6], "damage": [40.0, 90.0]},
+	"ballista": {"interval": [3.0, 1.6], "damage": [34.0, 76.0]},
 	"catapult": {"interval": [5.0, 3.0], "flight": [0.9, 0.9], "range": [620.0, 620.0], "damage": [50.0, 110.0], "radius": [90.0, 90.0]},
-	"frost_ward": {"interval": [4.0, 2.5], "radius": [210.0, 280.0], "damage": [8.0, 20.0], "slow": [0.30, 0.45], "duration": [2.0, 2.0]},
+	"frost_ward": {"interval": [4.0, 2.5], "radius": [210.0, 280.0], "damage": [14.0, 30.0], "slow": [0.30, 0.45], "duration": [2.0, 2.0]},
 	"spiked_palisade": {"reflect": [10.0, 30.0], "reduction": [0.05, 0.20]},
 }
 
