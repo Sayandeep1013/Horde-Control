@@ -27,6 +27,23 @@ func _corrupt_profile_file() -> void:
 	f.close()
 
 
+func test_war_camp_is_named_once_on_desktop_and_the_ribbon_returns_on_touch() -> void:
+	TouchUi.set_override_for_test(0)
+	var hub: HubScreen = auto_free(HubScreen.new())
+	add_child(hub)
+	var count: int = 0
+	for l: Node in hub.find_children("*", "Label", true, false):
+		if (l as Label).visible and (l as Label).text == "War Camp":
+			count += 1
+	assert_int(count).append_failure_message("the header and the ribbon both said War Camp").is_equal(1)
+	assert_object(hub.find_child("MenuRibbon", true, false)).is_null()
+	TouchUi.set_override_for_test(1)
+	var touch_hub: HubScreen = auto_free(HubScreen.new())
+	add_child(touch_hub)
+	assert_object(touch_hub.find_child("MenuRibbon", true, false)).append_failure_message("the touch layout hides the page title, so the ribbon is its header").is_not_null()
+	TouchUi.set_override_for_test(-1)
+
+
 # --- First-visit hint (docs/18 section 2) --------------------------------------
 
 func test_first_visit_hint_shows_on_a_fresh_profile() -> void:

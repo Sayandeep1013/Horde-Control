@@ -609,21 +609,20 @@ func _build_menu_card(parent: Control) -> void:
 	column.theme_type_variation = UiTheme.vbox("M")
 	card.add_child(column)
 
-	# Polish pass (coordinator review): "give the menu card a ribbon
-	# header." UiTheme.RIBBON is the same carved-cloth 3-slice the HUD's own
-	# Wave banner already uses (ui_theme.gd's own header) -- reused here
-	# rather than inventing a second banner style.
-	var ribbon := PanelContainer.new()
-	ribbon.name = "MenuRibbon"
-	ribbon.theme_type_variation = UiTheme.RIBBON
-	column.add_child(ribbon)
+	# Review fix (D249): the page title above the card already says "War Camp", so
+	# the card's own ribbon only appears where that title is hidden (the touch layout).
+	if TouchUi.is_mobile_layout():
+		var ribbon := PanelContainer.new()
+		ribbon.name = "MenuRibbon"
+		ribbon.theme_type_variation = UiTheme.RIBBON
+		column.add_child(ribbon)
 
-	var ribbon_label := Label.new()
-	ribbon_label.name = "RibbonLabel"
-	ribbon_label.text = tr("HUB_TITLE")
-	ribbon_label.theme_type_variation = UiTheme.VALUE
-	ribbon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ribbon.add_child(ribbon_label)
+		var ribbon_label := Label.new()
+		ribbon_label.name = "RibbonLabel"
+		ribbon_label.text = tr("HUB_TITLE")
+		ribbon_label.theme_type_variation = UiTheme.VALUE
+		ribbon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ribbon.add_child(ribbon_label)
 
 	_skill_tree_button = _make_menu_button(tr("HUB_SKILL_TREE"))
 	_skill_tree_button.pressed.connect(_on_skill_tree_pressed)
