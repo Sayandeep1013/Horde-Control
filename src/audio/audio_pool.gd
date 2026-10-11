@@ -54,6 +54,7 @@ var _active_priority_count: int = 0
 
 
 func _ready() -> void:
+	add_to_group("audio_pool") # v1.0 Sfx helper lookup (D178)
 	for i in range(VOICE_COUNT):
 		var voice := _Voice.new()
 		voice.player = AudioStreamPlayer2D.new()
