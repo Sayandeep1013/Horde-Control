@@ -190,6 +190,21 @@ func _movement_dir(player: Node2D, tower: Node2D, ps: Node) -> Vector2:
 	return dir
 
 
+## PT-ARENA (docs/33 B2): keeps the bot out of the moat and the solids. A heading whose 56 px lookahead is
+## not walkable is bent by up to 150 degrees to the nearest walkable one; failing that the bot follows the
+## FlowField towards the Tower (which crosses a bridge).
+func _avoid_blocked(pp: Vector2, dir: Vector2) -> Vector2:
+	var ff: Node = get_first_node_in_group(&"flow_field")
+	if ff == null or dir == Vector2.ZERO or ff.is_walkable(pp + dir * 56.0):
+		return dir
+	for deg in [20.0, -20.0, 40.0, -40.0, 60.0, -60.0, 90.0, -90.0, 120.0, -120.0, 150.0, -150.0]:
+		var d: Vector2 = dir.rotated(deg_to_rad(deg))
+		if ff.is_walkable(pp + d * 56.0):
+			return d
+	var route: Vector2 = ff.direction_to(&"tower", pp)
+	return route if route != Vector2.ZERO else dir
+
+
 ## v1.0 WP-ARENA (Register "v1.0 Arena Interactables"): a point worth walking to for the collect policy: an unclaimed
 ## Shrine within reach when no enemy is near it (the bot then stands on it until it
 ## is claimed), else the nearest Supply Crate within 600 px. Never during a Siege
@@ -202,16 +217,26 @@ func _arena_target(pp: Vector2, tp: Vector2) -> Vector2:
 	var shrine: Node2D = mgr.get_shrine()
 	if shrine != null and not shrine.is_claimed and not shrine.is_expired and shrine.time_left() > 4.0:
 		var sp: Vector2 = shrine.global_position
-		if sp.distance_to(pp) < 900.0 and sp.distance_to(tp) < 900.0 and reg.get_enemies_in_radius(sp, 220.0).is_empty():
+		if sp.distance_to(pp) < 900.0 and sp.distance_to(tp) < 900.0 and _reachable_on_foot(sp, pp) and reg.get_enemies_in_radius(sp, 220.0).is_empty():
 			return sp
 	var best: Vector2 = Vector2.INF
 	var best_d: float = 600.0
 	for c in mgr.get_crates():
 		var d: float = c.global_position.distance_to(pp)
-		if d < best_d and c.global_position.distance_to(tp) < 900.0:
+		if d < best_d and c.global_position.distance_to(tp) < 900.0 and _reachable_on_foot(c.global_position, pp):
 			best_d = d
 			best = c.global_position
 	return best
+
+
+## PT-ARENA: false when `target` lies across the moat (the walk round by a bridge is over 1.6 x the straight
+## distance plus 150 px), using the FlowField's player field; true when there is no field.
+func _reachable_on_foot(target: Vector2, pp: Vector2) -> bool:
+	var ff: Node = get_first_node_in_group(&"flow_field")
+	if ff == null:
+		return true
+	var walk: float = ff.distance_to(&"player", target)
+	return walk >= 0.0 and walk <= pp.distance_to(target) * 1.6 + 150.0
 
 func _enemy_id(e: Node) -> String:
 	var d: Variant = e.get("definition")
@@ -372,9 +397,9 @@ func _process(_delta: float) -> bool:
 
 	_handle_events(now, player, tower)
 	if not ended:
-		player.set_input_direction_for_test(_focus_adjust(_movement_dir(player, tower, ps), player, now))
+		player.set_input_direction_for_test(_focus_adjust(_avoid_blocked(player.global_position, _movement_dir(player, tower, ps)), player, now))
 
-		player.set_input_direction_for_test(_movement_dir(player, tower, ps))
+		player.set_input_direction_for_test(_avoid_blocked(player.global_position, _movement_dir(player, tower, ps)))
 		if mode == "kite" and want_dash and not player.is_dashing() and player.get_dash_state()["charges"] > 0:
 			player.press_dash_for_test()
 			dashes_used += 1
