@@ -30,6 +30,10 @@ static func icon(id: String) -> Texture2D:
 		candidates.append(ICON_DIR + "icon_tower.png")
 	elif id == AbilityIds.SOURCE_STATUS_BURN:
 		candidates.append(ICON_DIR + "icon_burn.png")
+	elif id == AbilityIds.SOURCE_KEG:
+		candidates.append(ICON_DIR + "icon_dynamite_satchel.png")
+	elif id == AbilityIds.SOURCE_SPIKES:
+		candidates.append(ICON_DIR + "icon_caltrops.png")
 	candidates.append(ICON_DIR + FALLBACK_ICON + ".png")
 	var tex: Texture2D = null
 	for path in candidates:

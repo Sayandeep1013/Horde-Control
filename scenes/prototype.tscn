@@ -32,6 +32,8 @@
 [ext_resource type="PackedScene" path="res://scenes/entities/brute.tscn" id="28_brute"]
 [ext_resource type="PackedScene" path="res://scenes/entities/goblin_warchief.tscn" id="29_warchief"]
 [ext_resource type="PackedScene" path="res://scenes/entities/bombardier_king.tscn" id="30_king"]
+[ext_resource type="Script" path="res://src/arena/arena_interactables.gd" id="v10_arenainteractables"]
+[ext_resource type="Script" path="res://src/ui/boon_tray.gd" id="v10_boontray"]
 
 [node name="Prototype" type="Node2D"]
 script = ExtResource("1_integration")
@@ -50,6 +52,12 @@ script = ExtResource("6_camera")
 target = NodePath("../Player")
 
 [node name="Hud" parent="." instance=ExtResource("10_hud")]
+
+; v1.0 WP-ARENA: active Shrine boons (icon + countdown), its own Control so hud.gd is untouched.
+[node name="BoonTray" type="Control" parent="Hud"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("v10_boontray")
 
 ; Mobile port (D146, D147): the virtual joystick and the pause button, only
 ; visible on a touchscreen (TouchUi). Own CanvasLayer so the HUD is untouched.
@@ -182,6 +190,11 @@ script = ExtResource("v10_abilitymanager")
 
 [node name="BattleSkillController" type="Node" parent="Main"]
 script = ExtResource("v10_battleskill")
+
+; v1.0 WP-ARENA (docs/32 section B): Supply Crates, Powder Kegs, the Shrine and the four Spike Traps.
+; Spawns on EventBus.wave_started; run_seed is set by PrototypeIntegration._wire_run_seed().
+[node name="ArenaInteractables" type="Node2D" parent="Main"]
+script = ExtResource("v10_arenainteractables")
 
 [node name="TowerRepair" type="Node2D" parent="Main"]
 script = ExtResource("v10_towerrepair")

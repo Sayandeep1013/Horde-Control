@@ -27,3 +27,4 @@ func _physics_process(_delta: float) -> void:
 func blast(pos: Vector2, radius: float, amount: float) -> void:
 	for e in AbilityDamage.enemies_in_radius(pos, radius):
 		AbilityDamage.hit(e, amount * AbilitySynergy.shatter_mult(e), ability_id, &"tower", false)
+	AbilityDamage.hit_breakables(pos, radius, amount, ability_id)

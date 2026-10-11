@@ -121,6 +121,7 @@ var _projectile_lifetime_seconds: float = 0.0
 ## call; this file never sums bonuses itself and never compounds multiple
 ## calls (each call REPLACES the multiplier, it does not multiply it again).
 var _damage_multiplier: float = 1.0
+var _boon_damage_multiplier: float = 1.0 # arena War boon, never touched by the Draft/meta setters
 var _fire_rate_multiplier: float = 1.0
 
 ## D115/D117 pool expansion, both UNLOCK cards. `_pierce_bonus` (Piercing
@@ -275,7 +276,7 @@ func set_fire_rate_multiplier(multiplier: float) -> void:
 ## currently-applied upgrade multiplier, computed fresh on every call so it
 ## can never drift from `_damage_multiplier`'s current value.
 func get_effective_damage_per_shot() -> float:
-	return _damage_per_shot * _damage_multiplier
+	return _damage_per_shot * _damage_multiplier * _boon_damage_multiplier
 
 
 ## Typed query: the base fire interval (from `definition`) divided by the
@@ -292,8 +293,16 @@ func set_buff_fire_rate_multiplier(multiplier: float) -> void:
 	_buff_fire_rate_multiplier = multiplier
 
 
+## v1.0 arena boon (War, Register "v1.0 Arena Interactables"): a SEPARATE factor so the
+## Draft / meta `set_damage_multiplier()` (absolute) and the boon compose by
+## multiplication and neither overwrites the other. Abilities read it too, via
+## `get_damage_multiplier()` (AbilityManager's player-ability multiplier).
+func set_boon_damage_multiplier(multiplier: float) -> void:
+	_boon_damage_multiplier = maxf(0.0, multiplier)
+
+
 func get_damage_multiplier() -> float:
-	return _damage_multiplier
+	return _damage_multiplier * _boon_damage_multiplier
 
 
 func _on_arrow_hit(enemy: Node, damage: float) -> void:

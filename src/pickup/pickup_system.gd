@@ -78,6 +78,9 @@ const ELITE_MEAT_CHANCE: float = 0.35
 ## Run seed for the keyed Meat roll; set by PrototypeIntegration.
 var run_seed: int = 0
 var _meat_rolls: int = 0
+## v1.0 arena Bounty boon: called once per enemy kill, returns the Scrap multiplier
+## for that kill's drop (2 while the boon has kills left, else 1). Unset = 1.
+var scrap_multiplier_provider: Callable = Callable()
 
 @export var entity_spawner_path: NodePath
 @export var player_path: NodePath
@@ -257,7 +260,10 @@ func _on_enemy_died(entity: Node2D, position: Vector2, _timestamp: float) -> voi
 	if drop_table == null:
 		return
 	var affix: Variant = entity.get("elite_affix") if entity != null else null
-	_pending_drops.append({"drop_table": drop_table, "position": position, "meat": affix is String and affix != ""})
+	var scrap_mult: int = 1
+	if scrap_multiplier_provider.is_valid():
+		scrap_mult = maxi(1, int(scrap_multiplier_provider.call())) # arena Bounty boon: consumes one of its kills
+	_pending_drops.append({"drop_table": drop_table, "position": position, "meat": affix is String and affix != "", "scrap_mult": scrap_mult})
 
 
 ## `entity.get("definition")` / `.get("is_finisher")` are duck-typed public
@@ -360,7 +366,18 @@ func step_drops(_delta: float = 0.0) -> void:
 		if drop_table.xp_shards > 0:
 			_spawn_one_pickup(xp_shard_definition, drop_table.xp_shards, position)
 		if drop_table.scrap > 0:
-			_spawn_one_pickup(scrap_definition, drop_table.scrap, position)
+			_spawn_one_pickup(scrap_definition, drop_table.scrap * int(entry.get("scrap_mult", 1)), position)
+
+
+## v1.0 arena Supply Crate (Register "v1.0 Arena Interactables"): drops a pickup right now,
+## outside the enemy-death queue. `kind` is "scrap", "meat" or "xp".
+func spawn_crate_drop(kind: String, amount: int, position: Vector2) -> Pickup:
+	var definition: PickupDefinition = scrap_definition
+	if kind == "meat":
+		definition = meat_definition
+	elif kind == "xp":
+		definition = xp_shard_definition
+	return _spawn_one_pickup(definition, amount, _resolve_open_point(position))
 
 
 func _roll_meat() -> bool:

@@ -362,6 +362,8 @@ const MESSAGES: Dictionary = {
 	"ABILITY_NAME_BOW": "Bow",
 	"ABILITY_NAME_TOWER_BOW": "Tower Bow",
 	"ABILITY_NAME_BURN": "Burning",
+	"ABILITY_NAME_KEG": "Powder Keg",
+	"ABILITY_NAME_SPIKES": "Spike Traps",
 	"ABILITY_DESC_ARROW_STORM": "Arrows rain on the thickest crowd near you.",
 	"ABILITY_DESC_FROST_NOVA": "A freezing burst around you slows everything.",
 	"ABILITY_DESC_FIREBOMB": "Lob dynamite and leave burning ground.",

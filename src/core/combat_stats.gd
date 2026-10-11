@@ -142,7 +142,8 @@ func get_damage_by_source() -> Array[Dictionary]:
 
 ## Counter names used by v1.0: "kills", "elite_kills", "boss_kills",
 ## "damage_taken", "tower_damage_taken", "tower_repaired", "scrap_repaired",
-## "dashes", "skills_cast".
+## "dashes", "skills_cast"; arena interactables add "crates_broken",
+## "kegs_detonated" and "shrines_claimed".
 func add_run_counter(counter: String, amount: float = 1.0) -> void:
 	_run_counters[counter] = float(_run_counters.get(counter, 0.0)) + amount
 

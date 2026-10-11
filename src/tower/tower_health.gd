@@ -249,6 +249,15 @@ func set_palisade(damage_reduction: float, reflect_damage: float) -> void:
 	_reflect_damage = maxf(0.0, reflect_damage)
 
 
+## v1.0 arena Ward boon (Register "v1.0 Arena Interactables"): a separate multiplier on damage
+## taken (0.75 while active), composing with the Palisade reduction above.
+var _boon_damage_taken_multiplier: float = 1.0
+
+
+func set_boon_damage_taken_multiplier(multiplier: float) -> void:
+	_boon_damage_taken_multiplier = clampf(multiplier, 0.1, 2.0)
+
+
 func get_damage_reduction() -> float:
 	return _damage_reduction
 
@@ -289,7 +298,7 @@ func _on_hurtbox_damage_received(amount: float, source: Variant, hitbox: Node) -
 	# takes damage back. Reflect is a Tower-side hit recorded as the ability.
 	if _reflect_damage > 0.0 and hitbox is Hitbox and (hitbox as Hitbox).owner_entity is Node2D:
 		AbilityDamage.hit((hitbox as Hitbox).owner_entity, _reflect_damage, AbilityIds.SOURCE_REFLECT, &"tower", false)
-	amount *= (1.0 - _damage_reduction)
+	amount *= (1.0 - _damage_reduction) * _boon_damage_taken_multiplier
 	CombatStats.add_run_counter("tower_damage_taken", amount)
 	_last_damage_sim_time = _now() # restarts the regen delay -- "including the hit that breaks it"
 	var absorbed: float = minf(current_shield, amount)

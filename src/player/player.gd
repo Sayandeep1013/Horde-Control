@@ -113,6 +113,10 @@ var _deceleration_rate_px_per_s2: float = 0.0
 ## only this multiplier changes, applied fresh every `_movement_step()`
 ## call (Swift Feet). REPLACES the previous value, never compounds.
 var _speed_multiplier: float = 1.0
+## v1.0 arena Haste boon (Register "v1.0 Arena Interactables"): separate factors so the
+## absolute Draft/meta setters above never overwrite them (they multiply).
+var _boon_speed_multiplier: float = 1.0
+var _boon_dash_recharge_multiplier: float = 1.0
 
 ## Vitality (+15% max health and heal that amount). `_base_max_health` is
 ## the definition-derived value `_apply_definition()` set, untouched by
@@ -349,13 +353,13 @@ func _movement_step(delta: float, raw_direction: Vector2) -> void:
 	if _dash_active:
 		# v1.0 Dash: a fixed-speed burst overrides the ramp; the exit velocity
 		# is seeded at base speed so the stop is not a hard snap.
-		_local_velocity = _dash_direction * definition.base_speed_px_per_second * _speed_multiplier
+		_local_velocity = _dash_direction * definition.base_speed_px_per_second * _speed_multiplier * _boon_speed_multiplier
 		velocity = _dash_direction * (DASH_DISTANCE_PX / DASH_DURATION_SECONDS) * SimClock.time_scale
 		move_and_slide()
 		if _registry != null:
 			_registry.update_position(self, global_position)
 		return
-	var target_velocity: Vector2 = raw_direction * definition.base_speed_px_per_second * _speed_multiplier
+	var target_velocity: Vector2 = raw_direction * definition.base_speed_px_per_second * _speed_multiplier * _boon_speed_multiplier
 	var rate: float = _acceleration_rate_px_per_s2 if target_velocity != Vector2.ZERO else _deceleration_rate_px_per_s2
 	_local_velocity = _local_velocity.move_toward(target_velocity, rate * delta)
 
@@ -574,6 +578,17 @@ func set_speed_multiplier(multiplier: float) -> void:
 	_speed_multiplier = multiplier
 
 
+## Haste boon: `speed` multiplies move speed, `dash_recharge` divides the dash cooldown.
+## REPLACES the previous boon values (1.0, 1.0 clears the boon).
+func set_boon_haste(speed: float, dash_recharge: float) -> void:
+	_boon_speed_multiplier = maxf(0.1, speed)
+	_boon_dash_recharge_multiplier = maxf(0.1, dash_recharge)
+
+
+func get_boon_speed_multiplier() -> float:
+	return _boon_speed_multiplier
+
+
 func get_speed_multiplier_for_test() -> float:
 	return _speed_multiplier
 
@@ -653,7 +668,7 @@ func _dash_max_charges() -> int:
 
 
 func _dash_cooldown_total() -> float:
-	return DASH_COOLDOWN_SECONDS * maxf(DASH_COOLDOWN_FLOOR, _dash_cooldown_multiplier)
+	return DASH_COOLDOWN_SECONDS * maxf(DASH_COOLDOWN_FLOOR, _dash_cooldown_multiplier) / maxf(0.1, _boon_dash_recharge_multiplier)
 
 
 ## Typed query for the HUD and the Battle Skill / balance bot (docs/31 §10).

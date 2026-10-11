@@ -355,7 +355,7 @@ func _build_damage_row(source_id: String, damage: float, top_damage: float) -> H
 
 ## Green for the player's own damage, amber for the Tower's, orange for burning.
 static func _source_color(source_id: String) -> Color:
-	if source_id == AbilityIds.SOURCE_STATUS_BURN:
+	if source_id == AbilityIds.SOURCE_STATUS_BURN or source_id == AbilityIds.SOURCE_KEG or source_id == AbilityIds.SOURCE_SPIKES:
 		return UiPalette.SCRAP
 	if source_id == AbilityIds.SOURCE_TOWER_BOW or source_id == AbilityIds.SOURCE_REFLECT or AbilityIds.is_tower_ability(source_id):
 		return UiPalette.TOWER
