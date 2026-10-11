@@ -15,7 +15,7 @@ const RING_RADIUS_FALLBACK_PX: float = 160.0
 ## Discoverability (D205; Register "Tower repair ring"): a faint dashed ring while
 ## repair is possible (Tower health below max and Scrap carried), a ~1.5 s pulse
 ## after the Tower loses health, and a clearly stronger solid ring while repairing.
-const IDLE_RING_ALPHA: float = 0.30
+const IDLE_RING_ALPHA: float = 0.40
 const PULSE_SECONDS: float = 1.5
 const DASH_COUNT: int = 40
 
@@ -189,7 +189,7 @@ func _draw() -> void:
 		if is_pulsing():
 			pulse_k = 0.5 + 0.5 * sin(SimClock.now * 9.0)
 		var a: float = (IDLE_RING_ALPHA + 0.45 * pulse_k) * idle
-		var width: float = 3.0 + 3.0 * pulse_k
+		var width: float = 5.0 + 3.0 * pulse_k
 		var seg: float = TAU / float(DASH_COUNT)
 		for i in DASH_COUNT:
 			var start: float = float(i) * seg

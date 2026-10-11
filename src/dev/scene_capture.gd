@@ -12,7 +12,7 @@ extends Node
 ##     [--grant=flame_arrows:3,ballista:2] [--skill=firebomb] [--cast-frames=F,F]
 ##     [--dash-frames=F,F] [--spawn-frame=F --spawn-count=N] [--tower-hp=0.4 --scrap=100]
 ##     [--lineup=tower_seeker,player_hunter,opportunist,bomber]  (at --spawn-frame: a static
-##      row of those enemy scenes 220 px above the player, for readability captures)
+##      row of those enemy scenes 170 px below the player, for readability captures)
 ##   (the v1.0 flags are dev-only helpers for WP-COMBAT captures, prototype scene only)
 ## Writes <out>_<frame>.png for each listed frame.
 ##
@@ -152,7 +152,8 @@ func _drive_v1_helpers() -> void:
 			le.tower_path = NodePath("")
 			(entities if entities != null else _scene).add_child(le)
 			le.set_tower_reference(_scene.get_node("Main/Tower"))
-			le.global_position = player.global_position + Vector2((float(i) - float(_lineup.size() - 1) * 0.5) * 110.0, -220.0)
+			le.global_position = player.global_position + Vector2((float(i) - float(_lineup.size() - 1) * 0.5) * 130.0, 170.0)
+			le.set_physics_process(false) # a still lineup, nothing walks into the player
 			EntityRegistry.update_position(le, le.global_position)
 		for i in _spawn_count:
 			var e: EnemyController = scene.instantiate() as EnemyController
