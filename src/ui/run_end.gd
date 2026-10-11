@@ -73,18 +73,30 @@ class_name RunEndScreen
 ## reacts to `main_menu_requested`, exactly like `settings_requested`
 ## above; this file only reports which option the player picked.
 
-signal settings_requested()
+## ## v1.0 Results screen (D254, docs/31 section 8.3)
+## The old "Continue / Settings / Main Menu" bar is replaced by **Retry** (a new
+## run with the same difficulty, Battle Skill and Endless choice), **War Camp**
+## (the Hub) and **Main Menu**. The card is wider and shows, besides the old
+## wave / Scrap / time cells: the difficulty, kills, elites, a top-6
+## damage-by-source bar list (icons and names from `AbilityDisplay`), the Cores
+## settlement lines, and ribbons for new achievements, new bests and unlocks.
+## `RunFlowController` is the one caller of every signal below; this file owns
+## no scene change.
 signal main_menu_requested()
-## Meta layer core (build brief item 4): "Add a run-end 'Continue' choice
-## that goes to the Hub scene." `RunFlowController._on_continue_requested()`
-## is the one caller, exactly like `settings_requested`/`main_menu_requested`
-## above -- this file only reports which option the player picked and owns
-## no scene-change logic of its own.
-signal continue_requested()
+signal retry_requested()
+signal war_camp_requested()
 
-const OPTION_CONTINUE: int = 0
-const OPTION_SETTINGS: int = 1
+const OPTION_RETRY: int = 0
+const OPTION_WAR_CAMP: int = 1
 const OPTION_MAIN_MENU: int = 2
+## Damage sources listed on the Results screen (Register "v1.0 Meta Progression").
+const DAMAGE_REPORT_ROWS: int = 6
+const RESULTS_CARD_WIDTH: float = 1500.0
+const RESULTS_CARD_WIDTH_COMPACT: float = 1180.0
+const DAMAGE_NAME_MIN_WIDTH: float = 250.0
+const DAMAGE_BAR_MIN_WIDTH: float = 200.0
+const DAMAGE_VALUE_MIN_WIDTH: float = 130.0
+const DAMAGE_ICON_SIDE: float = 40.0
 
 ## Above src/ui/hud.gd (10) / src/ui/threat_feedback.gd (11); same tier as
 ## src/ui/pause_menu.gd (18) since the two are mutually exclusive by
@@ -104,6 +116,11 @@ var _time_label: Label
 var _seed_label: Label
 var _frame: MenuFrame.Parts
 var _outcome_glyph: OutcomeGlyph
+var _kills_label: Label
+var _elites_label: Label
+var _difficulty_label: Label
+var _damage_box: VBoxContainer
+var _damage_heading: Label
 var _wave_cell: PanelContainer ## the Wave stat cell; kept in sync with _wave_label's own visibility (UI pass) -- see show_summary(). A cell with no visible child sizes to ~0 in the grid rather than leaving an empty panel.
 
 ## Meta layer core (build brief item 4). The settlement card -- built once
@@ -156,7 +173,10 @@ func show_summary(summary: Dictionary) -> void:
 	var wave_total: int = int(summary.get("wave_total", 0))
 	_wave_label.visible = wave_reached >= 0
 	if _wave_label.visible:
-		_wave_label.text = "%s: %d/%d" % [tr("RUN_END_WAVE_REACHED"), wave_reached, wave_total]
+		if bool(summary.get("endless", false)):
+			_wave_label.text = tr("RESULTS_WAVES_ENDLESS") % wave_reached # no total: Endless has no final wave
+		else:
+			_wave_label.text = "%s: %d/%d" % [tr("RUN_END_WAVE_REACHED"), wave_reached, wave_total]
 
 	var scrap_held: int = int(summary.get("scrap_held", 0))
 	_scrap_label.text = "%s: %d" % [tr("RUN_END_SCRAP_HELD"), scrap_held]
@@ -168,6 +188,17 @@ func show_summary(summary: Dictionary) -> void:
 	_seed_label.visible = run_seed >= 0
 	if _seed_label.visible:
 		_seed_label.text = tr("RUN_END_SEED") % run_seed
+
+	_kills_label.text = tr("RESULTS_KILLS") % int(summary.get("kills", 0))
+	_elites_label.text = tr("RESULTS_ELITES") % int(summary.get("elite_kills", 0))
+	var difficulty_name: String = String(summary.get("difficulty_name", ""))
+	_difficulty_label.visible = difficulty_name != ""
+	if _difficulty_label.visible:
+		var tag: String = tr("RESULTS_DIFFICULTY") % difficulty_name
+		if bool(summary.get("endless", false)):
+			tag += "  |  " + tr("RESULTS_ENDLESS_TAG")
+		_difficulty_label.text = tag
+	_set_damage_report(summary.get("damage_report", []))
 
 	_wave_cell.visible = _wave_label.visible # the wrapping cell (UI pass) tracks the SAME visibility flag, never a second decision -- an invisible child alone would leave an empty panel showing
 	_apply_outcome_style(cause_text.is_empty())
@@ -240,12 +271,94 @@ func get_time_label_for_test() -> Label:
 
 
 func _on_option_confirmed(index: int) -> void:
-	if index == OPTION_CONTINUE:
-		continue_requested.emit()
-	elif index == OPTION_SETTINGS:
-		settings_requested.emit()
+	if index == OPTION_RETRY:
+		retry_requested.emit()
+	elif index == OPTION_WAR_CAMP:
+		war_camp_requested.emit()
 	elif index == OPTION_MAIN_MENU:
 		main_menu_requested.emit()
+
+
+## The top-6 damage-by-source bar list. `report` is
+## `CombatStats.get_damage_by_source()` (sorted, descending): one row per source
+## with its icon, display name, a bar scaled to the biggest source, and the
+## number. Rebuilt (not mutated) each call.
+func _set_damage_report(report: Variant) -> void:
+	for child in _damage_box.get_children():
+		_damage_box.remove_child(child)
+		child.free()
+	var rows: Array = report if report is Array else []
+	_damage_heading.visible = true
+	if rows.is_empty():
+		var empty := Label.new()
+		empty.name = "NoDamage"
+		empty.text = tr("RESULTS_NO_DAMAGE")
+		empty.theme_type_variation = UiTheme.DIM_PARCHMENT
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_damage_box.add_child(empty)
+		return
+	var top: float = maxf(1.0, float((rows[0] as Dictionary).get("damage", 1.0)))
+	var shown: int = mini(rows.size(), DAMAGE_REPORT_ROWS)
+	for i in shown:
+		var entry: Dictionary = rows[i]
+		_damage_box.add_child(_build_damage_row(String(entry.get("source_id", "")), float(entry.get("damage", 0.0)), top))
+
+
+func _build_damage_row(source_id: String, damage: float, top_damage: float) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.name = "Damage_%s" % source_id
+	row.theme_type_variation = UiTheme.hbox("M")
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.texture = AbilityDisplay.icon(source_id)
+	icon.custom_minimum_size = Vector2(DAMAGE_ICON_SIDE, DAMAGE_ICON_SIDE)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
+
+	var name_label := Label.new()
+	name_label.name = "Name"
+	name_label.text = AbilityDisplay.display_name(source_id)
+	name_label.theme_type_variation = UiTheme.DIM_PARCHMENT
+	name_label.custom_minimum_size = Vector2(DAMAGE_NAME_MIN_WIDTH, 0.0)
+	name_label.clip_text = true
+	row.add_child(name_label)
+
+	var bar := ProgressBar.new()
+	bar.name = "Bar"
+	bar.min_value = 0.0
+	bar.max_value = 1.0
+	bar.value = clampf(damage / top_damage, 0.0, 1.0)
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(DAMAGE_BAR_MIN_WIDTH, 24.0)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.add_theme_stylebox_override("background", UiTheme.make_box(UiPalette.INK, UiPalette.WOOD_BORDER, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, 0))
+	var fill_color: Color = _source_color(source_id)
+	bar.add_theme_stylebox_override("fill", UiTheme.make_box(fill_color, fill_color, UiPalette.RADIUS_SMALL, 0, 0))
+	row.add_child(bar)
+
+	var value := Label.new()
+	value.name = "Value"
+	value.text = str(int(round(damage)))
+	value.theme_type_variation = UiTheme.HUD_VALUE
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value.custom_minimum_size = Vector2(DAMAGE_VALUE_MIN_WIDTH, 0.0)
+	row.add_child(value)
+	return row
+
+
+## Green for the player's own damage, amber for the Tower's, orange for burning.
+static func _source_color(source_id: String) -> Color:
+	if source_id == AbilityIds.SOURCE_STATUS_BURN:
+		return UiPalette.SCRAP
+	if source_id == AbilityIds.SOURCE_TOWER_BOW or source_id == AbilityIds.SOURCE_REFLECT or AbilityIds.is_tower_ability(source_id):
+		return UiPalette.TOWER
+	return UiPalette.PLAYER
 
 
 ## Meta layer core (build brief item 4). `breakdown` is exactly what
@@ -330,6 +443,13 @@ func set_settlement(breakdown: Dictionary) -> void:
 		ribbon_panels.append(_build_new_best_ribbon(tr("RUN_END_NEW_BEST_KILLS")))
 	if bool(breakdown.get("new_best_survival_seconds", false)):
 		ribbon_panels.append(_build_new_best_ribbon(tr("RUN_END_NEW_BEST_TIME")))
+	if bool(breakdown.get("new_best_endless_wave", false)):
+		ribbon_panels.append(_build_new_best_ribbon(tr("RESULTS_NEW_BEST_ENDLESS")))
+	var unlocked_difficulty: String = String(breakdown.get("unlocked_difficulty", ""))
+	if unlocked_difficulty != "":
+		ribbon_panels.append(_build_new_best_ribbon(tr("RESULTS_UNLOCKED_DIFFICULTY") % RunConfig.get_difficulty_by_id(unlocked_difficulty).display_name))
+	if bool(breakdown.get("unlocked_endless", false)):
+		ribbon_panels.append(_build_new_best_ribbon(tr("RESULTS_UNLOCKED_ENDLESS")))
 	# D118 (achievements). `newly_unlocked_achievements` is
 	# MetaProgress.settle_run()'s own Array[Dictionary] of
 	# {"id": ..., "display_name": ...} -- one ribbon per achievement this
@@ -421,6 +541,22 @@ func get_settlement_box_for_test() -> VBoxContainer:
 	return _settlement_box
 
 
+func get_kills_label_for_test() -> Label:
+	return _kills_label
+
+
+func get_elites_label_for_test() -> Label:
+	return _elites_label
+
+
+func get_difficulty_label_for_test() -> Label:
+	return _difficulty_label
+
+
+func get_damage_box_for_test() -> VBoxContainer:
+	return _damage_box
+
+
 static func _format_time(total_seconds: float) -> String:
 	var whole: int = int(floor(maxf(0.0, total_seconds)))
 	var minutes: int = whole / 60
@@ -437,6 +573,7 @@ func _build_ui() -> void:
 	# here.
 	_frame = MenuFrame.build(self, 0.75, "L")
 	_root = _frame.root
+	_frame.card.custom_minimum_size = Vector2(RESULTS_CARD_WIDTH_COMPACT if TouchUi.is_mobile_layout() else RESULTS_CARD_WIDTH, 0.0)
 
 	var title_row := HBoxContainer.new()
 	title_row.name = "TitleRow"
@@ -471,33 +608,70 @@ func _build_ui() -> void:
 	_cause_label.theme_type_variation = UiTheme.DIM
 	body.add_child(_cause_label)
 
-	var grid := HBoxContainer.new()
+	var grid := GridContainer.new()
 	grid.name = "StatGrid"
+	grid.columns = 3
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.theme_type_variation = UiTheme.hbox("L")
+	grid.add_theme_constant_override("h_separation", UiPalette.SPACE_L)
+	grid.add_theme_constant_override("v_separation", UiPalette.SPACE_S)
 	body.add_child(grid)
 
-	# Follow-up (coordinator review): the sibling captions an earlier
-	# version of this pass added here were removed -- each existing value
-	# Label already carries its own caption baked into its text
-	# ("Scrap held: 180"; that FORMAT is untouched, see show_summary()), so
-	# a second, standalone "Scrap" caption above it just repeated the same
-	# word. Each cell is now a UiTheme.ROW panel holding only the value
-	# Label, centred, all three the same width so the grid reads even.
+	# Each cell is a UiTheme.ROW panel holding only the value Label (its caption
+	# is baked into the text, "Scrap held: 180"), all the same width so the grid
+	# reads even.
 	_wave_cell = _build_stat_cell(grid, "Wave")
 	_wave_label = _make_field_label("WaveLabel", STAT_CELL_MIN_WIDTH)
 	_wave_label.theme_type_variation = UiTheme.HUD_VALUE # D166: 37 px, one line per stat
 	_wave_cell.add_child(_wave_label)
+
+	var time_cell: PanelContainer = _build_stat_cell(grid, "Time")
+	_time_label = _make_field_label("TimeLabel", STAT_CELL_MIN_WIDTH)
+	_time_label.theme_type_variation = UiTheme.HUD_VALUE
+	time_cell.add_child(_time_label)
 
 	var scrap_cell: PanelContainer = _build_stat_cell(grid, "Scrap")
 	_scrap_label = _make_field_label("ScrapLabel", STAT_CELL_MIN_WIDTH)
 	_scrap_label.theme_type_variation = UiTheme.HUD_VALUE
 	scrap_cell.add_child(_scrap_label)
 
-	var time_cell: PanelContainer = _build_stat_cell(grid, "Time")
-	_time_label = _make_field_label("TimeLabel", STAT_CELL_MIN_WIDTH)
-	_time_label.theme_type_variation = UiTheme.HUD_VALUE
-	time_cell.add_child(_time_label)
+	var kills_cell: PanelContainer = _build_stat_cell(grid, "Kills")
+	_kills_label = _make_field_label("KillsLabel", STAT_CELL_MIN_WIDTH)
+	_kills_label.theme_type_variation = UiTheme.HUD_VALUE
+	kills_cell.add_child(_kills_label)
+
+	var elites_cell: PanelContainer = _build_stat_cell(grid, "Elites")
+	_elites_label = _make_field_label("ElitesLabel", STAT_CELL_MIN_WIDTH)
+	_elites_label.theme_type_variation = UiTheme.HUD_VALUE
+	elites_cell.add_child(_elites_label)
+
+	var difficulty_cell: PanelContainer = _build_stat_cell(grid, "Difficulty")
+	_difficulty_label = _make_field_label("DifficultyLabel", STAT_CELL_MIN_WIDTH)
+	_difficulty_label.theme_type_variation = UiTheme.HUD_VALUE
+	difficulty_cell.add_child(_difficulty_label)
+
+	# Two columns under the stats: damage report left, Cores settlement right.
+	var columns := HBoxContainer.new()
+	columns.name = "ReportColumns"
+	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.theme_type_variation = UiTheme.hbox("XL")
+	body.add_child(columns)
+
+	var damage_column := VBoxContainer.new()
+	damage_column.name = "DamageColumn"
+	damage_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	damage_column.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	columns.add_child(damage_column)
+
+	_damage_heading = Label.new()
+	_damage_heading.name = "DamageHeading"
+	_damage_heading.text = tr("RESULTS_DAMAGE_TITLE")
+	_damage_heading.theme_type_variation = UiTheme.VALUE
+	damage_column.add_child(_damage_heading)
+
+	_damage_box = VBoxContainer.new()
+	_damage_box.name = "DamageBox"
+	_damage_box.theme_type_variation = UiTheme.vbox("XS")
+	damage_column.add_child(_damage_box)
 
 	# Meta layer core: the settlement card container -- see set_settlement()'s
 	# own header for the styling it applies to each child it builds. Hidden
@@ -505,7 +679,9 @@ func _build_ui() -> void:
 	_settlement_box = VBoxContainer.new()
 	_settlement_box.name = "SettlementBox"
 	_settlement_box.visible = false
-	body.add_child(_settlement_box)
+	_settlement_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_settlement_box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	columns.add_child(_settlement_box)
 
 	# D143: the run seed, small, for bug reports.
 	_seed_label = _make_field_label("SeedLabel", 400.0)
@@ -515,14 +691,8 @@ func _build_ui() -> void:
 
 	_bar = PausedChoiceBar.new()
 	_bar.name = "ChoiceBar"
-	# Meta layer core (build brief item 4): "Continue" is a new first choice
-	# -> the Hub (see `continue_requested`'s own header). No tr() key exists
-	# for it yet -- src/ui/theme/ui_strings.gd (where RUN_END_SETTINGS/
-	# RUN_END_MAIN_MENU are registered) is off limits this session (HUD
-	# visuals agent's exclusive scope, per this task's hard constraints) --
-	# a plain literal, exactly like ABANDONED's cause_text in
-	# run_flow_controller.gd, named as the same follow-up seam.
-	_bar.set_options(["Continue", tr("RUN_END_SETTINGS"), tr("RUN_END_MAIN_MENU")])
+	# D254: Retry is the first (default) choice, then War Camp (the Hub) and Main Menu.
+	_bar.set_options([tr("RESULTS_RETRY"), tr("RESULTS_WAR_CAMP"), tr("RUN_END_MAIN_MENU")])
 	_bar.option_confirmed.connect(_on_option_confirmed)
 	_frame.column.add_child(_bar)
 	MenuFrame.style_choice_labels(_bar)
@@ -544,7 +714,7 @@ func _build_ui() -> void:
 ## VALUE-styled field label into it afterward (still built by
 ## `_make_field_label()`, unchanged) -- the panel centres it via that
 ## label's own `horizontal_alignment`.
-func _build_stat_cell(grid: HBoxContainer, node_prefix: String) -> PanelContainer:
+func _build_stat_cell(grid: Container, node_prefix: String) -> PanelContainer:
 	var cell := PanelContainer.new()
 	cell.name = "%sCell" % node_prefix
 	cell.theme_type_variation = UiTheme.ROW

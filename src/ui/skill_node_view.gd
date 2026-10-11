@@ -55,6 +55,15 @@ class_name SkillNodeView
 ## (`rank > 0`), so a freshly-revealed, never-bought node reads as neutral
 ## stone and an owned one warms toward its branch's own colour.
 ##
+## ## v2 board node (D250, WP-META)
+## The tree grew to five branches and 30 nodes, and the author asked for node
+## NAMES on the board. The tablet is now 236 x 148: the name on top in the 37 px
+## font (wrapped to at most two lines; every authored word fits one line of the
+## wrap width), and one bottom row with the 32 px icon, rank pips and price.
+## The icon is the project pixel icon `assets/ui/icons/icon_<icon_id>.png` when
+## the node names one, else the old branch glyph. The Reset Tree widget keeps
+## the one-line `show_name` layout with no icon.
+##
 ## ## Selection is a sibling concern
 ## This node emits `node_hovered(id)` on mouse hover (hover selects, matching
 ## the Draft/Console/PausedChoiceBar convention) but does NOT track selection
@@ -101,9 +110,11 @@ signal node_released(id: String)
 ## about 8.7 px on a 720p screen) -- registered in the Register > "HUD" > "Skill
 ## Tree node text". The node is now wider than it is tall (NODE_SIZE x
 ## NODE_HEIGHT) so two lines of 20 px name text and the price row fit.
-const NODE_SIZE: float = 140.0 ## width (D168: about 65 dp on a phone, where the board runs unscaled)
-const NODE_HEIGHT: float = 96.0
-const ICON_SIDE: int = 36
+const NODE_SIZE: float = 236.0 ## width (D250: holds a 37 px two-line name; the board pans, so size is not capped by the screen)
+const NODE_HEIGHT: float = 148.0
+const ICON_SIDE: int = 32
+const ROOT_ICON_SIDE: int = 64
+const NAME_WRAP_WIDTH: float = NODE_SIZE - 28.0
 const NAME_FONT_SIZE: int = 37 # the font pixel grid (D156); only used when `show_name` is on
 const PRICE_FONT_SIZE: int = 37 # D166: the price is read, so 37
 const PIP_SIZE: int = 8
@@ -133,6 +144,8 @@ var _last_rank: int = 0
 var _true_shape: int = UiShapeGlyph.Shape.SQUARE
 
 var _icon: UiShapeGlyph
+var _icon_tex: TextureRect ## the pixel icon when the node names one; _icon (the branch glyph) is the fallback
+var _bottom_row: HBoxContainer
 var _name_label: Label
 var _silhouette_label: Label
 var _pips_row: HBoxContainer
@@ -166,26 +179,20 @@ func _build_children() -> void:
 	column.name = "Column"
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 1) # tight: 20 px text has to fit the tablet
+	column.add_theme_constant_override("separation", 2) # tight: a 37 px two-line name has to fit the tablet
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(column)
 
-	_icon = UiShapeGlyph.new()
-	_icon.name = "Icon"
-	_icon.set_side(ICON_SIDE)
-	_icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(_icon)
-
 	_name_label = Label.new()
 	_name_label.name = "NameLabel"
-	_name_label.theme_type_variation = UiTheme.VALUE # bright text (UX review item 8): the dim tan was unreadable on the teal tablet
+	_name_label.theme_type_variation = UiTheme.VALUE # bright text with an outline: the dim tan was unreadable on the tablet
 	_name_label.add_theme_font_size_override("font_size", NAME_FONT_SIZE)
 	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_name_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_name_label.custom_minimum_size = Vector2(NODE_SIZE - 20.0, 0.0)
+	_name_label.custom_minimum_size = Vector2(NAME_WRAP_WIDTH, 0.0)
 	_name_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_name_label.visible = false # shown only by set_state() when `show_name` is on; a stale tall minimum would otherwise stretch the node
 	column.add_child(_name_label)
 
 	_silhouette_label = Label.new()
@@ -195,19 +202,42 @@ func _build_children() -> void:
 	_silhouette_label.visible = false
 	column.add_child(_silhouette_label)
 
+	_bottom_row = HBoxContainer.new()
+	_bottom_row.name = "BottomRow"
+	_bottom_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_bottom_row.add_theme_constant_override("separation", 8)
+	_bottom_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	column.add_child(_bottom_row)
+
+	_icon = UiShapeGlyph.new()
+	_icon.name = "Icon"
+	_icon.set_side(ICON_SIDE)
+	_icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_bottom_row.add_child(_icon)
+
+	_icon_tex = TextureRect.new()
+	_icon_tex.name = "IconTex"
+	_icon_tex.custom_minimum_size = Vector2(ICON_SIDE, ICON_SIDE)
+	_icon_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_icon_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_icon_tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_icon_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon_tex.visible = false
+	_bottom_row.add_child(_icon_tex)
+
 	_pips_row = HBoxContainer.new()
 	_pips_row.name = "PipsRow"
 	_pips_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_pips_row.add_theme_constant_override("separation", PIP_GAP)
 	_pips_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(_pips_row)
+	_bottom_row.add_child(_pips_row)
 
 	_price_row = HBoxContainer.new()
 	_price_row.name = "PriceRow"
 	_price_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_price_row.add_theme_constant_override("separation", 4)
 	_price_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(_price_row)
+	_bottom_row.add_child(_price_row)
 
 	_price_icon = UiShapeGlyph.new()
 	_price_icon.name = "PriceIcon"
@@ -238,17 +268,24 @@ func _on_gui_input(event: InputEvent) -> void:
 				node_released.emit(node_id)
 
 
-func configure(id: String, shape: int, branch_color: Color, display_name: String) -> void:
+func configure(id: String, shape: int, branch_color: Color, display_name: String, icon_id: String = "") -> void:
 	node_id = id
 	_true_shape = shape
 	_icon.shape = shape
 	_icon.glyph_color = branch_color
 	_name_label.text = display_name
 	tooltip_text = display_name
+	_icon_tex.texture = null
+	if icon_id != "":
+		var path: String = "res://assets/ui/icons/icon_%s.png" % icon_id
+		if ResourceLoader.exists(path):
+			_icon_tex.texture = load(path) as Texture2D
+	_icon_tex.custom_minimum_size = Vector2(ICON_SIDE, ICON_SIDE)
 
 
 func set_silhouette() -> void:
 	_icon.visible = false
+	_icon_tex.visible = false
 	_name_label.visible = false
 	_silhouette_label.visible = true
 	_silhouette_label.text = tr("SKILL_TREE_SILHOUETTE_NAME")
@@ -272,8 +309,12 @@ func set_silhouette() -> void:
 ## own. `branch_color` tints the icon/fill when owned; `price` is only read
 ## for LOCKED/UNAFFORDABLE/BUYABLE.
 func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: Color, is_root: bool) -> void:
-	_icon.visible = not show_name
-	_name_label.visible = show_name
+	var has_tex: bool = _icon_tex.texture != null
+	_icon.visible = not show_name and not has_tex
+	_icon_tex.visible = not show_name and has_tex
+	_icon_tex.modulate = Color(1, 1, 1, 1)
+	_name_label.visible = not is_root # the root is a round medallion: icon only
+	_name_label.remove_theme_color_override("font_color")
 	if show_name:
 		_name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		_name_label.custom_minimum_size = Vector2.ZERO
@@ -296,6 +337,9 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 		# a glance from a merely-maxed branch node, and a persistent glow
 		# (it is always owned).
 		_icon.glyph_color = UiPalette.TEXT
+		if has_tex:
+			_icon_tex.custom_minimum_size = Vector2(ROOT_ICON_SIDE, ROOT_ICON_SIDE)
+			_icon_tex.visible = true
 		_pips_row.visible = false
 		_price_row.visible = false
 		_style.texture = load(UiPalette.TEX_PANEL_CARVED_SWATCH) as Texture2D
@@ -329,8 +373,12 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 			# its own branch icon normally sits; SILHOUETTE (not yet
 			# revealed at all) keeps the "???" text instead (set_silhouette()
 			# never reaches this match arm).
-			_icon.shape = UiShapeGlyph.Shape.LOCK
-			_icon.glyph_color = UiPalette.TEXT_DIM
+			_name_label.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
+			if has_tex:
+				_icon_tex.modulate = Color(0.45, 0.45, 0.45, 1.0) # dimmed art stands in for the padlock swap
+			else:
+				_icon.shape = UiShapeGlyph.Shape.LOCK
+				_icon.glyph_color = UiPalette.TEXT_DIM
 		State.UNAFFORDABLE:
 			_price_label.text = str(price)
 			# UX review item 8 (D132): calmer than the old red-on-red -- the normal
@@ -340,6 +388,7 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 			_price_icon.glyph_color = UiPalette.SCRAP
 			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D
 			_style.modulate_color = branch_tint * Color(0.72, 0.72, 0.72, 1.0)
+			_icon_tex.modulate = Color(0.85, 0.85, 0.85, 1.0)
 		State.BUYABLE:
 			_price_label.text = str(price)
 			_price_label.add_theme_color_override("font_color", UiPalette.SUCCESS)
@@ -452,3 +501,7 @@ func get_price_label_for_test() -> Label:
 
 func get_icon_for_test() -> UiShapeGlyph:
 	return _icon
+
+
+func get_icon_texture_rect_for_test() -> TextureRect:
+	return _icon_tex

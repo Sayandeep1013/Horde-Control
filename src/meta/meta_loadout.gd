@@ -51,3 +51,16 @@ var settlement_cores_bonus: float = 0.0 ## fraction, applied by MetaProgress.set
 var scrap_cap_bonus: int = 0 ## flat, added to RunInventory.scrap_cap (Deep Pockets)
 var war_chest_enabled: bool = false ## War Chest
 var rarity_luck_points: int = 0 ## flat luck points, added to the Draft's own rarity roll (D117; Lucky Charm)
+
+## --- v2 additions (D250, docs/31 section 7.1) ---------------------------------
+var player_crit_chance_bonus: float = 0.0 ## flat fraction (Keen Eye, 0.04 per rank)
+var player_weapon_range_bonus: float = 0.0 ## fraction (Eagle Eye)
+var armory_enabled: bool = false ## Armory keystone: a free Level 1 player ability at run start
+var damage_taken_reduction: float = 0.0 ## fraction removed from incoming player damage (Iron Skin)
+var dash_cooldown_reduction: float = 0.0 ## fraction (Fleet Foot)
+var dash_extra_charges: int = 0 ## flat (Second Dash)
+var unlocked_battle_skills: Array[String] = [] ## AbilityIds Battle Skills the owned unlock nodes open
+var skill_cooldown_reduction: float = 0.0 ## fraction (Skill Focus)
+var skill_damage_bonus: float = 0.0 ## fraction (Skill Power)
+var tower_repair_bonus: float = 0.0 ## fraction of repair per Scrap (Mason's Kit)
+var tower_ability_damage_bonus: float = 0.0 ## fraction (Engineers)

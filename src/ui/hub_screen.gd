@@ -9,6 +9,19 @@ class_name HubScreen
 ## Hub actions, the first-visit hint, and a non-blocking profile-warning
 ## banner (`MetaProgress.get_flags()`).
 ##
+## ## v1.0 War Camp (D254, WP-META)
+## A "Run Setup" card sits left of the menu card: a Difficulty picker (four
+## buttons; a locked one is greyed and, when focused or pressed, says what
+## unlocks it), a Battle Skill picker (a locked skill names the Skill Tree node
+## that opens it), an Endless toggle (hidden until a victory unlocks it) and the
+## Start Run button. Each choice is saved in the profile as it is made
+## (`MetaProgress.set_selected_*`); Start Run writes the three into `RunConfig`
+## and only then changes scene. The pickers are plain Buttons on Godot's native
+## focus chain, so keyboard, pad, mouse and touch all reach them (movement-only
+## navigation: up/down/left/right to move, Space/Enter to choose). A one-time
+## banner after the v2 -> v3 profile migration says the Skill Tree was rebuilt.
+## The calm "town theme" plays on the Music bus.
+##
 ## ## Flow
 ## Title's Play -> `res://scenes/hub.tscn` (src/ui/title_screen.gd). This
 ## screen's own "Start Run" -> `res://scenes/prototype.tscn`; "Back to
@@ -92,7 +105,7 @@ const FIRE_SHEET: String = TS_ROOT + "Effects/Fire/Fire.png"
 ## sheep reuses `HappySheep_All.png` row 0 (idle, 8 frames) via the same
 ## `TitleSprite` frame-strip helper the archers already use.
 const SHEEP_SHEET: String = TS_ROOT + "Resources/Sheep/HappySheep_All.png"
-const MUSIC_STREAM_PATH: String = "res://assets/third_party/opengameart/music/battle_theme_a.ogg"
+const MUSIC_STREAM_PATH: String = "res://assets/third_party/opengameart/music/town_theme_rpg.ogg"
 
 const CASTLE_SIZE: Vector2 = Vector2(480.0, 384.0) # 1.5x Castle_Blue.png's native 320x256
 const CASTLE_TOP_LEFT: Vector2 = Vector2(1180.0, 300.0)
@@ -121,9 +134,12 @@ const SHEEP_IDLE_COUNT: int = 8
 const SHEEP_SIZE: Vector2 = Vector2(80.0, 80.0)
 const SHEEP_SPOTS: Array = [Vector2(560.0, 470.0), Vector2(650.0, 520.0), Vector2(1400.0, 760.0)]
 
-const MUSIC_VOLUME_DB: float = -22.0 # quieter than the title's own -14 dB -- see class header, "Music"
+const MUSIC_VOLUME_DB: float = -14.0 # the calm town theme (D254) plays at the title's own level; the old -22 dB was for the battle theme
 
 const MENU_CARD_MIN_WIDTH: float = 460.0
+const SETUP_CARD_MIN_WIDTH: float = 700.0
+const PICKER_BUTTON_MIN_SIZE: Vector2 = Vector2(330.0, 64.0)
+const PICKER_ICON_SIDE: int = 40
 const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 60.0)
 const HUB_MENU_BAND_TOP: float = 250.0 # 1080-base px; UX review P0-1
 const HUB_MENU_BAND_BOTTOM: float = 1050.0
@@ -160,6 +176,15 @@ var _records_panel: RecordsPanel
 var _achievements_panel: AchievementsPanel
 var _settings_menu: SettingsMenu
 var _menu_card: PanelContainer
+var _setup_card: PanelContainer
+var _difficulty_buttons: Dictionary = {} # difficulty id -> Button
+var _skill_buttons: Dictionary = {} # Battle Skill id -> Button
+var _endless_button: Button
+var _picker_hint: Label
+var _v3_banner: PanelContainer
+var _v3_label: Label
+var _suppress_scene_change_for_test: bool = false
+var _last_scene_change_for_test: String = ""
 
 
 func _ready() -> void:
@@ -173,6 +198,8 @@ func _ready() -> void:
 	_refresh_cores_label()
 	_hint_banner.visible = first_visit
 	_refresh_warning_banner()
+	_refresh_v3_banner()
+	_refresh_pickers()
 	if not MetaProgress.cores_changed.is_connected(_on_cores_changed):
 		MetaProgress.cores_changed.connect(_on_cores_changed)
 	_start_run_button.grab_focus()
@@ -264,11 +291,19 @@ func _refresh_warning_banner() -> void:
 
 
 func _on_start_run_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/prototype.tscn")
+	MetaProgress.apply_selection_to_run_config() # D254: the three persisted choices become the run's RunConfig
+	_change_scene("res://scenes/prototype.tscn")
+
+
+func _change_scene(path: String) -> void:
+	_last_scene_change_for_test = path
+	if _suppress_scene_change_for_test:
+		return
+	get_tree().change_scene_to_file(path)
 
 
 func _on_back_to_title_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/title.tscn")
+	_change_scene("res://scenes/title.tscn")
 
 
 func _on_skill_tree_pressed() -> void:
@@ -344,6 +379,21 @@ func _on_hint_dismiss_pressed() -> void:
 
 func _on_warning_dismiss_pressed() -> void:
 	_warning_banner.visible = false
+
+
+## One-time notice after the v2 -> v3 migration (D252): shown until dismissed,
+## and the dismissal is saved so it never returns.
+func _refresh_v3_banner() -> void:
+	var show: bool = MetaProgress.has_v3_notice()
+	_v3_banner.visible = show
+	if show:
+		var refund: int = MetaProgress.get_v3_refund_amount()
+		_v3_label.text = tr("HUB_V3_NOTICE") + ((" " + tr("HUB_V3_NOTICE_AMOUNT") % refund) if refund > 0 else "")
+
+
+func _on_v3_dismiss_pressed() -> void:
+	_v3_banner.visible = false
+	MetaProgress.acknowledge_v3_notice()
 
 
 # --- UI construction ----------------------------------------------------------
@@ -536,13 +586,22 @@ func _build_menu_card(parent: Control) -> void:
 	center.offset_bottom = COMPACT_MENU_BAND_BOTTOM if TouchUi.is_mobile_layout() else HUB_MENU_BAND_BOTTOM
 	parent.add_child(center)
 
+	var row := HBoxContainer.new()
+	row.name = "CardRow"
+	row.theme_type_variation = UiTheme.hbox("XL")
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	center.add_child(row)
+
+	_build_setup_card(row)
+
 	var card := PanelContainer.new()
 	card.name = "MenuCard"
 	card.theme_type_variation = UiTheme.CARD
 	card.theme = UiTheme.get_parchment_theme() # D166: dark ink on parchment
 	card.custom_minimum_size = Vector2(MENU_CARD_MIN_WIDTH, 0.0)
+	card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	card.mouse_filter = Control.MOUSE_FILTER_PASS
-	center.add_child(card)
+	row.add_child(card)
 	_menu_card = card # Settings screen task, blind review fix (item 5): toggled while Settings is open, see _on_settings_pressed()/_on_settings_closed()
 
 	var column := VBoxContainer.new()
@@ -566,16 +625,6 @@ func _build_menu_card(parent: Control) -> void:
 	ribbon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ribbon.add_child(ribbon_label)
 
-	_start_run_button = Button.new()
-	_start_run_button.name = "StartRunButton"
-	_start_run_button.text = tr("HUB_START_RUN")
-	_start_run_button.custom_minimum_size = TouchUi.touch_size(START_RUN_MIN_SIZE)
-	_start_run_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_start_run_button.focus_mode = Control.FOCUS_ALL
-	_start_run_button.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
-	_start_run_button.pressed.connect(_on_start_run_pressed)
-	column.add_child(_start_run_button)
-
 	_skill_tree_button = _make_menu_button(tr("HUB_SKILL_TREE"))
 	_skill_tree_button.pressed.connect(_on_skill_tree_pressed)
 	column.add_child(_skill_tree_button)
@@ -595,6 +644,197 @@ func _build_menu_card(parent: Control) -> void:
 	_back_to_title_button = _make_menu_button(tr("HUB_BACK_TO_TITLE"))
 	_back_to_title_button.pressed.connect(_on_back_to_title_pressed)
 	column.add_child(_back_to_title_button)
+
+
+## The Run Setup card (see class header). Built from plain Buttons so the native
+## focus chain, mouse and touch all work; a locked option is a greyed tablet.
+func _build_setup_card(parent: Container) -> void:
+	var card := PanelContainer.new()
+	card.name = "SetupCard"
+	card.theme_type_variation = UiTheme.CARD
+	card.theme = UiTheme.get_parchment_theme()
+	card.custom_minimum_size = Vector2(SETUP_CARD_MIN_WIDTH, 0.0)
+	card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	card.mouse_filter = Control.MOUSE_FILTER_PASS
+	parent.add_child(card)
+	_setup_card = card
+
+	var column := VBoxContainer.new()
+	column.name = "SetupColumn"
+	card.add_child(column)
+
+	column.add_child(_make_picker_heading(tr("HUB_DIFFICULTY")))
+	var diff_grid := GridContainer.new()
+	diff_grid.name = "DifficultyGrid"
+	diff_grid.columns = 2
+	diff_grid.add_theme_constant_override("h_separation", UiPalette.SPACE_M)
+	diff_grid.add_theme_constant_override("v_separation", UiPalette.SPACE_S)
+	column.add_child(diff_grid)
+	for profile in RunConfig.get_all_difficulties():
+		var button: Button = _make_picker_button(profile.display_name, AbilityIds.icon_path(profile.id))
+		button.name = "Difficulty_%s" % profile.id
+		button.pressed.connect(_on_difficulty_pressed.bind(profile.id))
+		button.focus_entered.connect(_on_difficulty_focused.bind(profile.id))
+		button.mouse_entered.connect(_on_difficulty_focused.bind(profile.id))
+		diff_grid.add_child(button)
+		_difficulty_buttons[profile.id] = button
+
+	column.add_child(_make_picker_heading(tr("HUB_BATTLE_SKILL")))
+	var skill_grid := GridContainer.new()
+	skill_grid.name = "SkillGrid"
+	skill_grid.columns = 2
+	skill_grid.add_theme_constant_override("h_separation", UiPalette.SPACE_M)
+	skill_grid.add_theme_constant_override("v_separation", UiPalette.SPACE_S)
+	column.add_child(skill_grid)
+	for skill_id in AbilityIds.BATTLE_SKILLS:
+		var button: Button = _make_picker_button(AbilityDisplay.display_name(skill_id), AbilityIds.icon_path(skill_id))
+		button.name = "Skill_%s" % skill_id
+		button.pressed.connect(_on_skill_pressed.bind(skill_id))
+		button.focus_entered.connect(_on_skill_focused.bind(skill_id))
+		button.mouse_entered.connect(_on_skill_focused.bind(skill_id))
+		skill_grid.add_child(button)
+		_skill_buttons[skill_id] = button
+
+	_endless_button = _make_picker_button(tr("HUB_ENDLESS_OFF"), AbilityIds.icon_path("timer"))
+	_endless_button.name = "EndlessToggle"
+	_endless_button.toggle_mode = true
+	_endless_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_endless_button.toggled.connect(_on_endless_toggled)
+	_endless_button.focus_entered.connect(_on_endless_focused)
+	column.add_child(_endless_button)
+
+	_picker_hint = Label.new()
+	_picker_hint.name = "PickerHint"
+	_picker_hint.theme_type_variation = UiTheme.DIM_PARCHMENT
+	_picker_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_picker_hint.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_picker_hint.custom_minimum_size = Vector2(SETUP_CARD_MIN_WIDTH - 60.0, 80.0)
+	column.add_child(_picker_hint)
+
+	_start_run_button = Button.new()
+	_start_run_button.name = "StartRunButton"
+	_start_run_button.text = tr("HUB_START_RUN_SETUP")
+	_start_run_button.custom_minimum_size = TouchUi.touch_size(START_RUN_MIN_SIZE)
+	_start_run_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_start_run_button.focus_mode = Control.FOCUS_ALL
+	_start_run_button.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
+	_start_run_button.pressed.connect(_on_start_run_pressed)
+	column.add_child(_start_run_button)
+
+
+func _make_picker_heading(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.theme_type_variation = UiTheme.DIM_PARCHMENT
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+
+func _make_picker_button(text: String, icon_path: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.toggle_mode = true
+	button.focus_mode = Control.FOCUS_ALL
+	button.custom_minimum_size = TouchUi.touch_size(PICKER_BUTTON_MIN_SIZE)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.expand_icon = true
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.add_theme_constant_override("icon_max_width", PICKER_ICON_SIDE)
+	button.add_theme_color_override("font_pressed_color", UiPalette.ACCENT)
+	button.add_theme_color_override("font_hover_pressed_color", UiPalette.ACCENT)
+	if ResourceLoader.exists(icon_path):
+		button.icon = load(icon_path) as Texture2D
+	return button
+
+
+# --- Pickers (D254) --------------------------------------------------------------
+
+## Re-reads the profile and restyles every picker button: the chosen one is
+## pressed, a locked one is a greyed tablet. Hides the Endless toggle until a
+## victory has unlocked it.
+func _refresh_pickers() -> void:
+	var difficulty: String = MetaProgress.get_selected_difficulty()
+	for id in _difficulty_buttons.keys():
+		var button: Button = _difficulty_buttons[id]
+		var unlocked: bool = MetaProgress.is_difficulty_unlocked(id)
+		button.set_pressed_no_signal(unlocked and id == difficulty)
+		_style_locked(button, not unlocked)
+	var skill: String = MetaProgress.get_selected_battle_skill()
+	for id in _skill_buttons.keys():
+		var button: Button = _skill_buttons[id]
+		var unlocked: bool = MetaProgress.is_battle_skill_unlocked(id)
+		button.set_pressed_no_signal(unlocked and id == skill)
+		_style_locked(button, not unlocked)
+	var endless_open: bool = MetaProgress.is_endless_unlocked()
+	_endless_button.visible = endless_open
+	_endless_button.set_pressed_no_signal(MetaProgress.get_selected_endless())
+	_endless_button.text = tr("HUB_ENDLESS_ON") if _endless_button.button_pressed else tr("HUB_ENDLESS_OFF")
+	_set_hint_for_difficulty(difficulty)
+
+
+func _style_locked(button: Button, locked: bool) -> void:
+	for state in ["normal", "hover", "pressed", "hover_pressed"]:
+		if locked:
+			button.add_theme_stylebox_override(state, UiTheme.make_texture_box(UiPalette.TEX_BUTTON_DISABLED, UiPalette.NODE_TEXTURE_MARGIN, 6))
+		else:
+			button.remove_theme_stylebox_override(state)
+	if locked:
+		button.add_theme_color_override("font_color", UiPalette.TEXT_DISABLED)
+	else:
+		button.remove_theme_color_override("font_color")
+	button.modulate = Color(1, 1, 1, 0.75) if locked else Color(1, 1, 1, 1)
+
+
+func _on_difficulty_pressed(id: String) -> void:
+	var accepted: bool = MetaProgress.set_selected_difficulty(id)
+	_refresh_pickers() # a locked (refused) toggle button switched itself on; this puts it back
+	if not accepted:
+		_set_hint_for_difficulty(id)
+
+
+func _on_difficulty_focused(id: String) -> void:
+	_set_hint_for_difficulty(id)
+
+
+func _on_skill_pressed(id: String) -> void:
+	MetaProgress.set_selected_battle_skill(id)
+	_refresh_pickers()
+	_set_hint_for_skill(id)
+
+
+func _on_skill_focused(id: String) -> void:
+	_set_hint_for_skill(id)
+
+
+func _on_endless_toggled(on: bool) -> void:
+	MetaProgress.set_selected_endless(on)
+	_refresh_pickers()
+	_picker_hint.text = tr("HUB_ENDLESS_HINT")
+
+
+func _on_endless_focused() -> void:
+	_picker_hint.text = tr("HUB_ENDLESS_HINT")
+
+
+## The hint line says what the option does, or, for a locked one, what opens it.
+func _set_hint_for_difficulty(id: String) -> void:
+	if _picker_hint == null:
+		return
+	var profile: DifficultyProfile = RunConfig.get_difficulty_by_id(id)
+	if MetaProgress.is_difficulty_unlocked(id):
+		_picker_hint.text = "%s (Cores x%s)" % [profile.description, String.num(profile.cores_multiplier, 2).rstrip("0").rstrip(".")]
+	else:
+		_picker_hint.text = tr("HUB_LOCKED_DIFFICULTY") % RunConfig.get_difficulty_by_id(profile.unlocked_by_victory_on).display_name
+
+
+func _set_hint_for_skill(id: String) -> void:
+	if _picker_hint == null:
+		return
+	if MetaProgress.is_battle_skill_unlocked(id):
+		_picker_hint.text = tr("ABILITY_DESC_%s" % id.to_upper())
+	else:
+		var node: SkillNodeDefinition = MetaProgress.skill_tree.get_node_definition(MetaProgress.get_battle_skill_unlock_node_id(id))
+		_picker_hint.text = tr("HUB_LOCKED_SKILL") % (node.display_name if node != null else id)
 
 
 func _make_menu_button(text: String) -> Button:
@@ -670,6 +910,9 @@ func _build_banners() -> void:
 	_warning_banner = _build_banner(column, "WarningBanner", "", tr("HUB_HINT_DISMISS"), _on_warning_dismiss_pressed)
 	_warning_label = _warning_banner.get_node("Row/Label") as Label
 	_warning_banner.visible = false
+	_v3_banner = _build_banner(column, "V3NoticeBanner", tr("HUB_V3_NOTICE"), tr("HUB_HINT_DISMISS"), _on_v3_dismiss_pressed)
+	_v3_label = _v3_banner.get_node("Row/Label") as Label
+	_v3_banner.visible = false
 
 
 func _build_banner(parent: Container, node_name: String, text: String, dismiss_text: String, on_dismiss: Callable) -> PanelContainer:
@@ -710,7 +953,10 @@ func _build_music() -> void:
 	_music_player.name = "MusicPlayer"
 	_music_player.bus = "Music"
 	_music_player.volume_db = MUSIC_VOLUME_DB
-	_music_player.stream = load(MUSIC_STREAM_PATH)
+	var stream: AudioStream = load(MUSIC_STREAM_PATH) as AudioStream
+	if stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true # looping; the finished handler below stays as a fallback
+	_music_player.stream = stream
 	_music_player.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_music_player)
 	_music_player.finished.connect(_on_music_finished)
@@ -777,6 +1023,46 @@ func get_settings_menu_for_test() -> SettingsMenu:
 
 func get_menu_card_for_test() -> PanelContainer:
 	return _menu_card
+
+
+func get_setup_card_for_test() -> PanelContainer:
+	return _setup_card
+
+
+func get_difficulty_button_for_test(id: String) -> Button:
+	return _difficulty_buttons.get(id)
+
+
+func get_skill_button_for_test(id: String) -> Button:
+	return _skill_buttons.get(id)
+
+
+func get_endless_button_for_test() -> Button:
+	return _endless_button
+
+
+func get_picker_hint_for_test() -> Label:
+	return _picker_hint
+
+
+func get_v3_banner_for_test() -> PanelContainer:
+	return _v3_banner
+
+
+func set_suppress_scene_change_for_test(suppress: bool) -> void:
+	_suppress_scene_change_for_test = suppress
+
+
+func get_last_scene_change_for_test() -> String:
+	return _last_scene_change_for_test
+
+
+func press_difficulty_for_test(id: String) -> void:
+	_on_difficulty_pressed(id)
+
+
+func press_skill_for_test(id: String) -> void:
+	_on_skill_pressed(id)
 
 
 func get_music_player_for_test() -> AudioStreamPlayer:

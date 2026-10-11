@@ -172,10 +172,15 @@ func _ready() -> void:
 ## every scene instantiated without a Hub purchase ever having happened,
 ## which is every existing test) -- see that file's own header, "Idempotence."
 func _apply_meta_loadout() -> void:
+	CombatStats.reset_run_stats() # D173/D254: the damage report and run counters start from zero every run (Retry included)
 	var loadout: MetaLoadout = MetaProgress.build_run_loadout()
 	var pickup_system: PickupSystem = _pickup_system as PickupSystem
 	var run_inventory: RunInventory = pickup_system.run_inventory if pickup_system != null else null
-	MetaLoadoutApplier.apply(loadout, _player, _tower, _auto_weapon as AutoWeapon, run_inventory, _draft_controller as DraftController, _wave_director)
+	var hooks: Dictionary = MetaLoadoutApplier.apply(loadout, _player, _tower, _auto_weapon as AutoWeapon, run_inventory, _draft_controller as DraftController, _wave_director)
+	# D250: a hook node that is created after this runs (a controller built in its
+	# own _ready) still gets its values; the setters take absolute multipliers, so
+	# repeating them is safe. The Armory grant is retried only if it did not land.
+	_reapply_group_hooks.call_deferred(loadout, not loadout.armory_enabled or bool(hooks.get("armory_granted", false)))
 	# D118: an UNLOCK-gated card (Piercing Arrows, Multishot, Tower Volley)
 	# never appears in this run's Draft pool unless the achievement that
 	# names it is already unlocked -- read once, at run start, same timing
@@ -183,6 +188,11 @@ func _apply_meta_loadout() -> void:
 	var upgrade_system: UpgradeSystem = _upgrade_system as UpgradeSystem
 	if upgrade_system != null:
 		upgrade_system.set_unlocked_card_ids(MetaProgress.get_unlocked_card_ids())
+
+
+func _reapply_group_hooks(loadout: MetaLoadout, armory_done: bool) -> void:
+	if is_inside_tree():
+		MetaLoadoutApplier.apply_group_hooks(loadout, get_tree(), not armory_done)
 
 
 ## F05-13. Single source of truth: `run_seed` above. Both consumers are

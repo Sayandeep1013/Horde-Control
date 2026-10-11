@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## Run-end screen restyle tests (Hub/Skill Tree screen session, build brief
 ## item 4): "outcome header (Victory / Defeated / Tower Fallen / Abandoned)"
 ## and the settlement card's structure (rows + NEW BEST ribbons built,
-## Continue kept as the primary/first choice). Existing run-end behaviours
+## Retry is the primary/first choice (D254)). Existing run-end behaviours
 ## (show_summary()'s cause/wave/scrap/time fields, the settlement box's own
 ## node identity) are untouched -- see tests/unit/meta_run_flow_settlement_test.gd
 ## for the full RunFlowController-driven path this screen sits behind.
@@ -13,7 +13,7 @@ extends GdUnitTestSuite
 ## an isolated probe during this session), so mutating a captured local
 ## never propagates back out. An instance field, mutated through the
 ## lambda's implicit `self`, does.
-var _continue_requested_fired: bool = false
+var _retry_requested_fired: bool = false
 
 
 func _make_screen() -> RunEndScreen:
@@ -161,15 +161,16 @@ func test_settlement_with_no_saved_key_defaults_to_the_normal_saved_display() ->
 	assert_str(total_label.text).append_failure_message("a breakdown with no 'saved' key must default to the normal display, not the not-saved message").is_equal("%s: 0" % tr("RUN_END_SETTLEMENT_TOTAL"))
 
 
-func test_continue_is_the_first_and_default_highlighted_choice() -> void:
+func test_retry_is_the_first_and_default_highlighted_choice() -> void:
 	var screen: RunEndScreen = _make_screen()
 	screen.show_summary({"cause_text": "", "wave_reached": 8, "wave_total": 8, "scrap_held": 0, "time_survived_seconds": 1.0})
 	var bar: PausedChoiceBar = screen.get_bar_for_test()
-	assert_int(bar.get_highlighted_index()).is_equal(RunEndScreen.OPTION_CONTINUE)
-	_continue_requested_fired = false
-	screen.continue_requested.connect(func() -> void: _continue_requested_fired = true)
+	assert_int(bar.get_highlighted_index()).is_equal(RunEndScreen.OPTION_RETRY)
+	assert_int(bar.get_option_count()).append_failure_message("D254: Retry, War Camp, Main Menu").is_equal(3)
+	_retry_requested_fired = false
+	screen.retry_requested.connect(func() -> void: _retry_requested_fired = true)
 	bar.confirm_highlighted_for_test()
-	assert_bool(_continue_requested_fired).append_failure_message("Continue must be OPTION_CONTINUE (index 0), the primary/default action").is_true()
+	assert_bool(_retry_requested_fired).append_failure_message("Retry must be OPTION_RETRY (index 0), the primary/default action").is_true()
 
 
 func test_summary_shows_the_run_seed_small_when_known() -> void:

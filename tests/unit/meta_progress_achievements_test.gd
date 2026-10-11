@@ -24,8 +24,8 @@ extends GdUnitTestSuite
 ##  7. D115: Scrap converts to Cores at floor(scrap_carried / 10), and the
 ##     settlement bonus (Prospector/Founder) applies to the sum INCLUDING
 ##     the Scrap line, not before it.
-##  8. The six real authored achievements (data/meta/achievements.tres)
-##     reference exactly the three real UNLOCK-gated cards and three known
+##  8. The sixteen real authored achievements (data/meta/achievements.tres)
+##     reference exactly the five real UNLOCK-gated cards and eleven known
 ##     perk ids -- a schema sanity check against the live content, not the
 ##     test fixture used above.
 ##  9. MetaLoadoutApplier applies each of the three perks (Hoarder/Founder/
@@ -157,28 +157,34 @@ func test_scrap_converts_to_cores_at_settlement_and_the_bonus_applies_to_the_ful
 
 
 func _grant_prospector_rank_1() -> void:
-	MetaProgress.settle_run({"run_id": "grant_for_scholar", "sim_time_seconds": 1200.0, "waves_cleared": 0, "kills": 0, "victory": false, "abandoned": false})
+	MetaProgress.settle_run({"run_id": "grant_for_scholar", "sim_time_seconds": 3600.0, "waves_cleared": 0, "kills": 0, "victory": false, "abandoned": false})
+	MetaProgress.buy("scavenger")
 	MetaProgress.buy("scholar")
 	MetaProgress.buy("prospector")
 
 
 # --- Falsification 8: the six real authored achievements -------------------
 
-func test_the_six_real_achievements_reference_exactly_the_three_unlock_gated_cards_and_three_known_perks() -> void:
-	assert_int(RealAchievementList.achievements.size()).is_equal(6)
+func test_the_sixteen_real_achievements_reference_the_five_unlock_gated_cards_and_eleven_perks() -> void:
+	assert_int(RealAchievementList.achievements.size()).is_equal(16)
 	var card_ids: Array[String] = []
 	var perk_ids: Array[String] = []
+	var seen: Dictionary = {}
 	for a in RealAchievementList.achievements:
+		assert_bool(seen.has(a.id)).append_failure_message("duplicate achievement id '%s'" % a.id).is_false()
+		seen[a.id] = true
 		assert_bool(a.unlocks_card_id != "" and a.perk_id != "").append_failure_message("'%s' names both a card and a perk -- exactly one is allowed" % a.id).is_false()
 		assert_bool(a.unlocks_card_id == "" and a.perk_id == "").append_failure_message("'%s' names neither a card nor a perk" % a.id).is_false()
+		assert_bool(ResourceLoader.exists("res://assets/ui/icons/icon_%s.png" % a.icon_id)).append_failure_message("'%s': missing icon_%s.png" % [a.id, a.icon_id]).is_true()
+		assert_bool(MetaProgress._metric_value(a.metric, {}) >= 0.0).append_failure_message("'%s': unknown metric '%s'" % [a.id, a.metric]).is_true()
 		if a.unlocks_card_id != "":
 			card_ids.append(a.unlocks_card_id)
 		if a.perk_id != "":
 			perk_ids.append(a.perk_id)
 	card_ids.sort()
 	perk_ids.sort()
-	assert_array(card_ids).is_equal(["multishot", "piercing_arrows", "tower_volley"])
-	assert_array(perk_ids).is_equal(["bonus_reroll", "settlement_cores_bonus", "weapon_damage_bonus"])
+	assert_array(card_ids).is_equal(["catapult", "frost_arrows", "sacred_ground", "spiked_palisade", "storm_bolt"])
+	assert_array(perk_ids).is_equal(["ability_damage_bonus", "bonus_reroll", "luck_bonus", "move_speed_bonus", "repair_bonus", "settlement_cores_bonus", "settlement_cores_bonus_regicide", "start_scrap_bonus", "warlord_title", "weapon_damage_bonus", "xp_bonus"])
 
 
 # --- Falsification 9: MetaLoadoutApplier applies each perk ------------------

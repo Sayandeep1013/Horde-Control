@@ -63,6 +63,10 @@ func _refresh() -> void:
 	# own dictionary -- MetaProgress.get_lifetime_cores() (a minimal addition,
 	# this session) is the dedicated read-only query for it.
 	_rows["lifetime_cores"].text = str(MetaProgress.get_lifetime_cores())
+	# v1.0 (D252): Endless best, elites and bosses defeated over the profile's life.
+	_rows["best_endless"].text = str(MetaProgress.get_best_endless_wave())
+	_rows["elites"].text = str(MetaProgress.get_lifetime_elite_kills())
+	_rows["bosses"].text = str(MetaProgress.get_lifetime_boss_kills("warchief") + MetaProgress.get_lifetime_boss_kills("king"))
 
 
 static func _format_time(total_seconds: float) -> String:
@@ -85,6 +89,9 @@ func _build_ui() -> void:
 	_build_row(tr("RECORDS_RUNS"), "runs")
 	_build_row(tr("RECORDS_VICTORIES"), "victories")
 	_build_row(tr("RECORDS_LIFETIME_CORES"), "lifetime_cores")
+	_build_row(tr("RECORDS_BEST_ENDLESS"), "best_endless")
+	_build_row(tr("RECORDS_ELITES"), "elites")
+	_build_row(tr("RECORDS_BOSSES"), "bosses")
 
 	MenuFrame.build_separator(_frame.column)
 

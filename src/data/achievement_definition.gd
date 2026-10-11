@@ -9,12 +9,14 @@ class_name AchievementDefinition
 ## `SkillTreeDefinition`).
 ##
 ## ## `metric` (a String, not an enum -- named interpretation)
-## Five metrics cover the six authored achievements (Register row lists
-## them): "lifetime_kills", "lifetime_scrap_collected" (both cumulative
-## profile counters, checked against `threshold`), and "run_waves_cleared",
-## "run_victory", "run_tower_health_fraction" (all three read straight off
-## the CURRENT run's own `run_summary` dictionary at settlement, never a
-## cumulative counter). A String, not a new ContractEnums member, since
+## v1.0 (D251) has two kinds. Cumulative metrics read a profile counter and
+## show a progress bar: lifetime_kills, lifetime_scrap_collected,
+## lifetime_elite_kills, lifetime_repair, lifetime_boss_kills_warchief,
+## victories_total, difficulty_victories_warlord, best_endless_wave,
+## runs_played. Per-run metrics read the CURRENT run's `run_summary` at
+## settlement and never accumulate: run_wave_reached, run_victory,
+## run_victory_tower_fraction, run_king_killed_hard, run_untouchable_wave,
+## run_player_abilities (their bar is empty until the run that earns them). A String, not a new ContractEnums member, since
 ## this is meta-layer-only content with no Content Data Contract of its
 ## own (docs/20 does not list an Achievement Contract) -- MetaProgress's own
 ## `_evaluate_achievements()` is the one place that interprets the string,
@@ -40,3 +42,4 @@ class_name AchievementDefinition
 @export var threshold: float = 0.0
 @export var unlocks_card_id: String = "" ## empty = this achievement unlocks no Draft card
 @export var perk_id: String = "" ## empty = this achievement grants no permanent perk
+@export var icon_id: String = "" ## assets/ui/icons/icon_<id>.png

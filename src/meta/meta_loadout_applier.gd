@@ -92,20 +92,47 @@ const FORTRESS_TOWER_WEAPON_DAMAGE_BONUS: float = 0.20
 const ACHIEVEMENT_WEAPON_DAMAGE_BONUS: float = 0.05
 
 
+## v1.0 achievement perks (D251). Register > "Meta: Achievements".
+const ACHIEVEMENT_MOVE_SPEED_BONUS: float = 0.05 ## Untouchable
+const ACHIEVEMENT_REPAIR_BONUS: float = 0.10 ## Mason
+const ACHIEVEMENT_LUCK_BONUS: int = 3 ## Elite Hunter
+const ACHIEVEMENT_XP_BONUS: float = 0.05 ## Endless Marathon
+const ACHIEVEMENT_ABILITY_DAMAGE_BONUS: float = 0.05 ## Full Arsenal
+const ACHIEVEMENT_START_SCRAP_BONUS: int = 10 ## Survivor
+## Warlord's gold Tower skin tint (cosmetic, applied to the Tower sprite only).
+const WARLORD_TOWER_TINT: Color = Color(1.0, 0.88, 0.5)
+
+## ## v2 hooks owned by WP-COMBAT (D250)
+## The Skill Tree v2 nodes that act on systems this package does not own call
+## a small named method on that system's node, found by group, and are skipped
+## silently when the node or the method is absent (they do not exist on every
+## base). All live on the AbilityManager (group "ability_manager"):
+## set_dash_extra_charges(n), set_dash_cooldown_multiplier(m),
+## set_damage_taken_multiplier(m), add_crit_chance(f),
+## set_skill_cooldown_multiplier(m), set_skill_damage_multiplier(m),
+## set_ability_damage_multiplier(m), set_tower_ability_damage_multiplier(m),
+## set_repair_multiplier(m), grant_free_random_ability().
+## Every setter takes the ABSOLUTE multiplier, so calling this twice is safe.
+
+
 ## Typed command: applies every field on `loadout` to the given live run.
 ## Every parameter after `loadout` may be null (a system not present in a
 ## given test/harness scene simply has its corresponding bonuses skipped,
 ## never crashes) -- matching this project's own "null reference tolerated"
 ## convention (src/upgrade/upgrade_system.gd's header, "a null reference is
 ## tolerated everywhere below").
-static func apply(loadout: MetaLoadout, player: Player, tower: Tower, player_weapon: AutoWeapon, run_inventory: RunInventory, draft_controller: DraftController, wave_director: Object) -> void:
+static func apply(loadout: MetaLoadout, player: Player, tower: Tower, player_weapon: AutoWeapon, run_inventory: RunInventory, draft_controller: DraftController, wave_director: Object) -> Dictionary:
 	if loadout == null:
-		return
+		return {}
 	_apply_player(loadout, player, player_weapon)
 	_apply_tower(loadout, tower)
 	_apply_economy(loadout, run_inventory)
 	_apply_draft(loadout, draft_controller)
 	_apply_war_chest(loadout, run_inventory, draft_controller, wave_director)
+	var tree: SceneTree = _tree_of([player, tower, player_weapon, run_inventory, draft_controller])
+	var hooks: Dictionary = apply_group_hooks(loadout, tree, true)
+	_apply_warlord_tint(tower)
+	return hooks
 
 
 # --- Player branch -----------------------------------------------------------
@@ -115,8 +142,11 @@ static func _apply_player(loadout: MetaLoadout, player: Player, player_weapon: A
 		var dup: PlayerDefinition = player.definition.duplicate(true) as PlayerDefinition
 		if loadout.player_max_health_bonus != 0.0:
 			dup.max_health = int(round(float(dup.max_health) * (1.0 + loadout.player_max_health_bonus)))
-		if loadout.player_move_speed_bonus != 0.0:
-			dup.base_speed_px_per_second *= (1.0 + loadout.player_move_speed_bonus)
+		var speed_bonus: float = loadout.player_move_speed_bonus
+		if MetaProgress.has_perk("move_speed_bonus"):
+			speed_bonus += ACHIEVEMENT_MOVE_SPEED_BONUS # D251: Untouchable, composed with Swift Boots
+		if speed_bonus != 0.0:
+			dup.base_speed_px_per_second *= (1.0 + speed_bonus)
 		if loadout.player_magnet_radius_bonus != 0.0:
 			dup.magnet_radius_px = int(round(float(dup.magnet_radius_px) * (1.0 + loadout.player_magnet_radius_bonus)))
 		player.definition = dup
@@ -131,12 +161,15 @@ static func _apply_player(loadout: MetaLoadout, player: Player, player_weapon: A
 		var weapon_damage_bonus: float = loadout.player_weapon_damage_bonus
 		if MetaProgress.has_perk("weapon_damage_bonus"):
 			weapon_damage_bonus += ACHIEVEMENT_WEAPON_DAMAGE_BONUS
-		if (weapon_damage_bonus != 0.0 or loadout.player_fire_rate_bonus != 0.0) and weapon_def.damage_band != null and weapon_def.engagement_rhythm != null:
+		var needs_weapon_dup: bool = weapon_damage_bonus != 0.0 or loadout.player_fire_rate_bonus != 0.0 or loadout.player_weapon_range_bonus != 0.0
+		if needs_weapon_dup and weapon_def.damage_band != null and weapon_def.engagement_rhythm != null:
 			var dup_weapon: WeaponDefinition = weapon_def.duplicate(true) as WeaponDefinition
 			if weapon_damage_bonus != 0.0:
 				dup_weapon.damage_band.value = int(round(float(dup_weapon.damage_band.value) * (1.0 + weapon_damage_bonus))) # BandedValue.value is int -- a bare `*=` truncates the float product back through the int setter instead of rounding it
 			if loadout.player_fire_rate_bonus != 0.0:
 				dup_weapon.engagement_rhythm.fire_rate_per_second *= (1.0 + loadout.player_fire_rate_bonus)
+			if loadout.player_weapon_range_bonus != 0.0:
+				dup_weapon.effective_range_px = int(round(float(dup_weapon.effective_range_px) * (1.0 + loadout.player_weapon_range_bonus))) # D250: Eagle Eye
 			player_weapon.definition = dup_weapon
 			player_weapon.configure(dup_weapon)
 
@@ -202,10 +235,16 @@ static func _apply_economy(loadout: MetaLoadout, run_inventory: RunInventory) ->
 		return
 	if loadout.scrap_cap_bonus != 0:
 		run_inventory.scrap_cap += loadout.scrap_cap_bonus
-	if loadout.starting_scrap > 0:
-		run_inventory.credit_scrap(loadout.starting_scrap)
-	if loadout.xp_gain_bonus != 0.0:
-		run_inventory.set_xp_gain_multiplier(1.0 + loadout.xp_gain_bonus)
+	var start_scrap: int = loadout.starting_scrap
+	if MetaProgress.has_perk("start_scrap_bonus"):
+		start_scrap += ACHIEVEMENT_START_SCRAP_BONUS # D251: Survivor
+	if start_scrap > 0:
+		run_inventory.credit_scrap(start_scrap)
+	var xp_bonus: float = loadout.xp_gain_bonus
+	if MetaProgress.has_perk("xp_bonus"):
+		xp_bonus += ACHIEVEMENT_XP_BONUS # D251: Endless Marathon, composed with Scholar
+	if xp_bonus != 0.0:
+		run_inventory.set_xp_gain_multiplier(1.0 + xp_bonus)
 
 
 static func _apply_draft(loadout: MetaLoadout, draft_controller: DraftController) -> void:
@@ -220,8 +259,11 @@ static func _apply_draft(loadout: MetaLoadout, draft_controller: DraftController
 	if bonus_rerolls > 0:
 		draft_controller.add_bonus_rerolls(bonus_rerolls)
 	# D117; Lucky Charm.
-	if loadout.rarity_luck_points > 0:
-		draft_controller.add_rarity_luck_points(loadout.rarity_luck_points)
+	var luck: int = loadout.rarity_luck_points
+	if MetaProgress.has_perk("luck_bonus"):
+		luck += ACHIEVEMENT_LUCK_BONUS # D251: Elite Hunter, composed with Lucky Charm
+	if luck > 0:
+		draft_controller.add_rarity_luck_points(luck)
 
 
 ## War Chest: "start at level 1 with one free Draft when the first wave
@@ -251,3 +293,85 @@ static func _make_first_wave_callback(draft_controller: DraftController) -> Call
 	return func(_wave_id: String, wave_index: int) -> void:
 		if wave_index == 0 and is_instance_valid(draft_controller):
 			draft_controller.queue_forced_draft_for_meta()
+
+
+# --- v2 group hooks (D250) -------------------------------------------------------
+
+static func _tree_of(candidates: Array) -> SceneTree:
+	for c in candidates:
+		if c is Node and (c as Node).is_inside_tree():
+			return (c as Node).get_tree()
+	return Engine.get_main_loop() as SceneTree
+
+
+## Calls the WP-COMBAT hooks the loadout and the achievement perks need, each
+## only when its value is not neutral and only on a node found by group that has
+## the method. Returns what it did: {"called": Array[String], "armory_granted":
+## bool} so the caller can retry the grant later if the ability manager does not
+## exist yet. `grant_armory` is false on a retry that must not double-grant.
+static func apply_group_hooks(loadout: MetaLoadout, tree: SceneTree, grant_armory: bool) -> Dictionary:
+	var result: Dictionary = {"called": [] as Array[String], "armory_granted": false}
+	if loadout == null or tree == null:
+		return result
+	var called: Array[String] = result["called"]
+
+	if loadout.dash_extra_charges > 0:
+		_hook(tree, &"set_dash_extra_charges", [loadout.dash_extra_charges], called)
+	if loadout.dash_cooldown_reduction > 0.0:
+		_hook(tree, &"set_dash_cooldown_multiplier", [1.0 - loadout.dash_cooldown_reduction], called)
+	if loadout.damage_taken_reduction > 0.0:
+		_hook(tree, &"set_damage_taken_multiplier", [1.0 - loadout.damage_taken_reduction], called)
+	if loadout.player_crit_chance_bonus > 0.0:
+		_hook(tree, &"add_crit_chance", [loadout.player_crit_chance_bonus], called)
+	if loadout.skill_cooldown_reduction > 0.0:
+		_hook(tree, &"set_skill_cooldown_multiplier", [1.0 - loadout.skill_cooldown_reduction], called)
+	if loadout.skill_damage_bonus > 0.0:
+		_hook(tree, &"set_skill_damage_multiplier", [1.0 + loadout.skill_damage_bonus], called)
+	if MetaProgress.has_perk("ability_damage_bonus"):
+		_hook(tree, &"set_ability_damage_multiplier", [1.0 + ACHIEVEMENT_ABILITY_DAMAGE_BONUS], called)
+	if loadout.tower_ability_damage_bonus > 0.0:
+		_hook(tree, &"set_tower_ability_damage_multiplier", [1.0 + loadout.tower_ability_damage_bonus], called)
+	if grant_armory and loadout.armory_enabled and _hook(tree, &"grant_free_random_ability", [], called):
+		result["armory_granted"] = true
+	var repair_bonus: float = loadout.tower_repair_bonus
+	if MetaProgress.has_perk("repair_bonus"):
+		repair_bonus += ACHIEVEMENT_REPAIR_BONUS # D251: Mason, composed with Mason's Kit
+	if repair_bonus > 0.0:
+		_hook(tree, &"set_repair_multiplier", [1.0 + repair_bonus], called)
+	return result
+
+
+## Groups searched for a hook, in order. WP-COMBAT put every hook on the
+## AbilityManager node; the others are tolerated so a split layout also works.
+const HOOK_GROUPS: Array[StringName] = [&"ability_manager", &"player", &"battle_skill", &"tower_repair"]
+
+
+## Calls `method` on the first node in HOOK_GROUPS that has it; false (silently) if none does.
+static func _hook(tree: SceneTree, method: StringName, args: Array, called: Array[String]) -> bool:
+	for group in HOOK_GROUPS:
+		if _try_call(_first_in_group(tree, group), method, args):
+			called.append(String(method))
+			return true
+	return false
+
+
+static func _first_in_group(tree: SceneTree, group: StringName) -> Node:
+	var nodes: Array[Node] = tree.get_nodes_in_group(group)
+	return nodes[0] if not nodes.is_empty() else null
+
+
+## Calls `method` when `node` is valid and has it; false (silently) otherwise.
+static func _try_call(node: Node, method: StringName, args: Array) -> bool:
+	if node == null or not is_instance_valid(node) or not node.has_method(method):
+		return false
+	node.callv(method, args)
+	return true
+
+
+## Warlord (D251): a gold tint on the Tower sprite, once the achievement is held.
+static func _apply_warlord_tint(tower: Tower) -> void:
+	if tower == null or not MetaProgress.has_perk("warlord_title"):
+		return
+	var sprite: CanvasItem = tower.get_node_or_null("Visuals/Sprite") as CanvasItem
+	if sprite != null:
+		sprite.self_modulate = WARLORD_TOWER_TINT

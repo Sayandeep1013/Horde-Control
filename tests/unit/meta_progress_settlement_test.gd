@@ -39,12 +39,12 @@ func test_settlement_formula_time_waves_and_kills() -> void:
 	assert_int(MetaProgress.get_cores()).is_equal(12)
 
 
-func test_victory_adds_the_final_wave_bonus() -> void:
+func test_victory_adds_the_victory_bonus() -> void:
 	var breakdown: Dictionary = MetaProgress.settle_run({
 		"run_id": "formula_victory", "sim_time_seconds": 0.0,
 		"waves_cleared": 0, "kills": 0, "victory": true, "abandoned": false,
 	})
-	assert_int(breakdown["total_cores"]).append_failure_message("Register: '5 Cores for clearing the final wave'").is_equal(5)
+	assert_int(breakdown["total_cores"]).append_failure_message("Register v1.0 Meta Progression: 10 Cores for a victory").is_equal(10)
 
 
 func test_kill_count_floors_rather_than_rounds() -> void:
@@ -72,7 +72,8 @@ func test_abandoned_settles_as_a_failure_with_the_same_formula_no_victory_bonus(
 # --- Prospector bonus (Register > "Meta: Skill Tree effects": "+15%/rank") ---
 
 func test_prospector_bonus_applies_once_to_the_whole_subtotal() -> void:
-	_grant_cores(30) # afford Prospector's prerequisites + itself
+	_grant_cores(60) # scavenger (8) + scholar (8) + prospector rank 1 (28)
+	MetaProgress.buy("scavenger")
 	MetaProgress.buy("scholar")
 	MetaProgress.buy("prospector") # rank 1: +15%
 
@@ -84,7 +85,8 @@ func test_prospector_bonus_applies_once_to_the_whole_subtotal() -> void:
 
 
 func test_prospector_rank_2_stacks_to_thirty_percent() -> void:
-	_grant_cores(60)
+	_grant_cores(120) # scavenger (8) + scholar (8) + prospector ranks 1 and 2 (28 + 42)
+	MetaProgress.buy("scavenger")
 	MetaProgress.buy("scholar")
 	MetaProgress.buy("prospector")
 	MetaProgress.buy("prospector") # rank 2: +30%
@@ -153,3 +155,93 @@ func test_new_best_flags_are_true_on_the_first_run_and_false_on_a_worse_one() ->
 	var records: Dictionary = MetaProgress.get_records()
 	assert_int(records["best_waves_cleared"]).is_equal(3)
 	assert_int(records["best_kills"]).is_equal(50)
+
+
+# --- v1.0 settlement (D253): elites, difficulty multiplier, unlock chain ------------
+
+func test_elite_kills_pay_one_core_each() -> void:
+	var breakdown: Dictionary = MetaProgress.settle_run({
+		"run_id": "elites_1", "sim_time_seconds": 0.0, "waves_cleared": 0, "kills": 0,
+		"victory": false, "abandoned": false, "elite_kills": 7,
+	})
+	assert_int(breakdown["total_cores"]).append_failure_message("Register: 1 Core per elite killed").is_equal(7)
+
+
+## FALSIFICATION (named in the report): removing the `cores_multiplier` step in
+## settle_run() made the Veteran case below pay 10 instead of 14.
+func test_the_difficulty_cores_multiplier_scales_the_whole_total() -> void:
+	var soldier: Dictionary = MetaProgress.settle_run({
+		"run_id": "mult_soldier", "sim_time_seconds": 600.0, "waves_cleared": 0, "kills": 0,
+		"victory": false, "abandoned": false, "difficulty_id": "soldier",
+	})
+	var veteran: Dictionary = MetaProgress.settle_run({
+		"run_id": "mult_veteran", "sim_time_seconds": 600.0, "waves_cleared": 0, "kills": 0,
+		"victory": false, "abandoned": false, "difficulty_id": "veteran",
+	})
+	var recruit: Dictionary = MetaProgress.settle_run({
+		"run_id": "mult_recruit", "sim_time_seconds": 600.0, "waves_cleared": 0, "kills": 0,
+		"victory": false, "abandoned": false, "difficulty_id": "recruit",
+	})
+	assert_int(soldier["total_cores"]).is_equal(10)
+	assert_int(veteran["total_cores"]).append_failure_message("10 x 1.4 (Veteran Cores multiplier)").is_equal(14)
+	assert_int(recruit["total_cores"]).append_failure_message("floor(10 x 0.75) (Recruit Cores multiplier)").is_equal(7)
+
+
+func test_the_multiplier_applies_after_the_prospector_and_founder_bonuses() -> void:
+	MetaProgress.set_achievement_unlocked_for_test("founder")  # +5%
+	var breakdown: Dictionary = MetaProgress.settle_run({
+		"run_id": "mult_after_bonus", "sim_time_seconds": 600.0, "waves_cleared": 0, "kills": 0,
+		"victory": false, "abandoned": false, "difficulty_id": "warlord",
+	})
+	# subtotal 10 -> floor(10 x 1.05) = 10 -> floor(10 x 1.85) = 18
+	assert_int(breakdown["total_cores"]).is_equal(18)
+
+
+## The unlock chain: a Soldier win opens Veteran, a Veteran win opens Warlord,
+## any win opens Endless, and a defeat opens nothing.
+func test_the_difficulty_unlock_chain_soldier_veteran_warlord() -> void:
+	assert_bool(MetaProgress.is_difficulty_unlocked("soldier")).is_true()
+	assert_bool(MetaProgress.is_difficulty_unlocked("recruit")).is_true()
+	assert_bool(MetaProgress.is_difficulty_unlocked("veteran")).is_false()
+	assert_bool(MetaProgress.is_difficulty_unlocked("warlord")).is_false()
+	assert_bool(MetaProgress.is_endless_unlocked()).is_false()
+
+	var loss: Dictionary = MetaProgress.settle_run({"run_id": "chain_loss", "sim_time_seconds": 60.0, "difficulty_id": "soldier", "victory": false})
+	assert_bool(MetaProgress.is_difficulty_unlocked("veteran")).append_failure_message("a defeat must not unlock anything").is_false()
+	assert_str(String(loss["unlocked_difficulty"])).is_empty()
+
+	var soldier_win: Dictionary = MetaProgress.settle_run({"run_id": "chain_1", "sim_time_seconds": 60.0, "difficulty_id": "soldier", "victory": true})
+	assert_bool(MetaProgress.is_difficulty_unlocked("veteran")).is_true()
+	assert_bool(MetaProgress.is_difficulty_unlocked("warlord")).append_failure_message("Warlord needs a VETERAN win, not a Soldier one").is_false()
+	assert_bool(MetaProgress.is_endless_unlocked()).is_true()
+	assert_str(String(soldier_win["unlocked_difficulty"])).is_equal("veteran")
+	assert_bool(bool(soldier_win["unlocked_endless"])).is_true()
+
+	var veteran_win: Dictionary = MetaProgress.settle_run({"run_id": "chain_2", "sim_time_seconds": 60.0, "difficulty_id": "veteran", "victory": true})
+	assert_bool(MetaProgress.is_difficulty_unlocked("warlord")).is_true()
+	assert_str(String(veteran_win["unlocked_difficulty"])).is_equal("warlord")
+	assert_bool(bool(veteran_win["unlocked_endless"])).append_failure_message("Endless unlocks once, on the first win").is_false()
+	assert_int(MetaProgress.get_difficulty_victories("soldier")).is_equal(1)
+	assert_int(MetaProgress.get_difficulty_victories("veteran")).is_equal(1)
+
+
+func test_endless_records_the_best_wave_and_flags_a_new_best() -> void:
+	var first: Dictionary = MetaProgress.settle_run({"run_id": "endless_1", "sim_time_seconds": 60.0, "endless": true, "wave_reached": 18})
+	assert_bool(bool(first["new_best_endless_wave"])).is_true()
+	assert_int(MetaProgress.get_best_endless_wave()).is_equal(18)
+	var worse: Dictionary = MetaProgress.settle_run({"run_id": "endless_2", "sim_time_seconds": 60.0, "endless": true, "wave_reached": 12})
+	assert_bool(bool(worse["new_best_endless_wave"])).is_false()
+	assert_int(MetaProgress.get_best_endless_wave()).is_equal(18)
+	var normal: Dictionary = MetaProgress.settle_run({"run_id": "endless_3", "sim_time_seconds": 60.0, "endless": false, "wave_reached": 30})
+	assert_bool(bool(normal["new_best_endless_wave"])).append_failure_message("only an Endless run records an Endless best").is_false()
+	assert_int(MetaProgress.get_best_endless_wave()).is_equal(18)
+
+
+func test_runs_played_and_elite_and_boss_counters_accumulate() -> void:
+	MetaProgress.settle_run({"run_id": "count_1", "sim_time_seconds": 60.0, "elite_kills": 3, "repair_total": 40, "boss_kills": {"warchief": 1, "king": 0}})
+	MetaProgress.settle_run({"run_id": "count_2", "sim_time_seconds": 60.0, "elite_kills": 4, "repair_total": 60, "boss_kills": {"warchief": 0, "king": 1}})
+	assert_int(MetaProgress.get_runs_played()).is_equal(2)
+	assert_int(MetaProgress.get_lifetime_elite_kills()).is_equal(7)
+	assert_int(MetaProgress.get_lifetime_repair()).is_equal(100)
+	assert_int(MetaProgress.get_lifetime_boss_kills("warchief")).is_equal(1)
+	assert_int(MetaProgress.get_lifetime_boss_kills("king")).is_equal(1)

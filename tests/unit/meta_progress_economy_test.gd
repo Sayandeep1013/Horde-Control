@@ -42,24 +42,24 @@ func test_a_tier_1_node_is_visible_because_root_is_always_owned() -> void:
 
 
 func test_a_tier_2_node_is_hidden_until_its_tier_1_parent_is_owned() -> void:
-	assert_bool(MetaProgress.is_visible("sharpened_arrows")).append_failure_message("sharpened_arrows' only prerequisite (vitality) is not yet owned").is_false()
-	_grant_cores(5)
-	assert_bool(MetaProgress.buy("vitality")).is_true()
-	assert_bool(MetaProgress.is_visible("sharpened_arrows")).append_failure_message("owning vitality (sharpened_arrows' prerequisite) should reveal it").is_true()
+	assert_bool(MetaProgress.is_visible("shield_runes")).append_failure_message("shield_runes' only prerequisite (stone_walls) is not yet owned").is_false()
+	_grant_cores(8)
+	assert_bool(MetaProgress.buy("stone_walls")).is_true()
+	assert_bool(MetaProgress.is_visible("shield_runes")).append_failure_message("owning stone_walls (shield_runes' prerequisite) should reveal it").is_true()
 
 
 ## FALSIFICATION (named in the report): temporarily changing is_visible()'s
 ## "any prerequisite owned" check to "the node itself owned" (removing the
 ## prerequisite loop) made this test fail (sharpened_arrows stayed hidden
-## after vitality was bought). Reverted after confirming the failure.
+## after stone_walls was bought). Reverted after confirming the failure.
 func test_a_tier_3_convergence_node_needs_both_tier_2_prerequisites_to_be_buyable() -> void:
 	_grant_cores(200)
-	assert_bool(MetaProgress.buy("vitality")).is_true()
-	assert_bool(MetaProgress.buy("sharpened_arrows")).is_true()
-	assert_bool(MetaProgress.can_buy("long_reach")).append_failure_message("long_reach needs BOTH sharpened_arrows and quick_draw owned, not just one").is_false()
-	assert_bool(MetaProgress.buy("swift_boots")).is_true()
-	assert_bool(MetaProgress.buy("quick_draw")).is_true()
-	assert_bool(MetaProgress.can_buy("long_reach")).append_failure_message("both prerequisites are now owned; long_reach should be buyable").is_true()
+	assert_bool(MetaProgress.buy("stone_walls")).is_true()
+	assert_bool(MetaProgress.buy("shield_runes")).is_true()
+	assert_bool(MetaProgress.can_buy("watchtower")).append_failure_message("watchtower needs BOTH shield_runes and masons_kit owned, not just one").is_false()
+	assert_bool(MetaProgress.buy("arrow_slits")).is_true()
+	assert_bool(MetaProgress.buy("masons_kit")).is_true()
+	assert_bool(MetaProgress.can_buy("watchtower")).append_failure_message("both prerequisites are now owned; watchtower should be buyable").is_true()
 
 
 # --- Buy / refuse / max -------------------------------------------------------
