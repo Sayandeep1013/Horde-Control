@@ -295,6 +295,7 @@ func physics_step(delta: float) -> void:
 	_dash_step(raw_direction)
 	_movement_step(delta, raw_direction)
 	_regen_step(delta)
+	_focus_step(delta, raw_direction)
 	if _animator != null:
 		_animator.update_visuals(delta, _local_velocity, definition.base_speed_px_per_second if definition != null else 0.0)
 
@@ -511,6 +512,20 @@ func is_second_wind_available_for_test() -> bool:
 	return _second_wind_available
 
 
+## v1.0 Blood Pact "Second Life" (Register "v1.0 Run Events"): the first lethal
+## hit leaves the player at this fraction of max HP. Taken at most once per run.
+const SECOND_LIFE_SURVIVE_FRACTION: float = 0.50
+var _second_life_available: bool = false
+
+
+func set_second_life_available(available: bool) -> void:
+	_second_life_available = available
+
+
+func is_second_life_available() -> bool:
+	return _second_life_available
+
+
 ## Typed command forwarding to death_state.gd, mirroring placeholder_
 ## enemy.gd's own apply_damage() convenience wrapper -- kept here so a
 ## caller holding only a Player reference need not reach into a child node.
@@ -530,9 +545,15 @@ func apply_damage(amount: float, source: Variant = null) -> bool:
 	amount *= _damage_taken_multiplier # v1.0 Leather Armor / Iron Skin (docs/31 §4.4)
 	if amount > 0.0 and not death_state.is_dead:
 		CombatStats.add_run_counter("damage_taken", amount)
-	if _second_wind_available and not death_state.is_dead and amount > 0.0 and (death_state.current_hp - amount) <= 0.0:
-		_second_wind_available = false
-		death_state.current_hp = death_state.max_hp * SECOND_WIND_SURVIVE_FRACTION
+	if (_second_wind_available or _second_life_available) and not death_state.is_dead and amount > 0.0 and (death_state.current_hp - amount) <= 0.0:
+		# One lethal hit consumes ONE safety net: Second Wind (30%, the weaker) goes
+		# first, Second Life (50%) is kept for the next lethal hit (docs/32 §A).
+		if _second_wind_available:
+			_second_wind_available = false
+			death_state.current_hp = death_state.max_hp * SECOND_WIND_SURVIVE_FRACTION
+		else:
+			_second_life_available = false
+			death_state.current_hp = death_state.max_hp * SECOND_LIFE_SURVIVE_FRACTION
 		return true
 	return death_state.apply_damage(amount, source)
 
@@ -566,6 +587,81 @@ func is_dead() -> bool:
 	return death_state != null and death_state.is_dead
 
 
+# --- v1.0 Focus (docs/32 §A2; Register "v1.0 Run Events" > Focus) -------------
+# Standing still charges Focus; at full the bow fires faster. The bow still fires
+# while moving, so holding position is a reward, not a requirement.
+
+const FOCUS_STILL_SPEED_PX: float = 8.0 ## Register: below this speed the player counts as standing still
+const FOCUS_STILL_DELAY_SECONDS: float = 0.25 ## Register: still this long before the charge starts
+const FOCUS_RAMP_SECONDS: float = 1.5 ## Register: 0 to 1 while still
+const FOCUS_DECAY_SECONDS: float = 0.4 ## Register: 1 to 0 while moving
+const FOCUS_FIRE_RATE_BONUS: float = 0.30 ## Register: bow fire rate at full Focus
+const SKIRMISHER_CHAMPION_ID: String = "skirmisher" ## docs/32 §C1: Focus is disabled
+
+var _focus: float = 0.0
+var _still_seconds: float = 0.0
+var _focus_full_applied: bool = false
+
+
+## 0..1 Focus charge, for the overhead arc, the HUD and the balance bot.
+func get_focus() -> float:
+	return _focus
+
+
+var _focus_enabled: bool = true
+
+
+func is_focus_enabled() -> bool:
+	return _focus_enabled
+
+
+## The champion rule lives with the caller (PrototypeIntegration reads RunConfig), so
+## this script holds no RunConfig reference. Disabling zeroes Focus at once.
+func set_focus_enabled(enabled: bool) -> void:
+	_focus_enabled = enabled
+	if not enabled:
+		reset_focus()
+
+
+## Docs/32 §C1: the Skirmisher champion has no Focus.
+static func champion_has_focus(champion_id: String) -> bool:
+	return champion_id != SKIRMISHER_CHAMPION_ID
+
+
+## Dash and a disabled champion zero Focus instantly (no decay ramp).
+func reset_focus() -> void:
+	_focus = 0.0
+	_still_seconds = 0.0
+	_push_focus_fire_rate()
+
+
+func _focus_step(delta: float, raw_direction: Vector2) -> void:
+	if not is_focus_enabled() or _dash_active or is_dead():
+		if _focus != 0.0 or _still_seconds != 0.0:
+			reset_focus()
+		return
+	var still: bool = raw_direction == Vector2.ZERO and _local_velocity.length() < FOCUS_STILL_SPEED_PX
+	if still:
+		_still_seconds += delta
+		if _still_seconds >= FOCUS_STILL_DELAY_SECONDS:
+			_focus = minf(1.0, _focus + delta / FOCUS_RAMP_SECONDS)
+	else:
+		_still_seconds = 0.0
+		_focus = maxf(0.0, _focus - delta / FOCUS_DECAY_SECONDS)
+	_push_focus_fire_rate()
+
+
+## The weapon gets a separate fire-rate term (like War Horn's buff), so Focus
+## composes with Rapid Fire and never overwrites it.
+func _push_focus_fire_rate() -> void:
+	var full: bool = _focus >= 1.0
+	if full == _focus_full_applied:
+		return
+	_focus_full_applied = full
+	if _weapon != null:
+		_weapon.set_focus_fire_rate_multiplier(1.0 + FOCUS_FIRE_RATE_BONUS if full else 1.0)
+
+
 # --- D115/D117 pool expansion modifier layer (src/upgrade/upgrade_system.gd) --
 
 ## Typed command (Swift Feet). REPLACES the previous multiplier, never
@@ -582,14 +678,39 @@ func get_speed_multiplier_for_test() -> float:
 ## definition-derived base and heals by exactly the increase -- mirrors
 ## TowerHealth.set_bonus_max_health_fraction() exactly.
 func set_max_health_bonus_fraction(fraction: float) -> void:
+	_max_health_bonus_fraction = fraction
+	_recompute_max_health()
+
+
+## v1.0 Blood Pact (docs/32 §A; Register "v1.0 Run Events"): a SEPARATE
+## multiplicative term, so a pact cost composes with Vitality and the meta
+## bonus instead of being overwritten by the next absolute setter call.
+var _pact_max_health_multiplier: float = 1.0
+
+
+## Typed command (Blood Pact "Pay with your blood"). REPLACES the pact term;
+## current health is clamped to the new maximum, never raised.
+func set_pact_max_health_multiplier(multiplier: float) -> void:
+	_pact_max_health_multiplier = clampf(multiplier, 0.05, 1.0)
+	_recompute_max_health()
+
+
+func get_pact_max_health_multiplier() -> float:
+	return _pact_max_health_multiplier
+
+
+## max = base x (1 + Vitality bonus) x pact term. A rise heals by exactly the
+## increase (Vitality's "and heal that amount"); a fall only clamps.
+func _recompute_max_health() -> void:
 	if death_state == null or _base_max_health <= 0.0:
 		return
-	var new_max: float = _base_max_health * (1.0 + fraction)
+	var new_max: float = _base_max_health * (1.0 + _max_health_bonus_fraction) * _pact_max_health_multiplier
 	var delta: float = new_max - death_state.max_hp
-	_max_health_bonus_fraction = fraction
 	death_state.max_hp = new_max
 	if delta > 0.0:
 		death_state.current_hp = minf(new_max, death_state.current_hp + delta)
+	else:
+		death_state.current_hp = minf(death_state.current_hp, new_max)
 
 
 func get_max_health_bonus_fraction_for_test() -> float:
@@ -704,6 +825,7 @@ var _dash_pass_through: bool = false
 
 func _start_dash(raw_direction: Vector2, now: float) -> void:
 	_dash_buffer_until = -INF
+	reset_focus() # docs/32 §A2: a dash drops Focus to 0 at once
 	if _dash_charges >= _dash_max_charges():
 		_dash_recharge_ready_at = now + _dash_cooldown_total()
 	_dash_charges -= 1

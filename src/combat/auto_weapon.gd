@@ -275,7 +275,7 @@ func set_fire_rate_multiplier(multiplier: float) -> void:
 ## currently-applied upgrade multiplier, computed fresh on every call so it
 ## can never drift from `_damage_multiplier`'s current value.
 func get_effective_damage_per_shot() -> float:
-	return _damage_per_shot * _damage_multiplier
+	return _damage_per_shot * _damage_multiplier * _terms_product()
 
 
 ## Typed query: the base fire interval (from `definition`) divided by the
@@ -284,7 +284,7 @@ func get_effective_damage_per_shot() -> float:
 ## rate/rank" naming exactly (Rapid Fire increases the multiplier, which
 ## must decrease this interval, not increase it).
 func get_effective_fire_interval_seconds() -> float:
-	var rate: float = _fire_rate_multiplier * _buff_fire_rate_multiplier
+	var rate: float = _fire_rate_multiplier * _buff_fire_rate_multiplier * _focus_fire_rate_multiplier
 	return (_fire_interval_seconds / rate) if rate > 0.0 else INF
 
 
@@ -293,7 +293,58 @@ func set_buff_fire_rate_multiplier(multiplier: float) -> void:
 
 
 func get_damage_multiplier() -> float:
-	return _damage_multiplier
+	return _damage_multiplier * _terms_product()
+
+
+## v1.0 named damage terms (docs/32): each source (Sanctuary "valor", a Shrine
+## boon, a relic) owns ONE multiplicative term keyed by its id, set absolutely, so
+## they compose with Heavy Rounds, the meta bonus and each other and never
+## overwrite one another. `get_damage_multiplier()` includes them, so player
+## abilities and Battle Skills (which read it) scale too.
+var _damage_terms: Dictionary = {} # source id (String) -> multiplier (float)
+
+
+func set_damage_term(source: String, multiplier: float) -> void:
+	if is_equal_approx(multiplier, 1.0):
+		_damage_terms.erase(source)
+	else:
+		_damage_terms[source] = multiplier
+
+
+func get_damage_term(source: String) -> float:
+	return float(_damage_terms.get(source, 1.0))
+
+
+func _terms_product() -> float:
+	var product: float = 1.0
+	for m in _damage_terms.values():
+		product *= float(m)
+	return product
+
+
+## v1.0 Focus (docs/32 §A2): a fire-rate term of its own, set by the Player.
+var _focus_fire_rate_multiplier: float = 1.0
+
+
+func set_focus_fire_rate_multiplier(multiplier: float) -> void:
+	_focus_fire_rate_multiplier = multiplier
+
+
+func get_focus_fire_rate_multiplier() -> float:
+	return _focus_fire_rate_multiplier
+
+
+## v1.0 Blood Pact "Twin String": extra arrows per volley at FULL damage (Multishot's
+## extras fire at 70%). They fan out after the Multishot extras.
+var _full_extra_arrows: int = 0
+
+
+func set_full_extra_arrows(count: int) -> void:
+	_full_extra_arrows = maxi(0, count)
+
+
+func get_full_extra_arrows() -> int:
+	return _full_extra_arrows
 
 
 func _on_arrow_hit(enemy: Node, damage: float) -> void:
@@ -415,11 +466,11 @@ func _fire_at(target: Node2D) -> void:
 	# +/- (i+1) half-steps so the set is symmetric around the primary
 	# direction for both even and odd counts.
 	var multishot_damage: float = get_effective_damage_per_shot() * MULTISHOT_DAMAGE_FRACTION
-	for i in _multishot_extra:
+	for i in _multishot_extra + _full_extra_arrows:
 		var side: float = 1.0 if i % 2 == 0 else -1.0
 		var step: float = float(i / 2 + 1)
 		var angle_offset: float = deg_to_rad(MULTISHOT_SPREAD_DEGREES * step * side)
-		_launch_one(origin_pos, direction.rotated(angle_offset), multishot_damage)
+		_launch_one(origin_pos, direction.rotated(angle_offset), multishot_damage if i < _multishot_extra else get_effective_damage_per_shot())
 	if _audio_pool != null and fire_sfx != null and _audio_pool.has_method("play"):
 		_audio_pool.play(fire_sfx, origin_pos, 0, false, "SFX")
 	fired.emit(_now())

@@ -227,7 +227,7 @@ func set_fire_rate_multiplier(multiplier: float) -> void:
 ## Typed query: the base per-shot damage (from `weapon`) times the
 ## currently-applied upgrade multiplier.
 func get_effective_damage_per_shot() -> float:
-	return _damage_per_shot * _damage_multiplier
+	return _damage_per_shot * _damage_multiplier * _terms_product()
 
 
 ## Typed query: the base targeting range (from `range_px`) times the
@@ -243,7 +243,32 @@ func set_buff_fire_rate_multiplier(multiplier: float) -> void:
 
 
 func get_damage_multiplier() -> float:
-	return _damage_multiplier
+	return _damage_multiplier * _terms_product()
+
+
+## v1.0 named damage terms (docs/32): same contract as AutoWeapon.set_damage_term().
+## Sanctuary "valor" and Blood Pact "siege_breaker" each own one multiplicative
+## term, so they compose with Caliber and the meta bonus. Included in
+## `get_damage_multiplier()`, so Tower abilities (which read it) scale too.
+var _damage_terms: Dictionary = {} # source id (String) -> multiplier (float)
+
+
+func set_damage_term(source: String, multiplier: float) -> void:
+	if is_equal_approx(multiplier, 1.0):
+		_damage_terms.erase(source)
+	else:
+		_damage_terms[source] = multiplier
+
+
+func get_damage_term(source: String) -> float:
+	return float(_damage_terms.get(source, 1.0))
+
+
+func _terms_product() -> float:
+	var product: float = 1.0
+	for m in _damage_terms.values():
+		product *= float(m)
+	return product
 
 
 func get_damage_multiplier_for_test() -> float:

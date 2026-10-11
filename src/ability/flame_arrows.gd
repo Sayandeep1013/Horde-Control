@@ -56,4 +56,4 @@ func _on_burn_victim_died(pos: Vector2, dps: float, remaining: float, source_id:
 			best = d
 			near = e
 	if near != null:
-		StatusEffects.apply_burn(near, dps, remaining, ability_id)
+		StatusEffects.apply_burn(near, dps, remaining, ability_id, false) # already modified at the source

@@ -23,6 +23,10 @@ const DEFAULT_CHAMPION_ID: String = "ranger"
 static var champion_id: String = DEFAULT_CHAMPION_ID
 static var relic_ids: Array[String] = []
 
+## docs/32: a headless process runs without the run events unless this is set (the
+## balance bot sets it). Read by RunEvents.is_enabled_by_default().
+static var run_events_forced: bool = false
+
 static var _cache: Dictionary = {} # id -> DifficultyProfile
 
 
@@ -52,6 +56,7 @@ static func reset_for_test() -> void:
 	endless = false
 	champion_id = DEFAULT_CHAMPION_ID
 	relic_ids = []
+	run_events_forced = false
 
 
 static func has_relic(id: String) -> bool:

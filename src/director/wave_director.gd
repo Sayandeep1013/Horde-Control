@@ -2246,8 +2246,19 @@ func _end_current_wave(wave: WaveDefinition, encounter: EncounterDefinition) -> 
 		sequence_completed.emit()
 		return
 	var gap: float = maxf(wave.inter_wave_gap_seconds, encounter.minimum_recovery_gap_seconds) # Register > "Inter-wave gap": max(default, last encounter's recovery gap)
+	if _event_gap_provider.is_valid():
+		gap = maxf(gap, float(_event_gap_provider.call(_current_wave_index + 1))) # v1.0 Run Events: an event wave's gap is at least 8 s
 	_gap_deadline = _now() + gap
 	_state = State.GAP
+
+
+## v1.0 Run Events (docs/32 §A): RunEvents installs a provider returning the minimum
+## gap in seconds after a given 1-based wave number (0.0 = no floor).
+var _event_gap_provider: Callable = Callable()
+
+
+func set_event_gap_provider(provider: Callable) -> void:
+	_event_gap_provider = provider
 
 
 func _process_gap() -> void:
