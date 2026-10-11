@@ -14,7 +14,8 @@ signal phase_changed(phase: int)
 @export var display_name: String = ""
 ## Phase 2 starts below this fraction of max HP (Register: Warchief 0.40, King 0.50).
 @export var phase_two_fraction: float = 0.4
-## Drop on defeat (Register): Cores banked via CombatStats "field_cores".
+## Core bounty, paid at Run-End Settlement per boss killed (D255); informational
+## here, the settlement reads the `boss_kills` of each boss id.
 @export var core_reward: int = 8
 
 var phase: int = 1
@@ -68,7 +69,6 @@ func _on_phase_two() -> void:
 func on_death() -> void:
 	EventBus.emit_boss_defeated(boss_id, controller.global_position)
 	CombatStats.add_run_counter("boss_kills", 1.0)
-	CombatStats.add_run_counter("field_cores", float(core_reward))
 
 
 func request_summon(enemy_id: String, count: int) -> void:

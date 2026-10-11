@@ -15,6 +15,7 @@
 [ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/shadow_unit.png" id="13_shadow"]
 [ext_resource type="Script" path="res://src/enemy/enemy_health_bar.gd" id="14_health_bar"]
 [ext_resource type="Script" path="res://src/enemy/bomber_behavior.gd" id="40_behavior"]
+[ext_resource type="Script" path="res://src/enemy/bomber_throw_cue.gd" id="41_cue"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 12.0
@@ -25,10 +26,11 @@ radius = 12.0
 [sub_resource type="CircleShape2D" id="CircleShape2D_hitbox"]
 radius = 18.0
 
-; v1.0 Bomber (docs/31 5.1): TNT goblin sheet, darker black-powder modulate. Ranged; src/enemy/bomber_behavior.gd drives it.
+; v1.0 Bomber (docs/31 5.1): TNT goblin sheet recoloured steel blue by the palette-swap shader (palette_swap_hue, D206) plus a lit-dynamite cue overhead (BomberThrowCue). Ranged; src/enemy/bomber_behavior.gd drives it.
 [node name="Bomber" type="CharacterBody2D"]
 script = ExtResource("1_body")
 definition = ExtResource("5_def")
+palette_swap_hue = 0.58
 hit_sfx = ExtResource("8_hit")
 death_sfx = ExtResource("9_death_sfx")
 
@@ -87,7 +89,6 @@ position = Vector2(0, 2)
 texture = ExtResource("13_shadow")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Visuals"]
-modulate = Color(0.62, 0.55, 0.78, 1)
 texture_filter = 1
 sprite_frames = ExtResource("12_frames")
 animation = &"idle"
@@ -105,3 +106,7 @@ vertical_offset = -76
 
 [node name="Behavior" type="Node" parent="."]
 script = ExtResource("40_behavior")
+
+; Shape cue (D206): a lit dynamite stick held overhead while a throw is ready.
+[node name="ThrowCue" type="Node2D" parent="."]
+script = ExtResource("41_cue")

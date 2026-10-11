@@ -183,14 +183,15 @@ func test_vampiric_elite_heals_a_quarter_of_the_damage_it_deals_and_pulses_red()
 
 func test_volatile_elite_death_leaves_a_0_7_s_90_px_blast_and_elite_events_and_counters() -> void:
 	var killed: Array = []
-	EventBus.elite_killed.connect(func(_e: Node2D, affix: String, _t: float) -> void: killed.append(affix))
+	var on_elite: Callable = func(_e: Node2D, affix: String, _t: float) -> void: killed.append(affix)
+	EventBus.elite_killed.connect(on_elite)
 	var e: EnemyController = _enemy(HunterScene, Vector2(100, 50))
 	e.apply_elite("volatile")
 	e.death_state.kill("test")
+	EventBus.elite_killed.disconnect(on_elite)
 	assert_array(killed).is_equal(["volatile"])
 	assert_float(CombatStats.get_run_counter("elite_kills")).is_equal(1.0)
 	assert_float(CombatStats.get_run_counter("kills")).is_equal(1.0)
-	assert_float(CombatStats.get_run_counter("field_cores")).append_failure_message("1 Core, banked at once").is_equal(1.0)
 	var bombs: Array = _bombs()
 	assert_int(bombs.size()).is_equal(1)
 	assert_float(bombs[0].blast_radius).is_equal(90.0)
@@ -217,9 +218,12 @@ func test_warchief_announces_reports_health_enrages_below_40_percent_and_drops_o
 	var spawned: Array = []
 	var health: Array = []
 	var defeated: Array = []
-	EventBus.boss_spawned.connect(func(_b: Node2D, id: String, name: String, hp: float, _t: float) -> void: spawned.append([id, name, hp]))
-	EventBus.boss_health_changed.connect(func(id: String, cur: float, mx: float, _t: float) -> void: health.append([id, cur, mx]))
-	EventBus.boss_defeated.connect(func(id: String, _p: Vector2, _t: float) -> void: defeated.append(id))
+	var on_spawned: Callable = func(_b: Node2D, id: String, name: String, hp: float, _t: float) -> void: spawned.append([id, name, hp])
+	var on_health: Callable = func(id: String, cur: float, mx: float, _t: float) -> void: health.append([id, cur, mx])
+	var on_defeated: Callable = func(id: String, _p: Vector2, _t: float) -> void: defeated.append(id)
+	EventBus.boss_spawned.connect(on_spawned)
+	EventBus.boss_health_changed.connect(on_health)
+	EventBus.boss_defeated.connect(on_defeated)
 	var boss: EnemyController = _enemy(WarchiefScene, Vector2(400, 0))
 	var b: WarchiefBehavior = boss.behavior as WarchiefBehavior
 	assert_float(boss.death_state.max_hp).is_equal_approx(2600.0, 0.01)
@@ -234,9 +238,11 @@ func test_warchief_announces_reports_health_enrages_below_40_percent_and_drops_o
 	assert_int(b.phase).is_equal(2)
 	assert_float(b.cooldown_scale()).append_failure_message("enrage: cooldowns x0.7").is_equal(0.7)
 	boss.death_state.kill("test")
+	EventBus.boss_spawned.disconnect(on_spawned)
+	EventBus.boss_health_changed.disconnect(on_health)
+	EventBus.boss_defeated.disconnect(on_defeated)
 	assert_array(defeated).is_equal(["warchief"])
 	assert_float(CombatStats.get_run_counter("boss_kills")).is_equal(1.0)
-	assert_float(CombatStats.get_run_counter("field_cores")).is_equal(8.0)
 
 
 func test_warchief_stays_in_phase_one_at_exactly_40_percent() -> void:
@@ -365,18 +371,25 @@ func test_collecting_meat_heals_12_percent_of_max_hp_and_it_is_not_magnetised() 
 	assert_float(player.death_state.current_hp).append_failure_message("12% of 100 = 12").is_equal_approx(62.0, 0.01)
 
 
-func test_a_boss_death_drops_a_war_chest_and_collecting_it_opens_the_draft() -> void:
+## Collecting the chest emits `war_chest_opened`. That the signal opens a Draft of
+## at-least-Rare cards is asserted in v1_combat_abilities_test.gd
+## (test_war_chest_opens_a_draft_with_every_card_at_least_rare), where a real
+## DraftController exists; this test covers the drop and the signal only.
+func test_a_boss_death_drops_a_war_chest_and_collecting_it_emits_war_chest_opened() -> void:
 	var system: PickupSystem = _pickup_system()
 	system.set_event_bus_for_test(EventBus)
 	var opened: Array = [0]
-	EventBus.war_chest_opened.connect(func(_t: float) -> void: opened[0] += 1)
+	var on_opened: Callable = func(_t: float) -> void: opened[0] += 1
+	EventBus.war_chest_opened.connect(on_opened)
 	EventBus.emit_boss_defeated("warchief", Vector2(300, 300))
 	system.step_drops()
 	var chests: Array = system.get_active_pickups_for_test().filter(func(p: Pickup) -> bool: return p.get_pickup_type() == ContractEnums.PickupType.WarChest)
 	assert_int(chests.size()).is_equal(1)
 	assert_int(opened[0]).is_equal(0)
 	system._on_pickup_entered_collector(chests[0])
-	assert_int(opened[0]).append_failure_message("collecting the chest emits war_chest_opened").is_equal(1)
+	var count: int = opened[0]
+	EventBus.war_chest_opened.disconnect(on_opened) # the suite outlives the test; never leak the lambda
+	assert_int(count).append_failure_message("collecting the chest emits war_chest_opened").is_equal(1)
 
 
 # --- Pool release (D215) ---------------------------------------------------------------------
