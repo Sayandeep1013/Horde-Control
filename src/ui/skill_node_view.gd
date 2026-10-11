@@ -159,6 +159,9 @@ var _style: StyleBoxTexture
 ## computed inside `_draw()` itself (which only reads it), matching this
 ## file's existing "state pushed in, view only renders it" convention.
 var _glow_enabled: bool = false
+## Review fix (D250-adjacent, Skill Tree): the branch colour is only an accent strip on the plate and the icon; the rim says owned.
+var _accent: Color = Color(0, 0, 0, 0)
+const ACCENT_STRIP_PX: float = 8.0
 
 
 func _ready() -> void:
@@ -301,6 +304,7 @@ func set_silhouette() -> void:
 	_style.texture = load(UiPalette.TEX_BUTTON_DISABLED) as Texture2D
 	_style.modulate_color = Color(1, 1, 1, 1)
 	_glow_enabled = false
+	_accent = Color(0, 0, 0, 0)
 	queue_redraw()
 	modulate = Color(1, 1, 1, 1)
 
@@ -359,7 +363,8 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 	# (unchanged) plus a light branch-coloured tint layered on the frame
 	# ITSELF once the node is owned -- a freshly-revealed, never-bought node
 	# reads as neutral stone regardless of branch.
-	var branch_tint: Color = Color(1, 1, 1, 1).lerp(branch_color, 0.30) if owned else Color(1, 1, 1, 1)
+	var branch_tint: Color = Color(1, 1, 1, 1) # no whole-plate tint: owned reads by its gold rim (legend), the branch by the accent strip
+	_accent = branch_color
 	_glow_enabled = false
 	match state:
 		State.LOCKED:
@@ -386,14 +391,14 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 			# apart from Available by the price colour AND the dimmer frame.
 			_price_label.add_theme_color_override("font_color", UiPalette.SCRAP)
 			_price_icon.glyph_color = UiPalette.SCRAP
-			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D
+			_style.texture = load(UiPalette.TEX_BUTTON_HOVER if owned else UiPalette.TEX_BUTTON_NORMAL) as Texture2D
 			_style.modulate_color = branch_tint * Color(0.72, 0.72, 0.72, 1.0)
 			_icon_tex.modulate = Color(0.85, 0.85, 0.85, 1.0)
 		State.BUYABLE:
 			_price_label.text = str(price)
 			_price_label.add_theme_color_override("font_color", UiPalette.SUCCESS)
 			_price_icon.glyph_color = UiPalette.CORES
-			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D
+			_style.texture = load(UiPalette.TEX_BUTTON_HOVER if owned else UiPalette.TEX_BUTTON_NORMAL) as Texture2D # gold rim = owned
 			_style.modulate_color = branch_tint
 		State.MAX, State.OWNED_MAX:
 			_price_icon.visible = false
@@ -421,6 +426,8 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 ## the level emblem's burst) exists to react to a CHANGE, which an
 ## always-on owned/MAX state has none of to react to.
 func _draw() -> void:
+	if _accent.a > 0.0 and _name_label.visible and not show_name:
+		draw_rect(Rect2(Vector2(18.0, 9.0), Vector2(size.x - 36.0, ACCENT_STRIP_PX)), _accent, true)
 	if not _glow_enabled:
 		return
 	var rect := Rect2(Vector2.ZERO, size)

@@ -109,6 +109,30 @@ func test_f1_toggles_overlay_visibility() -> void:
 	assert_bool(_overlay.is_overlay_visible()).is_true()
 
 
+func test_a_release_build_ignores_f1_and_f2_and_shows_nothing() -> void:
+	DebugOverlay.set_dev_tools_override_for_test(0)
+	var was_enabled: bool = TranslationServer.is_pseudolocalization_enabled()
+	var f1: InputEventAction = InputEventAction.new()
+	f1.action = &"debug_overlay_toggle"
+	f1.pressed = true
+	_overlay._unhandled_input(f1)
+	var f2: InputEventAction = InputEventAction.new()
+	f2.action = &"debug_pseudoloc_toggle"
+	f2.pressed = true
+	_overlay._unhandled_input(f2)
+	var overlay_shown: bool = _overlay.is_overlay_visible()
+	var pseudo_changed: bool = TranslationServer.is_pseudolocalization_enabled() != was_enabled
+	var start_visible_shown: bool = false
+	_overlay.start_visible = true
+	_overlay._ready()
+	start_visible_shown = _overlay.get_node("Panel").visible
+	DebugOverlay.set_dev_tools_override_for_test(-1)
+	assert_bool(overlay_shown).append_failure_message("F1 must do nothing in a release build").is_false()
+	assert_bool(pseudo_changed).append_failure_message("F2 must do nothing in a release build").is_false()
+	assert_bool(start_visible_shown).append_failure_message("even start_visible stays hidden in a release build").is_false()
+	assert_bool(InputMap.has_action(&"debug_overlay_toggle")).append_failure_message("the actions stay in the InputMap").is_true()
+
+
 func test_f2_toggles_pseudolocalization_and_sets_the_registered_expansion_ratio() -> void:
 	var was_enabled: bool = TranslationServer.is_pseudolocalization_enabled()
 

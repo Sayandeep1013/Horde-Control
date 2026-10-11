@@ -303,3 +303,51 @@ func test_a_defeat_unlocks_nothing_and_settles_at_the_difficulty_multiplier() ->
 	# 10 minutes = 10 Cores, x1.85 = 18
 	assert_int(MetaProgress.get_cores()).is_equal(18)
 	assert_bool(MetaProgress.is_difficulty_unlocked("veteran")).is_false()
+
+
+# --- The cause line names the killer (D247) ---------------------------------------------
+
+func _enemy(kind: String, affix: String = "") -> EnemyController:
+	var e: EnemyController = auto_free(EnemyController.new())
+	e.definition = load("res://data/enemies/%s.tres" % kind) as EnemyDefinition
+	e.elite_affix = affix
+	return e
+
+
+func _cause_after(target: String, enemy: Variant, hitbox: Variant = null) -> String:
+	var c: RunFlowController = _controller(_clock(), _director(), _bus())
+	if enemy != null:
+		c.record_damager_for_test(target, enemy, hitbox)
+	if target == "player":
+		c.simulate_player_died_for_test()
+	else:
+		c.simulate_tower_destroyed_for_test()
+	await get_tree().process_frame
+	return String(c.get_summary_for_test()["cause_text"])
+
+
+func test_the_player_cause_line_names_the_last_enemy_that_hit_them() -> void:
+	assert_str(await _cause_after("player", _enemy("bomber"))).is_equal("Slain by a Bomber")
+	assert_str(await _cause_after("player", _enemy("tower_seeker"))).is_equal("Slain by a Torch Goblin")
+
+
+func test_the_tower_cause_line_names_the_last_enemy_that_hit_the_tower() -> void:
+	assert_str(await _cause_after("tower", _enemy("brute"))).is_equal("The Tower fell to a Brute")
+
+
+func test_elites_and_bosses_are_named_and_a_blast_resolves_through_its_attacker() -> void:
+	assert_str(await _cause_after("player", _enemy("brute", "armored"))).is_equal("Slain by an elite Brute")
+	assert_str(await _cause_after("tower", _enemy("goblin_warchief"))).is_equal("The Tower fell to the Goblin Warchief")
+	# EnemyBlast reports the hit with a tag as `source` and the attacker as the hitbox argument.
+	assert_str(await _cause_after("player", &"enemy_blast", _enemy("bomber"))).is_equal("Slain by a Bomber")
+
+
+func test_an_unknown_killer_keeps_the_generic_line_and_never_repeats_the_title() -> void:
+	assert_str(await _cause_after("player", null)).is_equal("You were defeated")
+	assert_str(await _cause_after("tower", null)).is_equal("The Tower was destroyed")
+	var c: RunFlowController = _controller(_clock(), _director(), _bus())
+	c.record_damager_for_test("player", _enemy("bomber"))
+	c.simulate_player_died_for_test()
+	await get_tree().process_frame
+	var summary: Dictionary = c.get_summary_for_test()
+	assert_str(String(summary["cause_text"])).is_not_equal(String(summary["outcome_title"]))

@@ -354,16 +354,17 @@ func _build_ui() -> void:
 	_hint_label.visible = false
 	_frame.column.add_child(_hint_label)
 
+	MenuFrame.build_separator(_frame.column) # Review fix (D246): the buttons sit apart from the settings list
 	_footer_list = VBoxContainer.new()
 	_footer_list.name = "FooterList"
-	_footer_list.theme_type_variation = UiTheme.vbox("XS")
+	_footer_list.theme_type_variation = UiTheme.vbox("M")
 	_frame.column.add_child(_footer_list)
 
 	for tab_index: int in TAB_ROWS.size():
 		for id: String in TAB_ROWS[tab_index]:
 			_add_row(_row_list, id, _row_label(id), id != ROW_RESET_CONTROLS)
-	_add_row(_footer_list, ROW_RESET_DEFAULTS, tr("SETTINGS_RESET_DEFAULTS"), false)
-	_add_row(_footer_list, ROW_BACK, tr("SETTINGS_BACK"), false)
+	_add_footer_button(ROW_RESET_DEFAULTS, tr("SETTINGS_RESET_DEFAULTS"))
+	_add_footer_button(ROW_BACK, tr("SETTINGS_BACK"))
 
 	var hold_footer: VBoxContainer = MenuFrame.build_hold_footer(_frame.column)
 	_fill_ring = DraftFillRing.new()
@@ -446,6 +447,18 @@ func _row_label(id: String) -> String:
 		ROW_REDUCE_FLASHING: return tr("SETTINGS_REDUCE_FLASHING")
 		ROW_ENEMY_OUTLINES: return tr("SETTINGS_ENEMY_OUTLINES")
 	return id
+
+
+## A footer row on its own plate (a bordered, darker parchment button face), so
+## Reset and Back read as buttons and not as two more settings.
+func _add_footer_button(id: String, label_text: String) -> void:
+	var plate := PanelContainer.new()
+	plate.name = "Plate_" + id
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.PARCHMENT.darkened(0.12), UiPalette.INK_PIXEL, 0, UiPalette.BORDER_THICK, UiPalette.SPACE_S))
+	_footer_list.add_child(plate)
+	_add_row(plate, id, label_text, false)
+	(_rows[id] as SettingsRow).set_button_style(true)
 
 
 func _add_row(parent: Container, id: String, label_text: String, has_value: bool) -> void:

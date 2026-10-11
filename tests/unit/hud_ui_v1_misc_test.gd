@@ -97,6 +97,18 @@ func test_estimated_cores_apply_the_difficulty_multiplier() -> void:
 	assert_int(menu.estimated_cores()).is_equal(int(floor(14.0 * RunConfig.get_difficulty().cores_multiplier)))
 
 
+func test_estimated_cores_come_from_the_settlement_preview_with_bosses_and_bonuses() -> void:
+	CombatStats.add_run_counter("kills", 60)
+	CombatStats.add_run_counter("boss_kills", 1)
+	MetaProgress.set_rank_for_test("prospector", 2)
+	var menu: PauseMenu = _pause_with_fakes()
+	var preview: Dictionary = MetaProgress.preview_settlement({"sim_time_seconds": 272.0, "waves_cleared": 5, "kills": 60, "elite_kills": 0,
+		"scrap_carried": 0, "boss_kills": {"warchief": 1}, "difficulty_id": RunConfig.difficulty_id})
+	assert_int(menu.estimated_cores()).append_failure_message("the pause estimate must be the preview itself").is_equal(int(preview["total_cores"]))
+	# Warchief bounty (8) and Prospector x2 (+30%) are both in, unlike the old duplicated sum.
+	assert_int(menu.estimated_cores()).is_greater(19 + MetaProgress.SETTLEMENT_BOSS_CORES["warchief"] - 1)
+
+
 func test_how_to_play_opens_closes_and_hides_the_choices() -> void:
 	var menu: PauseMenu = auto_free(PauseMenu.new())
 	add_child(menu)
@@ -127,6 +139,48 @@ func test_how_to_play_has_four_sections_naming_the_live_keys() -> void:
 		assert_object(holder.find_child("Head%d" % i, true, false)).is_not_null()
 		assert_object(holder.find_child("Body%d" % i, true, false)).is_not_null()
 	assert_str(HowToPlay.heading(4)).is_equal("Repair with Scrap")
+
+
+func test_how_to_play_has_know_your_enemy_with_a_sprite_and_a_line_each() -> void:
+	var holder: VBoxContainer = auto_free(VBoxContainer.new())
+	add_child(holder)
+	HowToPlay.build_content(holder, 400.0)
+	for id: String in ["SEEKER", "HUNTER", "OPPORTUNIST", "BOMBER", "BRUTE", "ELITE", "BOSS"]:
+		var row: Node = holder.find_child("EnemyRow_%s" % id, true, false)
+		assert_object(row).append_failure_message("no row for %s" % id).is_not_null()
+		assert_object((row.find_child("Icon", false, false) as TextureRect).texture).append_failure_message("%s has no sprite" % id).is_not_null()
+		assert_str((row.find_child("Line", false, false) as Label).text).is_not_empty().is_not_equal("HOWTO_ENEMY_" + id)
+	assert_str(HowToPlay.enemy_line("BOMBER")).contains("red circles")
+
+
+func test_the_controls_list_lives_in_how_to_play_and_hides_dev_rows_in_release() -> void:
+	var labels: Array = HowToPlay.controls_rows().map(func(r: Array) -> String: return r[0])
+	assert_array(labels).contains(["Move", "Dash", "Battle Skill", "Pause"])
+	DebugOverlay.set_dev_tools_override_for_test(1)
+	var dev: Array = HowToPlay.controls_rows().map(func(r: Array) -> String: return r[1])
+	assert_array(dev).contains(["F1", "F2"])
+	DebugOverlay.set_dev_tools_override_for_test(0)
+	var release_values: Array = HowToPlay.controls_rows().map(func(r: Array) -> String: return r[1])
+	var release_labels: Array = HowToPlay.controls_rows().map(func(r: Array) -> String: return r[0])
+	DebugOverlay.set_dev_tools_override_for_test(-1)
+	assert_array(release_values).not_contains(["F1", "F2"])
+	assert_bool(release_labels.any(func(l: String) -> bool: return l.contains("(dev"))).is_false()
+	GameSettings.set_key_binding(&"dash", 0, KEY_G)
+	assert_str(String((HowToPlay.controls_rows()[1] as Array)[1])).contains("G")
+
+
+func test_the_title_has_no_separate_controls_page_and_shows_the_version() -> void:
+	var title: TitleScreen = auto_free(TitleScreen.new())
+	add_child(title)
+	assert_bool(title.has_method("get_controls_button_for_test")).is_false()
+	var label: Label = title.find_child("VersionLabel", true, false) as Label
+	assert_object(label).is_not_null()
+	assert_str(label.text).is_equal("v" + str(ProjectSettings.get_setting("application/config/version")))
+	assert_str(label.text).is_equal("v1.0.0")
+	var buttons: Array[String] = []
+	for b: Node in title.find_children("*", "Button", true, false):
+		buttons.append((b as Button).text)
+	assert_array(buttons).not_contains(["Controls"])
 
 
 func test_the_title_screen_has_the_how_to_play_page_and_it_closes() -> void:
@@ -211,6 +265,8 @@ func test_wave_started_shows_the_typed_banner_and_boss_waves_say_boss() -> void:
 func test_siege_warning_boss_entrance_and_elite_callout_are_announced_once_each() -> void:
 	var announcer: RunAnnouncer = auto_free(RunAnnouncer.new())
 	add_child(announcer)
+	MetaProgress.mark_hint_seen(RunHints.ID_ELITE) # a seen hint leaves the plain callout
+	MetaProgress.mark_hint_seen(RunHints.ID_BOSS)
 	EventBus.emit_siege_warning(3.0)
 	EventBus.emit_boss_spawned(null, "warchief", "Goblin Warchief", 2600.0)
 	assert_array(_texts(announcer.get_banner_box_for_test())).contains(["SIEGE INCOMING", "GOBLIN WARCHIEF"])

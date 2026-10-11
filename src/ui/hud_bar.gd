@@ -77,6 +77,8 @@ class_name HudBar
 ## Register > Interfaces > "HUD": "both bars tick at 40% of maximum and
 ## change border shape below it."
 const TICK_FRACTION: float = 0.4
+## Length of each of the tick's two edge stubs (Register > v1.0 Interface > "HUD polish").
+const TICK_STUB_PX: float = 9.0
 
 ## The Tower's shield segment is drawn as a thinner strip along the top of
 ## the bar rather than a second colour smeared over the same rectangle -
@@ -344,8 +346,12 @@ func _draw() -> void:
 			draw_rect(Rect2(inner.position, Vector2(round(inner.size.x * shield_fraction), fill_top)), shield_color, true)
 
 	if enable_health_tick_rule:
+		# Review fix (D248): the 40% tick is two short stubs on the top and bottom
+		# edges, never a full-height line, so it cannot cut through the centred "cur/max" text.
 		var tick_x: float = round(inner.position.x + inner.size.x * TICK_FRACTION)
-		draw_rect(Rect2(Vector2(tick_x, inner.position.y), Vector2(2.0, inner.size.y)), tick_color, true)
+		var stub: float = minf(TICK_STUB_PX, inner.size.y * 0.3)
+		draw_rect(Rect2(Vector2(tick_x, inner.position.y), Vector2(2.0, stub)), tick_color, true)
+		draw_rect(Rect2(Vector2(tick_x, inner.end.y - stub), Vector2(2.0, stub)), tick_color, true)
 
 	if marker_fraction >= 0.0 and marker_fraction <= 1.0:
 		var marker_x: float = round(inner.position.x + inner.size.x * marker_fraction)

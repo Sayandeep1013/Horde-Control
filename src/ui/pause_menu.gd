@@ -329,18 +329,29 @@ func _elapsed_seconds() -> float:
 
 
 ## The Cores this run would settle to if it ended now (an estimate: the real
-## settlement runs at run end). Same terms as MetaProgress.settle_run().
+## settlement runs at run end). Review fix (D245): the figure comes from
+## `MetaProgress.preview_settlement()` -- the same function `settle_run()` pays
+## from -- so boss bounties, Victory, the Prospector and Founder bonuses and the
+## difficulty multiplier can never drift between the estimate and the payout.
 func estimated_cores() -> int:
-	var minutes: int = int(_elapsed_seconds() / 60.0)
+	var parent: Node = get_parent()
+	var summary: Dictionary = parent.get_live_summary() if parent != null and parent.has_method("get_live_summary") else _fallback_summary()
+	return int(MetaProgress.preview_settlement(summary)["total_cores"])
+
+
+## The run so far from the HUD and CombatStats, for a menu with no RunFlowController above it.
+func _fallback_summary() -> Dictionary:
 	var hud: Hud = _hud()
-	var waves_cleared: int = maxi(0, (hud.get_wave_number() - 1) if hud != null else 0)
-	var scrap: int = hud.economy_state.scrap_current if hud != null else 0
-	var total: int = minutes * MetaProgress.SETTLEMENT_PER_MINUTE_CORES
-	total += waves_cleared * MetaProgress.SETTLEMENT_PER_WAVE_CLEARED_CORES
-	total += int(CombatStats.get_run_counter("kills")) / MetaProgress.SETTLEMENT_KILLS_PER_CORE
-	total += int(CombatStats.get_run_counter("elite_kills"))
-	total += Hud.scrap_to_cores(scrap)
-	return int(floor(float(total) * RunConfig.get_difficulty().cores_multiplier))
+	var boss_kills: int = int(CombatStats.get_run_counter("boss_kills"))
+	return {
+		"sim_time_seconds": _elapsed_seconds(),
+		"waves_cleared": maxi(0, (hud.get_wave_number() - 1) if hud != null else 0),
+		"kills": int(CombatStats.get_run_counter("kills")),
+		"elite_kills": int(CombatStats.get_run_counter("elite_kills")),
+		"scrap_carried": hud.economy_state.scrap_current if hud != null else 0,
+		"boss_kills": {"warchief": boss_kills} if boss_kills > 0 else {},
+		"difficulty_id": RunConfig.difficulty_id,
+	}
 
 
 ## The three panels scroll as one only when the screen is too short for them.

@@ -18,7 +18,7 @@ enum Kind { DASH, SKILL }
 const DASH_SIZE_PX: float = 72.0
 const SKILL_SIZE_PX: float = 96.0
 const DASH_ICON_PATH: String = "res://assets/ui/icons/icon_dash.png"
-const CHARGE_PIP_PX: float = 10.0
+const CHARGE_PIP_PX: float = 16.0 ## Register > v1.0 Interface > "HUD polish": at least 10 px at 100% HUD scale
 ## The key hint sits in a strip under the icon, so it never covers the art.
 const HINT_STRIP_PX: float = 34.0
 const HINT_GAP_PX: float = 4.0
@@ -141,8 +141,12 @@ func _draw_charge_pips(inner: Rect2) -> void:
 	var start := Vector2(inner.position.x + (inner.size.x - total_w) * 0.5, inner.end.y - CHARGE_PIP_PX - 5.0).round()
 	for i: int in max_charges:
 		var pip := Rect2(start + Vector2(float(i) * (CHARGE_PIP_PX + 4.0), 0.0), Vector2(CHARGE_PIP_PX, CHARGE_PIP_PX))
-		draw_rect(pip.grow(2.0), UiPalette.INK_PIXEL, true)
-		draw_rect(pip, UiPalette.ACCENT if i < charges else UiPalette.with_alpha(UiPalette.LINE, 0.7), true)
+		draw_rect(pip.grow(3.0), UiPalette.INK_PIXEL, true)
+		if i < charges:
+			draw_rect(pip, UiPalette.ACCENT, true) # a charge ready: solid gold
+		else:
+			draw_rect(pip, UiPalette.with_alpha(UiPalette.INK, 0.9), true) # spent: an empty socket with a bronze rim, so the cue is shape as well as colour
+			draw_rect(pip.grow(-1.0), UiPalette.LINE_STRONG, false, 2.0)
 
 
 func _draw_key_hint(box: Rect2) -> void:

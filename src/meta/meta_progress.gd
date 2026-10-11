@@ -454,6 +454,14 @@ func _reconcile(data: Dictionary) -> Dictionary:
 	profile["lifetime_cores"] = maxi(0, int(data.get("lifetime_cores", 0)))
 	profile["first_hub_seen"] = bool(data.get("first_hub_seen", false))
 	profile["first_run_hints_seen"] = bool(data.get("first_run_hints_seen", false))
+	var seen_hints: Array = []
+	var raw_hints: Variant = data.get("hints_seen", [])
+	if raw_hints is Array:
+		for v in (raw_hints as Array):
+			var hint_id: String = String(v)
+			if hint_id != "" and not seen_hints.has(hint_id):
+				seen_hints.append(hint_id)
+	profile["hints_seen"] = seen_hints
 	profile["lifetime_kills"] = maxi(0, int(data.get("lifetime_kills", 0)))
 	profile["lifetime_scrap_collected"] = maxi(0, int(data.get("lifetime_scrap_collected", 0)))
 	_reconcile_v3_fields(profile, data)
@@ -601,6 +609,7 @@ func _fresh_profile() -> Dictionary:
 		"settled_run_ids": [],
 		"first_hub_seen": false,
 		"first_run_hints_seen": false, # UX review item 4 (D129); additive key, no schema bump
+		"hints_seen": [], # D241: contextual hint ids already shown; additive key, no schema bump
 		"flags": {
 			"last_save_failed": false,
 			"recovered_from_corruption": false,
@@ -865,6 +874,21 @@ func mark_first_run_hints_seen() -> void:
 	_save()
 
 
+## Review fix (D241): contextual v1.0 hints, each shown once per profile. An
+## additive `hints_seen` list of hint ids (reconcile adds it; no schema bump).
+func is_hint_seen(hint_id: String) -> bool:
+	return (_profile.get("hints_seen", []) as Array).has(hint_id)
+
+
+func mark_hint_seen(hint_id: String) -> void:
+	if hint_id == "" or is_hint_seen(hint_id):
+		return
+	var seen: Array = _profile.get("hints_seen", [])
+	seen.append(hint_id)
+	_profile["hints_seen"] = seen
+	_save()
+
+
 func is_first_hub_seen() -> bool:
 	return bool(_profile.get("first_hub_seen", false))
 
@@ -882,12 +906,20 @@ func mark_hub_seen() -> void:
 
 # --- v1.0 meta loop API (D252-D254) -------------------------------------------
 
+## A selection that is no longer open reads as the default (D243): a locked
+## difficulty -> Soldier, a locked Battle Skill -> Arrow Storm.
 func get_selected_difficulty() -> String:
-	return String(_profile.get("selected_difficulty", RunConfig.DEFAULT_DIFFICULTY_ID))
+	var id: String = String(_profile.get("selected_difficulty", RunConfig.DEFAULT_DIFFICULTY_ID))
+	if not DIFFICULTY_IDS.has(id) or not is_difficulty_unlocked(id):
+		return RunConfig.DEFAULT_DIFFICULTY_ID
+	return id
 
 
 func get_selected_battle_skill() -> String:
-	return String(_profile.get("selected_battle_skill", RunConfig.DEFAULT_BATTLE_SKILL_ID))
+	var id: String = String(_profile.get("selected_battle_skill", RunConfig.DEFAULT_BATTLE_SKILL_ID))
+	if not AbilityIds.BATTLE_SKILLS.has(id) or not is_battle_skill_unlocked(id):
+		return RunConfig.DEFAULT_BATTLE_SKILL_ID
+	return id
 
 
 func get_selected_endless() -> bool:
@@ -1166,60 +1198,36 @@ func respec() -> int:
 		var cores_after: int = clampi(cores_before + raw_refund, 0, CORE_WALLET_CAP)
 		credited = cores_after - cores_before # the amount ACTUALLY credited, after the wallet-cap clamp
 		_profile["cores"] = cores_after
+	# Review fix (D243): a respec re-locks every Battle Skill, so a selected
+	# non-default skill is corrected NOW, not on the next load.
+	if not is_battle_skill_unlocked(String(_profile.get("selected_battle_skill", RunConfig.DEFAULT_BATTLE_SKILL_ID))):
+		_profile["selected_battle_skill"] = RunConfig.DEFAULT_BATTLE_SKILL_ID
 	_save()
 	cores_changed.emit(get_cores())
 	return credited
 
 
-## Register > "Meta: Run-End Settlement (prototype)" and > "v1.0 Meta
-## Progression"; D110/D115/D118/D253. Idempotent by `run_summary.run_id` --
-## see class header, "Idempotent settlement". `run_summary` keys: `run_id:
-## String`, `sim_time_seconds: float`, `waves_cleared: int`, `kills: int`,
-## `victory: bool`, `abandoned: bool`, `scrap_carried: int` (D115),
-## `tower_health_fraction: float` (D118) and the v1.0 keys (D253, all
-## optional): `difficulty_id: String`, `endless: bool`, `wave_reached: int`,
-## `elite_kills: int`, `boss_kills: Dictionary` (id -> count), `repair_total:
-## int`, `scrap_collected: int`, `untouchable_wave: bool`, `player_abilities:
-## int`. Commits to disk (via `_save()`) before returning, per the build
-## brief.
-func settle_run(run_summary: Dictionary) -> Dictionary:
-	var run_id: String = String(run_summary.get("run_id", ""))
-	if run_id != "" and (_profile.get("settled_run_ids", []) as Array).has(run_id):
-		if _settled_breakdown_cache.has(run_id):
-			# The cached breakdown's OWN "already_settled" reflects whatever it
-			# was when first computed (false -- it was a real settlement at the
-			# time). A caller re-settling the same run id needs to see THIS
-			# call's own truth (a repeat, not a fresh payment), so the flag is
-			# overridden on a duplicate rather than replayed verbatim -- the
-			# itemised lines/total are kept for display, matching "returns the
-			# itemised breakdown" even for a replay.
-			var cached: Dictionary = (_settled_breakdown_cache[run_id] as Dictionary).duplicate(true)
-			cached["already_settled"] = true
-			return cached
-		return _already_settled_breakdown(run_id)
-
+## Pure settlement preview (review fix, D240): the itemised lines and the total
+## a run with `run_summary` would pay, difficulty multiplier included, with no
+## wallet clamp and no mutation. `settle_run()` is built on this and the pause
+## menu's "estimated Cores" reads it, so the formula exists once. Keys as in
+## `settle_run()`; every key is optional.
+func preview_settlement(run_summary: Dictionary) -> Dictionary:
 	var sim_time: float = float(run_summary.get("sim_time_seconds", 0.0))
 	var waves_cleared: int = maxi(0, int(run_summary.get("waves_cleared", 0)))
 	var kills: int = maxi(0, int(run_summary.get("kills", 0)))
 	var victory: bool = bool(run_summary.get("victory", false))
-	var abandoned: bool = bool(run_summary.get("abandoned", false))
 	var scrap_carried: int = maxi(0, int(run_summary.get("scrap_carried", 0)))
-	var tower_health_fraction: float = float(run_summary.get("tower_health_fraction", 1.0))
 	var difficulty_id: String = String(run_summary.get("difficulty_id", RunConfig.DEFAULT_DIFFICULTY_ID))
 	if not DIFFICULTY_IDS.has(difficulty_id):
 		difficulty_id = RunConfig.DEFAULT_DIFFICULTY_ID
-	var endless: bool = bool(run_summary.get("endless", false))
-	var wave_reached: int = maxi(0, int(run_summary.get("wave_reached", waves_cleared)))
 	var elite_kills: int = maxi(0, int(run_summary.get("elite_kills", 0)))
 	var boss_kills: Dictionary = {}
 	var raw_boss_kills: Variant = run_summary.get("boss_kills", {})
 	if raw_boss_kills is Dictionary:
 		for boss_id in BOSS_IDS:
 			boss_kills[boss_id] = maxi(0, int((raw_boss_kills as Dictionary).get(boss_id, 0)))
-	var repair_total: int = maxi(0, int(run_summary.get("repair_total", 0)))
-	var scrap_collected: int = maxi(scrap_carried, int(run_summary.get("scrap_collected", scrap_carried)))
 	var difficulty: DifficultyProfile = RunConfig.get_difficulty_by_id(difficulty_id)
-
 	var minutes: int = int(floor(sim_time / 60.0))
 	var lines: Array = []
 	var subtotal: int = 0
@@ -1284,6 +1292,61 @@ func settle_run(run_summary: Dictionary) -> Dictionary:
 		var scaled: int = int(floor(float(total) * difficulty.cores_multiplier))
 		lines.append({"label": "%s difficulty (x%s)" % [difficulty.display_name, _trim_float(difficulty.cores_multiplier)], "amount": scaled - total})
 		total = scaled
+
+	return {"lines": lines, "total_cores": total}
+
+
+## Register > "Meta: Run-End Settlement (prototype)" and > "v1.0 Meta
+## Progression"; D110/D115/D118/D253. Idempotent by `run_summary.run_id` --
+## see class header, "Idempotent settlement". `run_summary` keys: `run_id:
+## String`, `sim_time_seconds: float`, `waves_cleared: int`, `kills: int`,
+## `victory: bool`, `abandoned: bool`, `scrap_carried: int` (D115),
+## `tower_health_fraction: float` (D118) and the v1.0 keys (D253, all
+## optional): `difficulty_id: String`, `endless: bool`, `wave_reached: int`,
+## `elite_kills: int`, `boss_kills: Dictionary` (id -> count), `repair_total:
+## int`, `scrap_collected: int`, `untouchable_wave: bool`, `player_abilities:
+## int`. Commits to disk (via `_save()`) before returning, per the build
+## brief.
+func settle_run(run_summary: Dictionary) -> Dictionary:
+	var run_id: String = String(run_summary.get("run_id", ""))
+	if run_id != "" and (_profile.get("settled_run_ids", []) as Array).has(run_id):
+		if _settled_breakdown_cache.has(run_id):
+			# The cached breakdown's OWN "already_settled" reflects whatever it
+			# was when first computed (false -- it was a real settlement at the
+			# time). A caller re-settling the same run id needs to see THIS
+			# call's own truth (a repeat, not a fresh payment), so the flag is
+			# overridden on a duplicate rather than replayed verbatim -- the
+			# itemised lines/total are kept for display, matching "returns the
+			# itemised breakdown" even for a replay.
+			var cached: Dictionary = (_settled_breakdown_cache[run_id] as Dictionary).duplicate(true)
+			cached["already_settled"] = true
+			return cached
+		return _already_settled_breakdown(run_id)
+
+	var sim_time: float = float(run_summary.get("sim_time_seconds", 0.0))
+	var waves_cleared: int = maxi(0, int(run_summary.get("waves_cleared", 0)))
+	var kills: int = maxi(0, int(run_summary.get("kills", 0)))
+	var victory: bool = bool(run_summary.get("victory", false))
+	var abandoned: bool = bool(run_summary.get("abandoned", false))
+	var scrap_carried: int = maxi(0, int(run_summary.get("scrap_carried", 0)))
+	var tower_health_fraction: float = float(run_summary.get("tower_health_fraction", 1.0))
+	var difficulty_id: String = String(run_summary.get("difficulty_id", RunConfig.DEFAULT_DIFFICULTY_ID))
+	if not DIFFICULTY_IDS.has(difficulty_id):
+		difficulty_id = RunConfig.DEFAULT_DIFFICULTY_ID
+	var endless: bool = bool(run_summary.get("endless", false))
+	var wave_reached: int = maxi(0, int(run_summary.get("wave_reached", waves_cleared)))
+	var elite_kills: int = maxi(0, int(run_summary.get("elite_kills", 0)))
+	var boss_kills: Dictionary = {}
+	var raw_boss_kills: Variant = run_summary.get("boss_kills", {})
+	if raw_boss_kills is Dictionary:
+		for boss_id in BOSS_IDS:
+			boss_kills[boss_id] = maxi(0, int((raw_boss_kills as Dictionary).get(boss_id, 0)))
+	var repair_total: int = maxi(0, int(run_summary.get("repair_total", 0)))
+	var scrap_collected: int = maxi(scrap_carried, int(run_summary.get("scrap_collected", scrap_carried)))
+
+	var preview: Dictionary = preview_settlement(run_summary)
+	var lines: Array = preview["lines"]
+	var total: int = int(preview["total_cores"])
 
 	var cores_before: int = get_cores()
 	var cores_after: int = clampi(cores_before + total, 0, CORE_WALLET_CAP)

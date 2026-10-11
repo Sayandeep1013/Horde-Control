@@ -236,13 +236,45 @@ func test_battle_skill_nodes_gate_exactly_their_skill() -> void:
 	assert_array(MetaProgress.get_unlocked_battle_skills()).contains_exactly(["arrow_storm", "firebomb"])
 
 
-func test_respec_relocks_a_selected_skill_on_the_next_load() -> void:
+func test_respec_relocks_a_selected_skill_immediately() -> void:
 	MetaProgress.set_rank_for_test("skill_focus", 1)
 	MetaProgress.set_rank_for_test("frost_nova_unlock", 1)
 	MetaProgress.set_selected_battle_skill("frost_nova")
+	assert_str(MetaProgress.get_selected_battle_skill()).is_equal("frost_nova")
 	MetaProgress.respec()
+	assert_str(MetaProgress.get_selected_battle_skill()).append_failure_message("the respec must relock the selected skill at once, not on the next load").is_equal("arrow_storm")
+	MetaProgress.apply_selection_to_run_config()
+	assert_str(RunConfig.battle_skill_id).is_equal("arrow_storm")
 	MetaProgress.reload_for_test()
-	assert_str(MetaProgress.get_selected_battle_skill()).append_failure_message("the tree reset closes the skill again").is_equal("arrow_storm")
+	assert_str(MetaProgress.get_selected_battle_skill()).is_equal("arrow_storm")
+
+
+func test_a_locked_selected_difficulty_reads_as_soldier() -> void:
+	MetaProgress.set_difficulty_victories_for_test("soldier", 1)
+	assert_bool(MetaProgress.set_selected_difficulty("veteran")).is_true()
+	MetaProgress.set_difficulty_victories_for_test("soldier", 0)
+	assert_str(MetaProgress.get_selected_difficulty()).append_failure_message("a locked difficulty must fall back to soldier").is_equal("soldier")
+	MetaProgress.apply_selection_to_run_config()
+	assert_str(RunConfig.difficulty_id).is_equal("soldier")
+
+
+func test_hints_seen_persists_and_reconcile_adds_the_key() -> void:
+	assert_bool(MetaProgress.is_hint_seen("dash")).is_false()
+	MetaProgress.mark_hint_seen("dash")
+	MetaProgress.reload_for_test()
+	assert_bool(MetaProgress.is_hint_seen("dash")).is_true()
+	assert_int(int(MetaProgress.get_profile_for_test()["schema_version"])).is_equal(3)
+
+
+func test_preview_settlement_matches_settle_run_with_bosses_victory_and_difficulty() -> void:
+	var summary: Dictionary = {"run_id": "prev_1", "sim_time_seconds": 600.0, "waves_cleared": 15, "kills": 500, "victory": true,
+		"scrap_carried": 55, "elite_kills": 4, "boss_kills": {"warchief": 1, "king": 1}, "difficulty_id": "veteran"}
+	var preview: Dictionary = MetaProgress.preview_settlement(summary)
+	var before: int = MetaProgress.get_cores()
+	var settled: Dictionary = MetaProgress.settle_run(summary)
+	assert_int(int(preview["total_cores"])).is_equal(int(settled["total_cores"]))
+	assert_int(MetaProgress.get_cores() - before).is_equal(int(preview["total_cores"]))
+	assert_int(int(preview["total_cores"])).is_greater(60)
 
 
 # --- Achievements: conditions against the run summary and the profile counters ---------
