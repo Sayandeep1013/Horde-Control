@@ -20,32 +20,54 @@ and spend what each run earns on a permanent skill tree before the next one.
 
 | Title | War Camp | Level-Up Draft |
 |---|---|---|
-| ![Title screen](docs/screenshots/01-title.jpg) | ![The War Camp between runs](docs/screenshots/02-war-camp.jpg) | ![Choose one of three upgrades](docs/screenshots/04-level-up-draft.jpg) |
+| ![Title screen](docs/screenshots/01-title.jpg) | ![The War Camp: difficulty, Battle Skill, loadout](docs/screenshots/02-war-camp.jpg) | ![Choose one of three upgrades](docs/screenshots/04-level-up-draft.jpg) |
 
-| Skill Tree | Results |
+| Patron's Boon | Results |
 |---|---|
-| ![Permanent skill tree](docs/screenshots/05-skill-tree.jpg) | ![Run results and Cores earned](docs/screenshots/06-results.jpg) |
+| ![A run event: pick an Epic card](docs/screenshots/05-patrons-boon.jpg) | ![Run results, damage by source, Cores earned](docs/screenshots/06-results.jpg) |
 
 ## How it plays
 
-- **Two things to keep alive.** You and the Tower each have health. If either falls, the run ends.
-  Some goblins go for the Tower, some hunt you, some switch targets. You cannot guard both corners at once.
-- **Your bow fires on its own.** You move; the archer picks targets. The Tower shoots too.
-- **Level up mid-fight.** Kills drop XP crystals. When the bar fills, the game pauses and you pick one of
-  three upgrades. It applies at once. Cards come as Common, Rare or Epic, and rarer ones get likelier as you level.
-- **Every run counts.** A run pays out **Cores** when it ends, win or lose: for time survived, waves
-  cleared, kills, gold carried and victory. Spend them in the **War Camp** on the Skill Tree.
-- **The Skill Tree** has three branches (Archer, Tower, Fortune). Buying a node reveals its neighbours.
-  Bonuses apply at the start of the next run. Reset refunds everything, free.
-- **Achievements** unlock new upgrade cards, such as Piercing Arrows, Multishot and Tower Volley.
+- **Two things to keep alive.** You and the Tower each have health; if either falls, the run ends.
+  Goblins come in swarms. Some go for the Tower, some hunt you, and some switch targets. They get faster every wave.
+- **A moated island.** The Tower stands inside a water ring with four bridges. The goblins path around rocks and walls and pour over the bridges.
+  Lure them across the spike plates, dash into a powder keg to blow them up, break supply crates, and stand on shrines for short boons.
+- **Your bow fires on its own.**
+  - You move and **dash** (Space, 2 charges).
+  - You fire a **Battle Skill** (E): Arrow Storm, Frost Nova, Firebomb or War Horn.
+  - Standing still builds **Focus**, so you shoot faster.
+  - Standing by the Tower spends Scrap to **repair** it.
+- **Level up mid-fight.** Pick one of three cards. **Abilities** add something new and level up to 5:
+  - player abilities, up to 6 at a time: orbiting axes, blade circle, meteor shower, storm bolt, ricochet, diagonal arrows and more;
+  - Tower add-ons, up to 3: ballista, catapult, frost ward and more.
 
-Eight waves make a full run. Most first runs end sooner.
+  Passives sharpen what you have. Some abilities combo with each other.
+- **Run events**, Archero-style:
+  - an Opening Pick;
+  - a Patron's Boon of Epic cards;
+  - a Sanctuary before each boss (heal yourself, repair the Tower, or get stronger);
+  - a **Blood Pact** after the first boss, where you choose whether you or the Tower pays for the power.
+- **A boss every 5th wave.**
+  - The Goblin Warchief, Gutbarrel the Juggernaut and the Bombardier King.
+  - They attack in telegraphed patterns of charges, bullet spirals and bomb barrages.
+  - Each is open to extra damage for a moment after its big attacks.
+  - Kill the King at wave 15 to win.
+- **Every run counts.** Cores earned win or lose go into the War Camp:
+  - a 30-node **Skill Tree**;
+  - 4 **Champions** that change a rule;
+  - 8 **Relics**;
+  - 19 achievements that unlock new cards.
+
+  Four difficulties, from Recruit to Warlord, and an Endless mode.
+- **The Field Guide**, in the War Camp and the pause menu, explains every ability, enemy, boss and arena object. First-time tips explain each new thing as you meet it, and you can switch them off.
+
+Expect to be overwhelmed on your first runs. That is the point: spend your Cores and come back stronger.
 
 ## Download (Android)
 
-1. Get `HordeControl-v0.3.0.apk`, attached to the [v0.3.0 release](https://github.com/Sayandeep1013/Horde-Control/releases/tag/v0.3.0), on your phone (later releases carry their own `HordeControl-<tag>.apk`).
+1. Get `HordeControl-v1.0.0.apk`, attached to the [v1.0.0 release](https://github.com/Sayandeep1013/Horde-Control/releases/tag/v1.0.0), on your phone (later releases carry their own `HordeControl-<tag>.apk`).
 2. Open it. Android asks once to allow installs from your browser or file manager; allow it, then install.
-3. Play in landscape. Drag on the left half of the screen to move, tap a card to pick an upgrade, use the pause button at the top right.
+3. Play in landscape. Drag on the left half of the screen to move, tap the Dash and Battle Skill buttons on the right, tap a card to pick an upgrade, use the pause button at the top right.
 
 Android 7.0 or newer (the Godot 4.7.1 template's minimum), 64-bit or 32-bit ARM. The app asks for no permissions and never goes online. The APK is built and signed by GitHub Actions from this repository.
 
@@ -63,18 +85,27 @@ Windows 10 or 11, 64-bit. Any GPU that runs Vulkan.
 |---|---|---|
 | Move | WASD or arrow keys | Left stick |
 | Shoot | Automatic | Automatic |
+| Dash | Space or Shift | B / LB |
+| Battle Skill | E, Q or right mouse | Y / RB |
 | Choose an upgrade | A / D or ← / → to move, 1 2 3 to pick directly | D-pad |
 | Confirm | Hold Space or Enter, or click | Hold A |
 | Reroll the upgrades | R | X |
 | Pause | Esc | Start |
 
+Every keyboard binding can be changed in Settings > Controls.
+
 On a phone: drag on the left half of the screen to move (the joystick appears under your thumb), tap a
 card to pick it, tap Reroll to reroll, use the pause button at the top right (Android Back also pauses).
 To see the touch controls on a desktop, launch with `-- --touch-ui`.
 
-Settings (master/music/effects volume with a mute-all toggle, display mode, V-Sync, screen shake,
-damage numbers, movement-only controls) are on the title screen, in the War Camp and in the pause
-menu.
+Settings has five tabs:
+- **Audio:** master, music, effects and interface volume, mute.
+- **Video:** display mode, window size, V-Sync, FPS limit, FPS counter.
+- **Gameplay:** auto-cast Battle Skill, damage numbers, screen-shake strength, overhead bars, pause when unfocused, first-time tips, movement-only controls.
+- **Controls:** key rebinding.
+- **Accessibility:** HUD scale, reduce flashing, enemy outlines.
+
+Settings is reachable from the title screen, the War Camp and the pause menu.
 
 ## Building from source
 
@@ -91,7 +122,7 @@ powershell -File tests/run_tests.ps1 -TestPath "res://tests"
 godot --headless --path . --export-release "Windows Desktop" builds/windows/HordeControl.exe
 ```
 
-The test suite has about 750 cases. One of them, `tests/harness/fail/test_trivial_fail.gd`,
+The test suite has about 1,500 cases. One of them, `tests/harness/fail/test_trivial_fail.gd`,
 fails on purpose to prove the runner reports failures.
 
 ## How it's built
@@ -101,10 +132,14 @@ GDScript, no plugins beyond gdUnit4 for tests.
 ```
 src/core/        SimClock, PauseAuthority, EventBus, EntityRegistry, SimLoop: one ordered tick
 src/director/    Wave Director and the Pressure Metric: what spawns, where, and when
-src/enemy/       three goblin intents (Tower Seeker, Player Hunter, Opportunist), attack slots, animation
+src/enemy/       goblin intents, Bomber, Brute, Shaman, elites, three bosses, bullet patterns
 src/player/      controller, auto-aimed bow, overhead bars
 src/tower/       health and shield, weapon, evolution stages
 src/upgrade/     the Level-Up Draft pool and effects
+src/ability/     abilities, Battle Skills, synergies, Tower repair
+src/arena/       crates, kegs, shrines, spike traps, the moated layout
+src/navigation/  the FlowField the goblins path with
+src/run/         run events (Opening Pick, Patron, Sanctuary, Blood Pact), run config
 src/meta/        MetaProgress: save profile, settlement, skill tree, achievements
 src/environment/ the island: paths, ponds, plateaus, groves, landmarks
 src/ui/          HUD, Draft, War Camp, Skill Tree, menus
@@ -117,15 +152,15 @@ its Provisional Values Register, and every design change has a row in its Review
 
 | | |
 |---|---|
-| Playable prototype | Full run loop, meta progression, Windows build |
-| Content | One island, three enemy types, eight waves, 18 upgrade cards, 20 skill nodes |
-| Next | Elites and a boss, a second biome, balance passes, more cards |
+| v1.0.0 | 15-wave campaign plus Endless, 4 difficulties, 3 bosses, 7 enemy types plus elites, 24 abilities and passives, run events, 30-node Skill Tree, Champions and Relics, Windows and Android |
+| Next | More balance from playtests, a second biome, performance at the very largest swarms (about 34-45 fps on a laptop at 300+ goblins) |
 
 ## Credits
 
 - Art: [Tiny Swords](https://pixelfrog-assets.itch.io/tiny-swords) by Pixel Frog (CC0 edition)
 - Music: "Battle Theme A" by cynicmusic, [OpenGameArt](https://opengameart.org/content/battle-theme-a) (CC0)
-- Sound effects: [Kenney](https://kenney.nl) (CC0)
+- Music: "Town Theme RPG" by cynicmusic, [OpenGameArt](https://opengameart.org/content/town-theme-rpg) (CC0)
+- Sound effects: project-made (tools/audio/make_sfx.py) and [Kenney](https://kenney.nl) (CC0)
 - Font: Jersey 10 by The Soft Type Project Authors (SIL Open Font License 1.1)
 - Engine: [Godot](https://godotengine.org) (MIT)
 

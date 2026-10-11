@@ -1,5 +1,55 @@
 # Next Session — Start Here
 
+## TODO - resume here (updated 2026-10-11, v1.0.0)
+
+**v1.0.0 (2026-10-11).** The author asked to "implement the game itself": difficulty, gameplay loop, skill tree, meaningful abilities, settings, a properly designed HUD, and a releasable build, with free reign. Mid-session they also asked for Archero 2 ideas and gave a playtest round. Everything is merged on main, released as v1.0.0 (Windows exe plus Android APK built by CI).
+
+**Design briefs, in order of authority (later wins):**
+- docs/31_V1_Release_Design.md (v1.0 scope)
+- docs/32_Archero_Adaptation.md (run events, arena objects, Champions/Relics)
+- docs/33_Playtest_Round.md (author's playtest: 10x swarm, smaller moated map, bosses every 5 waves with patterns, bigger abilities, selection clarity, Field Guide)
+
+**Research and reviews:**
+- docs/reviews/2026-10-11_ARCHERO2_RESEARCH.md
+- docs/reviews/2026-10-11_V1_BALANCE_PASS.md
+- Decisions D171-D360 in MASTER_SDLC.md
+
+**What exists now:**
+- **Verbs and abilities:**
+  - Dash (2 charges, 1.5 s), four Battle Skills with auto-cast, Focus, Tower repair with Scrap.
+  - 18 abilities (6 player slots, 3 Tower slots) plus passives, synergies, rarity.
+  - Run events: Opening Pick, Patron's Boon, Sanctuary, Blood Pact.
+- **Enemies and bosses:**
+  - Enemies: Seeker, Hunter, Opportunist, Bomber, Brute, Goblin Shaman, plus elites with 4 affixes.
+  - Bosses with bullet patterns and stagger windows: Warchief (wave 5), Gutbarrel the Juggernaut (wave 10), Bombardier King (wave 15, victory).
+  - About 10x swarms with a per-wave speed ramp.
+- **Map:** a compact moated island with 4 bridges, obstacles, and FlowField pathing. Arena objects: crates, powder kegs, shrines and boons, spike traps.
+- **Meta:**
+  - Skill Tree v2 (30 nodes), 19 achievements, 4 Champions, 8 Relics.
+  - 4 difficulties plus Endless; profile schema 3.
+- **UI:**
+  - Redesigned HUD, tabbed Settings with rebinding.
+  - Selection-state language (focused, selected, locked), large card symbols.
+  - Field Guide and first-time explainers; Results with Retry and damage by source.
+  - Project-made SFX, town theme music.
+- **Tests:** the full suite is 1,496 cases; only the canary fails.
+
+**Open, in priority order:**
+1. **Balance pass 3 was NOT run** (docs/33 §E). The playtest-round numbers are starting values. The swarm agent's quick kite bot died in wave 3, and a cold-started wave 10 drops the Tower in 20 s. Run it with a "human-ish" bot (reaction delay, missed dodges) against the §E targets, fresh and upgraded profiles. IDs D361-D369 are free.
+2. **Performance:** 34-45 fps at 300+ alive on the dev laptop (target 60 at 350). The next step is fallback-ladder step 3 (server-side bodies, MultiMesh) per D341. src/dev/swarm_probe.gd measures it.
+3. **Touch UI:**
+   - The War Camp first-visit hint banner overlaps the wider setup card.
+   - The explainer scroll cap on touch was never re-captured.
+   - The 1280x720 PT-UI captures were never reviewed.
+4. **Ballista** dominates damage share (37-39%); Frost Ward and Flame Arrows were near-useless before the playtest rescale. Re-check after balance pass 3.
+5. **Cosmetic:**
+   - The off-screen Tower arrow overlaps the bottom toast.
+   - "W A S D" key-hint spacing.
+   - Unused files are left in place (old encounter files w05_hunt/w08_boss/w10_siege, ElevationPlateau, SheepFlock, GoblinCamp assets).
+6. **Process:**
+   - Parallel agents left hung bash shells twice (`cat | head` pipes); check `Get-CimInstance Win32_Process` for stale bash.exe.
+   - Worktrees under .claude/worktrees/ can be pruned.
+
 ## TODO - resume here (updated 2026-10-06, v0.3.0)
 
 **v0.3.0 (2026-10-06):** author asked "make the art style more consistent ... feels a bit janky make that feel smooth ... can i play it mobile .. build an apk", then "do not install any android dev kit on my locale .. use github actions". Done on main:

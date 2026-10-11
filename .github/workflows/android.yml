@@ -131,7 +131,7 @@ jobs:
           # Headless has no renderer, so scene_capture skips the PNG but still dumps the tree.
           godot --headless --main-pack build/check.pck res://src/dev/scene_capture.tscn --             --scene=res://scenes/prototype.tscn --frames=5 --out=x             --dump-tree=Main/Environment --meta-profile-dir="$RUNNER_TEMP/meta" > build/tree.txt 2>&1 || true
           grep -E '^TREE ' build/tree.txt | head -3
-          grep -E 'ArenaInstance \(Node2D\).*children=26' build/tree.txt
+          grep -E 'ArenaInstance \(Node2D\).*children=30' build/tree.txt
           rm -f build/check.pck
 
       - name: Export the release APK
@@ -155,8 +155,8 @@ jobs:
           echo "$BADGING" | grep -E "^package:|^sdkVersion|^targetSdkVersion|^application-label:|^native-code" || true
           grep_badging() { echo "$BADGING" | grep -q "$1" || { echo "APK badging is missing: $1"; exit 1; }; }
           grep_badging "name='com.sayandeep1013.hordecontrol'"
-          grep_badging "versionCode='3'"
-          grep_badging "versionName='0.3.0'"
+          grep_badging "versionCode='4'"
+          grep_badging "versionName='1.0.0'"
           PERMS="$("$BT/aapt2" dump permissions build/HordeControl.apk || true)"
           echo "$PERMS"
           if echo "$PERMS" | grep -q "android.permission.INTERNET"; then
