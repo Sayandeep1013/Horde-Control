@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/attack_profile.gd" id="1_attack"]
+[ext_resource type="Script" path="res://src/data/banded_value.gd" id="2_band"]
+[ext_resource type="Script" path="res://src/data/drop_table.gd" id="3_drop"]
+[ext_resource type="Script" path="res://src/data/movement_profile.gd" id="4_move"]
+[ext_resource type="Script" path="res://src/data/readability_profile.gd" id="5_read"]
+[ext_resource type="Script" path="res://src/data/enemy_definition.gd" id="6_def"]
+[ext_resource type="Script" path="res://src/data/telegraph_data.gd" id="7_tele"]
+
+; Bomber (docs/31 5.1): ranged dynamite thrower, intent player.
+; Every number below is Register "v1.0 Enemies, Bosses & Waves" > "Bomber"
+; (decision D171 for the roster, D210-D212 for the values).
+
+[sub_resource type="Resource" id="Resource_attack"]
+script = ExtResource("1_attack")
+attack_type = 1
+damage_per_hit_or_tick = 22
+cycle_or_tick_interval_seconds = 3.0
+reach_or_range_px = 300
+
+[sub_resource type="Resource" id="Resource_health"]
+script = ExtResource("2_band")
+value = 40
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("2_band")
+value = 22
+
+[sub_resource type="Resource" id="Resource_drop"]
+script = ExtResource("3_drop")
+xp_shards = 2
+scrap = 1
+cores = 0
+
+[sub_resource type="Resource" id="Resource_move"]
+script = ExtResource("4_move")
+speed_multiplier = 0.6
+body_radius_px = 12
+
+[sub_resource type="Resource" id="Resource_readability"]
+script = ExtResource("5_read")
+silhouette_class = 0
+reserved_colour = Color(0.62, 0.55, 0.78, 1)
+minimum_on_screen_size_px = 24
+
+[sub_resource type="Resource" id="Resource_telegraph"]
+script = ExtResource("7_tele")
+windup_duration_seconds = 1.0
+telegraph_shape = 3
+telegraph_colour = Color(0.62, 0.55, 0.78, 1)
+audio_cue_id = "boss_slam"
+lead_time_seconds = 1.0
+
+[resource]
+script = ExtResource("6_def")
+unique_id = "bomber"
+target_intent = 1
+movement_profile = SubResource("Resource_move")
+attack_profile = SubResource("Resource_attack")
+telegraph_data = SubResource("Resource_telegraph")
+health_band = SubResource("Resource_health")
+damage_band = SubResource("Resource_damage")
+contact_behaviour = 0
+pathing_fallback_behavior = 0
+entity_cap_weight = 1
+elite_eligibility = true
+allowed_affixes = Array[String](["swift", "armored", "volatile", "vampiric"])
+biome_tags = Array[String]([])
+readability_profile = SubResource("Resource_readability")
+drop_table = SubResource("Resource_drop")

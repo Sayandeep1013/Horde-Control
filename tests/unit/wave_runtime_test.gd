@@ -61,6 +61,7 @@ func _build_director(waves: Array[WaveDefinition], encounters: Array[EncounterDe
 	_spawners.append(spawner)
 
 	var director: WaveDirector = auto_free(WaveDirectorScript.new()) as WaveDirector
+	director.use_legacy_prototype_sequence_for_test() # v1.0: mechanism suite, authored against the eight-wave prototype fixtures
 	director.driven_externally = true
 	director.run_seed = 4242
 	add_child(director)

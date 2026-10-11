@@ -1,0 +1,107 @@
+[gd_scene load_steps=18 format=3]
+
+[ext_resource type="Script" path="res://src/enemy/enemy_controller.gd" id="1_body"]
+[ext_resource type="Script" path="res://src/combat/hurtbox.gd" id="2_hurtbox"]
+[ext_resource type="Script" path="res://src/combat/hitbox.gd" id="3_hitbox"]
+[ext_resource type="Script" path="res://src/combat/death_state.gd" id="4_death"]
+[ext_resource type="Resource" path="res://data/enemies/bomber.tres" id="5_def"]
+[ext_resource type="Script" path="res://src/enemy/telegraph_visual.gd" id="6_telegraph"]
+[ext_resource type="Texture2D" path="res://assets/ui/telegraph_exclaim.png" id="7_diamond"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_hit.ogg" id="8_hit"]
+[ext_resource type="AudioStream" path="res://assets/third_party/kenney/audio/sfx/enemy_death.ogg" id="9_death_sfx"]
+[ext_resource type="Script" path="res://src/enemy/enemy_animator.gd" id="11_animator"]
+[ext_resource type="SpriteFrames" path="res://assets/sprite_frames/tower_seeker.tres" id="30_seeker_frames"]
+[ext_resource type="SpriteFrames" path="res://assets/sprite_frames/player_hunter.tres" id="12_frames"]
+[ext_resource type="Texture2D" path="res://assets/third_party/tiny_swords/Derived/shadow_unit.png" id="13_shadow"]
+[ext_resource type="Script" path="res://src/enemy/enemy_health_bar.gd" id="14_health_bar"]
+[ext_resource type="Script" path="res://src/enemy/bomber_behavior.gd" id="40_behavior"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+radius = 12.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hurtbox"]
+radius = 12.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hitbox"]
+radius = 18.0
+
+; v1.0 Bomber (docs/31 5.1): TNT goblin sheet, darker black-powder modulate. Ranged; src/enemy/bomber_behavior.gd drives it.
+[node name="Bomber" type="CharacterBody2D"]
+script = ExtResource("1_body")
+definition = ExtResource("5_def")
+hit_sfx = ExtResource("8_hit")
+death_sfx = ExtResource("9_death_sfx")
+
+[node name="BodyShape" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_body")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+script = ExtResource("2_hurtbox")
+faction = 1
+
+[node name="HurtboxShape" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("CircleShape2D_hurtbox")
+
+[node name="Hitbox" type="Area2D" parent="."]
+script = ExtResource("3_hitbox")
+damage = 22.0
+targets_tower = false
+
+[node name="HitboxShape" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("CircleShape2D_hitbox")
+disabled = true
+
+; visual_death_duration = 0.5 -- NO REGISTER ROW, NO Enemy Definition
+; Contract field -- escalated. See tower_seeker.tscn's identical note and
+; the P2.5 evidence report, "Escalations".
+[node name="DeathState" type="Node" parent="."]
+script = ExtResource("4_death")
+hitbox_paths = [NodePath("../Hitbox")]
+hurtbox_paths = [NodePath("../Hurtbox")]
+body_path = NodePath("..")
+registry_entity_path = NodePath("..")
+visual_death_duration = 0.5
+
+[node name="TelegraphVisual" type="Node2D" parent="."]
+script = ExtResource("6_telegraph")
+texture = ExtResource("7_diamond")
+
+; Art session (D102 follow-up): Tiny Swords CC0 (TNT_Yellow.png) replaces
+; the earlier generated placeholder -- src/enemy/enemy_animator.gd drives
+; idle/run/strike/hit-flash/death state (strike cued from attack_resolved,
+; not windup_started -- this enemy's Contact attack has a 0.0s wind-up);
+; scenes/fx/death_fx.tscn carries the skull fall+dissolve past this enemy's
+; own 0.5s Visual Death window (see that file's own header). Reserved
+; colour (yellow) unchanged from the placeholder mapping. No z_index here:
+; the `Entities` container supplies z_index 20 and the Y-sort group
+; (docs/20 > Scene Tree; Register > Readability).
+[node name="Visuals" type="Node2D" parent="."]
+script = ExtResource("11_animator")
+scale = Vector2(1.0, 1.0)
+converted_sprite_frames = ExtResource("30_seeker_frames")
+converted_directional_strike = true
+converted_sprite_offset = Vector2(0, -37)
+
+[node name="Shadow" type="Sprite2D" parent="Visuals"]
+position = Vector2(0, 2)
+texture = ExtResource("13_shadow")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Visuals"]
+modulate = Color(0.62, 0.55, 0.78, 1)
+texture_filter = 1
+sprite_frames = ExtResource("12_frames")
+animation = &"idle"
+offset = Vector2(0, -38)
+
+; Hit-feedback pass. src/enemy/enemy_health_bar.gd -- head measured off this
+; enemy's own idle frame (TNT_Yellow.png, 192px frame, AnimatedSprite2D
+; offset -38 above): the character's own pixels top out ~67px above the
+; body origin, so -76 clears the dynamite-goblin's head with a small margin.
+; A sibling of DeathState (not a child of Visuals) so it never inherits
+; sprite flip/squash.
+[node name="HealthBar" type="Node2D" parent="."]
+script = ExtResource("14_health_bar")
+vertical_offset = -76
+
+[node name="Behavior" type="Node" parent="."]
+script = ExtResource("40_behavior")

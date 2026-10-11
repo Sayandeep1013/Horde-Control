@@ -144,6 +144,10 @@ signal damage_applied(amount: float, source: Variant, remaining_hp: float)
 @export var registry_entity_path: NodePath
 
 var current_hp: float = 0.0
+## v1.0 (WP-ENEMIES, Register "v1.0 Enemies, Bosses & Waves"): Armored elites
+## take 0.6x from hurtbox hits. Applies only to hits routed through the
+## hurtbox signal, never to kill().
+var damage_taken_multiplier: float = 1.0
 var is_dead: bool = false
 
 var _hitboxes: Array[Hitbox] = []
@@ -197,7 +201,7 @@ func _resolve_refs() -> void:
 
 
 func _on_hurtbox_damage_received(amount: float, source: Variant, _hitbox: Node) -> void:
-	apply_damage(amount, source)
+	apply_damage(amount * damage_taken_multiplier, source)
 
 
 ## Typed command (docs/20 named example shape: "Health.apply_damage(amount,

@@ -120,6 +120,10 @@ var _squash_tween: Tween = null
 ## `apply_damage()`) -- can reuse the exact same direction for the bigger
 ## death burst/splat instead of picking a fresh random one.
 var _last_hit_direction: Vector2 = Vector2.ZERO
+## v1.0: the sprite's resting tint (Bomber, Brute, bosses author a dark/tinted
+## modulate in the scene) and an overall visual scale (elites 1.18x).
+var _base_modulate: Color = Color.WHITE
+var _base_scale: Vector2 = Vector2.ONE
 
 
 func _ready() -> void:
@@ -136,6 +140,9 @@ func _ready() -> void:
 		if _sprite.sprite_frames != null and _sprite.sprite_frames.has_animation(&"idle"):
 			_sprite.play(&"idle")
 
+	if _sprite != null:
+		_base_modulate = _sprite.modulate
+	_base_scale = scale
 	if _sprite != null:
 		_original_sprite_frames = _sprite.sprite_frames
 		_original_sprite_offset = _sprite.offset
@@ -268,7 +275,7 @@ func _on_damage_applied(amount: float, source: Variant, remaining_hp: float) -> 
 			_flash_tween.kill()
 		_sprite.modulate = HIT_FLASH_COLOUR
 		_flash_tween = _sprite.create_tween() # cosmetic-only Node.create_tween(), not gameplay timing (see CLAUDE.md banned-API rule)
-		_flash_tween.tween_property(_sprite, "modulate", Color.WHITE, HIT_FLASH_DURATION_SECONDS)
+		_flash_tween.tween_property(_sprite, "modulate", _base_modulate, HIT_FLASH_DURATION_SECONDS)
 
 	if _controller == null:
 		return
@@ -287,10 +294,10 @@ func _on_damage_applied(amount: float, source: Variant, remaining_hp: float) -> 
 func _apply_hit_squash() -> void:
 	if _squash_tween != null and _squash_tween.is_valid():
 		_squash_tween.kill() # a rapid second hit restarts the squash rather than competing with the first (same precedent as _flash_tween above)
-	scale = Vector2.ONE
+	scale = _base_scale
 	_squash_tween = create_tween() # cosmetic-only Node.create_tween()
-	_squash_tween.tween_property(self, "scale", HIT_SQUASH_SCALE, HIT_SQUASH_DURATION_SECONDS * 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_squash_tween.tween_property(self, "scale", Vector2.ONE, HIT_SQUASH_DURATION_SECONDS * 0.65).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_squash_tween.tween_property(self, "scale", _base_scale * HIT_SQUASH_SCALE, HIT_SQUASH_DURATION_SECONDS * 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_squash_tween.tween_property(self, "scale", _base_scale, HIT_SQUASH_DURATION_SECONDS * 0.65).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## `death_state.gd`'s own `logical_death` signal -- fires once, synchronously,
@@ -312,9 +319,9 @@ func _on_death_visuals() -> void:
 		_flash_tween.kill()
 	if _squash_tween != null and _squash_tween.is_valid():
 		_squash_tween.kill()
-	scale = Vector2.ONE
+	scale = _base_scale
 	if _sprite != null:
-		_sprite.modulate = Color.WHITE
+		_sprite.modulate = _base_modulate
 		if death_animation != &"" and _sprite.sprite_frames != null and _sprite.sprite_frames.has_animation(death_animation):
 			_sprite.speed_scale = 1.0
 			_sprite.play(death_animation)
@@ -346,13 +353,13 @@ func _restore_alive_visuals() -> void:
 	_restore_original_art()
 	_striking = false
 	_last_flip_clock = -1000.0 # a reused instance may flip at once on its first heading
-	scale = Vector2.ONE # defensive: _on_death_visuals() already does this, but a reused instance must never start life mid-squash
+	scale = _base_scale # defensive: _on_death_visuals() already does this, but a reused instance must never start life mid-squash
 	if _squash_tween != null and _squash_tween.is_valid():
 		_squash_tween.kill()
 	_last_hit_direction = Vector2.ZERO
 	if _sprite != null:
 		_sprite.visible = true
-		_sprite.modulate = Color.WHITE
+		_sprite.modulate = _base_modulate
 		_sprite.speed_scale = 1.0
 		if _sprite.sprite_frames != null and _sprite.sprite_frames.has_animation(&"idle"):
 			_sprite.play(&"idle")
@@ -382,3 +389,17 @@ func _spawn_death_fx(position: Vector2) -> void:
 	fx.position = container.to_local(position) if container is Node2D else position # D169: placed before it enters the tree
 	container.add_child(fx)
 	fx.reset_physics_interpolation()
+
+
+## v1.0: elites render larger (docs/31 §5.2). Squash and death resets use this
+## as their rest scale.
+func set_visual_scale(factor: float) -> void:
+	_base_scale = Vector2(factor, factor)
+	scale = _base_scale
+
+
+## v1.0: boss enrage and similar tints.
+func set_base_modulate(color: Color) -> void:
+	_base_modulate = color
+	if _sprite != null:
+		_sprite.modulate = color

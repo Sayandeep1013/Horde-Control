@@ -97,6 +97,7 @@ func before_test() -> void:
 	add_child(_stats)
 
 	_director = auto_free(WaveDirectorScript.new()) as WaveDirector
+	_director.use_legacy_prototype_sequence_for_test() # v1.0: mechanism suite, authored against the eight-wave prototype fixtures
 	_director.driven_externally = true
 	_director.run_seed = 7
 	add_child(_director)
@@ -543,6 +544,7 @@ func _run_baseline_fixture_and_get_emitted_count(window_seconds: float) -> int:
 	add_child(stats_b)
 
 	var director_b: WaveDirector = auto_free(WaveDirectorScript.new()) as WaveDirector
+	director_b.use_legacy_prototype_sequence_for_test() # v1.0: mechanism suite, authored against the eight-wave prototype fixtures
 	director_b.driven_externally = true
 	add_child(director_b)
 	director_b.set_registry_for_test(registry_b)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=29 format=3]
 
 [ext_resource type="Script" path="res://src/integration/prototype_integration.gd" id="1_integration"]
 [ext_resource type="PackedScene" path="res://scenes/main.tscn" id="2_main"]
@@ -25,6 +25,10 @@
 [ext_resource type="Script" path="res://src/audio/music_player.gd" id="24_musicplayer"]
 [ext_resource type="AudioStream" path="res://assets/third_party/opengameart/music/battle_theme_a.ogg" id="25_musicstream"]
 [ext_resource type="Script" path="res://src/ui/touch_controls.gd" id="26_touch"]
+[ext_resource type="PackedScene" path="res://scenes/entities/bomber.tscn" id="27_bomber"]
+[ext_resource type="PackedScene" path="res://scenes/entities/brute.tscn" id="28_brute"]
+[ext_resource type="PackedScene" path="res://scenes/entities/goblin_warchief.tscn" id="29_warchief"]
+[ext_resource type="PackedScene" path="res://scenes/entities/bombardier_king.tscn" id="30_king"]
 
 [node name="Prototype" type="Node2D"]
 script = ExtResource("1_integration")
@@ -134,6 +138,10 @@ debug_overlay_path = NodePath("../../DebugOverlay")
 tower_seeker_scene = ExtResource("7_seeker")
 player_hunter_scene = ExtResource("8_hunter")
 opportunist_scene = ExtResource("9_opportunist")
+bomber_scene = ExtResource("27_bomber")
+brute_scene = ExtResource("28_brute")
+warchief_scene = ExtResource("29_warchief")
+king_scene = ExtResource("30_king")
 
 ; Integration task (F04-11/F04-12, F05-07). PickupSystem: the pool of
 ; XP/Scrap drops, magnet attraction, collection and the run's Scrap/XP/

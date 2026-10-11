@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="PickupDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/merge_rule.gd" id="1_merge"]
+[ext_resource type="Script" path="res://src/data/visual_audio_cue.gd" id="2_visual"]
+[ext_resource type="Script" path="res://src/data/pickup_definition.gd" id="3_def"]
+
+; v1.0 (WP-ENEMIES, decision D213). War Chest: boss drop; collecting it opens a Rare+ Draft.
+; Register "v1.0 Enemies, Bosses & Waves" > "War Chest". magnet_behaviour = 1
+; (Static): never magnetised, the player walks onto it.
+[sub_resource type="Resource" id="Resource_merge"]
+script = ExtResource("1_merge")
+trigger = "at pickup cap"
+same_type_only = true
+resulting_behaviour = "sum into nearest same-type neighbour within radius, else expire oldest of that type"
+
+[sub_resource type="Resource" id="Resource_visual"]
+script = ExtResource("2_visual")
+sprite_reference = "res://assets/sprites/v1/war_chest.png"
+audio_cue_id = "chest_open"
+
+[resource]
+script = ExtResource("3_def")
+unique_id = "pickup_war_chest"
+pickup_type = 4
+value = 1
+magnet_behaviour = 1
+merge_rule = SubResource("Resource_merge")
+lifetime_seconds = 90.0
+visual_audio_cue = SubResource("Resource_visual")

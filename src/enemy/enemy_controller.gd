@@ -108,6 +108,22 @@ signal converted_to_tower_seeker()
 signal target_switched(new_target: Node2D)
 signal removed_while_stuck(position: Vector2, drop_table: DropTable)
 
+# --- v1.0 (WP-ENEMIES) constants: Register "v1.0 Enemies, Bosses & Waves" ---
+const ELITE_HP_MULTIPLIER: float = 3.2
+const ELITE_DAMAGE_MULTIPLIER: float = 1.3
+const ELITE_SCALE: float = 1.18
+const ELITE_SWIFT_SPEED_MULTIPLIER: float = 1.45
+const ELITE_ARMORED_DAMAGE_TAKEN: float = 0.6
+const ELITE_VOLATILE_TELEGRAPH_SECONDS: float = 0.7
+const ELITE_VOLATILE_RADIUS_PX: float = 90.0
+const ELITE_VOLATILE_DAMAGE: float = 35.0
+const ELITE_VAMPIRIC_LEECH_FRACTION: float = 0.25
+const AFFIXES: Array[String] = ["swift", "armored", "volatile", "vampiric"]
+const OUTLINE_SHADER_PATH: String = "res://assets/shaders/enemy_outline.gdshader"
+const ELITE_GOLD: Color = Color(1.0, 0.82, 0.2, 1.0)
+const ELITE_RED: Color = Color(1.0, 0.2, 0.15, 1.0)
+const STATUS_EFFECTS_PATH: String = "res://src/combat/status_effects.gd"
+
 ## Set true by a future SimLoop integration task once sim_loop.gd's step 3
 ## calls into this controller directly; see header.
 @export var driven_externally: bool = false
@@ -156,6 +172,12 @@ var _audio_pool: Node = null
 @export var hitbox_path: NodePath = NodePath("Hitbox")
 @export var hitbox_shape_path: NodePath = NodePath("Hitbox/HitboxShape")
 @export var death_state_path: NodePath = NodePath("DeathState")
+## v1.0: optional archetype behaviour (Bomber, bosses) -- see enemy_behavior.gd.
+@export var behavior_path: NodePath = NodePath("Behavior")
+## v1.0 status-effect immunities (docs/31 §4.5): bosses are freeze-immune,
+## Brutes take a slow instead of a freeze. Forwarded to StatusEffects (WP-COMBAT).
+@export var freeze_immune: bool = false
+@export var freeze_becomes_slow: bool = false
 
 var body_shape: CollisionShape2D = null
 var hurtbox: Hurtbox = null
@@ -163,6 +185,13 @@ var hurtbox_shape: CollisionShape2D = null
 var hitbox: Hitbox = null
 var hitbox_shape: CollisionShape2D = null
 var death_state: DeathState = null
+var behavior: EnemyBehavior = null
+
+## v1.0 elite / boss identity. "" = not an elite / not a boss.
+var elite_affix: String = ""
+var boss_id: String = ""
+var _speed_multiplier: float = 1.0
+var _pool_released: bool = false
 
 var current_intent: ContractEnums.TargetIntent = ContractEnums.TargetIntent.TowerSeeker
 
@@ -245,6 +274,7 @@ func _ready() -> void:
 	hitbox = get_node_or_null(hitbox_path) as Hitbox
 	hitbox_shape = get_node_or_null(hitbox_shape_path) as CollisionShape2D
 	death_state = get_node_or_null(death_state_path) as DeathState
+	behavior = get_node_or_null(behavior_path) as EnemyBehavior
 
 	if hitbox != null:
 		hitbox.owner_entity = self
@@ -260,6 +290,7 @@ func _ready() -> void:
 		# task's do-not-touch list; this only connects to its already-public
 		# `logical_death` signal from a file that IS in scope.
 		death_state.logical_death.connect(_on_own_logical_death)
+		death_state.visual_death_finished.connect(_on_visual_death_finished)
 
 	if _registry == null:
 		_registry = EntityRegistry
@@ -278,6 +309,10 @@ func _ready() -> void:
 	_register_with_entity_registry()
 	_configured = definition != null and tuning != null
 	call_deferred(&"_resolve_sim_loop_and_register")
+	if behavior != null:
+		behavior.bind(self)
+	_apply_status_immunities()
+	refresh_outline()
 
 
 ## F03-09: registers this controller with SimLoop's step 3 (enemy AI and
@@ -388,7 +423,7 @@ func _apply_definition(preserved_hp: float = -1.0) -> void:
 		else:
 			death_state.reset_for_reuse()
 
-	if current_intent == ContractEnums.TargetIntent.PlayerHunter and not is_finisher:
+	if current_intent == ContractEnums.TargetIntent.PlayerHunter and not is_finisher and behavior == null:
 		_leash_deadline = _now() + tuning.leash_timeout_seconds
 	else:
 		_leash_deadline = -1.0
@@ -408,10 +443,20 @@ func set_wave_scaling(hp_multiplier: float, damage_multiplier: float, hunter_dam
 		var base_hp: float = float(definition.health_band.value)
 		death_state.max_hp = base_hp * _hp_multiplier
 		death_state.current_hp = death_state.max_hp
+	_push_hitbox_damage()
+
+
+func _push_hitbox_damage() -> void:
 	if hitbox != null:
 		if _base_hitbox_damage < 0.0:
 			_base_hitbox_damage = hitbox.damage
 		hitbox.damage = _base_hitbox_damage * _damage_multiplier
+
+
+## v1.0: the damage multiplier behaviours scale their own attacks by (wave x
+## difficulty x elite).
+func get_damage_multiplier() -> float:
+	return _damage_multiplier
 
 
 static func _set_circle_radius(shape_node: CollisionShape2D, radius: float) -> void:
@@ -427,7 +472,7 @@ func _now() -> float:
 func _current_speed() -> float:
 	var multiplier: float = definition.movement_profile.speed_multiplier if definition != null and definition.movement_profile != null else 0.0
 	var base_speed: float = player_definition_for_speed_reference.base_speed_px_per_second if player_definition_for_speed_reference != null else 0.0
-	return base_speed * multiplier
+	return base_speed * multiplier * _speed_multiplier
 
 
 func _body_radius() -> float:
@@ -552,6 +597,9 @@ func physics_step(delta: float) -> void:
 	_resolve_player_reference()
 	_resolve_tower_reference()
 
+	if behavior != null and behavior.pre_step(delta):
+		return # v1.0: the behaviour drove this tick (Bomber, boss attack states)
+
 	if current_intent == ContractEnums.TargetIntent.PlayerHunter:
 		_update_leash()
 		if _stuck_despawned or (death_state != null and death_state.is_dead):
@@ -576,7 +624,8 @@ func physics_step(delta: float) -> void:
 	if not in_attack_range and not _direct_approach:
 		plan = _compute_slot_plan(target, _target_radius(target))
 
-	_update_stuck_tracking(target, in_attack_range, plan)
+	if boss_id == "":
+		_update_stuck_tracking(target, in_attack_range, plan) # bosses are never stuck-despawned
 	if _stuck_despawned:
 		return
 
@@ -592,7 +641,10 @@ func physics_step(delta: float) -> void:
 		var desired: Vector2 = _desired_position(target, plan)
 		_apply_movement(desired, _current_speed())
 
-	_process_attack_cycle(in_attack_range, target)
+	if behavior == null or not behavior.suppress_default_attack():
+		_process_attack_cycle(in_attack_range, target)
+	if behavior != null:
+		behavior.post_step(delta, in_attack_range, target)
 
 
 func _resolve_player_reference() -> void:
@@ -634,6 +686,10 @@ func _resolve_tower_reference() -> void:
 ## (always the Tower) and Player Hunter (always the player); sticky,
 ## event-driven memory only for the Opportunist (`_opportunist_target`).
 func _get_current_target() -> Node2D:
+	if behavior != null:
+		var overridden: Node2D = behavior.override_target()
+		if overridden != null and is_instance_valid(overridden):
+			return overridden
 	match current_intent:
 		ContractEnums.TargetIntent.TowerSeeker:
 			return _tower
@@ -943,7 +999,7 @@ func _despawn_due_to_stuck(target: Node2D) -> void:
 	# extend, so this local signal is what a future pickup/wave-completion
 	# system connects to once it exists. Named as an Escalation.
 	removed_while_stuck.emit(global_position, definition.drop_table if definition != null else null)
-	queue_free()
+	_discard_self(true)
 
 
 # --- Attack cycle (Melee wind-up and Contact tick share one model) --------
@@ -1002,6 +1058,8 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D) -> void:
 ## false`), so any landed hit while still a Hunter is, by construction, a
 ## hit on the player.
 func _on_hitbox_hit_landed(_hurtbox: Hurtbox, _damage: float, _source: Variant) -> void:
+	if elite_affix == "vampiric" and death_state != null and not death_state.is_dead:
+		death_state.current_hp = minf(death_state.max_hp, death_state.current_hp + _damage * ELITE_VAMPIRIC_LEECH_FRACTION)
 	if current_intent == ContractEnums.TargetIntent.PlayerHunter and not is_finisher and death_state != null and not death_state.is_dead:
 		_leash_deadline = _now() + tuning.leash_timeout_seconds
 		_leash_telegraph_active = false
@@ -1116,6 +1174,7 @@ func _on_opportunist_target_died(_entity: Node2D, _position: Vector2) -> void:
 ## Integration task: THIS enemy's own death (see the `_ready()` connection
 ## comment above for how this differs from `_on_opportunist_target_died`).
 func _on_own_logical_death(_entity: Node2D, position: Vector2) -> void:
+	_v1_on_death(position)
 	if _audio_pool != null and death_sfx != null and _audio_pool.has_method("play"):
 		_audio_pool.play(death_sfx, position, 0, false, "SFX")
 	# F03-09: unregister as this enemy dies -- physics_step() already
@@ -1193,3 +1252,144 @@ static func _is_target_dead(target: Node2D) -> bool:
 		return true
 	var ds: Variant = target.get("death_state")
 	return ds is DeathState and (ds as DeathState).is_dead
+
+
+# --- v1.0 (WP-ENEMIES): behaviour drive helpers, elites, outline, release ----
+
+func get_player() -> Node2D:
+	return _player if _player != null and is_instance_valid(_player) else null
+
+
+func get_tower() -> Node2D:
+	return _tower if _tower != null and is_instance_valid(_tower) else null
+
+
+func get_registry() -> Node:
+	return _registry
+
+
+func get_clock() -> Node:
+	return _clock
+
+
+func get_base_speed() -> float:
+	return _current_speed()
+
+
+func get_body_radius() -> float:
+	return _body_radius()
+
+
+## Seek `desired_position` with the normal separation steering; `speed_scale`
+## scales the definition speed (Bomber retreat, King orbit).
+func drive_toward(desired_position: Vector2, speed_scale: float = 1.0) -> void:
+	_apply_movement(desired_position, _current_speed() * speed_scale)
+
+
+func hold_position() -> void:
+	velocity = Vector2.ZERO
+	move_and_slide()
+	if _registry != null:
+		_registry.update_position(self, global_position)
+
+
+func drive_velocity(new_velocity: Vector2) -> void:
+	velocity = new_velocity
+	move_and_slide()
+	if _registry != null:
+		_registry.update_position(self, global_position)
+
+
+func is_elite() -> bool:
+	return elite_affix != ""
+
+
+## docs/31 §5.2: x3.2 HP, x1.3 damage, x1.18 scale, outline and one affix.
+## Called by the Wave Director after set_wave_scaling().
+func apply_elite(affix: String) -> void:
+	if not AFFIXES.has(affix) or death_state == null or definition == null or elite_affix != "":
+		return
+	elite_affix = affix
+	_hp_multiplier *= ELITE_HP_MULTIPLIER
+	_damage_multiplier *= ELITE_DAMAGE_MULTIPLIER
+	if definition.health_band != null:
+		death_state.max_hp = float(definition.health_band.value) * _hp_multiplier
+		death_state.current_hp = death_state.max_hp
+	_push_hitbox_damage()
+	if affix == "swift":
+		_speed_multiplier = ELITE_SWIFT_SPEED_MULTIPLIER
+	elif affix == "armored":
+		death_state.damage_taken_multiplier = ELITE_ARMORED_DAMAGE_TAKEN
+	var visuals: Node = get_node_or_null("Visuals")
+	if visuals is EnemyAnimator:
+		(visuals as EnemyAnimator).set_visual_scale(ELITE_SCALE)
+	refresh_outline()
+
+
+## Elite outline (gold, red for Vampiric) wins over the accessibility outline
+## (steady 1 px in the enemy's reserved intent colour); neither -> no material.
+func refresh_outline() -> void:
+	var sprite: AnimatedSprite2D = get_node_or_null("Visuals/AnimatedSprite2D") as AnimatedSprite2D
+	if sprite == null:
+		return
+	var color: Color = Color.WHITE
+	var width: float = 1.0
+	var pulse_speed: float = 0.0
+	var pulse_amount: float = 0.0
+	if elite_affix != "":
+		color = ELITE_RED if elite_affix == "vampiric" else ELITE_GOLD
+		width = 1.5
+		pulse_speed = 4.0
+		pulse_amount = 0.45
+	elif GameSettings.is_enemy_outlines():
+		if definition != null and definition.readability_profile != null:
+			color = definition.readability_profile.reserved_colour
+	else:
+		sprite.material = null
+		return
+	var mat := ShaderMaterial.new()
+	mat.shader = load(OUTLINE_SHADER_PATH) as Shader
+	mat.set_shader_parameter("outline_color", color)
+	mat.set_shader_parameter("outline_width", width)
+	mat.set_shader_parameter("pulse_speed", pulse_speed)
+	mat.set_shader_parameter("pulse_amount", pulse_amount)
+	sprite.material = mat
+
+
+## WP-COMBAT owns StatusEffects (src/combat/status_effects.gd). Looked up by
+## path so this file compiles and runs with or without it.
+func _apply_status_immunities() -> void:
+	if not (freeze_immune or freeze_becomes_slow) or not ResourceLoader.exists(STATUS_EFFECTS_PATH):
+		return
+	var script: Script = load(STATUS_EFFECTS_PATH) as Script
+	if script != null and script.has_method(&"set_immunities"):
+		script.call(&"set_immunities", self, freeze_immune, freeze_becomes_slow)
+
+
+func _v1_on_death(position: Vector2) -> void:
+	CombatStats.add_run_counter("kills", 1.0)
+	if elite_affix != "":
+		CombatStats.add_run_counter("elite_kills", 1.0)
+		CombatStats.add_run_counter("field_cores", 1.0) # elite Core banks at once (Cores rule)
+		EventBus.emit_elite_killed(self, elite_affix)
+		var parent: Node = get_parent()
+		if elite_affix == "volatile" and parent != null:
+			var bomb: EnemyBomb = EnemyBomb.launch(parent, position, position, ELITE_VOLATILE_TELEGRAPH_SECONDS, ELITE_VOLATILE_RADIUS_PX, ELITE_VOLATILE_DAMAGE * _damage_multiplier, false, null, _clock, _registry)
+			bomb.telegraph_color = Color(1.0, 0.55, 0.1)
+	if behavior != null:
+		behavior.on_death()
+
+
+func _on_visual_death_finished(_entity: Node2D) -> void:
+	_discard_self(false)
+
+
+## Gives this enemy's pool slot back and frees it (EntitySpawner.discard_enemy).
+## Without a spawner in the tree (isolated unit tests) a dead enemy is left in
+## place as before; `force_free` makes the stuck-despawn path still free it.
+func _discard_self(force_free: bool) -> void:
+	var spawner: Node = get_tree().get_first_node_in_group(&"entity_spawner") if is_inside_tree() else null
+	if spawner != null and spawner.has_method(&"discard_enemy") and spawner.discard_enemy(self):
+		return
+	if force_free:
+		queue_free()

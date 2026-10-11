@@ -181,6 +181,21 @@ func release(instance: Node) -> bool:
 ## owns, active or free, so a test suite does not leak orphan nodes across
 ## test functions. Never called by gameplay code -- gameplay-owned
 ## instances live for the lifetime of the pool.
+## v1.0 (WP-ENEMIES): drops an active instance for good instead of parking it
+## on the free list. Enemies use this because the free list is not
+## archetype-aware (a recycled Hunter could be handed back as a Brute) and a
+## dead enemy that is never released would hold a MAX_ENEMIES slot forever.
+func discard(instance: Node) -> bool:
+	var idx: int = _active.find(instance)
+	if idx == -1:
+		return false
+	_active.remove_at(idx)
+	_baseline.erase(instance)
+	if is_instance_valid(instance):
+		instance.queue_free()
+	return true
+
+
 func clear_for_test() -> void:
 	for n in _active:
 		if is_instance_valid(n):

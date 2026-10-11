@@ -63,6 +63,7 @@ var _high_intensity_vfx_pool: Pool
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_to_group(&"entity_spawner")
 	_registry = EntityRegistry
 	_build_pools()
 
@@ -125,6 +126,14 @@ func despawn_enemy(instance: Node) -> bool:
 	if _registry != null:
 		_registry.deregister_entity(instance)
 	return _enemy_pool.release(instance)
+
+
+## v1.0: deregisters and frees a finished enemy and gives its pool slot back
+## (see Pool.discard()).
+func discard_enemy(instance: Node) -> bool:
+	if _registry != null:
+		_registry.deregister_entity(instance)
+	return _enemy_pool.discard(instance)
 
 
 func get_enemy_count() -> int:

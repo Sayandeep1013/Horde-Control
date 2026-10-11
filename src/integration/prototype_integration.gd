@@ -142,6 +142,7 @@ func _ready() -> void:
 			_enemies.append(enemy)
 
 	run_seed = resolve_run_seed(run_seed, OS.get_cmdline_user_args())
+	CombatStats.reset_run_stats() # v1.0: per-run damage-by-source and counters start at zero
 	_apply_meta_loadout()
 	_wire_hud()
 	_wire_overhead_bars()
@@ -189,9 +190,23 @@ func _apply_meta_loadout() -> void:
 ## flipped here, at runtime, never authored independently on their own
 ## nodes -- the same "composition root owns cross-cutting state" reasoning
 ## F03-47 already established for `driven_externally`.
+## v1.0 dev flag: `--start-wave=N` opens wave N first (captures and balance
+## probes only; never read outside this one parser).
+static func resolve_start_wave(user_args: PackedStringArray) -> int:
+	for arg in user_args:
+		if arg.begins_with("--start-wave="):
+			var text: String = arg.substr("--start-wave=".length())
+			if text.is_valid_int() and text.to_int() > 0:
+				return text.to_int()
+	return 0
+
+
 func _wire_run_seed() -> void:
+	if _pickup_system != null:
+		_pickup_system.run_seed = run_seed
 	if _wave_director != null:
 		_wave_director.run_seed = run_seed
+		_wave_director.dev_start_wave_number = resolve_start_wave(OS.get_cmdline_user_args())
 	if _draft_controller != null:
 		_draft_controller.run_seed = run_seed
 

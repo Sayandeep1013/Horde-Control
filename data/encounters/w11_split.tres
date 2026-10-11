@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="EncounterDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/data/encounter_definition.gd" id="1_enc"]
+[ext_resource type="Script" path="res://src/data/spawn_group.gd" id="2_group"]
+
+; v1.0 wave 11 (docs/31 6.1; decision D171). Group counts, offsets and
+; intervals are Register "v1.0 Enemies, Bosses & Waves" > "Wave sequence"
+; starting values (Soldier, spawn count x1.0); the difficulty profile scales
+; the counts at spawn time. minimum_recovery_gap_seconds is the Register's
+; 6 s inter-wave gap (10 s before a boss wave).
+
+[sub_resource type="Resource" id="Resource_group_1"]
+script = ExtResource("2_group")
+enemy_definition_id = "tower_seeker"
+count = 14
+start_offset_seconds = 0.0
+spawn_interval_seconds = 1.2
+burst_size = 1
+
+[sub_resource type="Resource" id="Resource_group_2"]
+script = ExtResource("2_group")
+enemy_definition_id = "opportunist"
+count = 8
+start_offset_seconds = 6.0
+spawn_interval_seconds = 1.0
+burst_size = 1
+
+[sub_resource type="Resource" id="Resource_group_3"]
+script = ExtResource("2_group")
+enemy_definition_id = "player_hunter"
+count = 8
+start_offset_seconds = 12.0
+spawn_interval_seconds = 0.6
+burst_size = 1
+
+[sub_resource type="Resource" id="Resource_group_4"]
+script = ExtResource("2_group")
+enemy_definition_id = "bomber"
+count = 4
+start_offset_seconds = 20.0
+spawn_interval_seconds = 2.5
+burst_size = 1
+
+[sub_resource type="Resource" id="Resource_group_5"]
+script = ExtResource("2_group")
+enemy_definition_id = "brute"
+count = 2
+start_offset_seconds = 30.0
+spawn_interval_seconds = 10.0
+burst_size = 1
+
+[sub_resource type="Resource" id="Resource_group_6"]
+script = ExtResource("2_group")
+enemy_definition_id = "tower_seeker"
+count = 10
+start_offset_seconds = 40.0
+spawn_interval_seconds = 1.2
+burst_size = 1
+
+[resource]
+script = ExtResource("1_enc")
+unique_id = "w11_split"
+encounter_type = 1
+design_intent = "split wave 11"
+pressure_target = 0.0
+player_answer = ""
+failure_signature = ""
+spawn_groups = Array[SpawnGroup]([SubResource("Resource_group_1"), SubResource("Resource_group_2"), SubResource("Resource_group_3"), SubResource("Resource_group_4"), SubResource("Resource_group_5"), SubResource("Resource_group_6")])
+intent_budget_overrides = Array[IntentBudgetOverride]([])
+directional_weighting_override = null
+telegraph_requirements = Array[TelegraphData]([])
+minimum_recovery_gap_seconds = 6.0
+priority = 60
+entity_cap_behavior = 0
+encounter_alive_cap = 0
+allowed_encounter_tags = Array[String]([])
+excluded_encounter_tags = Array[String]([])
+reward = null
+failure_resolution = 0
+partial_reward_rules = null

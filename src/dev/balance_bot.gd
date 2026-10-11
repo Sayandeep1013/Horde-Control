@@ -36,7 +36,7 @@ extends SceneTree
 ## Output: "BOT_RESULT mode=.. seed=.. outcome=VICTORY|TOWER|PLAYER|TIMEOUT
 ## t=.. wave=.. P=.. T=.. drafts=.. kills=.." as the last line.
 
-const SIEGE_WAVES: Array[String] = ["wave_t4", "wave_combat_2", "wave_combat_4"]
+const SIEGE_WAVES: Array[String] = ["wave_04", "wave_07", "wave_10", "wave_13", "wave_14"] # v1.0 Siege and Grand Assault waves
 const PROFILE_FLAG: String = "--meta-profile-dir="
 
 var mode: String = "still"
