@@ -47,9 +47,9 @@ func test_the_one_run_seed_reaches_the_manager() -> void:
 	assert_int(_root.get_run_seed()).is_equal(4321)
 
 
-func test_the_four_spike_traps_are_built_under_the_manager_below_pickups() -> void:
+func test_the_eight_spike_traps_are_built_under_the_manager_below_pickups() -> void:
 	var mgr: ArenaInteractables = _mgr()
-	assert_int(mgr.get_traps().size()).is_equal(4)
+	assert_int(mgr.get_traps().size()).is_equal(8)
 	assert_int(mgr.z_index).is_less(_root.get_node("Main/Pickups").z_index)
 	assert_int(mgr.z_index).is_greater(0)
 
@@ -57,7 +57,7 @@ func test_the_four_spike_traps_are_built_under_the_manager_below_pickups() -> vo
 func test_a_real_wave_started_spawns_crates_a_shrine_and_a_keg_under_the_entities() -> void:
 	EventBus.emit_wave_started(3, 15, "standard", false)
 	var mgr: ArenaInteractables = _mgr()
-	assert_int(mgr.get_crates().size()).is_equal(3)
+	assert_int(mgr.get_crates().size()).is_between(4, 6) # docs/33 B5: 4-6 per wave
 	assert_int(mgr.get_kegs().size()).is_equal(1)
 	assert_object(mgr.get_shrine()).is_not_null()
 	var entities: Node = _root.get_node("Main/Entities")

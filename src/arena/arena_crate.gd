@@ -15,7 +15,8 @@ const TEX_BROKEN: Texture2D = preload("res://assets/sprites/v1/crate_broken.png"
 const RUBBLE_SECONDS: float = 1.2
 
 ## Group "breakable" members expose this radius to AbilityDamage.hit_breakables.
-var breakable_radius: float = 22.0 # Register: Crate radius
+const SPRITE_SCALE: float = 1.5 # Register "v1.0 Arena Interactables": Supply Crate size
+var breakable_radius: float = 33.0 # Register: Crate radius (22 px x 1.5)
 var is_broken: bool = false
 
 var _sprite: Sprite2D = null
@@ -31,6 +32,7 @@ func _ready() -> void:
 	_sprite.texture = TEX_INTACT
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_sprite.offset = Vector2(0, -12)
+	_sprite.scale = Vector2.ONE * SPRITE_SCALE
 	add_child(_sprite)
 	_sparkle_phase = fmod(global_position.x * 0.021 + global_position.y * 0.013, TAU)
 
@@ -84,6 +86,6 @@ func _draw() -> void:
 	var tw: float = 0.5 + 0.5 * sin(SimClock.now * 3.0 + _sparkle_phase)
 	if tw > 0.55:
 		var c := Color(1.0, 0.95, 0.55, (tw - 0.55) * 2.2)
-		var p := Vector2(16, -34)
+		var p := Vector2(16, -34) * SPRITE_SCALE
 		draw_line(p + Vector2(-4, 0), p + Vector2(4, 0), c, 2.0)
 		draw_line(p + Vector2(0, -4), p + Vector2(0, 4), c, 2.0)
