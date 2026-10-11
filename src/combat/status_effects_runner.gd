@@ -44,7 +44,7 @@ func tick() -> void:
 		# Pay out every burn tick that came due, including the one landing exactly at expiry.
 		var burn_end: float = float(e["burn_until"])
 		while float(e["burn_next"]) <= now and float(e["burn_next"]) <= burn_end + 0.0001 and float(e["burn_dps"]) > 0.0:
-			AbilityDamage.hit(enemy_node, float(e["burn_dps"]) * StatusEffects.BURN_TICK_SECONDS, String(e["burn_source"]), &"player", false)
+			AbilityDamage.hit(enemy_node, float(e["burn_dps"]) * StatusEffects.BURN_TICK_SECONDS * StatusEffects.get_burn_damage_multiplier(), String(e["burn_source"]), &"player", false)
 			e["burn_next"] = float(e["burn_next"]) + StatusEffects.BURN_TICK_SECONDS
 		var burning: bool = burn_end > now
 		var frozen: bool = float(e["freeze_until"]) > now

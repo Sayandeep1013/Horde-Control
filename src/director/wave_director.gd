@@ -1438,7 +1438,7 @@ func _maybe_make_elite(instance: Node2D, definition: EnemyDefinition, serial: in
 	if definition == null or not definition.elite_eligibility or not instance.has_method("apply_elite"):
 		return
 	var wave: WaveDefinition = _current_wave()
-	var chance: float = _elite_chance(get_current_wave_number(), wave.elite_chance if wave != null else 0.0, _difficulty().elite_chance_add)
+	var chance: float = _elite_chance(get_current_wave_number(), wave.elite_chance if wave != null else 0.0, _difficulty().elite_chance_add + RunConfig.elite_chance_add())
 	if chance <= 0.0:
 		return
 	var rng: RandomNumberGenerator = KeyedRng.rng_for([run_seed, "elite", serial, _current_wave_index])

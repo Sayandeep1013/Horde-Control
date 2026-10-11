@@ -105,6 +105,16 @@ func _status_text(achievement: AchievementDefinition, progress: Dictionary) -> S
 ## "Unlocks card: Multishot" / "Reward: +1 Draft reroll". Figures come from the
 ## same constants the perks are applied with, never a second copy.
 static func reward_text(achievement: AchievementDefinition) -> String:
+	var text: String = _card_or_perk_text(achievement)
+	# WP-LOADOUT (docs/32 C): the Champion or Relic this achievement opens joins the reward.
+	for id in LoadoutCatalog.rewards_of_achievement(achievement.id):
+		var line: String = TranslationServer.translate("ACHIEVEMENTS_REWARD_CHAMPION" if LoadoutCatalog.is_champion(id) else "ACHIEVEMENTS_REWARD_RELIC") % LoadoutCatalog.display_name(id)
+		text = line if text == "" else text + "
+" + line
+	return text
+
+
+static func _card_or_perk_text(achievement: AchievementDefinition) -> String:
 	if achievement.unlocks_card_id != "":
 		return TranslationServer.translate("ACHIEVEMENTS_REWARD_CARD") % AbilityDisplay.display_name(achievement.unlocks_card_id)
 	match achievement.perk_id:

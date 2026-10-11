@@ -866,6 +866,7 @@ func _build_run_summary(victory: bool, abandoned: bool) -> Dictionary:
 		"scrap_collected": scrap_carried + int(CombatStats.get_run_counter("scrap_repaired")),
 		"untouchable_wave": _untouchable_wave,
 		"player_abilities": _player_ability_ids.size(),
+		"relic_ids": RunConfig.relic_ids.duplicate(), # WP-LOADOUT: King's Crown's settlement term
 	}
 
 
@@ -937,6 +938,8 @@ func _build_summary() -> Dictionary:
 		"elite_kills": maxi(_elite_kills, int(CombatStats.get_run_counter("elite_kills"))),
 		"damage_report": CombatStats.get_damage_by_source(),
 		"warlord_title": MetaProgress.has_perk("warlord_title") and _end_cause == EndCause.SEQUENCE_COMPLETED and RunConfig.difficulty_id == "warlord",
+		"champion_id": RunConfig.champion_id, # WP-LOADOUT: the Results screen lists the loadout
+		"relic_ids": RunConfig.relic_ids.duplicate(),
 	}
 
 

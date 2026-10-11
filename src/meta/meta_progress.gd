@@ -530,7 +530,48 @@ func _reconcile(data: Dictionary) -> Dictionary:
 		profile["cores"] = clampi(int(profile["cores"]) + refund, 0, CORE_WALLET_CAP)
 	if not _skill_unlocked_in(profile["tree_ranks"], String(profile["selected_battle_skill"])):
 		profile["selected_battle_skill"] = RunConfig.DEFAULT_BATTLE_SKILL_ID
+	_reconcile_loadout(profile, data)
 	return profile
+
+
+## WP-LOADOUT (docs/32 C3): the Champion and Relic choices are validated against
+## the unlocks DERIVED from the reconciled achievements and boss kills. A locked
+## or unknown Champion falls back to Ranger; a locked, unknown or duplicate
+## Relic is dropped; slot 2 needs a victory.
+func _reconcile_loadout(profile: Dictionary, data: Dictionary) -> void:
+	var champion: String = String(data.get("selected_champion", LoadoutCatalog.DEFAULT_CHAMPION_ID))
+	if not LoadoutCatalog.is_champion(champion) or not _loadout_item_unlocked_in(profile, champion):
+		champion = LoadoutCatalog.DEFAULT_CHAMPION_ID
+	profile["selected_champion"] = champion
+	var kept: Array = []
+	var raw: Variant = data.get("selected_relics", [])
+	if raw is Array:
+		for v in (raw as Array):
+			var id: String = String(v)
+			if kept.size() < _relic_slot_count_in(profile) and LoadoutCatalog.is_relic(id) and not kept.has(id) and _loadout_item_unlocked_in(profile, id):
+				kept.append(id)
+	profile["selected_relics"] = kept
+
+
+## True when `profile` (a reconciled or live profile Dictionary) has earned the
+## Champion or Relic: its unlock achievement is held, or its boss has been killed.
+func _loadout_item_unlocked_in(profile: Dictionary, id: String) -> bool:
+	var rule: Dictionary = LoadoutCatalog.unlock_rule(id)
+	if rule.is_empty():
+		return LoadoutCatalog.is_champion(id) or LoadoutCatalog.is_relic(id)
+	if rule.has("achievement"):
+		return (profile.get("unlocked_achievement_ids", []) as Array).has(String(rule["achievement"]))
+	if rule.has("boss"):
+		return int((profile.get("lifetime_boss_kills", {}) as Dictionary).get(String(rule["boss"]), 0)) > 0
+	return false
+
+
+func _relic_slot_count_in(profile: Dictionary) -> int:
+	var won: bool = int((profile.get("records", {}) as Dictionary).get("victories", 0)) > 0
+	for id in DIFFICULTY_IDS:
+		if int((profile.get("difficulty_victories", {}) as Dictionary).get(id, 0)) > 0:
+			won = true
+	return LoadoutCatalog.RELIC_SLOTS_MAX if won else LoadoutCatalog.RELIC_SLOTS_BASE
 
 
 ## v3 fields (D252): every value clamped, every key defaulted, an unknown
@@ -621,6 +662,8 @@ func _fresh_profile() -> Dictionary:
 		"selected_difficulty": RunConfig.DEFAULT_DIFFICULTY_ID,
 		"selected_battle_skill": RunConfig.DEFAULT_BATTLE_SKILL_ID,
 		"selected_endless": false,
+		"selected_champion": LoadoutCatalog.DEFAULT_CHAMPION_ID, # WP-LOADOUT (docs/32 C3); additive key, no schema bump
+		"selected_relics": [],
 		"difficulty_victories": {"recruit": 0, "soldier": 0, "veteran": 0, "warlord": 0},
 		"endless_unlocked": false,
 		"best_endless_wave": 0,
@@ -952,12 +995,117 @@ func set_selected_endless(on: bool) -> bool:
 	return true
 
 
+# --- Loadout: Champions and Relics (WP-LOADOUT, docs/32 C) --------------------------
+
+func is_champion_unlocked(id: String) -> bool:
+	return LoadoutCatalog.is_champion(id) and _loadout_item_unlocked_in(_profile, id)
+
+
+func is_relic_unlocked(id: String) -> bool:
+	return LoadoutCatalog.is_relic(id) and _loadout_item_unlocked_in(_profile, id)
+
+
+func get_unlocked_champions() -> Array[String]:
+	var out: Array[String] = []
+	for id in LoadoutCatalog.CHAMPION_IDS:
+		if is_champion_unlocked(id):
+			out.append(id)
+	return out
+
+
+func get_unlocked_relics() -> Array[String]:
+	var out: Array[String] = []
+	for id in LoadoutCatalog.RELIC_IDS:
+		if is_relic_unlocked(id):
+			out.append(id)
+	return out
+
+
+## 1 slot at the start, 2 after the first victory (any difficulty).
+func get_relic_slot_count() -> int:
+	return _relic_slot_count_in(_profile)
+
+
+## A selection that is no longer open reads as the default, like the Battle Skill.
+func get_selected_champion() -> String:
+	var id: String = String(_profile.get("selected_champion", LoadoutCatalog.DEFAULT_CHAMPION_ID))
+	return id if is_champion_unlocked(id) else LoadoutCatalog.DEFAULT_CHAMPION_ID
+
+
+## The chosen Relics: unique, unlocked, at most `get_relic_slot_count()`, in slot order.
+func get_selected_relics() -> Array[String]:
+	var out: Array[String] = []
+	for v in (_profile.get("selected_relics", []) as Array):
+		var id: String = String(v)
+		if out.size() < get_relic_slot_count() and is_relic_unlocked(id) and not out.has(id):
+			out.append(id)
+	return out
+
+
+func set_selected_champion(id: String) -> bool:
+	if not is_champion_unlocked(id):
+		return false
+	_profile["selected_champion"] = id
+	_save()
+	return true
+
+
+## Puts `id` in relic slot `slot` (0 or 1); "" empties the slot. A relic already in the
+## other slot moves (no duplicates); slots stay packed. Refuses a locked relic or a slot
+## that is not open yet.
+func set_selected_relic(slot: int, id: String) -> bool:
+	if slot < 0 or slot >= get_relic_slot_count():
+		return false
+	if id != "" and not is_relic_unlocked(id):
+		return false
+	var slots: Array = ["", ""]
+	var current: Array[String] = get_selected_relics()
+	for i in current.size():
+		slots[i] = current[i]
+	for i in slots.size():
+		if id != "" and slots[i] == id:
+			slots[i] = ""
+	slots[slot] = id
+	var packed: Array = []
+	for v in slots:
+		if String(v) != "":
+			packed.append(String(v))
+	_profile["selected_relics"] = packed
+	_save()
+	return true
+
+
+## Hub toggle: equips `id` in the first free slot (replacing the oldest when every
+## open slot is taken), or removes it when it is already equipped. False if locked.
+func toggle_selected_relic(id: String) -> bool:
+	if not is_relic_unlocked(id):
+		return false
+	var list: Array = get_selected_relics()
+	if list.has(id):
+		list.erase(id)
+	else:
+		list.append(id)
+		while list.size() > get_relic_slot_count():
+			list.remove_at(0)
+	_profile["selected_relics"] = list
+	_save()
+	return true
+
+
+## Boss kills recorded directly (tests of the boss-derived Relic unlocks).
+func set_boss_kills_for_test(boss_id: String, count: int) -> void:
+	(_profile["lifetime_boss_kills"] as Dictionary)[boss_id] = maxi(0, count)
+
+
 ## Writes the three persisted choices into `RunConfig` (the Hub calls this
 ## right before it changes scene; Retry reuses what is already there).
 func apply_selection_to_run_config() -> void:
 	RunConfig.difficulty_id = get_selected_difficulty()
 	RunConfig.battle_skill_id = get_selected_battle_skill()
 	RunConfig.endless = get_selected_endless()
+	RunConfig.champion_id = get_selected_champion() # WP-LOADOUT: validated like the Battle Skill
+	var relics: Array[String] = get_selected_relics()
+	RunConfig.relic_ids = relics
 
 
 func get_difficulty_victories(id: String) -> int:
@@ -1255,7 +1403,11 @@ func preview_settlement(run_summary: Dictionary) -> Dictionary:
 	lines.append({"label": "Scrap (%d)" % scrap_carried, "amount": scrap_cores})
 	subtotal += scrap_cores
 
-	var elite_cores: int = elite_kills * SETTLEMENT_PER_ELITE_CORES
+	var elite_each: int = SETTLEMENT_PER_ELITE_CORES
+	var run_relics: Variant = run_summary.get("relic_ids", [])
+	if run_relics is Array and (run_relics as Array).has("kings_crown"):
+		elite_each += LoadoutCatalog.CROWN_CORES_PER_ELITE # King's Crown (docs/32 C2)
+	var elite_cores: int = elite_kills * elite_each
 	if elite_kills > 0:
 		lines.append({"label": "Elites defeated (%d)" % elite_kills, "amount": elite_cores})
 		subtotal += elite_cores

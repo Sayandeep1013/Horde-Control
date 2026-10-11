@@ -11,6 +11,8 @@ extends Node
 ##     [--player_pos=X,Y] [--meta-profile-dir=<dir>] [--debug-panel=skill_tree]
 ##     [--grant=flame_arrows:3,ballista:2] [--skill=firebomb] [--cast-frames=F,F]
 ##     [--dash-frames=F,F] [--spawn-frame=F --spawn-count=N] [--tower-hp=0.4 --scrap=100]
+##     [--pause-frame=F]  (opens the pause menu at frame F)
+##     [--champion=warden --relics=quiver_of_echoes,iron_banner]  (WP-LOADOUT: RunConfig for the run)
 ##     [--lineup=tower_seeker,player_hunter,opportunist,bomber]  (at --spawn-frame: a static
 ##      row of those enemy scenes 170 px below the player, for readability captures)
 ##     [--arena-showcase=war|haste|ward|bounty] (at frame 3: two crates, a keg and a shrine around the player)
@@ -51,6 +53,7 @@ var _arena_showcase: String = ""
 var _arena_wave: int = 0
 var _boons: Array[String] = []
 var _light_kegs_frame: int = -1
+var _pause_frame: int = -1 # WP-LOADOUT: opens the pause menu at this frame
 var _scene: Node = null
 var _has_player_pos: bool = false
 var _player_pos: Vector2 = Vector2.ZERO
@@ -99,6 +102,16 @@ func _ready() -> void:
 				_boons.append(b)
 		elif arg.begins_with("--light-kegs="):
 			_light_kegs_frame = int(arg.trim_prefix("--light-kegs="))
+		elif arg.begins_with("--pause-frame="):
+			_pause_frame = int(arg.trim_prefix("--pause-frame="))
+		elif arg.begins_with("--champion="): # WP-LOADOUT: a run as that Champion (RunConfig is written before the scene loads)
+			RunConfig.champion_id = arg.trim_prefix("--champion=")
+		elif arg.begins_with("--relics="):
+			var chosen: Array[String] = []
+			for r in arg.trim_prefix("--relics=").split(","):
+				if r != "":
+					chosen.append(r)
+			RunConfig.relic_ids = chosen
 		elif arg.begins_with("--tower-hp="):
 			_tower_hp_fraction = float(arg.trim_prefix("--tower-hp="))
 		elif arg.begins_with("--scrap="):
@@ -164,6 +177,11 @@ func _drive_v1_helpers() -> void:
 		if _light_kegs_frame >= 0 and _count == _light_kegs_frame:
 			for k in arena.get_kegs():
 				k.light("capture")
+	if _pause_frame >= 0 and _count == _pause_frame:
+		var pause_event := InputEventAction.new()
+		pause_event.action = &"pause"
+		pause_event.pressed = true
+		Input.parse_input_event(pause_event)
 	if _cast_frames.has(_count):
 		var sk: Node = get_tree().get_first_node_in_group(&"battle_skill")
 		if sk != null:

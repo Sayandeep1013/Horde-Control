@@ -853,6 +853,147 @@ def ic_boon_bounty():
 
 ARENA_ICONS = {"boon_war": ic_boon_war, "boon_haste": ic_boon_haste, "boon_ward": ic_boon_ward, "boon_bounty": ic_boon_bounty}
 
+# --- WP-LOADOUT: Champion emblems and Relic icons (docs/32 section C) -----------------
+# Champions are hooded bust portraits in the in-game palette shift (Ranger blue, Warden
+# bronze, Skirmisher silver, Pactbound ash); the silhouette differs too (feather, crenel
+# crown, swept hood tail, horns), so colour is never the only cue.
+
+SKIN = pal((236, 190, 150), (255, 222, 190), (190, 140, 104))
+SILVER = pal((226, 232, 242), (255, 255, 255), (156, 166, 186))
+ASH = pal((92, 90, 104), (138, 136, 154), (54, 52, 66))
+WARDEN_BRONZE = pal((176, 112, 52), (226, 162, 92), (118, 70, 32))
+
+
+def hooded_bust(hood_pal):
+    return [Part(lambda d: d.rectangle([5, 17, 27, 30], fill=255), hood_pal),
+            Part(lambda d: d.ellipse([5, 3, 27, 26], fill=255), hood_pal)]
+
+
+def face_details(eye=INK):
+    return [(lambda d, c: d.ellipse([9, 10, 23, 24], fill=c), SKIN[0]),
+            (lambda d, c: d.ellipse([9, 10, 23, 17], fill=c), SKIN[1]),
+            (lambda d, c: [d.rectangle([12, 16, 13, 18], fill=c), d.rectangle([18, 16, 19, 18], fill=c)], eye)]
+
+
+def ic_champion_ranger():
+    parts = hooded_bust(BLUE) + [Part(lambda d: d.polygon([(20, 7), (30, 0), (28, 10), (23, 11)], fill=255), GREEN, 1)]
+    return compose(parts, face_details())
+
+
+def ic_champion_warden():
+    parts = hooded_bust(WARDEN_BRONZE) + [
+        Part(lambda d: [d.rectangle([x, 0, x + 3, 6], fill=255) for x in (6, 14, 22)], STONE, 1),
+        Part(lambda d: d.rectangle([6, 5, 25, 8], fill=255), STONE, 1)]
+    return compose(parts, face_details() + [(lambda d, c: d.polygon([(11, 25), (21, 25), (21, 29), (16, 31), (11, 29)], fill=c), STONE[1])])
+
+
+def ic_champion_skirmisher():
+    parts = [Part(lambda d: d.polygon([(8, 10), (0, 15), (8, 21)], fill=255), SILVER, 1)] + hooded_bust(SILVER) + [
+        Part(lambda d: [d.line([(26, 12), (31, 12)], fill=255, width=2), d.line([(27, 19), (31, 19)], fill=255, width=2)], BLUE, 1)]
+    return compose(parts, face_details())
+
+
+def ic_champion_pactbound():
+    parts = [Part(lambda d: d.polygon([(7, 11), (1, 9), (2, 1), (8, 6), (11, 10)], fill=255), BONE, 1),
+             Part(lambda d: d.polygon([(25, 11), (31, 9), (30, 1), (24, 6), (21, 10)], fill=255), BONE, 1)] + hooded_bust(ASH)
+    return compose(parts, face_details(GOLD[1]))
+
+
+def ic_relic_quiver_of_echoes():
+    parts = [Part(lambda d: d.line([(9, 6), (22, 27)], fill=255, width=11), WOOD),
+             Part(lambda d: [d.line([(x, 7), (x + 6, 0)], fill=255, width=2) for x in (10, 14, 18)], STEEL, 1),
+             Part(lambda d: d.line([(8, 12), (22, 22)], fill=255, width=2), GOLD, 1)]
+    return compose(parts, [(lambda d, c: d.arc([20, 2, 31, 16], start=-60, end=60, fill=c, width=1), BLUE[1]),
+                           (lambda d, c: d.arc([24, 0, 34, 18], start=-60, end=60, fill=c, width=1), BLUE[1])])
+
+
+def ic_relic_masons_trowel():
+    parts = [Part(lambda d: d.line([(6, 27), (15, 18)], fill=255, width=5), WOOD, 1),
+             Part(lambda d: d.polygon([(13, 16), (20, 9), (29, 2), (27, 12), (21, 19)], fill=255), STEEL),
+             Part(lambda d: d.rectangle([11, 17, 15, 20], fill=255), IRON, 1)]
+    return compose(parts, [(lambda d, c: d.line([(15, 14), (26, 4)], fill=c, width=1), STEEL[1])])
+
+
+def ic_relic_hunters_charm():
+    parts = [Part(lambda d: d.ellipse([9, 1, 23, 13], outline=255, width=2), WOOD, 1),
+             Part(lambda d: d.polygon([(16, 12), (24, 14), (22, 22), (16, 30), (11, 22), (9, 14)], fill=255), BONE)]
+    return compose(parts, [(lambda d, c: d.line([(13, 16), (15, 24)], fill=c, width=1), BONE[2]),
+                           (lambda d, c: d.ellipse([14, 13, 18, 17], fill=c), GREEN[0])])
+
+
+def ic_relic_warchiefs_horn():
+    def horn(d):
+        pts_l, pts_r = [], []
+        n = 24
+        for i in range(n + 1):
+            t = i / n
+            x = (1 - t) ** 2 * 5 + 2 * t * (1 - t) * 4 + t * t * 26
+            y = (1 - t) ** 2 * 5 + 2 * t * (1 - t) * 27 + t * t * 22
+            tx = 2 * (1 - t) * (4 - 5) + 2 * t * (26 - 4)
+            ty = 2 * (1 - t) * (27 - 5) + 2 * t * (22 - 27)
+            L = math.hypot(tx, ty)
+            w = 1.8 + 8.5 * t ** 2.2
+            pts_l.append((x - ty / L * w, y + tx / L * w))
+            pts_r.append((x + ty / L * w, y - tx / L * w))
+        d.polygon(pts_l + pts_r[::-1], fill=255)
+    parts = [Part(horn, IRON),
+             Part(lambda d: d.rectangle([1, 2, 8, 6], fill=255), GREEN, 1),
+             Part(lambda d: d.polygon([(21, 11), (28, 15), (30, 27), (24, 30)], fill=255), GREEN, 1),
+             Part(lambda d: d.polygon([(10, 26), (13, 31), (16, 26)], fill=255), BONE, 1)]
+    return compose(parts, [(lambda d, c: d.ellipse([16, 17, 19, 20], fill=c), RED[1])])
+
+
+def ic_relic_kings_crown():
+    parts = [Part(lambda d: d.polygon([(3, 9), (9, 15), (16, 3), (23, 15), (29, 9), (27, 26), (5, 26)], fill=255), GOLD),
+             Part(lambda d: d.rectangle([5, 23, 27, 28], fill=255), RED, 1),
+             Part(lambda d: d.ellipse([12, 13, 20, 21], fill=255), IRON)]
+    return compose(parts, [(lambda d, c: d.line([(16, 13), (18, 10)], fill=c, width=1), BONE[0]),
+                           (lambda d, c: d.rectangle([17, 8, 19, 10], fill=c), YELLOW[0]),
+                           (lambda d, c: d.rectangle([13, 14, 14, 15], fill=c), IRON[1])])
+
+
+def ic_relic_lucky_coin():
+    parts = [Part(lambda d: d.ellipse([3, 3, 28, 28], fill=255), GOLD)]
+    return compose(parts, [(lambda d, c: d.ellipse([7, 7, 24, 24], outline=c, width=2), GOLD[2]),
+                           (lambda d, c: [d.ellipse(b, fill=c) for b in ([10, 10, 16, 16], [16, 10, 22, 16], [10, 16, 16, 22], [16, 16, 22, 22])], GREEN[0]),
+                           (lambda d, c: d.rectangle([15, 15, 16, 16], fill=c), GOLD[1]),
+                           (lambda d, c: d.line([(8, 6), (14, 4)], fill=c, width=1), GOLD[1])])
+
+
+def ic_relic_iron_banner():
+    parts = [Part(lambda d: d.rectangle([5, 2, 8, 30], fill=255), IRON, 1),
+             Part(lambda d: d.polygon([(8, 4), (28, 4), (28, 21), (18, 17), (8, 21)], fill=255), RED),
+             Part(lambda d: d.polygon([(2, 2), (11, 2), (6, -1)], fill=255), STEEL, 1)]
+    return compose(parts, [(lambda d, c: d.rectangle([8, 4, 28, 6], fill=c), GOLD[0]),
+                           (lambda d, c: d.polygon([(18, 9), (22, 12), (18, 15), (14, 12)], fill=c), GOLD[1])])
+
+
+def ic_relic_ember_heart():
+    pts = []
+    for i in range(60):
+        t = math.tau * i / 60
+        x = 16 * math.sin(t) ** 3
+        y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
+        pts.append((x, -y))
+    minx = min(p[0] for p in pts); maxx = max(p[0] for p in pts)
+    miny = min(p[1] for p in pts); maxy = max(p[1] for p in pts)
+    unit = [((x - minx) / (maxx - minx), (y - miny) / (maxy - miny)) for x, y in pts]
+    upts = unit_poly(unit, (3, 8, 29, 30))
+    parts = [Part(lambda d: d.polygon(upts, fill=255), RED),
+             Part(flame_fn(16, 14, 12, 13), FLAME, 1),
+             Part(flame_fn(16, 14, 5, 7), YELLOW, 1)]
+    return compose(parts, [(lambda d, c: [d.rectangle([x, y, x + 1, y + 1], fill=c) for x, y in ((6, 13), (24, 15), (20, 3))], YELLOW[1])])
+
+
+LOADOUT_ICONS = {
+    "champion_ranger": ic_champion_ranger, "champion_warden": ic_champion_warden,
+    "champion_skirmisher": ic_champion_skirmisher, "champion_pactbound": ic_champion_pactbound,
+    "relic_quiver_of_echoes": ic_relic_quiver_of_echoes, "relic_masons_trowel": ic_relic_masons_trowel,
+    "relic_hunters_charm": ic_relic_hunters_charm, "relic_warchiefs_horn": ic_relic_warchiefs_horn,
+    "relic_kings_crown": ic_relic_kings_crown, "relic_lucky_coin": ic_relic_lucky_coin,
+    "relic_iron_banner": ic_relic_iron_banner, "relic_ember_heart": ic_relic_ember_heart,
+}
+
 
 def make_contact_sheet(icons, path, cols=8, zoom=4):
     from PIL import ImageFont
@@ -900,3 +1041,8 @@ if __name__ == "__main__":
         arena[name] = fn()
         save(arena[name], "assets/ui/icons/icon_%s.png" % name)
     make_contact_sheet(arena, "assets/ui/icons/_contact_sheet_arena.png", cols=4)
+    loadout = {}
+    for name, fn in LOADOUT_ICONS.items():
+        loadout[name] = fn()
+        save(loadout[name], "assets/ui/icons/icon_%s.png" % name)
+    make_contact_sheet(loadout, "assets/ui/icons/_contact_sheet_loadout.png", cols=6)

@@ -351,3 +351,44 @@ func test_an_unknown_killer_keeps_the_generic_line_and_never_repeats_the_title()
 	await get_tree().process_frame
 	var summary: Dictionary = c.get_summary_for_test()
 	assert_str(String(summary["cause_text"])).is_not_equal(String(summary["outcome_title"]))
+
+
+# --- WP-LOADOUT: the Champion and Relics through the run flow ---------------------------
+
+func test_retry_keeps_the_champion_and_relics() -> void:
+	RunConfig.champion_id = "pactbound"
+	RunConfig.relic_ids = ["warchiefs_horn", "ember_heart"]
+	var c: RunFlowController = _controller(_clock(), _director(), _bus())
+	c.simulate_player_died_for_test()
+	await get_tree().process_frame
+	c.run_end_screen._on_option_confirmed(RunEndScreen.OPTION_RETRY)
+	assert_str(RunConfig.champion_id).is_equal("pactbound")
+	assert_array(RunConfig.relic_ids).contains_exactly(["warchiefs_horn", "ember_heart"])
+
+
+func test_the_end_summary_carries_the_loadout_and_the_results_screen_lists_it() -> void:
+	RunConfig.champion_id = "skirmisher"
+	RunConfig.relic_ids = ["lucky_coin", "iron_banner"]
+	var c: RunFlowController = _controller(_clock(), _director(), _bus())
+	c.simulate_player_died_for_test()
+	await get_tree().process_frame
+	var summary: Dictionary = c.get_summary_for_test()
+	assert_str(String(summary["champion_id"])).is_equal("skirmisher")
+	assert_array(summary["relic_ids"]).contains_exactly(["lucky_coin", "iron_banner"])
+	var box: HFlowContainer = c.run_end_screen.get_loadout_box_for_test()
+	assert_int(box.get_child_count()).append_failure_message("a Champion chip and two Relic chips").is_equal(3)
+	assert_str((box.get_child(0).get_node("Name") as Label).text).is_equal("Skirmisher")
+	assert_str((box.get_child(1).get_node("Name") as Label).text).is_equal("Lucky Coin")
+	assert_object((box.get_child(2).get_node("Icon") as TextureRect).texture).is_not_null()
+
+
+func test_the_run_summary_hands_the_relics_to_settlement_so_the_crown_pays_per_elite() -> void:
+	RunConfig.relic_ids = ["kings_crown"]
+	var bus: Node = _bus()
+	var c: RunFlowController = _controller(_clock(), _director(), bus)
+	bus.emit_signal("elite_killed", null, "swift", 0.0)
+	bus.emit_signal("elite_killed", null, "armored", 0.0)
+	c.simulate_player_died_for_test()
+	await get_tree().process_frame
+	# 0 minutes, 0 waves, 0 kills; two elites at 1 + 1 (the Crown) = 4 Cores.
+	assert_int(MetaProgress.get_cores()).is_equal(4)

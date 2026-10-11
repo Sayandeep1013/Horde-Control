@@ -679,6 +679,12 @@ func get_dash_state() -> Dictionary:
 	return {"charges": _dash_charges, "max_charges": _dash_max_charges(), "cooldown_remaining": remaining, "cooldown_total": _dash_cooldown_total()}
 
 
+## True while the player is moving faster than the standing-still line (the same
+## 8 px/s Focus uses; Register "v1.0 Loadout"). Skirmisher's bow reads this.
+func is_moving() -> bool:
+	return _local_velocity.length() >= LoadoutCatalog.MOVING_SPEED_THRESHOLD_PX_PER_SECOND
+
+
 func is_dashing() -> bool:
 	return _dash_active
 

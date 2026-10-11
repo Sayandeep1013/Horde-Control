@@ -126,6 +126,7 @@ static func apply(loadout: MetaLoadout, player: Player, tower: Tower, player_wea
 		return {}
 	_apply_player(loadout, player, player_weapon)
 	_apply_tower(loadout, tower)
+	_apply_loadout_extras(loadout, player, player_weapon)
 	_apply_economy(loadout, run_inventory)
 	_apply_draft(loadout, draft_controller)
 	_apply_war_chest(loadout, run_inventory, draft_controller, wave_director)
@@ -191,7 +192,7 @@ static func _apply_tower(loadout: MetaLoadout, tower: Tower) -> void:
 		tower_max_health_bonus += FORTRESS_TOWER_MAX_HEALTH_BONUS
 		tower_weapon_damage_bonus += FORTRESS_TOWER_WEAPON_DAMAGE_BONUS
 
-	var needs_tower_dup: bool = tower_max_health_bonus != 0.0 or loadout.tower_max_shield_bonus != 0.0 or loadout.tower_shield_regen_bonus != 0.0 or loadout.tower_weapon_range_bonus != 0.0
+	var needs_tower_dup: bool = tower_max_health_bonus != 0.0 or loadout.tower_max_shield_bonus != 0.0 or loadout.tower_shield_capacity_bonus != 0.0 or loadout.tower_in_wave_shield_regen_fraction > 0.0 or loadout.tower_shield_regen_bonus != 0.0 or loadout.tower_weapon_range_bonus != 0.0
 	var needs_weapon_dup: bool = tower_weapon_damage_bonus != 0.0
 
 	var dup_tower: TowerDefinition = tower.definition
@@ -207,6 +208,13 @@ static func _apply_tower(loadout: MetaLoadout, tower: Tower) -> void:
 			# layer that would otherwise silently discard this bonus the
 			# first time a real Shield Matrix rank is taken in-run).
 			dup_tower.max_health_and_shield_fraction.base_shield_fraction += loadout.tower_max_shield_bonus
+		# Iron Banner (docs/32 C2): +25% of the WHOLE shield capacity (after Shield
+		# Runes), and the shield regenerates at a fraction of its rate during waves
+		# (the larger of the base's own fraction and the Banner's).
+		if loadout.tower_shield_capacity_bonus != 0.0 and dup_tower.max_health_and_shield_fraction != null:
+			dup_tower.max_health_and_shield_fraction.base_shield_fraction *= (1.0 + loadout.tower_shield_capacity_bonus)
+		if loadout.tower_in_wave_shield_regen_fraction > 0.0 and dup_tower.shield_regeneration != null:
+			dup_tower.shield_regeneration.in_wave_rate_fraction = maxf(dup_tower.shield_regeneration.in_wave_rate_fraction, loadout.tower_in_wave_shield_regen_fraction)
 		# D115 (no in-run shop) removed the Tower Console and its repair
 		# price -- Mason's Kit (formerly a repair-price discount) is
 		# repurposed to a Tower shield regen RATE bonus instead, folded into
@@ -226,6 +234,20 @@ static func _apply_tower(loadout: MetaLoadout, tower: Tower) -> void:
 
 	if loadout.fortress_enabled and tower.evolution_stage != null:
 		tower.evolution_stage.advance_one_stage()
+
+
+# --- v1.0 Loadout extras (WP-LOADOUT) -------------------------------------------------
+
+## Champion/Relic effects that are not a stat on a duplicated Resource: the bow's
+## moving fire-rate bonus and echo arrow, the burn multiplier (a static on
+## StatusEffects, ABSOLUTE so a Retry resets it) and the Champion's palette tint.
+static func _apply_loadout_extras(loadout: MetaLoadout, player: Player, player_weapon: AutoWeapon) -> void:
+	if player_weapon != null:
+		player_weapon.set_moving_fire_rate_bonus(loadout.moving_fire_rate_bonus)
+		player_weapon.set_echo_every_shots(loadout.echo_every_shots)
+	StatusEffects.set_burn_damage_multiplier(1.0 + loadout.burn_damage_bonus)
+	if player != null:
+		ChampionLook.apply(player, loadout.champion_id)
 
 
 # --- Economy branch --------------------------------------------------------------
@@ -333,6 +355,8 @@ static func apply_group_hooks(loadout: MetaLoadout, tree: SceneTree, grant_armor
 		_hook(tree, &"set_tower_ability_damage_multiplier", [1.0 + loadout.tower_ability_damage_bonus], called)
 	if grant_armory and loadout.armory_enabled and _hook(tree, &"grant_free_random_ability", [], called):
 		result["armory_granted"] = true
+	if loadout.tower_regen_in_radius_hp > 0.0:
+		_hook(tree, &"set_passive_regen_hp_per_second", [loadout.tower_regen_in_radius_hp], called) # Warden
 	var repair_bonus: float = loadout.tower_repair_bonus
 	if MetaProgress.has_perk("repair_bonus"):
 		repair_bonus += ACHIEVEMENT_REPAIR_BONUS # D251: Mason, composed with Mason's Kit
