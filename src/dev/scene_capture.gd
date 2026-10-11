@@ -19,6 +19,7 @@ extends Node
 ##     [--arena-wave=N] (at frame 3: spawn wave N's arena interactables by the normal rules)
 ##     [--boons=war,haste,ward,bounty] (at frame 3: claim those Shrine boons for a tray capture)
 ##     [--light-kegs=F] (at frame F: light every Powder Keg)
+##   [--first-time-tips]  (PT-UI: keep the first-encounter explainers on; captures turn them off)
 ##   (the v1.0 flags are dev-only helpers for WP-COMBAT captures, prototype scene only)
 ##   [--event=opening|patrons_boon|sanctuary|blood_pact] [--flawless] [--armory]
 ##   [--champion=pactbound] [--relic=lucky_coin]   (docs/32 run events: at frame 1 the
@@ -67,6 +68,10 @@ var _event_armory: bool = false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS # keep counting frames while a Draft or menu pauses the tree
+	# PT-UI (docs/33 A4): first-encounter explainers pause the run; a capture must not wait on one
+	# unless it asks for them (`--first-time-tips`).
+	if not OS.get_cmdline_user_args().has("--first-time-tips"):
+		GameSettings.set_show_first_time_tips_for_test(false)
 	var scene_path: String = "res://scenes/prototype.tscn"
 	var size: Vector2i = Vector2i(1920, 1080)
 	for arg in OS.get_cmdline_user_args():

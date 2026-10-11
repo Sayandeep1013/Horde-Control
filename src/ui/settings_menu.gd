@@ -62,6 +62,7 @@ const ROW_SCREEN_SHAKE: String = "screen_shake"
 const ROW_SHOW_OVERHEAD_BARS: String = "show_overhead_bars"
 const ROW_PAUSE_UNFOCUSED: String = "pause_unfocused"
 const ROW_MOVEMENT_ONLY: String = "movement_only"
+const ROW_FIRST_TIME_TIPS: String = "first_time_tips" # PT-UI (docs/33 A4)
 const ROW_BIND_PREFIX: String = "bind_"
 const ROW_RESET_CONTROLS: String = "reset_controls"
 const ROW_HUD_SCALE: String = "hud_scale"
@@ -76,7 +77,7 @@ const TAB_KEYS: Array[String] = ["SETTINGS_TAB_AUDIO", "SETTINGS_TAB_VIDEO", "SE
 const TAB_ROWS: Array = [
 	[ROW_MASTER_VOLUME, ROW_MUSIC_VOLUME, ROW_EFFECTS_VOLUME, ROW_INTERFACE_VOLUME, ROW_MUTE_ALL],
 	[ROW_DISPLAY_MODE, ROW_WINDOW_SIZE, ROW_VSYNC, ROW_FPS_LIMIT, ROW_SHOW_FPS],
-	[ROW_AUTO_CAST, ROW_DAMAGE_NUMBERS, ROW_SCREEN_SHAKE, ROW_SHOW_OVERHEAD_BARS, ROW_PAUSE_UNFOCUSED, ROW_MOVEMENT_ONLY],
+	[ROW_AUTO_CAST, ROW_DAMAGE_NUMBERS, ROW_SCREEN_SHAKE, ROW_SHOW_OVERHEAD_BARS, ROW_PAUSE_UNFOCUSED, ROW_MOVEMENT_ONLY, ROW_FIRST_TIME_TIPS],
 	["bind_move_up", "bind_move_down", "bind_move_left", "bind_move_right", "bind_dash", "bind_battle_skill", "bind_pause", ROW_RESET_CONTROLS],
 	[ROW_HUD_SCALE, ROW_REDUCE_FLASHING, ROW_ENEMY_OUTLINES],
 ]
@@ -86,7 +87,7 @@ const FOOTER_ROWS: Array[String] = [ROW_RESET_DEFAULTS, ROW_BACK]
 const ROW_ORDER: Array[String] = [
 	ROW_MASTER_VOLUME, ROW_MUSIC_VOLUME, ROW_EFFECTS_VOLUME, ROW_INTERFACE_VOLUME, ROW_MUTE_ALL,
 	ROW_DISPLAY_MODE, ROW_WINDOW_SIZE, ROW_VSYNC, ROW_FPS_LIMIT, ROW_SHOW_FPS,
-	ROW_AUTO_CAST, ROW_DAMAGE_NUMBERS, ROW_SCREEN_SHAKE, ROW_SHOW_OVERHEAD_BARS, ROW_PAUSE_UNFOCUSED, ROW_MOVEMENT_ONLY,
+	ROW_AUTO_CAST, ROW_DAMAGE_NUMBERS, ROW_SCREEN_SHAKE, ROW_SHOW_OVERHEAD_BARS, ROW_PAUSE_UNFOCUSED, ROW_MOVEMENT_ONLY, ROW_FIRST_TIME_TIPS,
 	"bind_move_up", "bind_move_down", "bind_move_left", "bind_move_right", "bind_dash", "bind_battle_skill", "bind_pause", ROW_RESET_CONTROLS,
 	ROW_HUD_SCALE, ROW_REDUCE_FLASHING, ROW_ENEMY_OUTLINES,
 	ROW_RESET_DEFAULTS, ROW_BACK,
@@ -442,6 +443,7 @@ func _row_label(id: String) -> String:
 		ROW_SHOW_OVERHEAD_BARS: return tr("SETTINGS_SHOW_OVERHEAD_BARS")
 		ROW_PAUSE_UNFOCUSED: return tr("SETTINGS_PAUSE_UNFOCUSED")
 		ROW_MOVEMENT_ONLY: return tr("SETTINGS_MOVEMENT_ONLY")
+		ROW_FIRST_TIME_TIPS: return tr("SETTINGS_FIRST_TIME_TIPS")
 		ROW_RESET_CONTROLS: return tr("SETTINGS_RESET_CONTROLS")
 		ROW_HUD_SCALE: return tr("SETTINGS_HUD_SCALE")
 		ROW_REDUCE_FLASHING: return tr("SETTINGS_REDUCE_FLASHING")
@@ -825,6 +827,8 @@ func _apply_direction(direction: int) -> void:
 		ROW_MOVEMENT_ONLY:
 			GameSettings.set_movement_only_controls_enabled(not GameSettings.get_movement_only_controls_enabled())
 			_refresh_row(ROW_AUTO_CAST) # Movement-only forces auto-cast on
+		ROW_FIRST_TIME_TIPS:
+			GameSettings.set_show_first_time_tips(not GameSettings.is_show_first_time_tips())
 		ROW_HUD_SCALE:
 			GameSettings.adjust_hud_scale(direction)
 		ROW_REDUCE_FLASHING:
@@ -889,6 +893,8 @@ func _refresh_row(id: String) -> void:
 			row.set_value_text(_on_off_text(GameSettings.is_pause_when_unfocused()))
 		ROW_MOVEMENT_ONLY:
 			row.set_value_text(_on_off_text(GameSettings.get_movement_only_controls_enabled()))
+		ROW_FIRST_TIME_TIPS:
+			row.set_value_text(_on_off_text(GameSettings.is_show_first_time_tips()))
 		ROW_HUD_SCALE:
 			row.set_value_text(_pct_text(GameSettings.get_hud_scale_pct()))
 		ROW_REDUCE_FLASHING:

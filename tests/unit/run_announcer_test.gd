@@ -106,9 +106,9 @@ func test_start_hint_names_the_live_move_keys_and_is_remembered() -> void:
 
 
 func test_a_seen_hint_never_shows_again_even_in_a_new_run() -> void:
-	MetaProgress.mark_hint_seen(RunHints.ID_BOMBER)
+	MetaProgress.mark_hint_seen(RunHints.ID_TOWER_REPAIR)
 	var hints: RunHints = _make().get_hints_for_test()
-	hints.request(RunHints.ID_BOMBER)
+	hints.request(RunHints.ID_TOWER_REPAIR)
 	assert_int(hints.queued_count()).is_equal(0)
 	assert_bool(hints.is_showing()).is_false()
 
@@ -116,19 +116,17 @@ func test_a_seen_hint_never_shows_again_even_in_a_new_run() -> void:
 func test_hints_never_stack_a_second_waits_in_the_queue() -> void:
 	var announcer: RunAnnouncer = _make()
 	var hints: RunHints = announcer.get_hints_for_test()
-	hints.request(RunHints.ID_BOMBER)
-	hints.request(RunHints.ID_BRUTE)
-	hints.request(RunHints.ID_ELITE)
+	hints.request(RunHints.ID_DASH, ["Space"])
+	hints.request(RunHints.ID_TOWER_REPAIR)
+	hints.request(RunHints.ID_SKILL_READY, ["Q", "Arrow Storm"])
 	assert_int(_texts(announcer.get_toast_box_for_test()).size()).is_equal(1)
-	assert_array(_texts(announcer.get_toast_box_for_test())).contains(["Bomber: dodge the red circles"])
+	assert_array(_texts(announcer.get_toast_box_for_test())).contains(["Press Space to dash through danger"])
 	assert_int(hints.queued_count()).is_equal(2)
-	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_BRUTE)).append_failure_message("queued hints are not marked seen until shown").is_false()
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_TOWER_REPAIR)).append_failure_message("queued hints are not marked seen until shown").is_false()
 
 
 func test_hint_wording_names_the_threat_and_the_answer() -> void:
 	var hints: RunHints = _make().get_hints_for_test()
-	assert_str(hints.text_for(RunHints.ID_BRUTE, [])).is_equal("Brute: slow Tower-breaker - focus it")
-	assert_str(hints.text_for(RunHints.ID_ELITE, [])).is_equal("Elite: gold glow, tougher, drops Cores")
 	assert_str(hints.text_for(RunHints.ID_TOWER_REPAIR, [])).is_equal("Stand by the Tower to repair it with Scrap")
 	assert_str(hints.text_for(RunHints.ID_SKILL_READY, ["Q", "Arrow Storm"])).is_equal("Q: Arrow Storm is ready")
 	assert_float(RunHints.HINT_SECONDS).is_less_equal(6.0)
@@ -138,10 +136,10 @@ func test_hints_do_not_start_or_run_down_while_paused() -> void:
 	var announcer: RunAnnouncer = _make()
 	var hints: RunHints = announcer.get_hints_for_test()
 	get_tree().paused = true
-	hints.request(RunHints.ID_BOMBER)
+	hints.request(RunHints.ID_TOWER_REPAIR)
 	assert_bool(hints.is_showing()).append_failure_message("a paused game shows no hint").is_false()
 	assert_int(hints.queued_count()).is_equal(1)
-	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_BOMBER)).is_false()
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_TOWER_REPAIR)).is_false()
 	get_tree().paused = false
 	hints._pump()
 	assert_bool(hints.is_showing()).is_true()
@@ -198,17 +196,18 @@ func test_touch_builds_use_touch_wording_with_no_key_slots() -> void:
 	assert_object(hints).is_not_null()
 
 
-func test_elite_and_boss_events_queue_their_hints_once() -> void:
+func test_elite_and_boss_events_no_longer_queue_a_hint_toast() -> void:
+	# PT-UI (D323): they are introduced by a paused explainer card, not a toast.
 	var announcer: RunAnnouncer = _make()
 	EventBus.emit_elite_spawned(null, "swift")
-	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_ELITE)).is_true()
-	assert_array(_texts(announcer.get_toast_box_for_test())).contains(["Elite: gold glow, tougher, drops Cores"])
 	EventBus.emit_boss_spawned(null, "warchief", "Goblin Warchief", 2600.0)
-	assert_int(announcer.get_hints_for_test().queued_count()).append_failure_message("the boss hint waits behind the elite hint").is_equal(1)
+	assert_int(announcer.get_hints_for_test().queued_count()).is_equal(0)
+	assert_bool(MetaProgress.is_hint_seen("elite")).is_false()
+	assert_bool(MetaProgress.is_hint_seen("boss")).is_false()
 
 
 func test_hints_seen_survives_a_reload_of_the_profile() -> void:
-	MetaProgress.mark_hint_seen(RunHints.ID_BRUTE)
+	MetaProgress.mark_hint_seen(RunHints.ID_TOWER_REPAIR)
 	MetaProgress.set_base_path_for_test(_dir)
 	MetaProgress.ensure_loaded()
-	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_BRUTE)).is_true()
+	assert_bool(MetaProgress.is_hint_seen(RunHints.ID_TOWER_REPAIR)).is_true()

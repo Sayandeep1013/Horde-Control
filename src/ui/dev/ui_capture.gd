@@ -29,6 +29,7 @@ var _proto: Node = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	GameSettings.set_show_first_time_tips_for_test(false) # PT-UI: no explainer card in a staged state
 	# A capture run is looked at, never listened to; several may run at once.
 	AudioServer.set_bus_mute(AudioServer.get_bus_index(&"Master"), true)
 	for arg: String in OS.get_cmdline_user_args():

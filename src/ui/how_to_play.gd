@@ -41,6 +41,9 @@ static func heading(index: int) -> String:
 
 static func body(index: int) -> String:
 	var template: String = TranslationServer.translate(StringName("HOWTO_%d_BODY" % index))
+	if index == 3:
+		# PT-UI: the slot limits are read from AbilityIds, never typed into the text.
+		return template % [AbilityIds.MAX_PLAYER_ABILITIES, AbilityIds.MAX_TOWER_ABILITIES]
 	if TouchUi.is_mobile_layout():
 		return template # the phone wording has no key slots
 	match index:
@@ -71,6 +74,11 @@ static func focus_line() -> String:
 
 static func events_line() -> String:
 	return TranslationServer.translate(&"HOWTO_EVENTS")
+
+
+## PT-UI (docs/33 A3/A4): where to learn what anything is, and how to silence the first-time cards.
+static func guide_line() -> String:
+	return TranslationServer.translate(&"HOWTO_GUIDE")
 
 
 ## The one-line description of enemy row `id` (see ENEMIES).
@@ -164,6 +172,7 @@ static func build_content(parent: Container, max_height: float) -> ScrollContain
 	# docs/32: one line each for Focus and the run events, under the numbered sections.
 	_add_text(left, "FocusLine", HowToPlay.focus_line(), UiTheme.DIM_PARCHMENT, width)
 	_add_text(left, "EventsLine", HowToPlay.events_line(), UiTheme.DIM_PARCHMENT, width)
+	_add_text(left, "GuideLine", HowToPlay.guide_line(), UiTheme.DIM_PARCHMENT, width)
 
 	var right: VBoxContainer = left if touch else _column("InfoColumn")
 	if not touch:
