@@ -69,7 +69,7 @@ enum EffectKind {
 	## by an authored node (Mason's Kit now repairs) but stays for old data.
 	PLAYER_CRIT_CHANCE, ## 19: flat crit chance (Keen Eye)
 	PLAYER_WEAPON_RANGE_PERCENT, ## 20: Eagle Eye
-	ARMORY_START_ABILITY, ## 21: Armory keystone, a free Level-1 ability
+	ARMORY_START_ABILITY, ## 21: Armory keystone, the Opening Pick offers 4 Epic abilities (D281)
 	PLAYER_DAMAGE_TAKEN_REDUCTION, ## 22: Iron Skin
 	DASH_COOLDOWN_REDUCTION, ## 23: Fleet Foot
 	DASH_EXTRA_CHARGE, ## 24: Second Dash

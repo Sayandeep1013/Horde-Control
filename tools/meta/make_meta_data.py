@@ -19,7 +19,7 @@ N = [
     ("quick_draw", "Quick Draw", 0, (-1, 1), 1, 3, "RATE", 0.06, "+{value}% fire rate per rank.", ["root"], "rapid_fire", ""),
     ("keen_eye", "Keen Eye", 0, (-2, -1), 3, 3, "CRIT", 0.04, "+{value}% critical chance per rank.", ["sharpened_arrows"], "keen_eye", ""),
     ("eagle_eye", "Eagle Eye", 0, (-2, 1), 2, 2, "RANGE", 0.10, "+{value}% bow range per rank.", ["quick_draw"], "optics", ""),
-    ("armory", "Armory", 0, (-3, 0), 4, 1, "ARMORY", 1.0, "Start each run with a free Level 1 player ability from your unlocked pool.", ["keen_eye", "eagle_eye"], "chest", ""),
+    ("armory", "Armory", 0, (-3, 0), 4, 1, "ARMORY", 1.0, "Your Opening Pick offers 4 abilities rolled Epic instead of 3 at Rare.", ["keen_eye", "eagle_eye"], "chest", ""),
     # Survival (north)
     ("vitality", "Vitality", 3, (0, -1), 1, 3, "HP", 0.10, "+{value}% player max health per rank.", ["root"], "vitality", ""),
     ("swift_boots", "Swift Boots", 3, (-1, -2), 1, 3, "SPEED", 0.04, "+{value}% move speed per rank.", ["vitality"], "swift_feet", ""),

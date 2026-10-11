@@ -69,7 +69,7 @@ func test_applying_the_meta_hooks_twice_leaves_every_derived_value_at_the_loadou
 	assert_float(_mgr.get_damage_taken_multiplier()).is_equal_approx(1.0 - loadout.damage_taken_reduction, 0.0001)
 	assert_float(_mgr.get_dash_cooldown_multiplier()).is_equal_approx(1.0 - loadout.dash_cooldown_reduction, 0.0001)
 	assert_int(_mgr._meta_dash_extra).is_equal(loadout.dash_extra_charges)
-	assert_int(_mgr.owned_count(AbilityManager.SLOT_PLAYER)).append_failure_message("Armory grants exactly one ability").is_equal(1)
+	assert_int(_mgr.owned_count(AbilityManager.SLOT_PLAYER)).append_failure_message("D281: the Armory grants no ability at run start (the Opening Pick offers 4 Epic)").is_equal(0)
 
 
 func test_set_crit_chance_bonus_assigns_and_never_accumulates() -> void:
