@@ -254,14 +254,22 @@ func _sweep_and_resolve(from: Vector2, to: Vector2) -> bool:
 ## `_deliver_hit()` exactly; shared by both call sites below so the routing
 ## decision lives in exactly one place.
 func _deliver_hit(hurtbox: Hurtbox) -> void:
+	var dmg: float = _damage
+	var src: Variant = _source
+	var target_ds: Variant = hurtbox.get_parent().get("death_state") if hurtbox.get_parent() != null else null
+	var applied: float = minf(dmg, maxf(0.0, target_ds.current_hp)) if target_ds != null else dmg # no overkill in the report
+	var on_accept: Callable = func() -> void:
+		# v1.0 (docs/31 §4.6): recorded once, at hit resolution, as "tower_bow".
+		CombatStats.record_damage(AbilityIds.SOURCE_TOWER_BOW, applied)
+		hit_landed.emit(hurtbox, dmg, src)
 	if _sim_loop != null and _sim_loop.has_method(&"enqueue_hit"):
 		var attacker_serial: int = _sim_loop.get_combat_serial(_source)
 		var target_serial: int = _sim_loop.get_combat_serial(hurtbox.get_parent())
-		_sim_loop.enqueue_hit(attacker_serial, target_serial, _damage, _source, hurtbox, self, func() -> void: hit_landed.emit(hurtbox, _damage, _source))
+		_sim_loop.enqueue_hit(attacker_serial, target_serial, _damage, _source, hurtbox, self, on_accept)
 		return
 	var accepted: bool = hurtbox.receive_hit(self, _damage, _source)
 	if accepted:
-		hit_landed.emit(hurtbox, _damage, _source)
+		on_accept.call()
 
 
 func _on_area_entered(area: Area2D) -> void:

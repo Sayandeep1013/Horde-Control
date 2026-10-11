@@ -49,6 +49,11 @@ enum Faction { PLAYER, ENEMY, TOWER }
 ## reset_for_reuse() below, never assigned directly by another file.
 var is_dead: bool = false
 
+## v1.0 (docs/31 §3.1): the player's Dash sets this for its i-frames. A hit on
+## an invulnerable hurtbox is discarded exactly like a hit on a dead one, so
+## no damage, flash or counter is produced.
+var invulnerable: bool = false
+
 ## Emitted only when a hit is actually accepted (is_dead was false at the
 ## moment of receipt) -- the signal a test counts to distinguish a real
 ## damage event from a discarded ghost hit.
@@ -80,7 +85,7 @@ static func _layer_for_faction(f: Faction) -> int:
 ## caller's (ultimately death_state.gd's apply_damage()) job; this method
 ## only gates whether the attempt is even allowed through.
 func receive_hit(hitbox: Node, amount: float, source: Variant) -> bool:
-	if is_dead:
+	if is_dead or invulnerable:
 		return false # discarded -- docs/20 > Logical Death, checked first
 	damage_received.emit(amount, source, hitbox)
 	return true

@@ -132,6 +132,14 @@ var _fire_rate_multiplier: float = 1.0
 ## (the existing behaviour) is unaffected and still fires at full damage
 ## straight at the target.
 var _pierce_bonus: int = 0
+
+## v1.0: War Horn's temporary fire-rate buff (docs/31 §3.2), kept apart from the
+## Rapid Fire multiplier so expiry restores exactly the card-derived rate.
+var _buff_fire_rate_multiplier: float = 1.0
+
+## v1.0: Flame / Frost Arrows listen here; called as hook(enemy, damage) when an
+## arrow hit is accepted.
+var arrow_hit_hooks: Array[Callable] = []
 var _multishot_extra: int = 0
 ## Fixed by the card's own spec ("at 70% damage"), not a Register row of
 ## its own -- named here beside the field it scales rather than invented as
@@ -276,7 +284,22 @@ func get_effective_damage_per_shot() -> float:
 ## rate/rank" naming exactly (Rapid Fire increases the multiplier, which
 ## must decrease this interval, not increase it).
 func get_effective_fire_interval_seconds() -> float:
-	return (_fire_interval_seconds / _fire_rate_multiplier) if _fire_rate_multiplier > 0.0 else INF
+	var rate: float = _fire_rate_multiplier * _buff_fire_rate_multiplier
+	return (_fire_interval_seconds / rate) if rate > 0.0 else INF
+
+
+func set_buff_fire_rate_multiplier(multiplier: float) -> void:
+	_buff_fire_rate_multiplier = multiplier
+
+
+func get_damage_multiplier() -> float:
+	return _damage_multiplier
+
+
+func _on_arrow_hit(enemy: Node, damage: float) -> void:
+	for hook in arrow_hit_hooks:
+		if hook.is_valid():
+			hook.call(enemy, damage)
 
 
 func get_damage_multiplier_for_test() -> float:
@@ -412,7 +435,9 @@ func _launch_one(origin_pos: Vector2, direction: Vector2, damage: float) -> void
 	# Projectile Orphans (docs/20): source resolved BY VALUE, never a live
 	# Node reference to this weapon's owner -- see player_projectile.gd's
 	# header.
-	projectile.launch(origin_pos, direction * _projectile_speed, damage, &"player", _projectile_lifetime_seconds, _pierce_bonus)
+	if AbilityDamage.roll_crit():
+		damage *= AbilityDamage.CRIT_MULTIPLIER # Keen Eye (docs/31 §4.4)
+	projectile.launch(origin_pos, direction * _projectile_speed, damage, &"player", _projectile_lifetime_seconds, _pierce_bonus, AbilityIds.SOURCE_BOW, _on_arrow_hit)
 
 
 ## Read-only consistency check against F03-09's other half (data/player/

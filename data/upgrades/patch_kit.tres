@@ -19,3 +19,4 @@ recursive_interaction_guard = ""
 has_recursive_interaction_guard = false
 visual_readability_impact = 0
 performance_cost_category = 0
+kind = 4

@@ -101,6 +101,7 @@ var _registry: Node = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_to_group(&"tower") # v1.0: ability nodes / repair find the Tower by group
 	z_index = 20 # Register > Readability: the shared play-layer band, Y-sorted with the player and enemies (Author decision D119)
 	body = get_node_or_null(body_path) as StaticBody2D
 	hurtbox = get_node_or_null(hurtbox_path) as Hurtbox

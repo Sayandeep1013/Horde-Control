@@ -164,6 +164,7 @@ var _audio_pool: Node = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_to_group(&"player") # v1.0 (docs/31 §10): HUD / Battle Skill / ability nodes find the player by group
 	z_index = 20 # Register > Readability: the shared play-layer band, Y-sorted with the Tower and enemies (Author decision D119)
 	# No src/core/pool.gd `pool_body` group membership: unlike enemies,
 	# pickups, projectiles, and effects (src/core/entity_spawner.gd's six
@@ -291,6 +292,7 @@ func _physics_process(delta: float) -> void:
 func physics_step(delta: float) -> void:
 	var raw_direction: Vector2 = _raw_input_direction()
 	_update_input_buffer(raw_direction)
+	_dash_step(raw_direction)
 	_movement_step(delta, raw_direction)
 	_regen_step(delta)
 	if _animator != null:
@@ -343,6 +345,15 @@ func _raw_input_direction() -> Vector2:
 ## an interpretation, not a restatement of an explicit rule.
 func _movement_step(delta: float, raw_direction: Vector2) -> void:
 	if definition == null:
+		return
+	if _dash_active:
+		# v1.0 Dash: a fixed-speed burst overrides the ramp; the exit velocity
+		# is seeded at base speed so the stop is not a hard snap.
+		_local_velocity = _dash_direction * definition.base_speed_px_per_second * _speed_multiplier
+		velocity = _dash_direction * (DASH_DISTANCE_PX / DASH_DURATION_SECONDS) * SimClock.time_scale
+		move_and_slide()
+		if _registry != null:
+			_registry.update_position(self, global_position)
 		return
 	var target_velocity: Vector2 = raw_direction * definition.base_speed_px_per_second * _speed_multiplier
 	var rate: float = _acceleration_rate_px_per_s2 if target_velocity != Vector2.ZERO else _deceleration_rate_px_per_s2
@@ -516,6 +527,9 @@ func is_second_wind_available_for_test() -> bool:
 func apply_damage(amount: float, source: Variant = null) -> bool:
 	if death_state == null:
 		return false
+	amount *= _damage_taken_multiplier # v1.0 Leather Armor / Iron Skin (docs/31 §4.4)
+	if amount > 0.0 and not death_state.is_dead:
+		CombatStats.add_run_counter("damage_taken", amount)
 	if _second_wind_available and not death_state.is_dead and amount > 0.0 and (death_state.current_hp - amount) <= 0.0:
 		_second_wind_available = false
 		death_state.current_hp = death_state.max_hp * SECOND_WIND_SURVIVE_FRACTION
@@ -606,6 +620,149 @@ func set_regen_fraction_per_second(fraction: float) -> void:
 
 func get_regen_fraction_per_second_for_test() -> float:
 	return _regen_fraction_per_second
+
+
+# --- v1.0 Dash (docs/31 §3.1; Register "v1.0 Combat & Abilities" > Dash) ----
+
+const DASH_DISTANCE_PX: float = 190.0 # Register: Dash distance
+const DASH_DURATION_SECONDS: float = 0.16 # Register: Dash duration
+const DASH_IFRAME_EXTRA_SECONDS: float = 0.12 # Register: Dash invulnerability tail
+const DASH_COOLDOWN_SECONDS: float = 2.8 # Register: Dash recharge
+const DASH_BASE_CHARGES: int = 1 # Register: Dash charges
+const DASH_COOLDOWN_FLOOR: float = 0.4 # Register: Dash cooldown multiplier floor
+const DASH_AFTERIMAGES: int = 3 # docs/31 §3.1: "3 fading sprite copies"
+
+var _dash_extra_charges: int = 0
+var _dash_cooldown_multiplier: float = 1.0
+var _dash_charges: int = DASH_BASE_CHARGES
+var _dash_recharge_ready_at: float = 0.0
+var _dash_active: bool = false
+var _dash_end_at: float = 0.0
+var _dash_started_at: float = 0.0
+var _dash_direction: Vector2 = Vector2.RIGHT
+var _dash_afterimages_spawned: int = 0
+var _dash_buffer_until: float = -INF
+var _invulnerable_until: float = -INF
+var _facing: Vector2 = Vector2.RIGHT
+var _test_dash_pressed: bool = false
+var _damage_taken_multiplier: float = 1.0
+
+
+func _dash_max_charges() -> int:
+	return DASH_BASE_CHARGES + _dash_extra_charges
+
+
+func _dash_cooldown_total() -> float:
+	return DASH_COOLDOWN_SECONDS * maxf(DASH_COOLDOWN_FLOOR, _dash_cooldown_multiplier)
+
+
+## Typed query for the HUD and the Battle Skill / balance bot (docs/31 §10).
+func get_dash_state() -> Dictionary:
+	var remaining: float = 0.0
+	if _dash_charges < _dash_max_charges():
+		remaining = maxf(0.0, _dash_recharge_ready_at - SimClock.now)
+	return {"charges": _dash_charges, "max_charges": _dash_max_charges(), "cooldown_remaining": remaining, "cooldown_total": _dash_cooldown_total()}
+
+
+func is_dashing() -> bool:
+	return _dash_active
+
+
+func is_invulnerable() -> bool:
+	return SimClock.now < _invulnerable_until
+
+
+## Reads the `dash` action through the same short buffer the movement input
+## uses (Register "Input buffer": 100 ms), so a press just before a charge
+## returns still dashes.
+func _dash_step(raw_direction: Vector2) -> void:
+	var now: float = SimClock.now
+	if raw_direction != Vector2.ZERO:
+		_facing = raw_direction.normalized()
+	if _test_dash_pressed or Input.is_action_just_pressed(&"dash"):
+		_test_dash_pressed = false
+		_dash_buffer_until = now + _buffer_duration_seconds
+	# Recharge: one charge at a time.
+	if _dash_charges < _dash_max_charges() and now >= _dash_recharge_ready_at:
+		_dash_charges += 1
+		if _dash_charges < _dash_max_charges():
+			_dash_recharge_ready_at = now + _dash_cooldown_total()
+	if _dash_active:
+		_spawn_dash_afterimages(now)
+		if now >= _dash_end_at:
+			_end_dash()
+	if now < _dash_buffer_until and not _dash_active and _dash_charges > 0 and not is_dead():
+		_start_dash(raw_direction, now)
+	if hurtbox != null:
+		hurtbox.invulnerable = now < _invulnerable_until
+	if now >= _invulnerable_until and not _dash_active and _dash_pass_through:
+		_set_pass_through(false)
+
+
+var _dash_pass_through: bool = false
+
+
+func _start_dash(raw_direction: Vector2, now: float) -> void:
+	_dash_buffer_until = -INF
+	if _dash_charges >= _dash_max_charges():
+		_dash_recharge_ready_at = now + _dash_cooldown_total()
+	_dash_charges -= 1
+	_dash_direction = raw_direction.normalized() if raw_direction != Vector2.ZERO else _facing
+	_dash_active = true
+	_dash_started_at = now
+	_dash_end_at = now + DASH_DURATION_SECONDS
+	_invulnerable_until = _dash_end_at + DASH_IFRAME_EXTRA_SECONDS
+	_dash_afterimages_spawned = 0
+	_set_pass_through(true)
+	_spawn_dash_afterimages(now)
+	Sfx.play("dash", global_position)
+	CombatStats.add_run_counter("dashes")
+	EventBus.emit_dash_used(_dash_charges)
+
+
+func _end_dash() -> void:
+	_dash_active = false
+	_set_pass_through(false)
+
+
+## Passes through enemy bodies: the player's body mask drops EnemyBody for the
+## dash (World, Tower and ArenaBounds still block).
+func _set_pass_through(on: bool) -> void:
+	_dash_pass_through = on
+	collision_mask = (CollisionLayers.MASK_PLAYER_BODY & ~CollisionLayers.LAYER_ENEMY_BODY) if on else CollisionLayers.MASK_PLAYER_BODY
+
+
+func _spawn_dash_afterimages(now: float) -> void:
+	var progress: float = clampf((now - _dash_started_at) / DASH_DURATION_SECONDS, 0.0, 1.0)
+	while _dash_afterimages_spawned < DASH_AFTERIMAGES and progress >= float(_dash_afterimages_spawned) / float(DASH_AFTERIMAGES):
+		_dash_afterimages_spawned += 1
+		var sprite: AnimatedSprite2D = get_node_or_null("Visuals/Sprite2D") as AnimatedSprite2D
+		if sprite != null and get_parent() != null:
+			DashAfterimage.spawn(get_parent(), sprite, global_position)
+
+
+## Meta hooks (WP-META via AbilityManager). REPLACE, never compound.
+func set_dash_extra_charges(extra: int) -> void:
+	var before: int = _dash_max_charges()
+	_dash_extra_charges = maxi(0, extra)
+	if _dash_max_charges() > before:
+		_dash_charges += _dash_max_charges() - before # a bought charge starts full
+
+
+func set_dash_cooldown_multiplier(multiplier: float) -> void:
+	_dash_cooldown_multiplier = multiplier
+
+
+func set_damage_taken_multiplier(multiplier: float) -> void:
+	_damage_taken_multiplier = clampf(multiplier, 0.1, 2.0)
+
+
+func get_damage_taken_multiplier() -> float:
+	return _damage_taken_multiplier
+
+
+func press_dash_for_test() -> void:
+	_test_dash_pressed = true
 
 
 # --- Test-only seams (never called by gameplay code) ----------------------
