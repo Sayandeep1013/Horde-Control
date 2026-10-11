@@ -226,15 +226,15 @@ func test_warchief_announces_reports_health_enrages_below_40_percent_and_drops_o
 	EventBus.boss_defeated.connect(on_defeated)
 	var boss: EnemyController = _enemy(WarchiefScene, Vector2(400, 0))
 	var b: WarchiefBehavior = boss.behavior as WarchiefBehavior
-	assert_float(boss.death_state.max_hp).is_equal_approx(2600.0, 0.01)
+	assert_float(boss.death_state.max_hp).is_equal_approx(2200.0, 0.01)
 	assert_float(boss.get_base_speed()).is_equal_approx(0.5 * 320.0, 0.01)
 	assert_bool(boss.freeze_immune).append_failure_message("bosses are freeze-immune").is_true()
 	b.announce_spawn()
-	assert_array(spawned).is_equal([["warchief", "Goblin Warchief", 2600.0]])
+	assert_array(spawned).is_equal([["warchief", "Goblin Warchief", 2200.0]])
 	boss.death_state.apply_damage(100.0, "test")
-	assert_array(health.back()).is_equal(["warchief", 2500.0, 2600.0])
+	assert_array(health.back()).is_equal(["warchief", 2100.0, 2200.0])
 	assert_float(b.cooldown_scale()).is_equal(1.0)
-	boss.death_state.apply_damage(1500.0, "test") # 1000 left = 38.5%
+	boss.death_state.apply_damage(1400.0, "test") # 800 left = 36.4%
 	assert_int(b.phase).is_equal(2)
 	assert_float(b.cooldown_scale()).append_failure_message("enrage: cooldowns x0.7").is_equal(0.7)
 	boss.death_state.kill("test")
@@ -247,17 +247,17 @@ func test_warchief_announces_reports_health_enrages_below_40_percent_and_drops_o
 
 func test_warchief_stays_in_phase_one_at_exactly_40_percent() -> void:
 	var boss: EnemyController = _enemy(WarchiefScene, Vector2(400, 0))
-	boss.death_state.apply_damage(2600.0 * 0.6, "test")
+	boss.death_state.apply_damage(2200.0 * 0.6, "test")
 	assert_int((boss.behavior as WarchiefBehavior).phase).is_equal(1)
 
 
-func test_warchief_slams_a_150_px_ring_for_38_after_a_1_s_telegraph() -> void:
+func test_warchief_slams_a_150_px_ring_for_30_after_a_1_s_telegraph() -> void:
 	var player: Node2D = _target(Vector2(60, 0), &"player")
 	var boss: EnemyController = _enemy(WarchiefScene, Vector2.ZERO)
 	_advance(boss, 4.5)
 	assert_array(player.damage_log).append_failure_message("the telegraph is still running at 4.5 s").is_empty()
 	_advance(boss, 0.8)
-	assert_array(player.damage_log).is_equal([38.0])
+	assert_array(player.damage_log).is_equal([30.0])
 
 
 func test_warchief_rallies_six_hunters_through_the_wave_director() -> void:
@@ -270,22 +270,22 @@ func test_warchief_rallies_six_hunters_through_the_wave_director() -> void:
 	assert_array(recorder.calls).is_equal([["player_hunter", 6]])
 
 
-func test_king_barrages_five_dynamite_around_the_player_then_siege_bombs_the_tower_for_110() -> void:
+func test_king_barrages_five_dynamite_around_the_player_then_siege_bombs_the_tower_for_70() -> void:
 	var player: Node2D = _target(Vector2(0, 600), &"player")
 	var tower: Node2D = _target(Vector2.ZERO, &"tower", Hurtbox.Faction.TOWER)
 	var king: EnemyController = _enemy(KingScene, Vector2(360, 0))
-	assert_float(king.death_state.max_hp).is_equal_approx(7000.0, 0.01)
+	assert_float(king.death_state.max_hp).is_equal_approx(5000.0, 0.01)
 	_advance(king, 3.2)
 	var barrage: Array = _bombs().filter(func(b: EnemyBomb) -> bool: return b.blast_damage == 26.0)
 	assert_int(barrage.size()).append_failure_message("Barrage is 5 dynamite").is_equal(5)
 	assert_bool(barrage.any(func(b: EnemyBomb) -> bool: return b.target_position.distance_to(player.global_position) < 1.0)).append_failure_message("one lands on the player").is_true()
 	_advance(king, 4.0)
-	var siege: Array = _bombs().filter(func(b: EnemyBomb) -> bool: return b.blast_damage == 110.0)
+	var siege: Array = _bombs().filter(func(b: EnemyBomb) -> bool: return b.blast_damage == 70.0)
 	assert_int(siege.size()).is_equal(1)
 	assert_float(siege[0].flight_seconds).is_equal(1.6)
 	assert_bool(siege[0].hit_player).is_false()
 	_advance(king, 1.7, 0.05, true)
-	assert_float(tower.total_damage()).is_equal(110.0)
+	assert_float(tower.total_damage()).is_equal(70.0)
 
 
 func test_king_goes_to_eight_dynamite_and_a_7_s_siege_bomb_below_50_percent() -> void:
@@ -293,7 +293,7 @@ func test_king_goes_to_eight_dynamite_and_a_7_s_siege_bomb_below_50_percent() ->
 	_target(Vector2.ZERO, &"tower", Hurtbox.Faction.TOWER)
 	_target(Vector2(0, 600), &"player")
 	var kb: KingBehavior = king.behavior as KingBehavior
-	king.death_state.apply_damage(3500.0, "test")
+	king.death_state.apply_damage(2500.0, "test")
 	assert_int(kb.phase).append_failure_message("exactly 50% is still phase 1").is_equal(1)
 	king.death_state.apply_damage(1.0, "test")
 	assert_int(kb.phase).is_equal(2)

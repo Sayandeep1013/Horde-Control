@@ -1,11 +1,11 @@
-extends GdUnitTestSuite
+﻿extends GdUnitTestSuite
 
-## v1.0 Wave Director suite (WP-ENEMIES; docs/31 §2, §5.2, §6; Register
+## v1.0 Wave Director suite (WP-ENEMIES; docs/31 Â§2, Â§5.2, Â§6; Register
 ## "v1.0 Enemies, Bosses & Waves"). Expectations are independent literals
 ## transcribed from docs/31, never read back from the code under test.
 ##
 ## Covers: the authored 15-wave table, the sequence advancing with gaps of
-## 6 s / 10 s before a boss, boss waves ending on the boss's death, victory on
+## 8 s / 12 s before a boss, boss waves ending on the boss's death, victory on
 ## the final boss, the Endless loop, the query API and EventBus emissions, the
 ## difficulty multipliers, the elite roll, spawn markers and the Siege warning.
 
@@ -16,14 +16,15 @@ const WaveDirectorScript: GDScript = preload("res://src/director/wave_director.g
 const DummyEnemy: GDScript = preload("res://tests/unit/v1_dummy_enemy.gd")
 const DummyBoss: GDScript = preload("res://tests/unit/v1_dummy_boss.gd")
 
-## docs/31 §6.1 HP multipliers and durations; damage multipliers are the
-## authored ramp (D221), lower than docs/31's 0.6-1.35 in waves 1-7 and
-## 10-13 after the first bot runs (Register "Wave sequence").
+## Register "Wave sequence" (D221, retuned by WP-BALANCE with the kite bot,
+## docs/reviews/2026-10-11_V1_BALANCE_PASS.md): HP and damage multipliers are the
+## authored ramp, below docs/31 6.1's starting values from wave 6 on. Transcribed
+## as literals on purpose: they must not follow the data files.
 const TABLE: Array = [
 	["wave_01", 1.0, 0.3, 30.0], ["wave_02", 1.0, 0.35, 35.0], ["wave_03", 1.0, 0.4, 40.0], ["wave_04", 1.0, 0.6, 45.0],
-	["wave_05", 1.1, 0.65, 60.0], ["wave_06", 1.2, 0.7, 60.0], ["wave_07", 1.3, 0.8, 70.0], ["wave_08", 1.0, 1.0, 0.0],
-	["wave_09", 1.5, 1.0, 70.0], ["wave_10", 1.6, 1.05, 75.0], ["wave_11", 1.75, 1.1, 75.0], ["wave_12", 1.9, 1.15, 75.0],
-	["wave_13", 2.1, 1.25, 80.0], ["wave_14", 2.3, 1.35, 85.0], ["wave_15", 1.0, 1.0, 0.0],
+	["wave_05", 1.1, 0.65, 60.0], ["wave_06", 1.2, 0.55, 60.0], ["wave_07", 1.2, 0.65, 70.0], ["wave_08", 1.0, 1.0, 0.0],
+	["wave_09", 1.5, 1.0, 70.0], ["wave_10", 1.3, 0.75, 75.0], ["wave_11", 1.7, 0.95, 75.0], ["wave_12", 1.8, 1.05, 75.0],
+	["wave_13", 1.8, 0.95, 80.0], ["wave_14", 1.9, 0.9, 85.0], ["wave_15", 1.0, 1.0, 0.0],
 ]
 
 var _registry: Node
@@ -181,14 +182,14 @@ func test_default_sequence_matches_the_docs_31_table() -> void:
 		var is_boss: bool = row[3] == 0.0
 		assert_bool(w.has_maximum_duration).append_failure_message("%s: boss waves have no maximum duration" % row[0]).is_equal(not is_boss)
 		assert_float(w.maximum_duration_seconds).append_failure_message("%s max duration" % row[0]).is_equal_approx(row[3], 0.0001)
-		# Every wave's effective gap = max(wave gap, closing encounter gap): 10 s before a boss, else 6 s.
+		# Every wave's effective gap = max(wave gap, closing encounter gap): 12 s before a boss, else 8 s.
 		var enc: EncounterDefinition = null
 		for e in _director.encounter_definitions:
 			if e.unique_id == w.encounter_sequence[0]:
 				enc = e
 		var gap: float = maxf(w.inter_wave_gap_seconds, enc.minimum_recovery_gap_seconds)
 		var before_boss: bool = i == 6 or i == 13
-		assert_float(gap).append_failure_message("%s gap" % row[0]).is_equal_approx(10.0 if before_boss else 6.0, 0.0001)
+		assert_float(gap).append_failure_message("%s gap" % row[0]).is_equal_approx(12.0 if before_boss else 8.0, 0.0001)
 	assert_str(waves[7].encounter_sequence[0]).is_equal("w08_boss")
 	assert_str(_director.get_current_wave_type()).is_equal("")
 
@@ -219,7 +220,7 @@ func test_full_sequence_runs_with_correct_gaps_and_completes_when_the_king_dies(
 		return
 	for i in 14:
 		var gap: float = float(opened[i + 1]["t"]) - float(ended[i]["t"])
-		var want: float = 10.0 if (i == 6 or i == 13) else 6.0
+		var want: float = 12.0 if (i == 6 or i == 13) else 8.0
 		assert_float(gap).append_failure_message("gap after wave %d" % (i + 1)).is_equal_approx(want, 0.6)
 
 
@@ -364,13 +365,13 @@ func test_difficulty_scales_spawn_count_hp_damage_and_boss_hp() -> void:
 	assert_int(_director.get_effective_group_count_for_test(_director.encounter_definitions[0], 0)).append_failure_message("4 x 1.2 = 4.8 rounds to 5").is_equal(5)
 	_step(2.0, 0.1, 2.0, false)
 	var first: Node2D = _spawned[0]
-	assert_float(first.scaling[0][0]).append_failure_message("hp 1.0 x 1.35").is_equal_approx(1.35, 0.0001)
-	assert_float(first.scaling[0][2]).append_failure_message("hunter damage 0.25 x 1.4").is_equal_approx(0.35, 0.0001)
+	assert_float(first.scaling[0][0]).append_failure_message("hp 1.0 x 1.25").is_equal_approx(1.25, 0.0001)
+	assert_float(first.scaling[0][2]).append_failure_message("hunter damage 0.25 x 1.3").is_equal_approx(0.325, 0.0001)
 	_spawned.clear()
 	_director.open_wave_for_test(8)
 	_step(1.0, 0.5, 2.0, false)
 	var boss: Node2D = _director.get_boss_instance_for_test()
-	assert_float(boss.scaling[0][0]).append_failure_message("boss hp uses the boss multiplier (1.4), not the enemy one (1.35)").is_equal_approx(1.4, 0.0001)
+	assert_float(boss.scaling[0][0]).append_failure_message("boss hp uses the boss multiplier (1.3), not the enemy one (1.25)").is_equal_approx(1.3, 0.0001)
 	assert_int(_director.get_effective_group_count_for_test(_director.encounter_definitions[7], 0)).append_failure_message("a boss is never multiplied").is_equal(1)
 
 
