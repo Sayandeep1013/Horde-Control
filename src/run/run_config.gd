@@ -16,6 +16,12 @@ const DEFAULT_BATTLE_SKILL_ID: String = "arrow_storm"
 static var difficulty_id: String = DEFAULT_DIFFICULTY_ID
 static var battle_skill_id: String = DEFAULT_BATTLE_SKILL_ID
 static var endless: bool = false
+## docs/32 §C (WP-LOADOUT writes, WP-RUNEVENTS and others read): the chosen
+## Champion ("ranger", "warden", "skirmisher", "pactbound") and up to two
+## Relic ids.
+const DEFAULT_CHAMPION_ID: String = "ranger"
+static var champion_id: String = DEFAULT_CHAMPION_ID
+static var relic_ids: Array[String] = []
 
 static var _cache: Dictionary = {} # id -> DifficultyProfile
 
@@ -44,3 +50,9 @@ static func reset_for_test() -> void:
 	difficulty_id = DEFAULT_DIFFICULTY_ID
 	battle_skill_id = DEFAULT_BATTLE_SKILL_ID
 	endless = false
+	champion_id = DEFAULT_CHAMPION_ID
+	relic_ids = []
+
+
+static func has_relic(id: String) -> bool:
+	return relic_ids.has(id)
