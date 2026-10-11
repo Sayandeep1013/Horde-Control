@@ -416,10 +416,13 @@ func test_all_eighteen_upgrade_definitions_load_with_the_expected_pool_and_rank_
 	# D118: exactly three cards are is_unlock (achievement-gated); every
 	# other card in the pool expansion (plus the original eight) is
 	# offerable from a fresh profile's first run.
-	var unlock_cards: Array[UpgradeDefinition] = [PiercingArrowsDef, MultishotDef, TowerVolleyDef]
+	# v1.0 (docs/31 §4.4): Multishot and Piercing Arrows became start-unlocked; only
+	# Tower Volley stays gated here (the new gated ability cards are checked in
+	# v1_combat_abilities_test.gd).
+	var unlock_cards: Array[UpgradeDefinition] = [TowerVolleyDef]
 	for def in unlock_cards:
 		assert_bool(def.is_unlock).append_failure_message("%s should be is_unlock (D118 achievement-gated)" % def.unique_id).is_true()
-	var non_unlock_cards: Array[UpgradeDefinition] = [RapidFireDef, HeavyRoundsDef, PatchKitDef, SwiftFeetDef, VitalityDef, MagnetDef, RegenerationDef, CaliberDef, OpticsDef, ShieldMatrixDef, ReinforcedPlatingDef, WatchtowerUpgradeDef, RepairKitDef, OverdriveDef, ReinforceDef]
+	var non_unlock_cards: Array[UpgradeDefinition] = [RapidFireDef, HeavyRoundsDef, PatchKitDef, SwiftFeetDef, VitalityDef, MagnetDef, RegenerationDef, PiercingArrowsDef, MultishotDef, CaliberDef, OpticsDef, ShieldMatrixDef, ReinforcedPlatingDef, WatchtowerUpgradeDef, RepairKitDef, OverdriveDef, ReinforceDef]
 	for def in non_unlock_cards:
 		assert_bool(def.is_unlock).append_failure_message("%s should NOT be is_unlock -- offerable from the first run" % def.unique_id).is_false()
 
@@ -471,25 +474,25 @@ func test_an_is_unlock_card_is_absent_from_the_pool_until_unlocked() -> void:
 	var offered_ids: Array[String] = []
 	for def in offered:
 		offered_ids.append(def.unique_id)
-	assert_bool(offered_ids.has("piercing_arrows")).append_failure_message("Piercing Arrows (is_unlock) must be absent from a fresh profile's pool").is_false()
-	assert_bool(system.is_card_unlocked_for_test("piercing_arrows")).is_false()
+	assert_bool(offered_ids.has("frost_arrows")).append_failure_message("Frost Arrows (is_unlock) must be absent from a fresh profile's pool").is_false()
+	assert_bool(system.is_card_unlocked_for_test("frost_arrows")).is_false()
 
-	system.set_unlocked_card_ids(["piercing_arrows"])
-	assert_bool(system.is_card_unlocked_for_test("piercing_arrows")).is_true()
+	system.set_unlocked_card_ids(["frost_arrows"])
+	assert_bool(system.is_card_unlocked_for_test("frost_arrows")).is_true()
 	var offered_after: Array[UpgradeDefinition] = system.get_offerable_upgrades(ContractEnums.PoolOwnership.Player)
 	var offered_after_ids: Array[String] = []
 	for def in offered_after:
 		offered_after_ids.append(def.unique_id)
-	assert_bool(offered_after_ids.has("piercing_arrows")).append_failure_message("Piercing Arrows must become offerable once unlocked").is_true()
+	assert_bool(offered_after_ids.has("frost_arrows")).append_failure_message("Frost Arrows must become offerable once unlocked").is_true()
 
 	# Maxing every OTHER Player card must not report the Player pool
 	# exhausted while Piercing Arrows/Multishot are still locked -- a locked
 	# card must not silently block or fake the exhaustion check.
 	var system2: UpgradeSystem = _build_upgrade_system()
-	for id in ["rapid_fire", "heavy_rounds", "patch_kit", "swift_feet", "vitality", "magnet", "regeneration"]:
-		for _i in 5:
-			system2.apply_rank(id)
-	assert_bool(system2.is_pool_exhausted(ContractEnums.PoolOwnership.Player)).append_failure_message("locked is_unlock cards (Piercing Arrows, Multishot) must not block exhaustion once every OTHER card is maxed").is_true()
+	for def in system2.get_offerable_upgrades(ContractEnums.PoolOwnership.Player):
+		for _i in def.max_rank:
+			system2.apply_rank(def.unique_id)
+	assert_bool(system2.is_pool_exhausted(ContractEnums.PoolOwnership.Player)).append_failure_message("locked is_unlock cards (Frost Arrows, Storm Bolt, Sacred Ground) must not block exhaustion once every OTHER card is maxed").is_true()
 
 
 # --- Falsification 14: pool expansion, new mechanics -----------------------

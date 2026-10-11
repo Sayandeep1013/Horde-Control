@@ -27,6 +27,9 @@ extends SceneTree
 ##       smart = highest on a fixed power-first priority list (damage, fire rate,
 ##       Tower cards before sustain), except Patch Kit when the player is below
 ##       50% health and Repair Kit when the Tower is, which approximates a human
+##   --autocast                       turn Auto-cast Battle Skill on (v1.0, docs/31 §3.3);
+##       the bot never presses the skill key itself, so without this flag no
+##       Battle Skill is cast. Dash is never auto-cast and the bot does not dash.
 ##   --max-sim=SECONDS                abort at this SimClock time (default 1200)
 ##   --csv=<abs path>                 append one result row to this CSV
 ##   --meta-profile-dir=<abs dir>     REQUIRED in practice: MetaProgress writes
@@ -42,7 +45,9 @@ const PROFILE_FLAG: String = "--meta-profile-dir="
 var mode: String = "still"
 var pick: int = 0
 var smart_pick: bool = false
-const SMART_PRIORITY: Array[String] = ["caliber", "tower_volley", "rapid_fire", "heavy_rounds", "optics", "shield_matrix", "reinforced_plating", "vitality", "multishot", "regeneration", "watchtower_upgrade", "piercing_arrows", "repair_kit", "swift_feet", "magnet", "patch_kit"]
+const SMART_PRIORITY: Array[String] = ["caliber", "tower_volley", "rapid_fire", "heavy_rounds", "ballista", "flame_arrows", "whirling_axes", "dynamite_satchel", "frost_ward", "storm_bolt", "catapult", "keen_eye", "ability_power", "optics", "shield_matrix", "reinforced_plating", "vitality", "multishot", "regeneration", "watchtower_upgrade", "piercing_arrows", "repair_kit", "swift_feet", "magnet", "patch_kit"]
+var autocast: bool = false
+var profile_dir: String = ""
 var seed_value: int = -1
 var max_sim: float = 1200.0
 var csv_path: String = ""
@@ -61,18 +66,29 @@ func _initialize() -> void:
 	var has_profile_dir: bool = false
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--mode="): mode = a.trim_prefix("--mode=")
+		if a == "--autocast": autocast = true
 		if a == "--pick=smart": smart_pick = true
 		elif a.begins_with("--pick="): pick = int(a.trim_prefix("--pick="))
 		if a.begins_with("--seed="): seed_value = int(a.trim_prefix("--seed="))
 		if a.begins_with("--max-sim="): max_sim = float(a.trim_prefix("--max-sim="))
 		if a.begins_with("--csv="): csv_path = a.trim_prefix("--csv=")
-		if a.begins_with(PROFILE_FLAG): has_profile_dir = true
+		if a.begins_with(PROFILE_FLAG):
+			has_profile_dir = true
+			profile_dir = a.trim_prefix(PROFILE_FLAG)
 	for a in OS.get_cmdline_args():
-		if a.begins_with(PROFILE_FLAG): has_profile_dir = true
+		if a.begins_with(PROFILE_FLAG):
+			has_profile_dir = true
+			profile_dir = a.trim_prefix(PROFILE_FLAG)
 	if not has_profile_dir:
 		push_error("balance_bot: refusing to run without --meta-profile-dir=<sandbox dir>")
 		quit(2)
 		return
+	if autocast:
+		# Redirect the settings file into the sandbox profile dir first: turning
+		# the option on saves GameSettings, and the bot must never touch the
+		# real user:// settings.
+		GameSettings.set_path_for_test(profile_dir.path_join("bot_settings.cfg"))
+		GameSettings.set_auto_cast_enabled(true)
 	if seed_value < 0:
 		seed_value = int(randi() & 0x7fffffff)
 	var ps: PackedScene = load("res://scenes/prototype.tscn")

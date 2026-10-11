@@ -20,3 +20,5 @@ has_recursive_interaction_guard = true
 visual_readability_impact = 2
 performance_cost_category = 1
 is_unlock = true
+kind = 0
+ability_id = "PLACEHOLDER_ability"

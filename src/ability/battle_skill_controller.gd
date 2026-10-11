@@ -188,7 +188,6 @@ func _cast_firebomb(player: Node2D) -> bool:
 
 func _cast_war_horn(player: Node2D) -> bool:
 	var tower: Node2D = _get_tower()
-	var gold := Color(1.0, 0.85, 0.3)
 	if tower != null and tower.get("health") != null:
 		tower.health.restore_shield()
 		if tower.get("weapon") != null:
