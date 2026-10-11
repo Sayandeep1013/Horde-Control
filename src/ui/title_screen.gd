@@ -115,18 +115,15 @@ const SUB_PANEL_SCROLL_MAX_HEIGHT: float = 480.0 ## docs/19 > "UI Layout & Dynam
 
 var _root: Control
 var _menu_center: CenterContainer
-var _controls_center: CenterContainer
 var _credits_center: CenterContainer
 var _play_button: Button
 var _how_to_play_button: Button
-var _controls_button: Button
 var _how_to_play_center: CenterContainer
 var _how_to_play_back_button: Button
 var _how_to_play_scroll: ScrollContainer
 var _credits_button: Button
 var _settings_button: Button
 var _quit_button: Button
-var _controls_back_button: Button
 var _credits_back_button: Button
 var _music_player: AudioStreamPlayer
 var _last_focused_main_button: Button = null
@@ -174,12 +171,10 @@ func _apply_debug_panel_flag() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with(DEBUG_PANEL_FLAG_PREFIX):
 			requested = arg.trim_prefix(DEBUG_PANEL_FLAG_PREFIX)
-	if requested == "controls":
-		_on_controls_pressed()
+	if requested == "controls" or requested == "howto":
+		_on_how_to_play_pressed() # the Controls page is part of How to Play now
 	elif requested == "credits":
 		_on_credits_pressed()
-	elif requested == "howto":
-		_on_how_to_play_pressed()
 	elif requested == "settings":
 		_on_settings_pressed()
 		for arg in OS.get_cmdline_user_args():
@@ -205,7 +200,7 @@ func _handle_ui_cancel() -> bool:
 	if _settings_menu.visible:
 		_on_settings_closed()
 		return true
-	if _controls_center.visible or _credits_center.visible or _how_to_play_center.visible:
+	if _credits_center.visible or _how_to_play_center.visible:
 		_hide_panels_and_return()
 		return true
 	return false
@@ -237,7 +232,6 @@ func _build_ui() -> void:
 	_build_scrim()
 	_build_foreground()
 	_build_how_to_play_panel()
-	_build_controls_panel()
 	_build_credits_panel()
 
 
@@ -350,6 +344,29 @@ func _build_foreground() -> void:
 
 	_build_title_block(foreground)
 	_build_menu_card(foreground)
+	_build_version_footer(foreground)
+
+
+## Review fix (D249): "v1.0.0" small in the bottom-right corner, read from
+## project.godot's application/config/version so it cannot drift from the build.
+func _build_version_footer(parent: Control) -> void:
+	var label := Label.new()
+	label.name = "VersionLabel"
+	label.text = version_text()
+	label.theme_type_variation = UiTheme.SMALL
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	label.offset_right = -float(UiPalette.SCREEN_MARGIN)
+	label.offset_bottom = -float(UiPalette.SCREEN_MARGIN) * 0.5
+	parent.add_child(label)
+
+
+static func version_text() -> String:
+	return "v%s" % str(ProjectSettings.get_setting("application/config/version", "0.0.0"))
 
 
 func _build_title_block(parent: Control) -> void:
@@ -414,10 +431,6 @@ func _build_menu_card(parent: Control) -> void:
 	_how_to_play_button.pressed.connect(_on_how_to_play_pressed)
 	column.add_child(_how_to_play_button)
 
-	_controls_button = _make_menu_button(tr("TITLE_CONTROLS"))
-	_controls_button.pressed.connect(_on_controls_pressed)
-	column.add_child(_controls_button)
-
 	_credits_button = _make_menu_button(tr("TITLE_CREDITS"))
 	_credits_button.pressed.connect(_on_credits_pressed)
 	column.add_child(_credits_button)
@@ -454,79 +467,6 @@ func _build_how_to_play_panel() -> void:
 	_how_to_play_back_button = _make_menu_button(tr("TITLE_BACK"))
 	_how_to_play_back_button.pressed.connect(_on_how_to_play_back_pressed)
 	column.add_child(_how_to_play_back_button)
-
-
-# --- Controls panel --------------------------------------------------------
-
-## Real bindings, decoded directly from this project's own `project.godot`
-## `[input]` section (physical keycodes / joypad button indices / axes),
-## not copied from docs/19 without checking -- cross-checked against it
-## afterward and found consistent. Left as plain strings (key/button names),
-## matching docs/19's own Input Map section, which does not localize them
-## either.
-func _controls_rows() -> Array:
-	if TouchUi.is_mobile_layout():
-		# D147: a phone has no keys. Same rows the player needs, touch wording.
-		return [
-			[tr("TITLE_CONTROLS_MOVE"), "Drag on the left side"],
-			[tr("TITLE_CONTROLS_DASH"), "Dash button"],
-			[tr("TITLE_CONTROLS_SKILL"), "Battle Skill button"],
-			[tr("TITLE_CONTROLS_DRAFT_SELECT"), "Tap a card"],
-			[tr("TITLE_CONTROLS_REROLL"), "Tap Reroll"],
-			[tr("TITLE_CONTROLS_PAUSE"), "Pause button, or Back"],
-		]
-	# Keys are read from the Input Map, so a rebinding in Settings shows here too.
-	return [
-		[tr("TITLE_CONTROLS_MOVE"), "%s / Left Stick" % " ".join([InputHints.key_text(&"move_up"), InputHints.key_text(&"move_left"), InputHints.key_text(&"move_down"), InputHints.key_text(&"move_right")])],
-		[tr("TITLE_CONTROLS_DASH"), "%s, B / LB" % InputHints.joined(&"dash", ", ")],
-		[tr("TITLE_CONTROLS_SKILL"), "%s, Y / RB" % InputHints.joined(&"battle_skill", ", ")],
-		[tr("TITLE_CONTROLS_DRAFT_CYCLE"), "A/D, Left Stick, D-Pad"],
-		[tr("TITLE_CONTROLS_DRAFT_SELECT"), "1 / 2 / 3"],
-		[tr("TITLE_CONTROLS_CONFIRM"), "Space, Enter, Left Click, A / Cross"],
-		[tr("TITLE_CONTROLS_REROLL"), "R, X / Square"],
-		[tr("TITLE_CONTROLS_PAUSE"), "%s, Start" % InputHints.joined(&"pause", ", ")],
-		[tr("TITLE_CONTROLS_DEBUG_OVERLAY"), "F1"],
-		[tr("TITLE_CONTROLS_DEBUG_PSEUDOLOC"), "F2"],
-	]
-
-
-func _build_controls_panel() -> void:
-	var parts: Dictionary = _build_sub_panel("ControlsPanel")
-	_controls_center = parts["center"]
-	var column: VBoxContainer = parts["column"]
-
-	column.add_child(_make_panel_title(tr("TITLE_CONTROLS_TITLE")))
-	column.add_child(HSeparator.new())
-
-	var scroll := ScrollContainer.new()
-	scroll.name = "Scroll"
-	scroll.custom_minimum_size = Vector2(0.0, COMPACT_SUB_PANEL_SCROLL_HEIGHT if TouchUi.is_mobile_layout() else SUB_PANEL_SCROLL_MAX_HEIGHT)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	column.add_child(scroll)
-
-	var grid := GridContainer.new()
-	grid.name = "BindingsGrid"
-	grid.columns = 2 # separation comes from the theme's own GridContainer defaults (UiTheme._build_containers(): h=SPACE_L, v=SPACE_S) -- no per-node override needed
-	scroll.add_child(grid)
-
-	for pair in _controls_rows():
-		grid.add_child(_make_row_label(String(pair[0]), true))
-		grid.add_child(_make_row_label(String(pair[1]), false))
-
-	_controls_back_button = _make_menu_button(tr("TITLE_BACK"))
-	_controls_back_button.pressed.connect(_on_controls_back_pressed)
-	column.add_child(_controls_back_button)
-
-
-func _make_row_label(text: String, is_action: bool) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.theme_type_variation = UiTheme.HUD_VALUE if is_action else UiTheme.DIM_PARCHMENT
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.custom_minimum_size = Vector2(300.0 if is_action else 480.0, 0.0)
-	return label
 
 
 # --- Credits panel -----------------------------------------------------
@@ -652,16 +592,8 @@ func _on_how_to_play_back_pressed() -> void:
 	_hide_panels_and_return()
 
 
-func _on_controls_pressed() -> void:
-	_show_panel(_controls_center, _controls_button, _controls_back_button)
-
-
 func _on_credits_pressed() -> void:
 	_show_panel(_credits_center, _credits_button, _credits_back_button)
-
-
-func _on_controls_back_pressed() -> void:
-	_hide_panels_and_return()
 
 
 func _on_credits_back_pressed() -> void:
@@ -707,7 +639,6 @@ func _show_panel(center: CenterContainer, opener: Button, focus_target: Button) 
 
 
 func _hide_panels_and_return() -> void:
-	_controls_center.visible = false
 	_credits_center.visible = false
 	_how_to_play_center.visible = false
 	_set_title_block_visible(true)
@@ -748,10 +679,6 @@ func is_how_to_play_panel_active_for_test() -> bool:
 	return _how_to_play_center.visible
 
 
-func get_controls_button_for_test() -> Button:
-	return _controls_button
-
-
 func get_credits_button_for_test() -> Button:
 	return _credits_button
 
@@ -766,10 +693,6 @@ func get_settings_menu_for_test() -> SettingsMenu:
 
 func get_quit_button_for_test() -> Button:
 	return _quit_button
-
-
-func is_controls_panel_active_for_test() -> bool:
-	return _controls_center.visible
 
 
 func is_credits_panel_active_for_test() -> bool:

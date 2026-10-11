@@ -115,7 +115,25 @@ func _process(delta: float) -> void:
 	_refresh_text()
 
 
+## Review fix (D244): F1 / F2 are developer tools. An exported release build
+## (OS.is_debug_build() == false) hides the overlay, ignores both keys, and the
+## Controls / How to Play lists do not mention them. The InputMap actions stay.
+static var _dev_tools_override: int = -1
+
+
+static func dev_tools_enabled() -> bool:
+	if _dev_tools_override != -1:
+		return _dev_tools_override == 1
+	return OS.is_debug_build()
+
+
+static func set_dev_tools_override_for_test(value: int) -> void:
+	_dev_tools_override = value
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if not dev_tools_enabled():
+		return
 	if event.is_action_pressed(&"debug_overlay_toggle"):
 		_visible_overlay = not _visible_overlay
 		_apply_visibility()
@@ -141,12 +159,13 @@ func toggle_pseudolocalization() -> void:
 
 
 func _apply_visibility() -> void:
-	_fields_label.visible = _visible_overlay
-	$Panel.visible = _visible_overlay
+	var shown: bool = _visible_overlay and dev_tools_enabled()
+	_fields_label.visible = shown
+	$Panel.visible = shown
 
 
 func is_overlay_visible() -> bool:
-	return _visible_overlay
+	return _visible_overlay and dev_tools_enabled()
 
 
 ## ---- Typed commands (docs/20 > "Communication, commands"): future

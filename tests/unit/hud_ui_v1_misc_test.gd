@@ -129,6 +129,48 @@ func test_how_to_play_has_four_sections_naming_the_live_keys() -> void:
 	assert_str(HowToPlay.heading(4)).is_equal("Repair with Scrap")
 
 
+func test_how_to_play_has_know_your_enemy_with_a_sprite_and_a_line_each() -> void:
+	var holder: VBoxContainer = auto_free(VBoxContainer.new())
+	add_child(holder)
+	HowToPlay.build_content(holder, 400.0)
+	for id: String in ["SEEKER", "HUNTER", "OPPORTUNIST", "BOMBER", "BRUTE", "ELITE", "BOSS"]:
+		var row: Node = holder.find_child("EnemyRow_%s" % id, true, false)
+		assert_object(row).append_failure_message("no row for %s" % id).is_not_null()
+		assert_object((row.find_child("Icon", false, false) as TextureRect).texture).append_failure_message("%s has no sprite" % id).is_not_null()
+		assert_str((row.find_child("Line", false, false) as Label).text).is_not_empty().is_not_equal("HOWTO_ENEMY_" + id)
+	assert_str(HowToPlay.enemy_line("BOMBER")).contains("red circles")
+
+
+func test_the_controls_list_lives_in_how_to_play_and_hides_dev_rows_in_release() -> void:
+	var labels: Array = HowToPlay.controls_rows().map(func(r: Array) -> String: return r[0])
+	assert_array(labels).contains(["Move", "Dash", "Battle Skill", "Pause"])
+	DebugOverlay.set_dev_tools_override_for_test(1)
+	var dev: Array = HowToPlay.controls_rows().map(func(r: Array) -> String: return r[1])
+	assert_array(dev).contains(["F1", "F2"])
+	DebugOverlay.set_dev_tools_override_for_test(0)
+	var release_values: Array = HowToPlay.controls_rows().map(func(r: Array) -> String: return r[1])
+	var release_labels: Array = HowToPlay.controls_rows().map(func(r: Array) -> String: return r[0])
+	DebugOverlay.set_dev_tools_override_for_test(-1)
+	assert_array(release_values).not_contains(["F1", "F2"])
+	assert_bool(release_labels.any(func(l: String) -> bool: return l.contains("(dev"))).is_false()
+	GameSettings.set_key_binding(&"dash", 0, KEY_G)
+	assert_str(String((HowToPlay.controls_rows()[1] as Array)[1])).contains("G")
+
+
+func test_the_title_has_no_separate_controls_page_and_shows_the_version() -> void:
+	var title: TitleScreen = auto_free(TitleScreen.new())
+	add_child(title)
+	assert_bool(title.has_method("get_controls_button_for_test")).is_false()
+	var label: Label = title.find_child("VersionLabel", true, false) as Label
+	assert_object(label).is_not_null()
+	assert_str(label.text).is_equal("v" + str(ProjectSettings.get_setting("application/config/version")))
+	assert_str(label.text).is_equal("v1.0.0")
+	var buttons: Array[String] = []
+	for b: Node in title.find_children("*", "Button", true, false):
+		buttons.append((b as Button).text)
+	assert_array(buttons).not_contains(["Controls"])
+
+
 func test_the_title_screen_has_the_how_to_play_page_and_it_closes() -> void:
 	var title: TitleScreen = auto_free(TitleScreen.new())
 	add_child(title)

@@ -112,6 +112,8 @@ const PINNED_SETTINGS := [
 	{"key": "rendering/renderer/rendering_method.mobile", "default": "mobile", "expected": "gl_compatibility"},
 	# D146: Back must not quit the app mid-run; RunFlowController maps it to Pause.
 	{"key": "application/config/quit_on_go_back", "default": true, "expected": false},
+	# D249: the release version, shown small on the title screen.
+	{"key": "application/config/version", "default": "", "expected": "1.0.0"},
 	# D146: taps become the same mouse events the menus already handle.
 	{"key": "input_devices/pointing/emulate_mouse_from_touch", "default": true, "expected": true},
 	{"key": "physics/common/physics_ticks_per_second", "default": 60, "expected": 60},
