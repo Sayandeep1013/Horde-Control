@@ -44,3 +44,44 @@ Project-made, no third-party content. Sprites come from `tools/art/make_v1_sprit
 | `assets/sprites/v1/spike_trap_1.png` | 64x40 | `7c7e2a37e7f4c847` |
 | `assets/sprites/v1/spike_trap_2.png` | 64x40 | `3a36ee8d5acbe19f` |
 | `assets/sprites/v1/spike_trap_3.png` | 64x40 | `c45869d2728d4f7c` |
+
+## PT-UI icons (playtest round, decision D321)
+
+Project-made, no third-party content. 34 coloured 32x32 icons come from `tools/art/make_pixel_icons.py` (`PTUI_ICONS`, same `compose()` pipeline and palette as `V1_ICONS`): the five Blood Pact pacts, the three Sanctuary blessings, the seven new abilities and passives, the enemy and boss portraits (including the Goblin Shaman and Gutbarrel the Juggernaut), bridge, water, powder keg, supply crate, shrine, spike trap and the four event screens. Review sheet `assets/ui/icons/_contact_sheet_ptui.png`. Every earlier icon is byte-identical to before.
+
+| File | Size | sha256 (16) |
+| --- | --- | --- |
+| `assets/ui/icons/icon_second_life.png` | 32x32 | `70f5e51c66e4291d` |
+| `assets/ui/icons/icon_twin_string.png` | 32x32 | `b8f20e3f17760e73` |
+| `assets/ui/icons/icon_bloodlust.png` | 32x32 | `ba4afdce4b0c1e11` |
+| `assets/ui/icons/icon_siege_breaker.png` | 32x32 | `4902e24a3627e01f` |
+| `assets/ui/icons/icon_eternal_flame.png` | 32x32 | `d08080196b2e9297` |
+| `assets/ui/icons/icon_mend.png` | 32x32 | `b8cc19690b583bef` |
+| `assets/ui/icons/icon_restore.png` | 32x32 | `ba66a14bcb727e84` |
+| `assets/ui/icons/icon_valor.png` | 32x32 | `7de9aa4890e87198` |
+| `assets/ui/icons/icon_diagonal_arrows.png` | 32x32 | `117381040b99180b` |
+| `assets/ui/icons/icon_rear_arrow.png` | 32x32 | `d7b263705360b435` |
+| `assets/ui/icons/icon_ricochet.png` | 32x32 | `f150a451667fa2c5` |
+| `assets/ui/icons/icon_lightning_sprite.png` | 32x32 | `1687a5d9c7884afb` |
+| `assets/ui/icons/icon_meteor_shower.png` | 32x32 | `c81614d205727246` |
+| `assets/ui/icons/icon_blade_circle.png` | 32x32 | `d66da9e08abb8983` |
+| `assets/ui/icons/icon_shadow_step.png` | 32x32 | `8c2643c938d528ac` |
+| `assets/ui/icons/icon_tower_seeker.png` | 32x32 | `30076dc80835306d` |
+| `assets/ui/icons/icon_player_hunter.png` | 32x32 | `478f562645ff7569` |
+| `assets/ui/icons/icon_opportunist.png` | 32x32 | `e13048a66fa0e960` |
+| `assets/ui/icons/icon_bomber.png` | 32x32 | `39e90a4ea17c1742` |
+| `assets/ui/icons/icon_brute.png` | 32x32 | `975ea5ce42282e9a` |
+| `assets/ui/icons/icon_goblin_warchief.png` | 32x32 | `24519ca73cd2c03d` |
+| `assets/ui/icons/icon_bombardier_king.png` | 32x32 | `bdbf5435e8a8f8dc` |
+| `assets/ui/icons/icon_goblin_shaman.png` | 32x32 | `1ad918aa18263287` |
+| `assets/ui/icons/icon_juggernaut.png` | 32x32 | `84df6252807ef3e5` |
+| `assets/ui/icons/icon_bridge.png` | 32x32 | `157af205ff3b840e` |
+| `assets/ui/icons/icon_water.png` | 32x32 | `38b4bd40b014fb27` |
+| `assets/ui/icons/icon_powder_keg.png` | 32x32 | `45bdca44ebfb9ff2` |
+| `assets/ui/icons/icon_supply_crate.png` | 32x32 | `119989bf03b72e5f` |
+| `assets/ui/icons/icon_shrine.png` | 32x32 | `22526d02fb53a96c` |
+| `assets/ui/icons/icon_spike_trap.png` | 32x32 | `280fc8dac9b107cf` |
+| `assets/ui/icons/icon_opening_pick.png` | 32x32 | `57616515e84e2197` |
+| `assets/ui/icons/icon_patrons_boon.png` | 32x32 | `c1e411c29437ee6b` |
+| `assets/ui/icons/icon_sanctuary.png` | 32x32 | `263ff8dd8c11ae62` |
+| `assets/ui/icons/icon_blood_pact.png` | 32x32 | `1fe21b92301dbb67` |

@@ -892,7 +892,9 @@ func _confirm_highlighted_card() -> void:
 func _on_card_confirmed(upgrade_id: String, rarity_multiplier: float = 1.0) -> void:
 	if _upgrade_system != null:
 		_upgrade_system.apply_rank(upgrade_id, rarity_multiplier)
-	_hide_ui()
+	if _highlighted_index >= 0 and _highlighted_index < _card_views.size():
+		_card_views[_highlighted_index].flash_chosen() # PT-UI: the CHOSEN stamp, held while the Draft fades
+	_hide_ui(SelectableState.CHOSEN_SECONDS)
 	if not _pending_draft_requests.is_empty():
 		_try_open_next_draft() # stays paused -- next queued draft opens immediately (Draft queue test)
 	else:
@@ -1275,11 +1277,14 @@ func _show_ui() -> void:
 	_build_card_views()
 
 
-func _hide_ui() -> void:
+func _hide_ui(hold_seconds: float = 0.0) -> void:
 	_draft_showing = false
 	_kill_fade()
 	if DisplayServer.get_name() != "headless" and is_inside_tree() and _root.visible:
 		_fade_tween = _root.create_tween()
+		_fade_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		if hold_seconds > 0.0:
+			_fade_tween.tween_interval(hold_seconds)
 		_fade_tween.tween_property(_root, "modulate:a", 0.0, FADE_SECONDS)
 		_fade_tween.tween_callback(_finish_hide)
 	else:
@@ -1339,5 +1344,8 @@ func _refresh_highlight_visual() -> void:
 
 
 func _update_fill_ring_visual() -> void:
+	var progress: float = clampf(_hold_up_progress / HOLD_CONFIRM_SECONDS, 0.0, 1.0)
 	if _fill_ring != null:
-		_fill_ring.progress = clampf(_hold_up_progress / HOLD_CONFIRM_SECONDS, 0.0, 1.0)
+		_fill_ring.progress = progress
+	for i in _card_views.size(): # PT-UI: the ring also draws ON the card being confirmed
+		_card_views[i].set_confirm_progress(progress if i == _highlighted_index else 0.0)

@@ -117,6 +117,7 @@ var _run_flow_controller: Node = null
 var _debug_overlay: Node = null
 var _run_events: RunEvents = null
 var _event_controller: EventDraftController = null
+var _explainers: ExplainerController = null # PT-UI (docs/33 A4): first-encounter explainer cards
 
 
 func _ready() -> void:
@@ -219,8 +220,25 @@ func _wire_run_events() -> void:
 	_event_controller.run_seed = run_seed
 	add_child(_event_controller)
 	_event_controller.setup(_run_events, _draft_controller as DraftController, _upgrade_system as UpgradeSystem, _wave_director)
+	_wire_explainers() # before the Opening Pick opens, so its explainer can open over it
 	_run_events.begin_run()
 	_event_controller.poll_open()
+
+
+## PT-UI: the first-encounter explainer queue (windowed runs only; a headless process stays
+## explainer-free like it stays event-free, so scene tests and the balance bot never pause on one).
+func _wire_explainers() -> void:
+	if not ExplainerController.is_enabled_by_default():
+		return
+	_explainers = ExplainerController.new()
+	_explainers.name = "ExplainerInstance"
+	add_child(_explainers)
+	_explainers.setup(_draft_controller as DraftController, _event_controller)
+	_event_controller.explainers = _explainers
+
+
+func get_explainers() -> ExplainerController:
+	return _explainers
 
 
 func get_run_events() -> RunEvents:

@@ -50,14 +50,15 @@ func _pause_with_fakes() -> PauseMenu:
 	return menu
 
 
-func test_pause_options_are_resume_settings_how_to_play_abandon() -> void:
+func test_pause_options_are_resume_settings_how_to_play_field_guide_abandon() -> void:
 	var menu: PauseMenu = auto_free(PauseMenu.new())
 	add_child(menu)
 	var bar: PausedChoiceBar = menu.get_bar_for_test()
-	assert_int(bar.get_option_count()).is_equal(4)
+	assert_int(bar.get_option_count()).is_equal(5)
 	assert_str(bar.get_option_label_for_test(PauseMenu.OPTION_RESUME).text).is_equal("Resume")
 	assert_str(bar.get_option_label_for_test(PauseMenu.OPTION_SETTINGS).text).is_equal("Settings")
 	assert_str(bar.get_option_label_for_test(PauseMenu.OPTION_HOW_TO_PLAY).text).is_equal("How to Play")
+	assert_str(bar.get_option_label_for_test(PauseMenu.OPTION_FIELD_GUIDE).text).is_equal("Field Guide")
 	assert_str(bar.get_option_label_for_test(PauseMenu.OPTION_MAIN_MENU).text).is_equal("Abandon run")
 
 
@@ -265,8 +266,6 @@ func test_wave_started_shows_the_typed_banner_and_boss_waves_say_boss() -> void:
 func test_siege_warning_boss_entrance_and_elite_callout_are_announced_once_each() -> void:
 	var announcer: RunAnnouncer = auto_free(RunAnnouncer.new())
 	add_child(announcer)
-	MetaProgress.mark_hint_seen(RunHints.ID_ELITE) # a seen hint leaves the plain callout
-	MetaProgress.mark_hint_seen(RunHints.ID_BOSS)
 	EventBus.emit_siege_warning(3.0)
 	EventBus.emit_boss_spawned(null, "warchief", "Goblin Warchief", 2600.0)
 	assert_array(_texts(announcer.get_banner_box_for_test())).contains(["SIEGE INCOMING", "GOBLIN WARCHIEF"])

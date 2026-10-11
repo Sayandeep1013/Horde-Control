@@ -52,6 +52,14 @@ var run_events: RunEvents = null
 var draft_controller: DraftController = null
 var upgrade_system: UpgradeSystem = null
 var wave_director: Object = null
+## PT-UI (docs/33 A4): the first-encounter explainer shown over an event screen the first time it opens.
+var explainers: ExplainerController = null:
+	set(value):
+		if explainers != null and explainers.explainer_closed.is_connected(_on_explainer_closed):
+			explainers.explainer_closed.disconnect(_on_explainer_closed)
+		explainers = value
+		if explainers != null:
+			explainers.explainer_closed.connect(_on_explainer_closed)
 var _pause_authority: Node = PauseAuthority
 var _sim_clock: Node = SimClock
 
@@ -150,15 +158,19 @@ func _show(offer: Dictionary, already_paused: bool) -> void:
 		_root.modulate.a = 1.0
 	Sfx.play_ui.call_deferred("chest_open") # deferred: the Opening Pick opens inside the scene's own _ready
 	event_opened.emit(_kind)
+	if explainers != null:
+		explainers.request(_kind) # the card opens over this screen, which waits for it (see _process)
 
 
 func _close_and_resolve(index: int) -> void:
 	var kind: String = _kind
 	Sfx.play_ui("ui_confirm")
+	if index >= 0 and index < _card_views.size():
+		_card_views[index].flash_chosen() # PT-UI: the CHOSEN stamp, held while the screen fades
 	run_events.resolve(_offer, index)
 	_showing = false
 	_offer = {}
-	_hide_ui()
+	_hide_ui(SelectableState.CHOSEN_SECONDS)
 	event_closed.emit(kind)
 	# A further due event opens at once, still paused; otherwise the run resumes.
 	if run_events.has_pending() and (draft_controller == null or not draft_controller.is_busy()) and _open_next(true):
@@ -175,6 +187,9 @@ func _process(delta: float) -> void:
 	if not _showing:
 		poll_open()
 		return
+	if explainers != null and (explainers.is_showing() or explainers.get_queue().has(_kind)):
+		_clear_edges()
+		return # an explainer card is up (or about to be) over this screen: its input comes first
 	_time_since_open += delta
 	if not _lockout_elapsed:
 		if _time_since_open >= DraftController.LOCKOUT_SECONDS:
@@ -198,6 +213,13 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if _showing and event is InputEventMouseButton and event.is_action_pressed(&"confirm"):
 		_mouse_confirm_this_frame = true # a click confirms the card under it, not the highlighted one
+
+
+## The explainer over this screen closed: the screen's own 0.4 s lockout starts now.
+func _on_explainer_closed(_id: String) -> void:
+	if _showing:
+		_reset_input_state()
+		_refresh_highlight()
 
 
 func _confirm_highlighted() -> void:
@@ -494,25 +516,25 @@ func _blessing_card_data(id: String) -> Dictionary:
 	var data: Dictionary = {"ribbon_text": tr("EVENT_BLESSING"), "ribbon_rarity": ContractEnums.Rarity.Common}
 	match id:
 		RunEvents.SANCTUARY_MEND:
-			data.merge({"header": tr("EVENT_HEADER_PLAYER"), "name": tr("SANCT_MEND_NAME"), "effect": tr("SANCT_MEND_DESC") % int(round(RunEvents.MEND_HEAL_FRACTION * 100.0)), "shape": UiShapeGlyph.Shape.HEART, "glyph_color": UiPalette.PLAYER, "player_frame": true})
+			data.merge({"header": tr("EVENT_HEADER_PLAYER"), "name": tr("SANCT_MEND_NAME"), "effect": tr("SANCT_MEND_DESC") % int(round(RunEvents.MEND_HEAL_FRACTION * 100.0)), "shape": UiShapeGlyph.Shape.HEART, "glyph_color": UiPalette.PLAYER, "player_frame": true, "icon": "mend"})
 		RunEvents.SANCTUARY_RESTORE:
-			data.merge({"header": tr("EVENT_HEADER_TOWER"), "name": tr("SANCT_RESTORE_NAME"), "effect": tr("SANCT_RESTORE_DESC") % int(round(RunEvents.RESTORE_HEAL_FRACTION * 100.0)), "shape": UiShapeGlyph.Shape.TOWER, "glyph_color": UiPalette.TOWER, "player_frame": false})
+			data.merge({"header": tr("EVENT_HEADER_TOWER"), "name": tr("SANCT_RESTORE_NAME"), "effect": tr("SANCT_RESTORE_DESC") % int(round(RunEvents.RESTORE_HEAL_FRACTION * 100.0)), "shape": UiShapeGlyph.Shape.TOWER, "glyph_color": UiPalette.TOWER, "player_frame": false, "icon": "restore"})
 		_:
-			data.merge({"header": tr("EVENT_HEADER_BOTH"), "name": tr("SANCT_VALOR_NAME"), "effect": tr("SANCT_VALOR_DESC") % int(round(RunEvents.VALOR_DAMAGE_BONUS * 100.0)), "shape": UiShapeGlyph.Shape.ARROW, "glyph_color": UiPalette.GOLD, "player_frame": true})
+			data.merge({"header": tr("EVENT_HEADER_BOTH"), "name": tr("SANCT_VALOR_NAME"), "effect": tr("SANCT_VALOR_DESC") % int(round(RunEvents.VALOR_DAMAGE_BONUS * 100.0)), "shape": UiShapeGlyph.Shape.ARROW, "glyph_color": UiPalette.GOLD, "player_frame": true, "icon": "valor"})
 	return data
 
 
 func _pact_card_data(card: Dictionary) -> Dictionary:
 	var id: String = String(card["pact_id"])
 	var option: String = String(card["option"])
-	var data: Dictionary = {"ribbon_rarity": ContractEnums.Rarity.Epic, "ribbon_text": tr("EVENT_PACT_RIBBON"), "effect": "%s: %s" % [pact_name(id), pact_effect(id)]}
+	var data: Dictionary = {"ribbon_rarity": ContractEnums.Rarity.Epic, "ribbon_text": tr("EVENT_PACT_RIBBON"), "effect": "%s: %s" % [pact_name(id), pact_effect(id)], "icon": id}
 	match option:
 		RunEvents.OPTION_BLOOD:
 			data.merge({"header": tr("PACT_HEADER_BLOOD"), "name": tr("PACT_OPT_BLOOD"), "cost": tr("PACT_COST_BLOOD") % int(card["amount"]), "shape": UiShapeGlyph.Shape.HEART, "glyph_color": UiPalette.DANGER, "player_frame": true})
 		RunEvents.OPTION_TOWER:
 			data.merge({"header": tr("PACT_HEADER_TOWER"), "name": tr("PACT_OPT_TOWER"), "cost": tr("PACT_COST_TOWER") % int(card["amount"]), "shape": UiShapeGlyph.Shape.TOWER, "glyph_color": UiPalette.TOWER, "player_frame": false})
 		_:
-			data.merge({"header": tr("PACT_HEADER_REFUSE"), "name": tr("PACT_OPT_REFUSE"), "effect": tr("PACT_REFUSE_DESC"), "cost": tr("PACT_COST_NONE"), "cost_color": UiPalette.TEXT_ON_PARCHMENT, "shape": UiShapeGlyph.Shape.LOCK, "glyph_color": UiPalette.TEXT_DIM, "player_frame": true, "ribbon_text": tr("EVENT_PACT_REFUSE_RIBBON"), "ribbon_rarity": ContractEnums.Rarity.Rare}, true)
+			data.merge({"header": tr("PACT_HEADER_REFUSE"), "name": tr("PACT_OPT_REFUSE"), "effect": tr("PACT_REFUSE_DESC"), "cost": tr("PACT_COST_NONE"), "cost_color": UiPalette.TEXT_ON_PARCHMENT, "shape": UiShapeGlyph.Shape.LOCK, "glyph_color": UiPalette.TEXT_DIM, "player_frame": true, "ribbon_text": tr("EVENT_PACT_REFUSE_RIBBON"), "ribbon_rarity": ContractEnums.Rarity.Rare, "icon": "blood_pact", "dim_icon": true}, true)
 	return data
 
 
@@ -543,8 +565,11 @@ func _refresh_highlight() -> void:
 
 
 func _update_ring() -> void:
+	var progress: float = clampf(_hold_up_progress / DraftController.HOLD_CONFIRM_SECONDS, 0.0, 1.0)
 	if _fill_ring != null:
-		_fill_ring.progress = clampf(_hold_up_progress / DraftController.HOLD_CONFIRM_SECONDS, 0.0, 1.0)
+		_fill_ring.progress = progress
+	for i in _card_views.size(): # PT-UI: the ring also draws ON the card being confirmed
+		_card_views[i].set_confirm_progress(progress if i == _highlighted_index else 0.0)
 
 
 func _kill_fade() -> void:
@@ -553,10 +578,13 @@ func _kill_fade() -> void:
 	_fade_tween = null
 
 
-func _hide_ui() -> void:
+func _hide_ui(hold_seconds: float = 0.0) -> void:
 	_kill_fade()
 	if DisplayServer.get_name() != "headless" and is_inside_tree() and _root.visible:
 		_fade_tween = _root.create_tween()
+		_fade_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		if hold_seconds > 0.0:
+			_fade_tween.tween_interval(hold_seconds)
 		_fade_tween.tween_property(_root, "modulate:a", 0.0, FADE_SECONDS)
 		_fade_tween.tween_callback(_finish_hide)
 	else:

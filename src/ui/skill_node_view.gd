@@ -111,7 +111,8 @@ signal node_released(id: String)
 ## Tree node text". The node is now wider than it is tall (NODE_SIZE x
 ## NODE_HEIGHT) so two lines of 20 px name text and the price row fit.
 const NODE_SIZE: float = 236.0 ## width (D250: holds a 37 px two-line name; the board pans, so size is not capped by the screen)
-const NODE_HEIGHT: float = 164.0
+const NODE_HEIGHT: float = 204.0 ## PT-UI: +40 for the status row (OWNED / the reason a node is locked)
+const STATUS_ROW_PX: float = 40.0
 const ICON_SIDE: int = 32
 const ROOT_ICON_SIDE: int = 64
 const NAME_WRAP_WIDTH: float = NODE_SIZE - 28.0
@@ -146,6 +147,8 @@ var _true_shape: int = UiShapeGlyph.Shape.SQUARE
 var _icon: UiShapeGlyph
 var _icon_tex: TextureRect ## the pixel icon when the node names one; _icon (the branch glyph) is the fallback
 var _bottom_row: HBoxContainer
+var _status_spacer: Control ## PT-UI: room for the SelectableState word plate under the bottom row
+var _selectable: SelectableState
 var _name_label: Label
 var _silhouette_label: Label
 var _pips_row: HBoxContainer
@@ -256,6 +259,16 @@ func _build_children() -> void:
 	_price_label.add_theme_font_size_override("font_size", PRICE_FONT_SIZE)
 	_price_row.add_child(_price_label)
 
+	# PT-UI (docs/33 A1): the shared selection language. The screen's cursor sets focus; ownership and
+	# locks come from set_state().
+	_status_spacer = Control.new()
+	_status_spacer.name = "StatusRow"
+	_status_spacer.custom_minimum_size = Vector2(0.0, STATUS_ROW_PX)
+	_status_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(_status_spacer)
+	_selectable = SelectableState.attach(self, SelectableState.RibbonSide.BOTTOM)
+	_selectable.externally_driven = true # the Skill Tree screen owns the cursor (hover selects)
+
 
 ## `display_name` is shown on the node itself (polish pass item 1). `shape`/
 ## `branch_color` are supplied directly (rather than derived from a
@@ -307,6 +320,7 @@ func set_silhouette() -> void:
 	_accent = Color(0, 0, 0, 0)
 	queue_redraw()
 	modulate = Color(1, 1, 1, 1)
+	_apply_cues(false, false, "")
 
 
 ## `is_root`: the Command Tent -- always owned, free, no price/pips of its
@@ -350,6 +364,7 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 		_style.modulate_color = Color(1, 1, 1, 1)
 		_glow_enabled = true
 		queue_redraw()
+		_apply_cues(false, false, "") # the Command Tent is always owned: no word, only the cursor cue
 		return
 
 	_rebuild_pips(max_rank, rank, branch_color)
@@ -411,6 +426,44 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 			_style.modulate_color = branch_tint
 			_glow_enabled = true
 	queue_redraw()
+	# PT-UI: owned reads OWNED (even with a next rank unaffordable); an unowned node that cannot be
+	# bought says why: the Cores it costs, or that its neighbour is still closed.
+	var locked_reason: String = ""
+	if not owned:
+		if state == State.UNAFFORDABLE:
+			locked_reason = tr("SEL_LOCKED_NEED_CORES") % price
+		elif state == State.LOCKED:
+			locked_reason = tr("SEL_LOCKED_UNLOCK")
+	_apply_cues(owned, locked_reason != "", locked_reason)
+
+
+## PT-UI: pushes the selection cues. `owned` -> the OWNED word, check and tint; `locked` -> padlock,
+## veil and the reason line. The Reset Tree widget (`show_name`) has no status row and no cues.
+func _apply_cues(owned: bool, locked: bool, reason: String) -> void:
+	if _selectable == null:
+		return
+	_status_spacer.visible = not show_name
+	if show_name:
+		_selectable.set_selected(false)
+		_selectable.set_locked(false)
+		return
+	_selectable.set_locked(locked, reason)
+	_selectable.set_selected(owned and not locked, tr("SEL_OWNED"))
+
+
+## The Skill Tree screen's cursor is on this node (hover, keys, a tap).
+func set_cursor(on: bool) -> void:
+	if _selectable != null:
+		_selectable.set_focused(on)
+
+
+## A press on a node that cannot be bought: shake and show the reason (never a silent ignore).
+func press_locked() -> String:
+	return _selectable.press_locked() if _selectable != null else ""
+
+
+func get_selectable() -> SelectableState:
+	return _selectable
 
 
 ## Skill Tree art pass: the owned/MAX gold halo -- two overlapping,

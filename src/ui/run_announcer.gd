@@ -124,8 +124,6 @@ func _on_boss_spawned(_boss: Node2D, _boss_id: String, display_name: String, _ma
 
 
 func _on_elite_spawned(_entity: Node2D, affix: String, _timestamp: float) -> void:
-	if _hints.wants(RunHints.ID_ELITE) or _hints.is_showing():
-		return # the first elite gets the teaching hint instead of a stacked callout
 	var now: int = Time.get_ticks_msec()
 	if now - _last_elite_msec < ELITE_CALLOUT_MIN_GAP_MSEC:
 		return # a burst of elites gets one callout, not a stack

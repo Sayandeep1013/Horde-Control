@@ -146,6 +146,8 @@ const DEFAULT_SCREEN_SHAKE_PCT: int = 100
 const SCREEN_SHAKE_STEP_PCT: int = 10
 const DEFAULT_PAUSE_WHEN_UNFOCUSED: bool = true
 const DEFAULT_SHOW_FPS: bool = false
+# PT-UI (docs/33 A4): first-encounter explainer cards; the card's checkbox clears it.
+const DEFAULT_SHOW_FIRST_TIME_TIPS: bool = true
 const DEFAULT_WINDOW_SIZE_INDEX: int = 2
 const WINDOW_SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080), Vector2i(2560, 1440)]
 ## 0 = Unlimited (Engine.max_fps = 0).
@@ -201,6 +203,7 @@ static var _interface_volume_pct: int = DEFAULT_INTERFACE_VOLUME_PCT
 static var _screen_shake_pct: int = DEFAULT_SCREEN_SHAKE_PCT
 static var _pause_when_unfocused: bool = DEFAULT_PAUSE_WHEN_UNFOCUSED
 static var _show_fps: bool = DEFAULT_SHOW_FPS
+static var _show_first_time_tips: bool = DEFAULT_SHOW_FIRST_TIME_TIPS
 static var _window_size_set: bool = false # false = never chosen; the window is left as the OS/project made it
 static var _window_size_index: int = DEFAULT_WINDOW_SIZE_INDEX
 static var _fps_limit: int = DEFAULT_FPS_LIMIT
@@ -243,6 +246,7 @@ static func load_from_disk() -> void:
 	_interface_volume_pct = _snap_to_step(int(cfg.get_value(SECTION_AUDIO, "interface_volume_pct", _interface_volume_pct)))
 	_pause_when_unfocused = bool(cfg.get_value(SECTION_GAMEPLAY, "pause_when_unfocused", _pause_when_unfocused))
 	_show_fps = bool(cfg.get_value(SECTION_VIDEO, "show_fps", _show_fps))
+	_show_first_time_tips = bool(cfg.get_value(SECTION_GAMEPLAY, "show_first_time_tips", _show_first_time_tips))
 	_fps_limit = _clamp_fps_limit(int(cfg.get_value(SECTION_VIDEO, "fps_limit", _fps_limit)))
 	if cfg.has_section_key(SECTION_VIDEO, "window_size_index"):
 		_window_size_set = true
@@ -284,6 +288,7 @@ static func save() -> void:
 	cfg.set_value(SECTION_AUDIO, "interface_volume_pct", _interface_volume_pct)
 	cfg.set_value(SECTION_GAMEPLAY, "pause_when_unfocused", _pause_when_unfocused)
 	cfg.set_value(SECTION_VIDEO, "show_fps", _show_fps)
+	cfg.set_value(SECTION_GAMEPLAY, "show_first_time_tips", _show_first_time_tips)
 	cfg.set_value(SECTION_VIDEO, "fps_limit", _fps_limit)
 	if _window_size_set:
 		cfg.set_value(SECTION_VIDEO, "window_size_index", _window_size_index)
@@ -400,6 +405,10 @@ static func get_auto_cast_setting_raw() -> bool:
 	return _auto_cast_enabled
 
 
+static func is_show_first_time_tips() -> bool:
+	return _show_first_time_tips
+
+
 static func is_show_overhead_bars() -> bool:
 	return _show_overhead_bars
 
@@ -423,6 +432,11 @@ static func get_hud_scale() -> float:
 static func set_auto_cast_enabled(enabled: bool) -> void:
 	_auto_cast_set = true
 	_auto_cast_enabled = enabled
+	save()
+
+
+static func set_show_first_time_tips(enabled: bool) -> void:
+	_show_first_time_tips = enabled
 	save()
 
 
@@ -687,6 +701,10 @@ static func set_reduce_flashing_for_test(enabled: bool) -> void:
 	_reduce_flashing = enabled
 
 
+static func set_show_first_time_tips_for_test(enabled: bool) -> void:
+	_show_first_time_tips = enabled
+
+
 static func set_show_overhead_bars_for_test(enabled: bool) -> void:
 	_show_overhead_bars = enabled
 
@@ -736,6 +754,7 @@ static func reset_state_for_test() -> void:
 	_interface_volume_pct = DEFAULT_INTERFACE_VOLUME_PCT
 	_pause_when_unfocused = DEFAULT_PAUSE_WHEN_UNFOCUSED
 	_show_fps = DEFAULT_SHOW_FPS
+	_show_first_time_tips = DEFAULT_SHOW_FIRST_TIME_TIPS
 	_window_size_set = false
 	_window_size_index = DEFAULT_WINDOW_SIZE_INDEX
 	_fps_limit = DEFAULT_FPS_LIMIT

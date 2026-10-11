@@ -9,6 +9,10 @@ class_name AbilityDisplay
 const ICON_DIR: String = "res://assets/ui/icons/"
 const FALLBACK_ICON: String = "icon_square"
 
+## Boss ids the rest of the game uses (EventBus.boss_spawned, MetaProgress) -> the icon's id.
+const BOSS_ICON_ALIASES: Dictionary = {"warchief": "goblin_warchief", "king": "bombardier_king"}
+const ICON_PX_DEFAULT: int = 64
+
 static var _icon_cache: Dictionary = {} # id -> Texture2D
 
 
@@ -31,9 +35,13 @@ static func icon(id: String) -> Texture2D:
 	elif id == AbilityIds.SOURCE_STATUS_BURN:
 		candidates.append(ICON_DIR + "icon_burn.png")
 	elif id == AbilityIds.SOURCE_KEG:
+		candidates.append(ICON_DIR + "icon_powder_keg.png")
 		candidates.append(ICON_DIR + "icon_dynamite_satchel.png")
 	elif id == AbilityIds.SOURCE_SPIKES:
+		candidates.append(ICON_DIR + "icon_spike_trap.png")
 		candidates.append(ICON_DIR + "icon_caltrops.png")
+	elif BOSS_ICON_ALIASES.has(id):
+		candidates.append(ICON_DIR + "icon_%s.png" % BOSS_ICON_ALIASES[id])
 	candidates.append(ICON_DIR + FALLBACK_ICON + ".png")
 	var tex: Texture2D = null
 	for path in candidates:
@@ -42,6 +50,28 @@ static func icon(id: String) -> Texture2D:
 			break
 	_icon_cache[id] = tex
 	return tex
+
+
+## True when `id` has a real icon of its own (not the plain-square fallback).
+static func has_icon(id: String) -> bool:
+	if id == "":
+		return false
+	var tex: Texture2D = icon(id)
+	return tex != null and tex != icon(FALLBACK_ICON.trim_prefix("icon_"))
+
+
+## The icon as a pixel-crisp TextureRect `side` px square (the Draft cards, the Field Guide
+## and the explainers share it). An id with no icon gets `fallback_id`'s (default: the plain square).
+static func make_icon_rect(id: String, side: int = ICON_PX_DEFAULT, fallback_id: String = "") -> TextureRect:
+	var rect := TextureRect.new()
+	rect.name = "Icon"
+	rect.custom_minimum_size = Vector2(side, side)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.texture = icon(id if has_icon(id) or fallback_id == "" else fallback_id)
+	return rect
 
 
 ## Shutdown hygiene (ShutdownHygiene).

@@ -5,12 +5,15 @@ class_name RunHints
 ## the v1.0 game, replacing the old wave-1 "just move" set. Each hint:
 ##   - fires on its own trigger (run start, first damage to the player, the
 ##     Battle Skill first becoming ready, the Tower first losing health while the
-##     player holds Scrap, and the first sighting of a Bomber, Brute, elite, boss);
+##     player holds Scrap);
 ##   - is shown at most once per profile (`MetaProgress.is_hint_seen`);
 ##   - shows for HINT_SECONDS on pausable time (a pause freezes the clock and the
 ##     queue), and never overlaps another: requests wait in a queue;
 ##   - reads live binding names from `InputHints`; the touch string table (a
 ##     `%s` slot-less text) covers phone builds.
+## PT-UI (docs/33 A4, D323): the toasts that explained a Bomber, a Brute, the first elite and a
+## boss are gone; those things are now introduced by a paused explainer card
+## (`ExplainerController`), once per profile. Only the control hints stay toasts.
 ## The run objective line goes through the same queue (it repeats every run, so
 ## it is not recorded), which keeps it from stacking with a hint.
 ## Timings: Register > v1.0 Interface > "Contextual hints".
@@ -19,22 +22,15 @@ const HINT_SECONDS: float = 5.0
 const GAP_SECONDS: float = 0.6
 const POLL_SECONDS: float = 0.4
 const MAX_QUEUE: int = 4
-## How far from the player counts as "seen" (about the half-diagonal of the play view).
-const SIGHT_RADIUS_PX: float = 1100.0
 
 const ID_START: String = "start"
 const ID_DASH: String = "dash"
 const ID_SKILL_READY: String = "skill_ready"
 const ID_TOWER_REPAIR: String = "tower_repair"
-const ID_BOMBER: String = "bomber"
-const ID_BRUTE: String = "brute"
-const ID_ELITE: String = "elite"
-const ID_BOSS: String = "boss"
 
 const TEXT_KEYS: Dictionary = {
 	ID_START: "HINT_START", ID_DASH: "HINT_DASH", ID_SKILL_READY: "HINT_SKILL_READY",
-	ID_TOWER_REPAIR: "HINT_TOWER_REPAIR", ID_BOMBER: "HINT_BOMBER", ID_BRUTE: "HINT_BRUTE",
-	ID_ELITE: "HINT_ELITE", ID_BOSS: "HINT_BOSS",
+	ID_TOWER_REPAIR: "HINT_TOWER_REPAIR",
 }
 
 ## Receives (text, seconds) when a hint is due. Set by the announcer.
@@ -53,15 +49,9 @@ var _skill_was_ready: bool = false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
-	EventBus.elite_spawned.connect(_on_elite_spawned)
-	EventBus.boss_spawned.connect(_on_boss_spawned)
 
 
 func _exit_tree() -> void:
-	if EventBus.elite_spawned.is_connected(_on_elite_spawned):
-		EventBus.elite_spawned.disconnect(_on_elite_spawned)
-	if EventBus.boss_spawned.is_connected(_on_boss_spawned):
-		EventBus.boss_spawned.disconnect(_on_boss_spawned)
 	_unbind(_player_bound, _on_player_damaged)
 	_unbind(_tower_bound, _on_tower_damaged)
 
@@ -75,7 +65,6 @@ func _process(delta: float) -> void:
 	_poll_left = POLL_SECONDS
 	_bind_sources()
 	_poll_skill()
-	_poll_enemies()
 	_pump()
 
 
@@ -203,30 +192,8 @@ func _poll_skill() -> void:
 	_skill_was_ready = is_ready
 
 
-func _poll_enemies() -> void:
-	if not (wants(ID_BOMBER) or wants(ID_BRUTE)):
-		return
-	var player: Node2D = get_tree().get_first_node_in_group("player") as Node2D
-	if player == null:
-		return
-	for enemy: Node2D in EntityRegistry.get_enemies_in_radius(player.global_position, SIGHT_RADIUS_PX):
-		var id: String = enemy_kind(enemy)
-		if id == "bomber":
-			request(ID_BOMBER)
-		elif id == "brute":
-			request(ID_BRUTE)
-
-
 ## The EnemyDefinition id of `node` ("bomber", "brute", ...), or "".
 static func enemy_kind(node: Object) -> String:
 	if node is EnemyController and (node as EnemyController).definition != null:
 		return (node as EnemyController).definition.unique_id
 	return ""
-
-
-func _on_elite_spawned(_entity: Node2D, _affix: String, _timestamp: float) -> void:
-	request(ID_ELITE)
-
-
-func _on_boss_spawned(_boss: Node2D, _boss_id: String, _display_name: String, _max_health: float, _timestamp: float) -> void:
-	request(ID_BOSS)

@@ -18,6 +18,7 @@ var _shots_dir: String = ""
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	GameSettings.set_show_first_time_tips_for_test(false) # PT-UI: a first-time explainer would sit over the Opening Pick this test answers
 	var size: Vector2i = Vector2i(2400, 1080)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--shots="):

@@ -462,6 +462,9 @@ func _reconcile(data: Dictionary) -> Dictionary:
 			if hint_id != "" and not seen_hints.has(hint_id):
 				seen_hints.append(hint_id)
 	profile["hints_seen"] = seen_hints
+	# PT-UI (docs/33 A3/A4): Field Guide discoveries and shown explainers; additive id lists, no schema bump.
+	profile["discovered_ids"] = _clean_id_list(data.get("discovered_ids", []))
+	profile["explainers_seen"] = _clean_id_list(data.get("explainers_seen", []))
 	profile["lifetime_kills"] = maxi(0, int(data.get("lifetime_kills", 0)))
 	profile["lifetime_scrap_collected"] = maxi(0, int(data.get("lifetime_scrap_collected", 0)))
 	_reconcile_v3_fields(profile, data)
@@ -651,6 +654,8 @@ func _fresh_profile() -> Dictionary:
 		"first_hub_seen": false,
 		"first_run_hints_seen": false, # UX review item 4 (D129); additive key, no schema bump
 		"hints_seen": [], # D241: contextual hint ids already shown; additive key, no schema bump
+		"discovered_ids": [], # PT-UI: Field Guide entries the player has met; additive key, no schema bump
+		"explainers_seen": [], # PT-UI: first-encounter explainer ids already shown; additive key, no schema bump
 		"flags": {
 			"last_save_failed": false,
 			"recovered_from_corruption": false,
@@ -930,6 +935,52 @@ func mark_hint_seen(hint_id: String) -> void:
 	seen.append(hint_id)
 	_profile["hints_seen"] = seen
 	_save()
+
+
+## PT-UI (docs/33 A3): Field Guide discovery. An id is recorded the first time the
+## player meets the thing (a card shown, an enemy sighted); the Guide shows "???" until then.
+func is_discovered(entry_id: String) -> bool:
+	return (_profile.get("discovered_ids", []) as Array).has(entry_id)
+
+
+func mark_discovered(entry_id: String) -> void:
+	if entry_id == "" or is_discovered(entry_id):
+		return
+	var found: Array = _profile.get("discovered_ids", [])
+	found.append(entry_id)
+	_profile["discovered_ids"] = found
+	_save()
+
+
+func get_discovered_ids() -> Array[String]:
+	var out: Array[String] = []
+	for v in (_profile.get("discovered_ids", []) as Array):
+		out.append(String(v))
+	return out
+
+
+## PT-UI (docs/33 A4): each first-encounter explainer is shown once per profile.
+func is_explainer_seen(explainer_id: String) -> bool:
+	return (_profile.get("explainers_seen", []) as Array).has(explainer_id)
+
+
+func mark_explainer_seen(explainer_id: String) -> void:
+	if explainer_id == "" or is_explainer_seen(explainer_id):
+		return
+	var seen: Array = _profile.get("explainers_seen", [])
+	seen.append(explainer_id)
+	_profile["explainers_seen"] = seen
+	_save()
+
+
+static func _clean_id_list(raw: Variant) -> Array:
+	var out: Array = []
+	if raw is Array:
+		for v in (raw as Array):
+			var id: String = str(v)
+			if id != "" and not out.has(id):
+				out.append(id)
+	return out
 
 
 func is_first_hub_seen() -> bool:

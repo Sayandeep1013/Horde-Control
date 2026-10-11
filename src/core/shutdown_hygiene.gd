@@ -27,6 +27,7 @@ static func release_all(tree: SceneTree = null) -> void:
 	RunConfig.release_caches()
 	WarChestArt.release_caches()
 	AbilityDisplay.release_caches()
+	FieldGuideCatalog.release_caches() # PT-UI: script constant maps
 	UiShapeGlyph.release_caches()
 	HudGlyphs.release_caches()
 	UiTheme.release_caches()

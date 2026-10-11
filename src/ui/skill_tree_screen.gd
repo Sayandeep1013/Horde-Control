@@ -167,7 +167,7 @@ const BRANCH_LABEL_CELLS: Dictionary = {
 ## vertical room in the SAME 1080-px budget for the new branch-header-
 ## ribbon row and legend row this pass adds above/below the board.
 const CELL_W: float = 266.0
-const CELL_H: float = 180.0
+const CELL_H: float = 220.0 # PT-UI: NODE_HEIGHT grew by the status row
 const DETAIL_PANEL_WIDTH: float = 440.0
 ## The root's own footprint (polish pass item 2: "keep the root visibly
 ## special ... larger"). Skill Tree art pass: shrunk to keep the same
@@ -573,7 +573,10 @@ func _center_on_root() -> void:
 ## (polish pass item 2 moved Respec's own widget out of it); selecting
 ## Respec instead brightens its own header widget.
 func _reposition_indicators() -> void:
+	for node_id: String in _node_views:
+		(_node_views[node_id] as SkillNodeView).set_cursor(node_id == _selected_id) # PT-UI: gold outline, arrow, lift
 	if _respec_view != null:
+		_respec_view.set_cursor(_selected_id == RESPEC_ID)
 		_respec_view.modulate = Color(1.15, 1.15, 1.15) if _selected_id == RESPEC_ID else Color(1.0, 1.0, 1.0)
 	if _selection_caret == null:
 		return
@@ -828,10 +831,10 @@ func _poll_hold(delta: float) -> void:
 	if _confirm_requires_release and not confirm_down:
 		_confirm_requires_release = false
 
-	if _is_just_pressed(&"confirm") and state == SkillNodeView.State.UNAFFORDABLE:
+	if _is_just_pressed(&"confirm") and (state == SkillNodeView.State.UNAFFORDABLE or state == SkillNodeView.State.LOCKED):
 		var view: SkillNodeView = _node_views.get(_selected_id)
 		if view != null:
-			view.play_shake()
+			view.press_locked() # PT-UI: shakes AND shows why (the Cores it costs, or "Locked")
 
 	var accumulating: bool = false
 	if state == SkillNodeView.State.BUYABLE:

@@ -995,6 +995,337 @@ LOADOUT_ICONS = {
 }
 
 
+# --- PT-UI icons (docs/33 A2, decision D321) ----------------------------------------
+# Pacts, Sanctuary blessings, the new Archero-style abilities, enemy and boss
+# portraits, arena objects and the four event screens. Same rules as above; the
+# existing icons are not touched (the generator only adds files).
+
+OLIVE = pal((112, 160, 74), (168, 208, 112), (68, 108, 46))
+GOBLIN = pal((120, 186, 84), (176, 226, 128), (74, 128, 52))
+DEEP_RED = pal((168, 40, 48), (222, 84, 84), (110, 24, 34))
+NIGHT = pal((74, 56, 128), (126, 104, 188), (46, 34, 88))
+SHADOW = pal((88, 70, 150), (146, 124, 214), (52, 40, 100))
+WATER = pal((62, 140, 214), (128, 196, 244), (36, 92, 160))
+WHITE = (255, 255, 255, 255)
+PALE = (255, 236, 230, 255)
+
+
+def heart_poly(box):
+    pts = []
+    for i in range(60):
+        t = math.tau * i / 60
+        pts.append((16 * math.sin(t) ** 3, -(13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t))))
+    mnx = min(p[0] for p in pts); mxx = max(p[0] for p in pts); mny = min(p[1] for p in pts); mxy = max(p[1] for p in pts)
+    x0, y0, x1, y1 = box
+    return [(x0 + (x - mnx) / (mxx - mnx) * (x1 - x0), y0 + (y - mny) / (mxy - mny) * (y1 - y0)) for x, y in pts]
+
+
+def goblin_head(skin=GOBLIN, y=0):
+    """Pointed ears + a round face; callers add eyes and gear."""
+    return [Part(lambda d: d.polygon([(8, 14 + y), (0, 8 + y), (2, 19 + y), (9, 21 + y)], fill=255), skin, 1),
+            Part(lambda d: d.polygon([(24, 14 + y), (32, 8 + y), (30, 19 + y), (23, 21 + y)], fill=255), skin, 1),
+            Part(lambda d: d.ellipse([6, 6 + y, 26, 28 + y], fill=255), skin)]
+
+
+def goblin_eyes(y=0, col=None):
+    col = col or (YELLOW[0] + (255,))
+    return [(lambda d, c: [d.rectangle([10, 13 + y, 14, 16 + y], fill=c), d.rectangle([18, 13 + y, 22, 16 + y], fill=c)], col),
+            (lambda d, c: [d.rectangle([12, 14 + y, 13, 16 + y], fill=c), d.rectangle([20, 14 + y, 21, 16 + y], fill=c)], INK),
+            (lambda d, c: d.rectangle([13, 22 + y, 19, 23 + y], fill=c), INK)]
+
+
+# --- pacts -------------------------------------------------------------------------
+
+def ic_second_life():
+    parts = [Part(lambda d: d.polygon(heart_poly((4, 9, 28, 30)), fill=255), RED),
+             Part(lambda d: d.ellipse([9, 1, 23, 8], outline=255, width=2), GOLD, 1)]
+    return compose(parts, [(lambda d, c: d.rectangle([7, 13, 9, 15], fill=c), PALE),
+                           (lambda d, c: d.rectangle([15, 14, 16, 24], fill=c), PALE),
+                           (lambda d, c: d.rectangle([12, 18, 19, 19], fill=c), PALE)])
+
+
+def ic_twin_string():
+    parts = [Part(lambda d: d.arc([-12, 1, 10, 31], start=-70, end=70, fill=255, width=4), WOOD, 1),
+             Part(lambda d: d.line([(7, 6), (7, 26)], fill=255, width=1), CREAM, 1)]
+    for y in (11, 21):
+        parts += vec_parts((9, y), (29, y), WOOD, STEEL, GREEN, 7, 4, 3)
+    return compose(parts)
+
+
+def ic_bloodlust():
+    drop = [(16, 2), (24, 14), (26, 21), (22, 27), (16, 30), (10, 27), (6, 21), (8, 14)]
+    parts = [Part(lambda d: d.polygon(drop, fill=255), DEEP_RED)]
+    return compose(parts, [(lambda d, c: d.polygon([(11, 17), (13, 15), (13, 22), (11, 24)], fill=c), RED[1] + (255,)),
+                           (lambda d, c: [d.polygon([(11, 21), (13, 21), (12, 25)], fill=c), d.polygon([(19, 21), (21, 21), (20, 25)], fill=c)], BONE[1] + (255,))])
+
+
+def ic_siege_breaker():
+    parts = [Part(lambda d: [d.line([(1, y), (9, y)], fill=255, width=2) for y in (7, 26)], ORANGE, 1),
+             Part(lambda d: d.rectangle([5, 12, 22, 21], fill=255), WOOD),
+             Part(lambda d: d.polygon([(21, 9), (30, 11), (30, 22), (21, 24)], fill=255), STEEL),
+             Part(lambda d: [d.rectangle([x, 11, x + 2, 22], fill=255) for x in (8, 15)], IRON, 1)]
+    return compose(parts, [(lambda d, c: d.polygon([(27, 14), (31, 16), (27, 18)], fill=c), STEEL[1] + (255,))])
+
+
+def ic_eternal_flame():
+    parts = [Part(lambda d: d.ellipse([2, 2, 29, 29], outline=255, width=3), GOLD, 1),
+             Part(flame_fn(16, 26, 15, 21), FLAME),
+             Part(flame_fn(16, 26, 7, 10), YELLOW, 1)]
+    return compose(parts)
+
+
+# --- Sanctuary blessings -----------------------------------------------------------
+
+def ic_mend():
+    parts = [Part(lambda d: d.polygon([(11, 3), (21, 3), (21, 11), (29, 11), (29, 21), (21, 21), (21, 29), (11, 29), (11, 21), (3, 21), (3, 11), (11, 11)], fill=255), GREEN)]
+    return compose(parts, [(lambda d, c: d.polygon(heart_poly((10, 11, 22, 21)), fill=c), PALE)])
+
+
+def ic_restore():
+    poly = unit_poly([(0.10, 1.00), (0.10, 0.40), (0.00, 0.40), (0.00, 0.20), (0.20, 0.20), (0.20, 0.34),
+                      (0.40, 0.34), (0.40, 0.20), (0.60, 0.20), (0.60, 0.34), (0.80, 0.34), (0.80, 0.20),
+                      (1.00, 0.20), (1.00, 0.40), (0.90, 0.40), (0.90, 1.00)], (3, 2, 29, 30))
+    parts = [Part(lambda d: d.polygon(poly, fill=255), STONE),
+             Part(lambda d: d.polygon([(13, 14), (19, 14), (19, 18), (23, 18), (23, 24), (19, 24), (19, 28), (13, 28), (13, 24), (9, 24), (9, 18), (13, 18)], fill=255), GREEN)]
+    return compose(parts)
+
+
+def ic_valor():
+    parts = [Part(lambda d: d.polygon([(16, 1), (19, 6), (13, 6)], fill=255), STEEL, 1),
+             Part(lambda d: d.rectangle([13, 5, 18, 21], fill=255), STEEL),
+             Part(lambda d: d.rectangle([6, 20, 25, 24], fill=255), GOLD, 1),
+             Part(lambda d: d.rectangle([14, 24, 17, 30], fill=255), WOOD, 1),
+             Part(lambda d: d.polygon([(3, 10), (6, 13), (3, 16), (0, 13)], fill=255), YELLOW, 1),
+             Part(lambda d: d.polygon([(29, 10), (32, 13), (29, 16), (26, 13)], fill=255), YELLOW, 1)]
+    return compose(parts, [(lambda d, c: d.line([(15, 7), (15, 19)], fill=c, width=1), WHITE)])
+
+
+# --- new abilities -------------------------------------------------------------------
+
+def ic_diagonal_arrows():
+    parts = vec_parts((16, 29), (16, 3), WOOD, STEEL, BLUE, 8, 4, 3)
+    parts += vec_parts((13, 24), (2, 8), WOOD, STEEL, None, 6, 3, 2)
+    parts += vec_parts((19, 24), (30, 8), WOOD, STEEL, None, 6, 3, 2)
+    return compose(parts)
+
+
+def ic_rear_arrow():
+    parts = [Part(lambda d: d.ellipse([17, 3, 28, 14], fill=255), BLUE),
+             Part(lambda d: d.pieslice([13, 12, 31, 30], start=180, end=360, fill=255), BLUE)]
+    parts += vec_parts((20, 12), (3, 29), WOOD, STEEL, GREEN, 8, 4, 3)
+    return compose(parts)
+
+
+def ic_ricochet():
+    parts = [Part(lambda d: d.line([(3, 27), (14, 9), (21, 24)], fill=255, width=3), WOOD, 1),
+             Part(lambda d: d.line([(21, 24), (27, 10)], fill=255, width=3), WOOD, 1),
+             Part(lambda d: d.polygon([(28, 3), (21, 8), (30, 14)], fill=255), STEEL, 1),
+             Part(lambda d: d.polygon([(14, 2), (17, 8), (14, 12), (11, 8)], fill=255), YELLOW, 1)]
+    return compose(parts)
+
+
+def ic_lightning_sprite():
+    parts = [Part(lambda d: d.polygon([(10, 12), (1, 4), (3, 14), (9, 17)], fill=255), CREAM, 1),
+             Part(lambda d: d.polygon([(22, 12), (31, 4), (29, 14), (23, 17)], fill=255), CREAM, 1),
+             Part(lambda d: d.ellipse([9, 6, 23, 20], fill=255), BLUE),
+             Part(lambda d: d.polygon([(17, 18), (11, 26), (15, 26), (13, 31), (21, 23), (17, 23), (20, 18)], fill=255), YELLOW)]
+    return compose(parts, [(lambda d, c: [d.rectangle([12, 11, 14, 14], fill=c), d.rectangle([18, 11, 20, 14], fill=c)], WHITE)])
+
+
+def ic_meteor_shower():
+    parts = [Part(lambda d: d.polygon([(30, 1), (20, 2), (5, 17), (10, 22)], fill=255), FLAME, 1),
+             Part(lambda d: d.ellipse([3, 14, 17, 28], fill=255), IRON),
+             Part(lambda d: d.polygon([(30, 12), (26, 12), (16, 22), (20, 26)], fill=255), FLAME, 1),
+             Part(lambda d: d.polygon([(14, 2), (11, 2), (4, 9), (7, 12)], fill=255), FLAME, 1)]
+    return compose(parts, [(lambda d, c: d.ellipse([7, 18, 11, 22], fill=c), ORANGE[1] + (255,)),
+                           (lambda d, c: d.rectangle([12, 20, 13, 22], fill=c), IRON[1] + (255,))])
+
+
+def ic_blade_circle():
+    parts = [Part(lambda d: d.ellipse([7, 7, 24, 24], outline=255, width=3), STEEL)]
+    for k in range(8):
+        a = math.tau * k / 8
+        cx, cy = 15.5 + 9.5 * math.cos(a), 15.5 + 9.5 * math.sin(a)
+        tip = (15.5 + 15 * math.cos(a), 15.5 + 15 * math.sin(a))
+        lft = (cx + 3.5 * math.cos(a + math.pi / 2), cy + 3.5 * math.sin(a + math.pi / 2))
+        rgt = (cx - 3.5 * math.cos(a + math.pi / 2), cy - 3.5 * math.sin(a + math.pi / 2))
+        parts.append(Part(lambda d, tip=tip, lft=lft, rgt=rgt: d.polygon([tip, lft, rgt], fill=255), STEEL, 1))
+    return compose(parts, [(lambda d, c: d.ellipse([13, 13, 18, 18], fill=c), BLUE[0] + (255,))])
+
+
+def ic_shadow_step():
+    parts = [Part(lambda d: d.polygon([(2, 6), (9, 16), (2, 26), (5, 26), (12, 16), (5, 6)], fill=255), NIGHT, 1),
+             Part(lambda d: d.polygon([(11, 6), (18, 16), (11, 26), (14, 26), (21, 16), (14, 6)], fill=255), SHADOW, 1),
+             Part(lambda d: d.polygon([(20, 6), (30, 16), (20, 26), (23, 26), (31, 16), (23, 6)], fill=255), PURPLE),
+             Part(lambda d: d.line([(5, 29), (27, 3)], fill=255, width=2), STEEL, 1)]
+    return compose(parts)
+
+
+# --- enemies and bosses ---------------------------------------------------------------
+
+def ic_tower_seeker():
+    parts = goblin_head() + [Part(lambda d: d.line([(27, 25), (27, 12)], fill=255, width=3), WOOD, 1),
+                             Part(flame_fn(27, 12, 9, 11), FLAME, 1)]
+    return compose(parts, goblin_eyes(col=RED[1] + (255,)))
+
+
+def ic_player_hunter():
+    parts = goblin_head() + [Part(lambda d: d.rectangle([21, 22, 27, 30], fill=255), RED),
+                             Part(lambda d: d.line([(25, 22), (27, 17)], fill=255, width=1), CREAM, 1),
+                             Part(lambda d: d.polygon([(26, 14), (29, 16), (27, 19), (24, 17)], fill=255), YELLOW, 1)]
+    return compose(parts, goblin_eyes())
+
+
+def ic_opportunist():
+    parts = [Part(lambda d: d.ellipse([4, 3, 28, 31], fill=255), NIGHT),
+             Part(lambda d: d.rectangle([4, 10, 28, 12], fill=255), IRON, 1),
+             Part(lambda d: d.rectangle([4, 22, 28, 24], fill=255), IRON, 1)]
+    return compose(parts, [(lambda d, c: [d.rectangle([9, 14, 14, 18], fill=c), d.rectangle([18, 14, 23, 18], fill=c)], YELLOW[0] + (255,)),
+                           (lambda d, c: [d.rectangle([11, 15, 12, 18], fill=c), d.rectangle([20, 15, 21, 18], fill=c)], INK)])
+
+
+def ic_bomber():
+    parts = [Part(lambda d: d.ellipse([3, 10, 25, 31], fill=255), IRON),
+             Part(lambda d: d.rectangle([11, 6, 17, 11], fill=255), STEEL, 1),
+             Part(lambda d: d.line([(14, 6), (20, 2)], fill=255, width=2), WOOD, 1),
+             Part(flame_fn(24, 7, 8, 9), FLAME, 1)]
+    return compose(parts, [(lambda d, c: [d.polygon([(7, 17), (13, 19), (13, 21), (7, 20)], fill=c), d.polygon([(21, 17), (15, 19), (15, 21), (21, 20)], fill=c)], YELLOW[0] + (255,)),
+                           (lambda d, c: d.rectangle([10, 25, 18, 26], fill=c), (180, 188, 210, 255))])
+
+
+def ic_brute():
+    parts = [Part(lambda d: d.line([(28, 30), (28, 10)], fill=255, width=4), WOOD, 1),
+             Part(lambda d: d.rectangle([24, 3, 31, 13], fill=255), IRON, 1),
+             Part(lambda d: d.rectangle([2, 7, 24, 29], fill=255), OLIVE),
+             Part(lambda d: d.polygon([(5, 5), (10, 10), (2, 11)], fill=255), BONE, 1),
+             Part(lambda d: d.polygon([(21, 5), (16, 10), (24, 11)], fill=255), BONE, 1)]
+    return compose(parts, [(lambda d, c: [d.rectangle([6, 14, 11, 17], fill=c), d.rectangle([15, 14, 20, 17], fill=c)], YELLOW[0] + (255,)),
+                           (lambda d, c: [d.polygon([(8, 25), (10, 21), (11, 25)], fill=c), d.polygon([(15, 25), (16, 21), (18, 25)], fill=c)], BONE[1] + (255,)),
+                           (lambda d, c: d.rectangle([7, 22, 19, 23], fill=c), INK)])
+
+
+def ic_goblin_warchief():
+    parts = [Part(lambda d: d.polygon([(8, 10), (1, 8), (2, 1), (8, 5), (11, 9)], fill=255), GOLD, 1),
+             Part(lambda d: d.polygon([(24, 10), (31, 8), (30, 1), (24, 5), (21, 9)], fill=255), GOLD, 1)] + goblin_head(GOBLIN, 1)
+    return compose(parts, goblin_eyes(1, RED[1] + (255,)) + [
+        (lambda d, c: d.rectangle([8, 11, 24, 12], fill=c), RED[0] + (255,)),
+        (lambda d, c: [d.rectangle([12, 25, 13, 27], fill=c), d.rectangle([19, 25, 20, 27], fill=c)], BONE[1] + (255,))])
+
+
+def ic_bombardier_king():
+    parts = goblin_head(GOBLIN, 4) + [Part(lambda d: d.polygon([(6, 12), (9, 17), (16, 5), (23, 17), (26, 12), (25, 19), (7, 19)], fill=255), GOLD),
+                                       Part(lambda d: d.ellipse([20, 22, 30, 31], fill=255), IRON)]
+    return compose(parts, [(lambda d, c: [d.rectangle([11, 20, 14, 22], fill=c), d.rectangle([18, 20, 21, 22], fill=c)], RED[1] + (255,)),
+                           (lambda d, c: d.rectangle([15, 9, 16, 11], fill=c), RED[0] + (255,))])
+
+
+def ic_goblin_shaman():
+    parts = [Part(lambda d: d.line([(3, 29), (3, 8)], fill=255, width=3), WOOD, 1),
+             Part(lambda d: d.ellipse([-1, 1, 8, 10], fill=255), BLUE),
+             Part(lambda d: d.polygon([(10, 5), (17, 1), (25, 5), (28, 18), (24, 30), (8, 30), (6, 18)], fill=255), NIGHT),
+             Part(lambda d: d.ellipse([11, 11, 24, 25], fill=255), GOBLIN)]
+    return compose(parts, [(lambda d, c: [d.rectangle([13, 16, 15, 18], fill=c), d.rectangle([19, 16, 21, 18], fill=c)], YELLOW[0] + (255,)),
+                           (lambda d, c: d.rectangle([2, 4, 4, 6], fill=c), WHITE)])
+
+
+def ic_juggernaut():
+    parts = [Part(lambda d: [d.rectangle([x, 27, x + 4, 31], fill=255) for x in (6, 21)], IRON, 1),
+             Part(lambda d: d.ellipse([2, 3, 29, 29], fill=255), WOOD),
+             Part(lambda d: d.rectangle([2, 10, 29, 13], fill=255), IRON, 1),
+             Part(lambda d: d.rectangle([2, 20, 29, 23], fill=255), IRON, 1),
+             Part(lambda d: [d.polygon([(x, 3), (x + 3, 0), (x + 6, 3)], fill=255) for x in (6, 13, 20)], STEEL, 1)]
+    return compose(parts, [(lambda d, c: [d.polygon([(7, 15), (14, 17), (14, 19), (7, 18)], fill=c), d.polygon([(24, 15), (17, 17), (17, 19), (24, 18)], fill=c)], RED[1] + (255,))])
+
+
+# --- arena objects ---------------------------------------------------------------------
+
+def ic_bridge():
+    parts = [Part(lambda d: d.rectangle([0, 3, 31, 9], fill=255), WATER),
+             Part(lambda d: d.rectangle([0, 23, 31, 29], fill=255), WATER),
+             Part(lambda d: d.rectangle([5, 6, 26, 26], fill=255), WOOD),
+             Part(lambda d: [d.rectangle([x, y, x + 3, y + 4], fill=255) for x in (2, 26) for y in (3, 24)], IRON, 1)]
+    return compose(parts, [(lambda d, c: [d.line([(5, y), (26, y)], fill=c, width=1) for y in (11, 16, 21)], WOOD[2] + (255,))])
+
+
+def ic_water():
+    parts = [Part(lambda d: d.ellipse([1, 5, 30, 28], fill=255), WATER)]
+    return compose(parts, [(lambda d, c: [d.line([(x, y), (x + 7, y)], fill=c, width=2) for x, y in ((6, 11), (17, 9), (9, 17), (19, 17), (6, 23), (16, 23))], (232, 248, 255, 255))])
+
+
+def ic_powder_keg():
+    parts = [Part(lambda d: d.ellipse([4, 8, 27, 31], fill=255), WOOD),
+             Part(lambda d: d.rectangle([4, 14, 27, 16], fill=255), IRON, 1),
+             Part(lambda d: d.rectangle([4, 23, 27, 25], fill=255), IRON, 1),
+             Part(lambda d: d.line([(16, 8), (21, 3)], fill=255, width=2), CREAM, 1),
+             Part(lambda d: d.polygon([(21, 0), (26, 3), (22, 7), (19, 4)], fill=255), YELLOW, 1)]
+    return compose(parts, [(lambda d, c: d.rectangle([13, 18, 18, 21], fill=c), RED[0] + (255,))])
+
+
+def ic_supply_crate():
+    parts = [Part(lambda d: d.rectangle([3, 5, 28, 29], fill=255), WOOD)]
+    return compose(parts, [(lambda d, c: [d.line([(4, 6), (27, 28)], fill=c, width=2), d.line([(27, 6), (4, 28)], fill=c, width=2)], WOOD[2] + (255,)),
+                           (lambda d, c: d.rectangle([3, 5, 28, 8], fill=c), WOOD[1] + (255,)),
+                           (lambda d, c: d.rectangle([3, 26, 28, 29], fill=c), WOOD[2] + (255,))])
+
+
+def ic_shrine():
+    parts = [Part(lambda d: d.rectangle([5, 25, 26, 30], fill=255), STONE),
+             Part(lambda d: d.rectangle([11, 12, 20, 25], fill=255), STONE),
+             Part(lambda d: d.ellipse([10, 2, 21, 13], fill=255), GOLD)]
+    return compose(parts, [(lambda d, c: d.ellipse([13, 5, 17, 9], fill=c), (255, 250, 200, 255)),
+                           (lambda d, c: d.line([(15, 14), (15, 24)], fill=c, width=1), STONE[2] + (255,))])
+
+
+def ic_spike_trap():
+    parts = [Part(lambda d: d.rectangle([2, 22, 29, 29], fill=255), STONE),
+             Part(lambda d: [d.polygon([(x, 22), (x + 3, 7), (x + 6, 22)], fill=255) for x in (4, 12, 20)], STEEL, 1)]
+    return compose(parts, [(lambda d, c: d.line([(2, 25), (29, 25)], fill=c, width=1), STONE[2] + (255,))])
+
+
+# --- event screens ------------------------------------------------------------------------
+
+def ic_opening_pick():
+    parts = [Part(lambda d: d.polygon([(2, 10), (12, 5), (16, 24), (6, 28)], fill=255), BLUE),
+             Part(lambda d: d.polygon([(20, 5), (30, 10), (26, 28), (16, 24)], fill=255), RED),
+             Part(lambda d: d.polygon([(9, 3), (23, 3), (23, 28), (9, 28)], fill=255), CREAM)]
+    return compose(parts, [(lambda d, c: d.polygon([(16, 9), (18, 14), (23, 14), (19, 17), (21, 22), (16, 19), (11, 22), (13, 17), (9, 14), (14, 14)], fill=c), GOLD[0] + (255,))])
+
+
+def ic_patrons_boon():
+    parts = [Part(lambda d: d.polygon([(6, 3), (26, 3), (23, 15), (18, 19), (18, 25), (23, 28), (23, 30), (9, 30), (9, 28), (14, 25), (14, 19), (9, 15)], fill=255), GOLD)]
+    return compose(parts, [(lambda d, c: d.polygon([(16, 6), (18, 10), (22, 10), (19, 13), (20, 17), (16, 15), (12, 17), (13, 13), (10, 10), (14, 10)], fill=c), RED[0] + (255,))])
+
+
+def ic_sanctuary():
+    parts = [Part(lambda d: d.polygon([(4, 29), (4, 14), (10, 7), (16, 4), (22, 7), (28, 14), (28, 29)], fill=255), STONE),
+             Part(lambda d: d.polygon([(10, 29), (10, 17), (16, 11), (22, 17), (22, 29)], fill=255), GOLD)]
+    return compose(parts, [(lambda d, c: d.polygon([(14, 29), (14, 21), (18, 21), (18, 29)], fill=c), (255, 250, 200, 255))])
+
+
+def ic_blood_pact():
+    parts = [Part(lambda d: d.rectangle([5, 3, 26, 28], fill=255), CREAM),
+             Part(lambda d: d.ellipse([11, 14, 21, 24], fill=255), DEEP_RED)]
+    return compose(parts, [(lambda d, c: [d.line([(8, y), (23, y)], fill=c, width=1) for y in (7, 10)], CREAM[2] + (255,)),
+                           (lambda d, c: d.polygon([(16, 15), (19, 19), (16, 22), (13, 19)], fill=c), RED[1] + (255,))])
+
+
+PTUI_ICONS = {
+    "second_life": ic_second_life, "twin_string": ic_twin_string, "bloodlust": ic_bloodlust,
+    "siege_breaker": ic_siege_breaker, "eternal_flame": ic_eternal_flame,
+    "mend": ic_mend, "restore": ic_restore, "valor": ic_valor,
+    "diagonal_arrows": ic_diagonal_arrows, "rear_arrow": ic_rear_arrow, "ricochet": ic_ricochet,
+    "lightning_sprite": ic_lightning_sprite, "meteor_shower": ic_meteor_shower, "blade_circle": ic_blade_circle,
+    "shadow_step": ic_shadow_step,
+    "tower_seeker": ic_tower_seeker, "player_hunter": ic_player_hunter, "opportunist": ic_opportunist,
+    "bomber": ic_bomber, "brute": ic_brute, "goblin_warchief": ic_goblin_warchief,
+    "bombardier_king": ic_bombardier_king, "goblin_shaman": ic_goblin_shaman, "juggernaut": ic_juggernaut,
+    "bridge": ic_bridge, "water": ic_water, "powder_keg": ic_powder_keg, "supply_crate": ic_supply_crate,
+    "shrine": ic_shrine, "spike_trap": ic_spike_trap,
+    "opening_pick": ic_opening_pick, "patrons_boon": ic_patrons_boon, "sanctuary": ic_sanctuary,
+    "blood_pact": ic_blood_pact,
+}
+
+
 def make_contact_sheet(icons, path, cols=8, zoom=4):
     from PIL import ImageFont
     cw, ch = S * zoom + 16, S * zoom + 38
@@ -1046,3 +1377,8 @@ if __name__ == "__main__":
         loadout[name] = fn()
         save(loadout[name], "assets/ui/icons/icon_%s.png" % name)
     make_contact_sheet(loadout, "assets/ui/icons/_contact_sheet_loadout.png", cols=6)
+    ptui = {}
+    for name, fn in PTUI_ICONS.items():
+        ptui[name] = fn()
+        save(ptui[name], "assets/ui/icons/icon_%s.png" % name)
+    make_contact_sheet(ptui, "assets/ui/icons/_contact_sheet_ptui.png", cols=8)

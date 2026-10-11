@@ -33,14 +33,15 @@ const PAUSE_MENU_CANVAS_LAYER: int = 18
 const OPTION_RESUME: int = 0
 const OPTION_SETTINGS: int = 1
 const OPTION_HOW_TO_PLAY: int = 2
-const OPTION_MAIN_MENU: int = 3
+const OPTION_FIELD_GUIDE: int = 3 ## PT-UI (docs/33 A3): the codex, one pause away
+const OPTION_MAIN_MENU: int = 4
 const ABANDON_OPTION_CANCEL: int = 0 ## the safe option is first, so it is the default highlight
 const ABANDON_OPTION_CONFIRM: int = 1
 const HOWTO_OPTION_BACK: int = 0
 const HOWTO_CHROME_PX: float = 400.0 ## title, rule, Back row, hold ring and card padding
 
 const LOADOUT_ICON_SIDE_PX: float = 40.0 ## WP-LOADOUT: Champion / Relic icon in the build panel
-const CARD_MIN_WIDTH_PX: float = 1320.0
+const CARD_MIN_WIDTH_PX: float = 1500.0 # PT-UI: five choices (Field Guide joined) fit on one line
 const PANEL_COLUMN_MIN_WIDTH_PX: float = 390.0
 
 signal resume_requested()
@@ -65,6 +66,7 @@ var _howto_bar: PausedChoiceBar
 var _howto_ring: DraftFillRing
 var _howto_open: bool = false
 var _howto_scroll: ScrollContainer
+var _field_guide: FieldGuideScreen = null
 
 
 func _ready() -> void:
@@ -134,6 +136,8 @@ func _on_option_confirmed(index: int) -> void:
 		settings_requested.emit()
 	elif index == OPTION_HOW_TO_PLAY:
 		_open_how_to_play()
+	elif index == OPTION_FIELD_GUIDE:
+		_open_field_guide()
 	elif index == OPTION_MAIN_MENU:
 		_enter_abandon_confirmation()
 
@@ -163,7 +167,30 @@ func is_confirming_abandon_for_test() -> bool:
 
 
 func _main_options() -> Array[String]:
-	return [tr("PAUSE_MENU_RESUME"), tr("PAUSE_MENU_SETTINGS"), tr("PAUSE_MENU_HOW_TO_PLAY"), tr("PAUSE_MENU_MAIN_MENU")]
+	return [tr("PAUSE_MENU_RESUME"), tr("PAUSE_MENU_SETTINGS"), tr("PAUSE_MENU_HOW_TO_PLAY"), tr("FG_OPEN"), tr("PAUSE_MENU_MAIN_MENU")]
+
+
+# --- Field Guide overlay (PT-UI) ---------------------------------------------------
+
+## The Guide opens over the pause menu (it is its own layer, above this one); this menu's choice bar
+## sleeps until it closes, then wakes with a fresh lockout and neutral-return arming.
+func _open_field_guide() -> void:
+	if _field_guide == null:
+		_field_guide = FieldGuideScreen.new()
+		_field_guide.name = "FieldGuide"
+		add_child(_field_guide)
+		_field_guide.closed.connect(_on_field_guide_closed)
+	_bar.set_active(false)
+	_field_guide.open()
+
+
+func _on_field_guide_closed() -> void:
+	if visible:
+		_bar.set_active(true)
+
+
+func get_field_guide_for_test() -> FieldGuideScreen:
+	return _field_guide
 
 
 # --- How to Play overlay ---------------------------------------------------------
@@ -223,9 +250,18 @@ func _label(text: String, variation: StringName = UiTheme.HUD_VALUE, min_width: 
 	return label
 
 
-func _pair_row(parent: Container, key_text: String, value_text: String) -> void:
+## A build-panel symbol: the id's own icon, or nothing when it has none (never a blank box).
+func _icon(id: String) -> Control:
+	var rect: TextureRect = AbilityDisplay.make_icon_rect(id, int(LOADOUT_ICON_SIDE_PX))
+	rect.visible = AbilityDisplay.has_icon(id)
+	return rect
+
+
+func _pair_row(parent: Container, key_text: String, value_text: String, icon_id: String = "") -> void:
 	var row := HBoxContainer.new()
 	row.theme_type_variation = UiTheme.hbox("M")
+	if icon_id != "":
+		row.add_child(_icon(icon_id))
 	var k := _label(key_text, UiTheme.DIM_PARCHMENT)
 	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(k)
@@ -268,9 +304,9 @@ func _add_boons_and_pacts(list: Container) -> void:
 	for entry: Dictionary in entries:
 		var id: String = str(entry.get("id", ""))
 		if str(entry.get("type", "")) == "pact":
-			_pair_row(list, tr("PAUSE_BUILD_BOON_PACT"), EventDraftController.pact_name(id))
+			_pair_row(list, tr("PAUSE_BUILD_BOON_PACT"), EventDraftController.pact_name(id), id)
 		else:
-			_pair_row(list, tr("PAUSE_BUILD_BOON_SANCT"), tr("SANCT_%s_NAME" % id.to_upper()))
+			_pair_row(list, tr("PAUSE_BUILD_BOON_SANCT"), tr("SANCT_%s_NAME" % id.to_upper()), id)
 
 
 ## WP-LOADOUT (docs/32 C3): the run's Champion and Relics, icon plus name, from RunConfig.
@@ -317,7 +353,7 @@ func _fill_passives_column() -> void:
 		_passives_column.add_child(_label(tr("PAUSE_BUILD_NONE"), UiTheme.HUD_VALUE))
 	for entry: Dictionary in passives:
 		var name_text: String = str(entry.get("display_name", AbilityNames.display(str(entry.get("id", "")))))
-		_pair_row(_passives_column, name_text, "%d/%d" % [int(entry.get("rank", 1)), int(entry.get("max_rank", 1))])
+		_pair_row(_passives_column, name_text, "%d/%d" % [int(entry.get("rank", 1)), int(entry.get("max_rank", 1))], str(entry.get("id", "")))
 
 
 func _add_owned(list: Container, manager: Node, slot_kind: String) -> void:
@@ -329,6 +365,7 @@ func _add_owned(list: Container, manager: Node, slot_kind: String) -> void:
 	for entry: Dictionary in owned:
 		var row := HBoxContainer.new()
 		row.theme_type_variation = UiTheme.hbox("M")
+		row.add_child(_icon(str(entry.get("id", "")))) # PT-UI: the same symbol as the HUD build bar
 		var n := _label(AbilityNames.display(str(entry.get("id", ""))), UiTheme.HUD_VALUE)
 		n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(n)
