@@ -177,7 +177,7 @@ func test_the_title_has_no_separate_controls_page_and_shows_the_version() -> voi
 	var label: Label = title.find_child("VersionLabel", true, false) as Label
 	assert_object(label).is_not_null()
 	assert_str(label.text).is_equal("v" + str(ProjectSettings.get_setting("application/config/version")))
-	assert_str(label.text).is_equal("v1.0.0")
+	assert_str(label.text).is_equal("v1.1.0")
 	var buttons: Array[String] = []
 	for b: Node in title.find_children("*", "Button", true, false):
 		buttons.append((b as Button).text)
