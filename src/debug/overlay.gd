@@ -162,6 +162,7 @@ func _apply_visibility() -> void:
 	var shown: bool = _visible_overlay and dev_tools_enabled()
 	_fields_label.visible = shown
 	$Panel.visible = shown
+	set_process(shown) # PT-PHONE (D398): a hidden overlay (every shipped build) samples and formats nothing
 
 
 func is_overlay_visible() -> bool:

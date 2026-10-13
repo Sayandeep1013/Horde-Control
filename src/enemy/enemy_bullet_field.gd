@@ -86,6 +86,10 @@ func _ready() -> void:
 	global_position = Vector2.ZERO
 	if registry == null:
 		registry = EntityRegistry
+	# PT-PHONE (D397): bullets are white-disc quads, so a field of 300 bullets is ONE draw call.
+	# (draw_circle is a polygon and a draw call each: three per bullet, 960 for a full field.)
+	_disc = _make_disc_texture()
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 
 func get_count() -> int:
@@ -229,16 +233,37 @@ func _remove(i: int) -> void:
 
 
 var _drawn_last: bool = false
+var _disc: ImageTexture = null
+
+const DISC_TEXTURE_PX: int = 64
+
+
+## A white disc with a one pixel soft edge; tinted per bullet through the draw colour.
+static func _make_disc_texture() -> ImageTexture:
+	var img: Image = Image.create(DISC_TEXTURE_PX, DISC_TEXTURE_PX, false, Image.FORMAT_RGBA8)
+	var centre: float = (DISC_TEXTURE_PX - 1) * 0.5
+	var radius: float = DISC_TEXTURE_PX * 0.5
+	for y in DISC_TEXTURE_PX:
+		for x in DISC_TEXTURE_PX:
+			var d: float = Vector2(float(x) - centre, float(y) - centre).length()
+			img.set_pixel(x, y, Color(1.0, 1.0, 1.0, clampf(radius - d, 0.0, 1.0)))
+	return ImageTexture.create_from_image(img)
+
+
+func _draw_disc(centre: Vector2, radius: float, color: Color) -> void:
+	draw_texture_rect(_disc, Rect2(centre - Vector2(radius, radius), Vector2(radius, radius) * 2.0), false, color)
 
 
 func _draw() -> void:
 	_drawn_last = _count > 0
+	if _disc == null:
+		return
 	for i in _count:
 		var p: Vector2 = _pos[i]
 		var r: float = _radius[i]
 		var c: Color = _color[i]
 		# Fade in over the first 0.08 s so a burst reads as leaving the boss.
 		var a: float = clampf(_age[i] / 0.08, 0.35, 1.0)
-		draw_circle(p, r + OUTLINE_PX, Color(OUTLINE_COLOR, a))
-		draw_circle(p, r, Color(c, a))
-		draw_circle(p - Vector2(r * 0.25, r * 0.3), r * 0.45, Color(CORE_COLOR, 0.9 * a))
+		_draw_disc(p, r + OUTLINE_PX, Color(OUTLINE_COLOR, a))
+		_draw_disc(p, r, Color(c, a))
+		_draw_disc(p - Vector2(r * 0.25, r * 0.3), r * 0.45, Color(CORE_COLOR, 0.9 * a))

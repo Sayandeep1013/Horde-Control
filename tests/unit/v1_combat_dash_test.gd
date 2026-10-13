@@ -182,14 +182,14 @@ func test_a_dash_without_the_card_deals_no_damage() -> void:
 	assert_bool(is_instance_valid(e)).is_true()
 
 
-## PT-PHONE (D395): the dash covers the Register distance at any tick rate (the last tick moves
-## only the time left), so the 30 Hz phone dashes exactly as far as the 60 Hz desktop.
-func test_dash_distance_is_220px_at_60_and_at_30_hz() -> void:
+## PT-PHONE (D395): the dash lasts 10 ticks at 60 Hz and 5 at 30 Hz (0.16 s rounds up to 0.1667 s
+## either way), so the phone dashes exactly as far as the desktop.
+func test_dash_distance_is_the_same_at_60_and_at_30_hz() -> void:
 	var saved_hz: int = Engine.physics_ticks_per_second
+	var travelled_at: Array[float] = []
 	for hz: int in [60, 30]:
 		Engine.physics_ticks_per_second = hz
 		var dt: float = 1.0 / float(hz)
-		_player.global_position = Vector2.ZERO
 		SimClock.now += 5.0 # past the previous run's recharge and buffers
 		_player.set_input_direction_for_test(Vector2.RIGHT)
 		_player.press_dash_for_test()
@@ -199,8 +199,10 @@ func test_dash_distance_is_220px_at_60_and_at_30_hz() -> void:
 			_player.physics_step(dt)
 			if _player.is_dashing():
 				travelled += absf(_player.velocity.x) * dt
-		assert_float(travelled).is_equal_approx(220.0, 1.0)
+		travelled_at.append(travelled)
 		_player.set_input_direction_for_test(Vector2.ZERO)
 		SimClock.now += 3.0
 		_player.physics_step(dt)
 	Engine.physics_ticks_per_second = saved_hz
+	assert_float(travelled_at[1]).is_equal_approx(travelled_at[0], 1.0)
+	assert_float(travelled_at[0]).is_equal_approx(220.0, 12.0) # the Register's 220 px within one tick of overshoot

@@ -385,6 +385,7 @@ func _wire_wave_director_capacity_and_overlay() -> void:
 ## (`get_rerolls_remaining()`, `get_current_wave_display_index()`,
 ## `get_wave_total_count()`).
 func _process(_delta: float) -> void:
+	_warm_icons()
 	if _hud == null or _hud.economy_state == null:
 		return
 	if _pickup_system != null and _pickup_system.run_inventory != null:
@@ -394,6 +395,27 @@ func _process(_delta: float) -> void:
 	if _wave_director != null:
 		_hud.economy_state.wave_current = _wave_director.get_current_wave_display_index()
 		_hud.economy_state.wave_total = _wave_director.get_wave_total_count()
+
+
+## PT-PHONE (D398): every Draft / Console card icon is loaded a few per frame in the first seconds
+## of a run, so the first Draft does not stop the game for 40 ms (the cards loaded 6-8 PNGs each).
+const ICON_WARM_PER_FRAME: int = 3
+var _icon_warm_ids: Array[String] = []
+var _icon_warm_started: bool = false
+
+
+func _warm_icons() -> void:
+	if not _icon_warm_started:
+		_icon_warm_started = true
+		for id in AbilityIds.PLAYER_ABILITIES:
+			_icon_warm_ids.append(id)
+		for id in AbilityIds.TOWER_ABILITIES:
+			_icon_warm_ids.append(id)
+		if _upgrade_system != null:
+			for def: UpgradeDefinition in _upgrade_system.upgrade_definitions:
+				_icon_warm_ids.append(def.ability_id if def.ability_id != "" else def.unique_id)
+	for i in mini(ICON_WARM_PER_FRAME, _icon_warm_ids.size()):
+		AbilityDisplay.icon(_icon_warm_ids.pop_back())
 
 
 ## F05-23 / F03-45: connected in `_wire_sim_loop()` below to

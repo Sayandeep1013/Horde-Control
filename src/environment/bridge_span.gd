@@ -27,6 +27,8 @@ const SLICE_PX: float = 8.0
 @export var width_px: float = 64.0
 @export var horizontal: bool = false
 
+var _batch: GroundBatch = null
+
 
 func _ready() -> void:
 	z_index = 0
@@ -34,6 +36,12 @@ func _ready() -> void:
 	if texture == null:
 		push_warning("BridgeSpan has no texture assigned; no bridge will be drawn.")
 		return
+	# PT-PHONE (D397): every plank and slice is an entry of ONE canvas item, not a Sprite2D each.
+	_batch = GroundBatch.new()
+	_batch.name = "Planks"
+	_batch.textures = [texture]
+	_batch.cull = false
+	add_child(_batch)
 	if horizontal:
 		var plank_count: int = maxi(0, int(round((length_px - H_CAP_LEFT.size.x - H_CAP_RIGHT.size.x) / H_PLANKS.size.x)))
 		var total: float = H_CAP_LEFT.size.x + H_CAP_RIGHT.size.x + H_PLANKS.size.x * plank_count
@@ -54,6 +62,7 @@ func _ready() -> void:
 			_add_row(PLANKS, Vector2(0.0, y), false)
 			y += PLANKS.size.y
 		_add_row(CAP_BOTTOM, Vector2(0.0, y), false)
+	_batch.bake()
 
 
 ## One strip of the span. Across the deck (x for the vertical form, y for the horizontal) it is
@@ -83,10 +92,5 @@ func _sub(region: Rect2, from: float, length: float, is_horizontal: bool) -> Rec
 
 
 func _piece(region: Rect2, along_pos: Vector2, cross_pos: float, is_horizontal: bool) -> void:
-	var s: Sprite2D = Sprite2D.new()
-	s.texture = texture
-	s.region_enabled = true
-	s.region_rect = region
-	s.centered = false
-	s.position = Vector2(along_pos.x, cross_pos) if is_horizontal else Vector2(cross_pos, along_pos.y)
-	add_child(s)
+	var pos: Vector2 = Vector2(along_pos.x, cross_pos) if is_horizontal else Vector2(cross_pos, along_pos.y)
+	_batch.add(0, Rect2(pos, region.size), region)

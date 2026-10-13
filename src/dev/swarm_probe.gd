@@ -69,6 +69,9 @@ var next_boss_log: float = 2.0
 var boss_seen: bool = false
 var granted: bool = false
 var _dumped: bool = false
+var spawn_us: int = 0
+var spawn_count: int = 0
+var spawn_max_us: int = 0
 var _scan_nodes: Array[Node] = []
 var _scan_idx: int = -1
 var _scan_phase: int = 0
@@ -286,7 +289,13 @@ func _process(_delta: float) -> bool:
 			var ids: Array[String] = ["tower_seeker", "player_hunter", "player_hunter", "opportunist"]
 			for i in int(ceil(batch / 4.0)):
 				var near: Vector2 = player.global_position + Vector2.from_angle(spawn_rng.randf() * TAU) * spawn_rng.randf_range(450.0, 800.0)
-				wd.spawn_summons(ids[i % ids.size()], 4, near)
+				var ts0: int = Time.get_ticks_usec()
+				var made: int = wd.spawn_summons(ids[i % ids.size()], 4, near)
+				if frames > warmup_frames:
+					var took: int = Time.get_ticks_usec() - ts0
+					spawn_us += took
+					spawn_count += made
+					spawn_max_us = maxi(spawn_max_us, took)
 		if frames > warmup_frames:
 			frames_total += 1
 			samples.append(dt_ms)
@@ -339,6 +348,8 @@ func _process(_delta: float) -> bool:
 					print("PROBE_RENDERER process_ms=%.2f fill_ms=%.2f overlay_draw_ms=%.2f (per rendered frame, %d frames)" % [float(rr.get("prof_process_usec")) / 1000.0 / measure_frames, float(rr.get("prof_fill_usec")) / 1000.0 / measure_frames, float(rr.get("prof_overlay_usec")) / 1000.0 / measure_frames, measure_frames])
 				if brain_frames > 0:
 					print("PROBE_BRAIN hash_ms=%.2f loop_total_ms=%.2f plans_per_tick=%.1f plan_ms=%.2f node_sync_ms=%.2f" % [brain_hash_us / 1000.0 / brain_frames, brain_loop_us / 1000.0 / brain_frames, float(brain_plans) / brain_frames, brain_plan_us / 1000.0 / brain_frames, brain_sync_us / 1000.0 / brain_frames])
+				var sp_node: Node = _n("Main/EntitySpawner")
+				print("PROBE_SPAWN spawns=%d us_per_spawn=%.0f max_call_us=%d reused=%s created=%s" % [spawn_count, float(spawn_us) / maxf(spawn_count, 1), spawn_max_us, str(sp_node.get("enemies_reused")) if sp_node != null else "n/a", str(sp_node.get("enemies_created")) if sp_node != null else "n/a"])
 				print("PROBE_STEPS simloop_ms=%.2f %s" % [total_us / 1000.0 / measure_frames, " ".join(parts)])
 				_report_perf()
 				return true

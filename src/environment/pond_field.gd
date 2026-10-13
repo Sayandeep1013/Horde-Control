@@ -67,7 +67,6 @@ var _shore_cells: Dictionary = {}
 var _water_layer: TileMapLayer = null
 var _shore_layer: TileMapLayer = null
 var _foam_root: Node2D = null
-var _foam_frames: Dictionary = {} # Vector2i offset -> SpriteFrames
 
 
 func _ready() -> void:
@@ -214,17 +213,21 @@ func _touches_water(cell: Vector2i) -> bool:
 # --- Foam -----------------------------------------------------------------
 
 func _build_foam() -> void:
+	# PT-PHONE (D397): one canvas item for every foam tile of every pond.
+	var batch := GroundBatch.new()
+	batch.name = "FoamBatch"
+	batch.textures = [foam_texture]
+	batch.frame_count = FOAM_FRAME_COUNT
+	batch.fps = FOAM_FPS
+	batch.frame_stride = Vector2(FOAM_FRAME_SIZE, 0.0)
+	_foam_root.add_child(batch)
 	var rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "pond_foam"])
 	for cell: Vector2i in _water_cells.keys():
 		for off in _foam_offsets_for(cell):
-			var foam: AnimatedSprite2D = AnimatedSprite2D.new()
-			foam.sprite_frames = _frames_for_offset(off)
-			foam.animation = &"foam"
-			foam.position = FlatAutotile.cell_center(cell)
-			foam.frame = rng.randi_range(0, FOAM_FRAME_COUNT - 1)
-			foam.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			_foam_root.add_child(foam)
-			foam.play(&"foam")
+			var centre: Vector2 = FlatAutotile.cell_center(cell)
+			var src := Rect2((1 + off.x) * TILE_SIZE, (1 + off.y) * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+			batch.add(0, Rect2(centre - Vector2(TILE_SIZE, TILE_SIZE) * 0.5, Vector2(TILE_SIZE, TILE_SIZE)), src, rng.randi_range(0, FOAM_FRAME_COUNT - 1))
+	batch.bake()
 
 
 ## For a water cell W, the offsets (from the shore cell R toward W) whose foam
@@ -239,23 +242,6 @@ func _foam_offsets_for(cell: Vector2i) -> Array[Vector2i]:
 		if _shore_cells.has(cell + d) and _water_cells.has(cell + Vector2i(d.x, 0)) and _water_cells.has(cell + Vector2i(0, d.y)):
 			out.append(-d)
 	return out
-
-
-func _frames_for_offset(off: Vector2i) -> SpriteFrames:
-	if _foam_frames.has(off):
-		return _foam_frames[off]
-	var frames: SpriteFrames = SpriteFrames.new()
-	frames.remove_animation(&"default")
-	frames.add_animation(&"foam")
-	frames.set_animation_loop_mode(&"foam", SpriteFrames.LOOP_LINEAR)
-	frames.set_animation_speed(&"foam", FOAM_FPS)
-	for i in FOAM_FRAME_COUNT:
-		var atlas: AtlasTexture = AtlasTexture.new()
-		atlas.atlas = foam_texture
-		atlas.region = Rect2(i * FOAM_FRAME_SIZE + (1 + off.x) * TILE_SIZE, (1 + off.y) * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-		frames.add_frame(&"foam", atlas)
-	_foam_frames[off] = frames
-	return frames
 
 
 # --- Rocks ----------------------------------------------------------------

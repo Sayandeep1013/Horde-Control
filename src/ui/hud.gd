@@ -289,6 +289,11 @@ func is_siege_pulsing() -> bool:
 
 # --- Frame loop ------------------------------------------------------------------
 
+## Seconds between two refreshes of the HUD's numbers (see _process).
+const REFRESH_INTERVAL_SECONDS: float = 0.05
+var _refresh_accum: float = 0.0
+
+
 func _process(delta: float) -> void:
 	_apply_scale()
 	var running: bool = not get_tree().paused
@@ -298,7 +303,13 @@ func _process(delta: float) -> void:
 		if _repair_hold > 0.0:
 			_repair_hold = maxf(0.0, _repair_hold - delta)
 	_action_cluster.visible = not TouchUi.is_enabled()
-	_refresh_all()
+	# PT-PHONE (D398): the numbers and the string formatting behind them (seven refreshers, three
+	# group lookups, a translation) run 20 times a second, not every frame; the bars' ghost, flash
+	# and shake animate every frame in HudBar._process and read the latest value.
+	_refresh_accum += delta
+	if _refresh_accum >= REFRESH_INTERVAL_SECONDS:
+		_refresh_accum = 0.0
+		_refresh_all()
 	_update_siege_pulse()
 
 

@@ -98,7 +98,9 @@ class_name SceneryScatter
 @export var avoid_centers: Array[Vector2] = []
 @export var avoid_radii: Array[float] = []
 
-var _placed: Array[Sprite2D] = []
+## PT-PHONE (D397): the props are entries of ONE canvas item (GroundBatch), drawn grouped by
+## texture, instead of a Sprite2D each.
+var _batch: GroundBatch = null
 
 
 func _ready() -> void:
@@ -119,21 +121,25 @@ func build_for_test(count: int, key: String) -> void:
 
 
 func get_placed_count() -> int:
-	return _placed.size()
+	return _batch.get_entry_count() if _batch != null else 0
 
 
 func get_placed_positions() -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	for s in _placed:
-		out.append(s.position)
+	if _batch != null:
+		out.append_array(_batch.get_entry_centres())
 	return out
 
 
 func _clear() -> void:
-	for s in _placed:
-		if is_instance_valid(s):
-			s.queue_free()
-	_placed.clear()
+	if _batch != null and is_instance_valid(_batch):
+		_batch.free()
+	_batch = GroundBatch.new()
+	_batch.name = "Props"
+	_batch.sort_by_texture = true
+	_batch.tint = tint
+	_batch.textures = textures
+	add_child(_batch)
 
 
 func _build() -> void:
@@ -163,6 +169,7 @@ func _build() -> void:
 		placed += 1
 
 	_build_clusters()
+	_batch.bake()
 
 
 func _blocked(p: Vector2) -> bool:
@@ -176,21 +183,12 @@ func _blocked(p: Vector2) -> bool:
 
 
 func _spawn_prop(p: Vector2, rng: RandomNumberGenerator) -> void:
-	var s: Sprite2D = Sprite2D.new()
-	s.texture = textures[rng.randi_range(0, textures.size() - 1)]
-	s.position = p
+	var texture_index: int = rng.randi_range(0, textures.size() - 1)
 	# One world texel scale (D157): never rescale or rotate pixel art; vary
 	# the look by flipping instead.
-	s.scale = Vector2.ONE
-	s.flip_h = rng.randf() < 0.5
-	s.modulate = tint
-	s.z_index = 0
-	s.z_as_relative = true # relative to this node, which is already absolute
-	# Art pass (D102): pixel-art scenery must stay crisp regardless of
-	# the project's own default canvas-item filter.
-	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	add_child(s)
-	_placed.append(s)
+	var flip: bool = rng.randf() < 0.5
+	var size: Vector2 = textures[texture_index].get_size()
+	_batch.add(texture_index, Rect2(p - size * 0.5, size), Rect2(), 0, flip)
 
 
 ## Clustered flower/mushroom/bush patches (see the class header). Cluster

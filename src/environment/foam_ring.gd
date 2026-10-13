@@ -21,14 +21,14 @@ class_name FoamRing
 const FRAME_SIZE: int = 192
 const FRAME_COUNT: int = 8
 const TILE_SIZE: int = 64
-const ANIMATION_NAME: StringName = &"foam"
 const FPS: float = 6.0
 
 @export var foam_texture: Texture2D
 @export var arena_size: Vector2 = Vector2(4800.0, 3200.0)
 @export var seed_key: String = "arena_biome"
 
-var _frames: Dictionary = {} # Vector2i offset -> SpriteFrames
+## PT-PHONE (D397): the ring is ONE canvas item (GroundBatch) instead of 132 AnimatedSprite2D.
+var _batch: GroundBatch = null
 
 
 func _ready() -> void:
@@ -40,6 +40,13 @@ func _ready() -> void:
 	var half: Vector2 = arena_size / 2.0
 	var min_land: Vector2i = FlatAutotile.world_to_cell(-half)
 	var max_land: Vector2i = FlatAutotile.world_to_cell(half - Vector2.ONE)
+	_batch = GroundBatch.new()
+	_batch.name = "FoamBatch"
+	_batch.textures = [foam_texture]
+	_batch.frame_count = FRAME_COUNT
+	_batch.fps = FPS
+	_batch.frame_stride = Vector2(FRAME_SIZE, 0.0)
+	add_child(_batch)
 	var rng: RandomNumberGenerator = KeyedRng.rng_for([seed_key, "coast_foam"])
 	for cy in range(min_land.y - 1, max_land.y + 2):
 		for cx in range(min_land.x - 1, max_land.x + 2):
@@ -48,6 +55,7 @@ func _ready() -> void:
 				continue
 			for off in _offsets_for(cell, min_land, max_land):
 				_place(cell, off, rng)
+	_batch.bake()
 
 
 static func _is_land(cell: Vector2i, min_land: Vector2i, max_land: Vector2i) -> bool:
@@ -66,28 +74,6 @@ func _offsets_for(cell: Vector2i, min_land: Vector2i, max_land: Vector2i) -> Arr
 
 
 func _place(cell: Vector2i, off: Vector2i, rng: RandomNumberGenerator) -> void:
-	var foam: AnimatedSprite2D = AnimatedSprite2D.new()
-	foam.sprite_frames = _frames_for_offset(off)
-	foam.animation = ANIMATION_NAME
-	foam.position = FlatAutotile.cell_center(cell)
-	foam.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	foam.frame = rng.randi_range(0, FRAME_COUNT - 1)
-	add_child(foam)
-	foam.play(ANIMATION_NAME)
-
-
-func _frames_for_offset(off: Vector2i) -> SpriteFrames:
-	if _frames.has(off):
-		return _frames[off]
-	var frames: SpriteFrames = SpriteFrames.new()
-	frames.remove_animation(&"default")
-	frames.add_animation(ANIMATION_NAME)
-	frames.set_animation_loop_mode(ANIMATION_NAME, SpriteFrames.LOOP_LINEAR)
-	frames.set_animation_speed(ANIMATION_NAME, FPS)
-	for i in FRAME_COUNT:
-		var atlas: AtlasTexture = AtlasTexture.new()
-		atlas.atlas = foam_texture
-		atlas.region = Rect2(i * FRAME_SIZE + (1 + off.x) * TILE_SIZE, (1 + off.y) * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-		frames.add_frame(ANIMATION_NAME, atlas)
-	_frames[off] = frames
-	return frames
+	var centre: Vector2 = FlatAutotile.cell_center(cell)
+	var src := Rect2((1 + off.x) * TILE_SIZE, (1 + off.y) * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+	_batch.add(0, Rect2(centre - Vector2(TILE_SIZE, TILE_SIZE) * 0.5, Vector2(TILE_SIZE, TILE_SIZE)), src, rng.randi_range(0, FRAME_COUNT - 1))

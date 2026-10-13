@@ -41,16 +41,21 @@ static func per_tick(budget_at_60: int) -> int:
 
 
 ## The next due time of a repeating timer (weapon cooldown, ability interval, attack cycle).
-## `now + interval` loses up to one tick every shot (a 0.25 s weapon fires every 0.2667 s at
-## 30 Hz). When the timer fires on its first chance (`now` is less than one tick past
-## `prev_due`) the new due time is `prev_due + interval`, so the long-run rate is exactly
-## 1 / interval at any tick rate. A timer that was ready long before it fired (waiting for a
-## target) restarts from `now`, as before.
+## At the 60 Hz design rate this is exactly `now + interval`, bit for bit what the game always did.
+## At any other rate that formula would stretch the period by up to one (longer) tick every shot,
+## so the timer is carried instead: when it fires on its first chance (`now` less than one tick
+## past `prev_due`) the new due time is `prev_due + interval`, with `interval` rounded up to the
+## 60 Hz grid first, which is the period the 60 Hz build effectively had. A 0.25 s weapon fires
+## every 0.25 s at 30 Hz and not every 0.267 s. A timer that was ready long before it fired
+## (waiting for a target) restarts from `now`, as before.
 static func reschedule(prev_due: float, now: float, interval: float) -> float:
+	if hz() == REFERENCE_HZ:
+		return now + interval
+	var period: float = ceilf(interval * float(REFERENCE_HZ) - 0.001) / float(REFERENCE_HZ)
 	var late: float = now - prev_due
 	if late >= 0.0 and late < step() * 1.01:
-		return prev_due + interval
-	return now + interval
+		return prev_due + period
+	return now + period
 
 
 ## Applies the dev flags. Called once from the BootCheck autoload.
