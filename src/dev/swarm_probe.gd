@@ -52,6 +52,12 @@ var _t_phys: int = 0
 var _t_proc: int = 0
 var _phys_sum2: int = 0
 var _idle_sum: int = 0
+var brain_hash_us: int = 0
+var brain_loop_us: int = 0
+var brain_plans: int = 0
+var brain_plan_us: int = 0
+var brain_sync_us: int = 0
+var brain_frames: int = 0
 var spawn_rng := RandomNumberGenerator.new()
 var bombs_seen: int = 0
 var bullets_seen: int = 0
@@ -222,7 +228,17 @@ func _process(_delta: float) -> bool:
 			proc_sum += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
 			phys_sum += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
 			pairs_sum += Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS)
+			var brain: Node = _n("Main/SwarmBrain")
+			if brain != null and brain.get("profile_enabled"):
+				brain_hash_us += int(brain.get("last_hash_usec"))
+				brain_loop_us += int(brain.get("last_loop_usec"))
+				brain_plans += int(brain.get("last_plan_count"))
+				brain_plan_us += int(brain.get("last_plan_usec"))
+				brain_sync_us += int(brain.get("last_sync_usec"))
+				brain_frames += 1
 			if samples.size() == 1:
+				if brain != null:
+					brain.set("profile_enabled", true)
 				_phys_sum2 = 0
 				_idle_sum = 0
 				var sls: Script = load("res://src/core/sim_loop.gd")
@@ -236,6 +252,8 @@ func _process(_delta: float) -> bool:
 				for i in usec.size():
 					total_us += usec[i]
 					parts.append("s%d=%.2f" % [i + 1, usec[i] / 1000.0 / measure_frames])
+				if brain_frames > 0:
+					print("PROBE_BRAIN hash_ms=%.2f loop_total_ms=%.2f plans_per_tick=%.1f plan_ms=%.2f node_sync_ms=%.2f" % [brain_hash_us / 1000.0 / brain_frames, brain_loop_us / 1000.0 / brain_frames, float(brain_plans) / brain_frames, brain_plan_us / 1000.0 / brain_frames, brain_sync_us / 1000.0 / brain_frames])
 				print("PROBE_STEPS simloop_ms=%.2f %s" % [total_us / 1000.0 / measure_frames, " ".join(parts)])
 				_report_perf()
 				return true

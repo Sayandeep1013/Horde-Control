@@ -284,6 +284,7 @@ func _drive_v1_helpers() -> void:
 			le.set_tower_reference(_scene.get_node("Main/Tower"))
 			le.global_position = player.global_position + Vector2((float(i) - float(_lineup.size() - 1) * 0.5) * 130.0, 170.0)
 			le.set_physics_process(false) # a still lineup, nothing walks into the player
+			le.swarm_hold = true # PT-PERF: ...and the swarm brain leaves it standing too
 			EntityRegistry.update_position(le, le.global_position)
 		for i in _spawn_count:
 			var e: EnemyController = scene.instantiate() as EnemyController

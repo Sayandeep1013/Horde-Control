@@ -37,7 +37,7 @@ func tick() -> void:
 		if not AbilityDamage.is_enemy_alive(enemy_node):
 			if float(e["burn_until"]) > now:
 				burn_victim_died.emit(enemy_node.global_position, float(e["burn_dps"]), float(e["burn_until"]) - now, String(e["burn_source"]))
-			_set_tint(enemy_node, Color.WHITE)
+			_set_tint(enemy_node, Color.WHITE, 0)
 			state.erase(id)
 			StatusEffects._immunity.erase(id)
 			continue
@@ -50,18 +50,18 @@ func tick() -> void:
 		var frozen: bool = float(e["freeze_until"]) > now
 		var slowed: bool = float(e["slow_until"]) > now
 		if not (burning or frozen or slowed):
-			_set_tint(enemy_node, Color.WHITE)
+			_set_tint(enemy_node, Color.WHITE, 0)
 			state.erase(id)
 			continue
 		if frozen:
-			_set_tint(enemy_node, TINT_FREEZE)
+			_set_tint(enemy_node, TINT_FREEZE, 3)
 		elif burning:
 			var flicker: float = 0.5 + 0.5 * sin(now * TAU * FLICKER_HZ)
 			if GameSettings.is_reduce_flashing():
 				flicker = 0.5
-			_set_tint(enemy_node, Color.WHITE.lerp(TINT_BURN, 0.5 + 0.5 * flicker))
+			_set_tint(enemy_node, Color.WHITE.lerp(TINT_BURN, 0.5 + 0.5 * flicker), 1)
 		else:
-			_set_tint(enemy_node, TINT_SLOW)
+			_set_tint(enemy_node, TINT_SLOW, 2)
 	var immunity: Dictionary = StatusEffects._immunity
 	for id in immunity.keys():
 		var who: Variant = immunity[id].get("enemy")
@@ -69,7 +69,12 @@ func tick() -> void:
 			immunity.erase(id)
 
 
-static func _set_tint(enemy: Node, color: Color) -> void:
+## `kind` is the same tint as an id for a batch-drawn enemy (SwarmRenderer draws burn,
+## slow and freeze in its shader): 0 none, 1 burn, 2 slow, 3 freeze.
+static func _set_tint(enemy: Node, color: Color, kind: int = 0) -> void:
+	if enemy.has_method(&"set_swarm_tint") and enemy.is_swarm_drawn():
+		enemy.set_swarm_tint(kind)
+		return
 	var sprite: CanvasItem = enemy.get_node_or_null(SPRITE_PATH) as CanvasItem
 	if sprite != null:
 		sprite.self_modulate = color

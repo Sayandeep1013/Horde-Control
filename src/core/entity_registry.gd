@@ -226,6 +226,23 @@ func update_position(entity: Node2D, position: Vector2) -> bool:
 ## the registry's query results, since docs/20 bans a per-tick broadcast and
 ## the registry has no license to read arbitrary properties off arbitrary
 ## node classes. Refuses an unregistered entity.
+## PT-PERF (D390): slot-addressed variants for the batched swarm loop (one
+## Dictionary lookup at registration instead of two per move). `get_entity_slot`
+## returns -1 for an unregistered entity; a slot stays valid until its entity is
+## deregistered.
+func get_entity_slot(entity: Node2D) -> int:
+	return _entity_to_slot.get(entity, -1)
+
+
+func update_position_by_slot(slot: int, position: Vector2) -> void:
+	var old: Vector2 = _slot_position[slot]
+	var inv: float = 1.0 / _cell_size
+	if floori(old.x * inv) != floori(position.x * inv) or floori(old.y * inv) != floori(position.y * inv):
+		_remove_from_grid(slot, old)
+		_add_to_grid(slot, position)
+	_slot_position[slot] = position
+
+
 func set_entity_alive(entity: Node2D, alive: bool) -> bool:
 	if entity == null or not _entity_to_slot.has(entity):
 		return false

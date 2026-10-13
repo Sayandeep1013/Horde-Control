@@ -144,7 +144,7 @@ var _hit_queue: Array[Dictionary] = []
 ## cleared, so a test can read back the order that was actually applied
 ## (Phase 02 carried lesson: verify by reading the artifact back, not by
 ## the absence of an error). Never read by gameplay code.
-var _last_hit_queue_snapshot_for_test: Array[Dictionary] = []
+var _last_hit_queue_sorted: Array[Dictionary] = []
 
 ## step (Step enum int) -> Array[Dictionary] of {"node": Node, "reg_serial": int}.
 ## Never mutated in place -- see class doc, "Registration/unregistration
@@ -367,7 +367,7 @@ func get_last_step_log_for_test() -> Array[String]:
 
 
 func get_last_hit_queue_snapshot_for_test() -> Array[Dictionary]:
-	return _last_hit_queue_snapshot_for_test.duplicate(true)
+	return _last_hit_queue_sorted.duplicate(true)
 
 
 # 1. Input.
@@ -442,11 +442,28 @@ func _step_06_windup_completion_and_contact_ticks(delta: float) -> void:
 # from P1.1; this task (F03-22) adds the resolution that consumes it.
 func _step_07_hit_queue_resolution(delta: float) -> void:
 	_last_step_log.append("07_hit_queue_resolution")
-	_hit_queue.sort_custom(_hit_less_than)
-	_last_hit_queue_snapshot_for_test = _hit_queue.duplicate(true)
+	# PT-PERF (D390): the hit queue is ordered by one packed-integer sort (target serial,
+	# attacker serial, then enqueue order) instead of a Dictionary comparator, and the
+	# resolved queue is kept by reference for the test snapshot instead of deep-copied
+	# every tick. The order is the same as `_hit_less_than` gave, with ties now fixed
+	# to enqueue order.
+	var hit_count: int = _hit_queue.size()
+	if hit_count > 1:
+		var keys := PackedInt64Array()
+		keys.resize(hit_count)
+		for i in hit_count:
+			var h: Dictionary = _hit_queue[i]
+			keys[i] = (((int(h["target_serial"]) + 1) << 22 | (int(h["attacker_serial"]) + 1)) << 20) | i
+		keys.sort()
+		var ordered: Array[Dictionary] = []
+		ordered.resize(hit_count)
+		for i in hit_count:
+			ordered[i] = _hit_queue[keys[i] & 0xFFFFF]
+		_hit_queue = ordered
+	_last_hit_queue_sorted = _hit_queue
 	for hit in _hit_queue:
 		_resolve_one_hit(hit)
-	_hit_queue.clear()
+	_hit_queue = []
 	# Registrants run AFTER the queue is resolved and cleared, so anything
 	# registered here observes this tick's damage as already applied.
 	_run_step(Step.HIT_QUEUE_RESOLUTION, delta)

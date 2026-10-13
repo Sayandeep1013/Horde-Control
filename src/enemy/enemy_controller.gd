@@ -141,6 +141,15 @@ const SWARM_THINK_INTERVAL_HIGH_ALIVE: int = 250
 ## Beyond this distance from its target an enemy steers by the FlowField
 ## (group "flow_field") when one exists; closer in, slots and straight seeking.
 const FLOW_FIELD_MIN_DISTANCE_PX: float = 96.0
+
+# --- PT-PERF (D390-D399): presentation constants EnemyAnimator owned, now state in data ---
+const SV_SQ_ONE: int = 21 # SwarmRenderer.SQ_ONE: animation speed scale 1.0
+const SV_MOVING_EPSILON: float = 4.0 # EnemyAnimator.MOVING_EPSILON_PX_PER_SEC
+const SV_FLIP_SHARE: float = 0.35 # EnemyAnimator.FACING_FLIP_HORIZONTAL_SHARE
+const SV_FLIP_MIN_INTERVAL: float = 0.2 # EnemyAnimator.FACING_FLIP_MIN_INTERVAL_SECONDS
+const SV_OUTLINE_STEADY: int = 1
+const SV_OUTLINE_GOLD: int = 2
+const SV_OUTLINE_RED: int = 3
 ## How often a missing FlowField lookup is retried (SimClock seconds).
 const FLOW_FIELD_LOOKUP_SECONDS: float = 1.0
 ## A flow-following enemy that gains less than WEDGE_MIN_PROGRESS_PX in
@@ -251,8 +260,43 @@ var _plan_cache_target_radius: float = -1.0
 var _plan_cache_count: int = 0
 var _plan_cache_radius: float = 0.0
 var _reach_cached: float = 0.0
+## The slot plan of the current think (C-SLOTS): member fields, no per-tick Dictionary.
+var _plan_slot_count: int = 0
+var _plan_radius: float = 0.0
+var _plan_claimed: int = -1
+var _plan_waiting: bool = false
+var _may_hold_claim: bool = false
+var _tr_target: Node2D = null
+var _tr_value: float = 0.0
+var _speed_base: float = -1.0
+var _sv_flip_applied: bool = false
 
 var current_intent: ContractEnums.TargetIntent = ContractEnums.TargetIntent.TowerSeeker
+
+# --- PT-PERF swarm membership (D390-D399): see swarm_brain.gd / swarm_renderer.gd -----
+## The SwarmBrain stepping this enemy and its slot there (-1: not a member, the enemy
+## steps itself and keeps its body, as in every isolated unit test).
+var _swarm_brain: Node = null
+var _swarm_slot: int = -1
+## Dev captures: a swarm member that stands still (the static lineup in scene_capture.gd).
+var swarm_hold: bool = false
+## Set by swarm_plan() / swarm_coast() for the brain: planned velocity, and whether the
+## attack cycle still needs a call on coast ticks.
+var _sw_vel: Vector2 = Vector2.ZERO
+var _sw_attn: bool = false
+## The SwarmRenderer drawing this enemy (null: the enemy keeps its node visuals) and the
+## visual state EnemyAnimator used to keep on the node: all of it is data now.
+var _sv: Node = null
+var _sv_profile = null # SwarmRenderer.Profile (untyped: script cycle, D256)
+var _sv_anim: StringName = &"idle"
+var _sv_sq: int = SV_SQ_ONE
+var _sv_facing: Vector2 = Vector2.DOWN
+var _sv_flip_h: bool = false
+var _sv_last_flip: float = -1000.0
+var _sv_striking: bool = false
+var _sv_strike_end: float = 0.0
+var _sv_ref_speed: float = 1.0
+var _sv_last_hit_dir: Vector2 = Vector2.ZERO
 
 var _configured: bool = false
 
@@ -391,8 +435,13 @@ func _resolve_sim_loop_and_register() -> void:
 	if _sim_loop == null and is_inside_tree():
 		_sim_loop = get_tree().get_first_node_in_group(&"sim_loop")
 	if driven_externally and _sim_loop != null:
-		_sim_loop.register(SimLoop.Step.ENEMY_AI_AND_MOVEMENT, self)
 		set_physics_process(false) # PT-SWARM: SimLoop drives it; skip 350 no-op callbacks a tick
+		if behavior == null and _join_swarm():
+			return # PT-PERF (D390): SwarmBrain steps it (one registrant for the whole swarm)
+		_sim_loop.register(SimLoop.Step.ENEMY_AI_AND_MOVEMENT, self)
+		var renderer: Node = SwarmState.renderer
+		if renderer != null and is_instance_valid(renderer) and _sv == null:
+			renderer.register_node_enemy(self) # a node-rendered enemy is a Y-sort separator for the swarm bands
 
 
 func set_sim_loop_for_test(loop: Node) -> void:
@@ -420,6 +469,10 @@ func _exit_tree() -> void:
 	# returns false the second time.
 	if _sim_loop != null:
 		_sim_loop.unregister(SimLoop.Step.ENEMY_AI_AND_MOVEMENT, self)
+	_swarm_leave()
+	var renderer: Node = SwarmState.renderer
+	if renderer != null and is_instance_valid(renderer):
+		renderer.unregister_node_enemy(self)
 
 
 ## Applies every tuning value from `definition` to this instance's live
@@ -433,6 +486,7 @@ func _apply_definition(preserved_hp: float = -1.0) -> void:
 
 	var body_radius: float = float(definition.movement_profile.body_radius_px) if definition.movement_profile != null else 0.0
 	_body_radius_cached = body_radius
+	_speed_base = -1.0
 	_plan_cache_target = null
 	_reach_cached = float(definition.attack_profile.reach_or_range_px) if definition.attack_profile != null else 0.0
 	_set_circle_radius(body_shape, body_collision_radius_px if body_collision_radius_px >= 0.0 else body_radius)
@@ -648,8 +702,8 @@ func is_waiting_for_slot_for_test() -> bool:
 	var target: Node2D = _get_current_target()
 	if target == null or _direct_approach:
 		return false
-	var plan: Dictionary = _compute_slot_plan(target, _target_radius(target))
-	return plan.get("is_waiting_for_slot", false)
+	_compute_slot_plan(target, _target_radius(target))
+	return _plan_waiting
 
 
 func get_last_switch_time_for_test() -> float:
@@ -705,12 +759,12 @@ func physics_step(delta: float) -> void:
 		_is_body_blocked = false
 
 	var in_attack_range: bool = _is_in_attack_range(target)
-	var plan: Dictionary = _empty_plan()
+	_plan_reset()
 	if not in_attack_range and not _direct_approach:
-		plan = _compute_slot_plan(target, _target_radius(target))
+		_compute_slot_plan(target, _target_radius(target))
 
 	if boss_id == "":
-		_update_stuck_tracking(target, in_attack_range, plan) # bosses are never stuck-despawned
+		_update_stuck_tracking(target, in_attack_range) # bosses are never stuck-despawned
 	if _stuck_despawned:
 		return
 
@@ -723,9 +777,9 @@ func physics_step(delta: float) -> void:
 		if _registry != null:
 			_registry.update_position(self, global_position)
 	else:
-		var desired: Vector2 = _desired_position(target, plan)
+		var desired: Vector2 = _desired_position(target)
 		var flow_kind: StringName = &""
-		if int(plan.get("claimed_slot", -1)) == -1 and not bool(plan.get("is_waiting_for_slot", false)):
+		if _plan_claimed == -1 and not _plan_waiting:
 			flow_kind = _flow_kind_for(target) # direct approach too: a straight line into the moat never arrives
 		_apply_movement(desired, _current_speed(), flow_kind)
 	_coast_velocity = velocity
@@ -887,15 +941,19 @@ func _update_body_block_tracking() -> void:
 
 # --- Attack slots and steering ----------------------------------------------
 
-static func _empty_plan() -> Dictionary:
-	return {"slot_count": 0, "radius": 0.0, "claimed_slot": -1, "is_waiting_for_slot": false}
+## PT-PERF (D390): the plan lives in member fields, not a per-tick Dictionary.
+func _plan_reset() -> void:
+	_plan_slot_count = 0
+	_plan_radius = 0.0
+	_plan_claimed = -1
+	_plan_waiting = false
 
 
 ## C-SLOTS: claims the nearest free slot once within `attack_slot_claim_
 ## radius_px` of the ring; otherwise reports `is_waiting_for_slot` so the
 ## caller can both position this enemy at the 32 px wait offset AND exempt
 ## it from stuck-time accrual (see `_update_stuck_tracking()`).
-func _compute_slot_plan(target: Node2D, target_radius: float) -> Dictionary:
+func _compute_slot_plan(target: Node2D, target_radius: float, centre_distance: float = -1.0) -> void:
 	if target != _plan_cache_target or target_radius != _plan_cache_target_radius:
 		_plan_cache_target = target
 		_plan_cache_target_radius = target_radius
@@ -903,27 +961,34 @@ func _compute_slot_plan(target: Node2D, target_radius: float) -> Dictionary:
 		_plan_cache_radius = AttackSlotManager.ring_radius(target_radius, _body_radius(), _reach())
 	var slot_count: int = _plan_cache_count
 	var radius: float = _plan_cache_radius
-	var claimed: int = AttackSlotManager.current_claim(target, self)
-	var distance_to_ring: float = absf(global_position.distance_to(target.global_position) - radius)
+	# PT-PERF (D390): an enemy that never called claim_nearest_free_slot() cannot hold a
+	# claim, so most of the swarm (still on its way in) skips the lookup.
+	var claimed: int = AttackSlotManager.current_claim(target, self) if _may_hold_claim else -1
+	var d: float = centre_distance if centre_distance >= 0.0 else global_position.distance_to(target.global_position)
+	var distance_to_ring: float = absf(d - radius)
 	var waiting_for_slot: bool = false
 	if claimed == -1 and distance_to_ring <= tuning.attack_slot_claim_radius_px:
+		_may_hold_claim = true
 		claimed = AttackSlotManager.claim_nearest_free_slot(target, self, slot_count, radius)
 		waiting_for_slot = claimed == -1
-	return {"slot_count": slot_count, "radius": radius, "claimed_slot": claimed, "is_waiting_for_slot": waiting_for_slot}
+	_plan_slot_count = slot_count
+	_plan_radius = radius
+	_plan_claimed = claimed
+	_plan_waiting = waiting_for_slot
 
 
-func _desired_position(target: Node2D, plan: Dictionary) -> Vector2:
+func _desired_position(target: Node2D) -> Vector2:
 	if _direct_approach:
 		return target.global_position
-	var claimed: int = plan.get("claimed_slot", -1)
+	var claimed: int = _plan_claimed
 	if claimed != -1:
-		return AttackSlotManager.slot_world_position(target, claimed, plan.get("slot_count", 0), plan.get("radius", 0.0))
-	if plan.get("is_waiting_for_slot", false):
+		return AttackSlotManager.slot_world_position(target, claimed, _plan_slot_count, _plan_radius)
+	if _plan_waiting:
 		var dir_from_target: Vector2 = global_position - target.global_position
 		if dir_from_target.length_squared() < 0.0001:
 			dir_from_target = Vector2.RIGHT
 		dir_from_target = dir_from_target.normalized()
-		var wait_radius: float = plan.get("radius", 0.0) + tuning.attack_slot_wait_offset_px
+		var wait_radius: float = _plan_radius + tuning.attack_slot_wait_offset_px
 		return target.global_position + dir_from_target * wait_radius
 	return target.global_position # still travelling generally toward the target/ring
 
@@ -1091,13 +1156,13 @@ static func reset_flow_field_cache() -> void:
 ## being measured against changes -- otherwise a post-switch tick would
 ## compare "distance to the NEW target now" against "distance to the OLD
 ## target a while ago", two unrelated numbers.
-func _update_stuck_tracking(target: Node2D, in_attack_range: bool, plan: Dictionary) -> void:
+func _update_stuck_tracking(target: Node2D, in_attack_range: bool, reach_distance: float = -1.0) -> void:
 	if in_attack_range:
 		_clear_stuck_episode()
 		return
-	var exempt: bool = plan.get("is_waiting_for_slot", false)
+	var exempt: bool = _plan_waiting
 	var now: float = _now()
-	var current_distance: float = _reach_distance_to(target)
+	var current_distance: float = reach_distance if reach_distance >= 0.0 else _reach_distance_to(target)
 	if exempt:
 		# A real bug lived here, found and fixed during this task's own
 		# falsification pass: pre-seeding ONLY `_progress_reference_time`
@@ -1213,6 +1278,8 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D) -> void:
 			_hitbox_active_ticks_remaining = 0
 			hitbox.deactivate_window()
 		_windup_active = false
+		if _sv != null:
+			_sv.marker_off(_swarm_slot)
 		_next_hit_time = -1.0 # leaving range cancels the cycle -- re-entry starts a fresh wind-up, never a banked instant hit
 		return
 
@@ -1229,6 +1296,8 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D) -> void:
 	if now >= windup_start and not _windup_active:
 		_windup_active = true
 		windup_started.emit()
+		if _sv != null and definition.telegraph_data.windup_duration_seconds > 0.0:
+			_sv.marker_on(_swarm_slot, now, definition.telegraph_data.windup_duration_seconds)
 
 	if now >= _next_hit_time:
 		hitbox.activate_window()
@@ -1236,6 +1305,8 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D) -> void:
 		attack_resolved.emit(_target, float(definition.attack_profile.damage_per_hit_or_tick))
 		_next_hit_time = now + definition.attack_profile.cycle_or_tick_interval_seconds
 		_windup_active = false
+		if _sv != null:
+			_sv.marker_off(_swarm_slot)
 
 
 ## Player Hunter leash reset: "resets every time it lands a hit on the
@@ -1247,6 +1318,8 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D) -> void:
 func _on_hitbox_hit_landed(_hurtbox: Hurtbox, _damage: float, _source: Variant) -> void:
 	if elite_affix == "vampiric" and death_state != null and not death_state.is_dead:
 		death_state.current_hp = minf(death_state.max_hp, death_state.current_hp + _damage * ELITE_VAMPIRIC_LEECH_FRACTION)
+		if _sv != null:
+			_sv.bar_sync(_swarm_slot, death_state.current_hp, death_state.max_hp)
 	if current_intent == ContractEnums.TargetIntent.PlayerHunter and not is_finisher and death_state != null and not death_state.is_dead:
 		_leash_deadline = _now() + tuning.leash_timeout_seconds
 		_leash_telegraph_active = false
@@ -1309,6 +1382,7 @@ func _convert_to_tower_seeker() -> void:
 	_apply_definition(preserved_hp)
 
 	_register_with_entity_registry()
+	_swarm_on_converted()
 
 	_next_hit_time = -1.0
 	_windup_active = false
@@ -1362,6 +1436,7 @@ func _on_opportunist_target_died(_entity: Node2D, _position: Vector2) -> void:
 ## comment above for how this differs from `_on_opportunist_target_died`).
 func _on_own_logical_death(_entity: Node2D, position: Vector2) -> void:
 	_v1_on_death(position)
+	_swarm_on_logical_death(position)
 	if _audio_pool != null and death_sfx != null and _audio_pool.has_method("play"):
 		_audio_pool.play(death_sfx, position, 0, false, "SFX")
 	# F03-09: unregister as this enemy dies -- physics_step() already
@@ -1441,6 +1516,340 @@ static func _is_target_dead(target: Node2D) -> bool:
 	return ds is DeathState and (ds as DeathState).is_dead
 
 
+# --- PT-PERF (D390-D399): brain-driven step, batched visuals ----------------------------
+
+## Joins the SwarmBrain (and the SwarmRenderer when present). Returns false when there
+## is no brain in the tree: the enemy then steps itself exactly as before.
+func _join_swarm() -> bool:
+	if _swarm_slot >= 0:
+		return true
+	var brain: Node = SwarmState.brain
+	if brain == null or not is_instance_valid(brain) or not brain.is_inside_tree() or not _configured:
+		return false
+	_swarm_brain = brain
+	_swarm_slot = brain.add(self)
+	if swarm_hold:
+		brain.set_hold(_swarm_slot, true)
+	# No physics body: the brain steps the position and keeps it on walkable ground.
+	collision_layer = 0
+	collision_mask = 0
+	if body_shape != null:
+		body_shape.disabled = true
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	var renderer: Node = SwarmState.renderer
+	if renderer != null and is_instance_valid(renderer):
+		var profile = renderer.attach(_swarm_slot, self, _clock.now if _clock != null else 0.0)
+		if profile != null:
+			_sv_init(renderer, profile)
+	if _sv == null and renderer != null and is_instance_valid(renderer):
+		renderer.register_node_enemy(self) # kept its node visuals: a Y-sort separator
+	return true
+
+
+func is_swarm_member() -> bool:
+	return _swarm_slot >= 0
+
+
+func is_swarm_drawn() -> bool:
+	return _sv != null
+
+
+func get_swarm_slot() -> int:
+	return _swarm_slot
+
+
+## Capture lineups: stand still.
+func swarm_hold_for_test(held: bool) -> void:
+	if _swarm_brain != null:
+		_swarm_brain.set_hold(_swarm_slot, held)
+
+
+func _swarm_leave() -> void:
+	if _swarm_slot < 0:
+		return
+	if _sv != null and is_instance_valid(_sv):
+		_sv.detach(_swarm_slot)
+	if _swarm_brain != null and is_instance_valid(_swarm_brain):
+		_swarm_brain.remove(_swarm_slot)
+	_swarm_slot = -1
+
+
+func _swarm_on_logical_death(position: Vector2) -> void:
+	if _swarm_slot < 0:
+		return
+	if _sv != null:
+		_sv.spawn_death_fx(position)
+		BloodFx.spawn_hit(get_parent(), position, _sv_last_hit_dir, BloodFx.Tier.DEATH)
+		var prof = _sv_profile
+		if prof.death_anim != &"":
+			_sv.spawn_death_clip(prof.frames, prof.death_anim, prof.offset, prof.scale, position, _sv_flip_h)
+	_swarm_leave()
+
+
+## Leash conversion (Player Hunter -> Tower Seeker): new registry slot, new art.
+func _swarm_on_converted() -> void:
+	if _swarm_slot < 0:
+		return
+	_swarm_brain.set_registry_slot(_swarm_slot, self)
+	if _sv == null:
+		return
+	var conv = _sv.converted_profile(_sv_profile)
+	if conv == null:
+		return
+	_sv_profile = conv
+	_sv_striking = false
+	_sv_ref_speed = _sv_reference_speed()
+	_sv_anim = &"run"
+	_sv_sq = SV_SQ_ONE
+	_sv.set_profile(_swarm_slot, conv, int(conv.rows.get(&"run", 0)), _now())
+	_sv.marker_off(_swarm_slot)
+	_sv_refresh_outline()
+
+
+## One think of a brain-driven enemy (the body of physics_step() for a plain enemy, same
+## order, same rules). Fills `_sw_vel` / `_sw_attn` for the brain, which then moves the
+## enemy. Returns false once the enemy is gone (stuck despawn) or dead.
+func swarm_plan(brain: Node, slot: int, now: float) -> bool:
+	_sw_vel = Vector2.ZERO
+	_sw_attn = false
+	if _stuck_despawned or (death_state != null and death_state.is_dead):
+		return false
+	if not _configured:
+		return true
+	if _player == null or not is_instance_valid(_player):
+		_player = brain.player_node() # the brain resolves them once per tick, not one registry scan per enemy
+	if _tower == null or not is_instance_valid(_tower):
+		_tower = brain.tower_node()
+	_resolve_player_reference()
+	_resolve_tower_reference()
+	if current_intent == ContractEnums.TargetIntent.PlayerHunter:
+		_update_leash()
+		if _stuck_despawned or (death_state != null and death_state.is_dead):
+			return false
+	if current_intent == ContractEnums.TargetIntent.Opportunist and (_opportunist_target == null or not is_instance_valid(_opportunist_target)):
+		_pick_opportunist_initial_target()
+	var target: Node2D = _get_current_target()
+	if target == null or not is_instance_valid(target):
+		velocity = Vector2.ZERO
+		_coast_in_range = false
+		_coast_target = null
+		if _sv != null:
+			_sv_after_plan(Vector2.ZERO, now)
+		return true
+	var here: Vector2 = global_position
+	if target != _tr_target:
+		_tr_target = target
+		_tr_value = _target_radius(target)
+	var centre_distance: float = here.distance_to(target.global_position)
+	var reach_distance: float = maxf(centre_distance - _tr_value - _body_radius_cached, 0.0) # _reach_distance_to()
+	var is_seeker: bool = current_intent == ContractEnums.TargetIntent.TowerSeeker
+	if is_seeker:
+		_update_body_block_tracking()
+	else:
+		_is_body_blocked = false
+	var in_attack_range: bool = reach_distance <= _reach_cached or (is_seeker and _is_body_blocked) # _is_in_attack_range()
+	_plan_reset()
+	if not in_attack_range and not _direct_approach:
+		_compute_slot_plan(target, _tr_value, centre_distance)
+	if boss_id == "":
+		_update_stuck_tracking(target, in_attack_range, reach_distance)
+	if _stuck_despawned:
+		return false
+	if current_intent == ContractEnums.TargetIntent.Opportunist:
+		_update_opportunist_out_of_range(target)
+	var v: Vector2 = Vector2.ZERO
+	if not in_attack_range:
+		var desired: Vector2 = _desired_position(target)
+		var flow_kind: StringName = &""
+		if _plan_claimed == -1 and not _plan_waiting:
+			flow_kind = _flow_kind_for(target) # direct approach too: a straight line into the moat never arrives
+		v = _swarm_steer(here, desired, _swarm_speed(), flow_kind, brain, slot)
+	_sw_vel = v
+	velocity = v
+	_coast_in_range = in_attack_range
+	_coast_target = target
+	_process_attack_cycle(in_attack_range, target)
+	_sw_attn = in_attack_range or _windup_active or _hitbox_active_ticks_remaining > 0 or _next_hit_time >= 0.0
+	if _sv != null:
+		_sv_after_plan(v, now)
+	return true
+
+
+## _current_speed() with the definition product cached (the swarm path only; the
+## cache is dropped whenever the definition is re-applied).
+func _swarm_speed() -> float:
+	if _speed_base < 0.0:
+		var multiplier: float = definition.movement_profile.speed_multiplier if definition != null and definition.movement_profile != null else 0.0
+		var base_speed: float = player_definition_for_speed_reference.base_speed_px_per_second if player_definition_for_speed_reference != null else 0.0
+		_speed_base = base_speed * multiplier
+	return _speed_base * _speed_multiplier * _wave_speed_multiplier * StatusEffects.speed_multiplier_for(self)
+
+
+## A tick between two plans while the attack cycle is live (in range, a wind-up
+## running, or the hitbox pulse open): only the cycle runs, on the last plan's target.
+func swarm_coast(_now_seconds: float) -> void:
+	if _coast_target != null and is_instance_valid(_coast_target):
+		_process_attack_cycle(_coast_in_range, _coast_target)
+	_sw_attn = _coast_in_range or _windup_active or _hitbox_active_ticks_remaining > 0 or _next_hit_time >= 0.0
+
+
+## Frozen this tick: the brain neither moves nor plans it (physics_step's freeze gate).
+func swarm_frozen(now: float) -> void:
+	velocity = Vector2.ZERO
+	if _sv != null and not _sv_striking:
+		_sv_set_anim(&"idle", SV_SQ_ONE, now)
+
+
+## Seek plus separation, the old _apply_movement() minus move_and_slide(): the
+## separation comes from the brain's spatial hash instead of a registry radius query.
+func _swarm_steer(here: Vector2, desired_position: Vector2, speed: float, flow_kind: StringName, brain: Node, slot: int) -> Vector2:
+	var to_desired: Vector2 = desired_position - here
+	var dist2: float = to_desired.length_squared()
+	var seek: Vector2 = to_desired.normalized() if dist2 > 1.0 else Vector2.ZERO
+	if flow_kind != &"" and dist2 > FLOW_FIELD_MIN_DISTANCE_PX * FLOW_FIELD_MIN_DISTANCE_PX:
+		var ff: Node = brain.flow_node()
+		if ff != null:
+			var flow: Vector2 = ff.direction_to(flow_kind, here)
+			if flow != Vector2.ZERO:
+				seek = _unwedge(flow)
+	var separation: Vector2 = Vector2.ZERO
+	if tuning.separation_neighbor_radius_px > 0.0:
+		separation = brain.separation_at(slot, here, tuning.separation_neighbor_radius_px)
+	var steering: Vector2 = seek + separation
+	return steering.normalized() * speed if steering.length_squared() > 0.0001 else Vector2.ZERO
+
+
+# --- batched visuals: the state machine EnemyAnimator ran on the node ----------------
+
+func _sv_init(renderer: Node, profile) -> void:
+	_sv = renderer
+	_sv_profile = profile
+	_sv_anim = &"idle"
+	_sv_sq = SV_SQ_ONE
+	_sv_ref_speed = _sv_reference_speed()
+	if death_state != null:
+		death_state.damage_applied.connect(_sv_on_damage)
+	windup_started.connect(_sv_on_windup)
+	attack_resolved.connect(_sv_on_attack)
+	_sv_refresh_outline()
+
+
+func _sv_reference_speed() -> float:
+	if definition == null or definition.movement_profile == null or player_definition_for_speed_reference == null:
+		return 1.0
+	return maxf(player_definition_for_speed_reference.base_speed_px_per_second * definition.movement_profile.speed_multiplier, 1.0)
+
+
+func _sv_refresh_outline() -> void:
+	var mode: int = 0
+	if elite_affix != "":
+		mode = SV_OUTLINE_RED if elite_affix == "vampiric" else SV_OUTLINE_GOLD
+	elif GameSettings.is_enemy_outlines() and _sv_profile.reserved.a > 0.0:
+		mode = SV_OUTLINE_STEADY
+	_sv.set_outline(_swarm_slot, mode)
+
+
+## Elite scale: the node version replaced the Visuals scale by 1.18 (an absolute value).
+func _sv_apply_elite_scale() -> void:
+	var p = _sv.rescaled_profile(_sv_profile, ELITE_SCALE)
+	if p == null:
+		return
+	_sv_profile = p
+	_sv.set_profile(_swarm_slot, p, int(p.rows.get(_sv_anim, 0)), _now())
+
+
+func _sv_set_anim(anim: StringName, sq: int, now: float) -> void:
+	var row: int = _sv_profile.rows.get(anim, -1)
+	if row < 0:
+		return
+	if anim == _sv_anim:
+		if sq != _sv_sq:
+			_sv.retime(_swarm_slot, sq, now)
+			_sv_sq = sq
+		return
+	_sv_anim = anim
+	_sv_sq = sq
+	_sv.play_row(_swarm_slot, row, sq, now)
+
+
+## After a think: facing hysteresis, idle / run by speed, the end of a strike clip.
+func _sv_after_plan(v: Vector2, now: float) -> void:
+	var vl2: float = v.length_squared()
+	var moving: bool = vl2 > SV_MOVING_EPSILON * SV_MOVING_EPSILON
+	if moving:
+		_sv_facing = v / sqrt(vl2)
+		if absf(_sv_facing.x) > SV_FLIP_SHARE:
+			var want_flip: bool = _sv_facing.x < 0.0
+			if want_flip != _sv_flip_h and now - _sv_last_flip >= SV_FLIP_MIN_INTERVAL:
+				_sv_flip_h = want_flip
+				_sv_last_flip = now
+	if _sv_striking:
+		if now < _sv_strike_end:
+			return # the strike clip owns the sprite until it has played
+		_sv_striking = false
+	if _sv_flip_h != _sv_flip_applied:
+		_sv_flip_applied = _sv_flip_h
+		_sv.set_flip(_swarm_slot, _sv_flip_h)
+	var anim: StringName = &"idle"
+	var sq: int = SV_SQ_ONE
+	if moving:
+		anim = &"run"
+		sq = clampi(int((clampf(sqrt(vl2) / _sv_ref_speed, 0.6, 1.8) - 0.6) * 52.5 + 0.5), 0, 63) # SwarmRenderer.speed_code()
+	if anim != _sv_anim or sq != _sv_sq:
+		_sv_set_anim(anim, sq, now)
+
+
+func _sv_on_windup() -> void:
+	if _sv_profile.directional:
+		_sv_play_strike()
+
+
+func _sv_on_attack(_target: Node2D, _damage: float) -> void:
+	if not _sv_profile.directional:
+		_sv_play_strike()
+
+
+func _sv_play_strike() -> void:
+	var anim: StringName = &"strike"
+	var flip: bool = _sv_flip_h
+	if _sv_profile.directional:
+		if absf(_sv_facing.y) >= absf(_sv_facing.x):
+			anim = &"strike_down" if _sv_facing.y >= 0.0 else &"strike_up"
+			flip = false
+		else:
+			anim = &"strike_right"
+			flip = _sv_facing.x < 0.0
+	var row: int = _sv_profile.rows.get(anim, -1)
+	if row < 0:
+		return
+	var now: float = _now()
+	_sv_striking = true
+	_sv_strike_end = now + float(_sv_profile.row_seconds.get(row, 0.5))
+	_sv_anim = anim
+	_sv_sq = SV_SQ_ONE
+	_sv.play_row(_swarm_slot, row, SV_SQ_ONE, now)
+	_sv.set_flip(_swarm_slot, flip)
+	_sv_flip_applied = flip
+
+
+func _sv_on_damage(amount: float, source: Variant, remaining_hp: float) -> void:
+	var now: float = _now()
+	_sv.flash(_swarm_slot, now)
+	if death_state != null:
+		_sv.bar_hit(_swarm_slot, remaining_hp + amount, remaining_hp, death_state.max_hp, now)
+	var here: Vector2 = global_position
+	var container: Node = get_parent()
+	_sv_last_hit_dir = BloodFx.direction_away_from(source, here)
+	BloodFx.spawn_hit(container, here, _sv_last_hit_dir, BloodFx.Tier.HIT)
+	DamageNumberFx.spawn(container, here, amount, remaining_hp <= 0.0)
+
+
+## StatusEffectsRunner tint (burn, slow, freeze): kind 0..3, see SwarmRenderer.TINT_*.
+func set_swarm_tint(kind: int) -> void:
+	if _sv != null:
+		_sv.set_status_tint(_swarm_slot, kind)
+
+
 # --- v1.0 (WP-ENEMIES): behaviour drive helpers, elites, outline, release ----
 
 func get_player() -> Node2D:
@@ -1510,12 +1919,17 @@ func apply_elite(affix: String) -> void:
 	var visuals: Node = get_node_or_null("Visuals")
 	if visuals is EnemyAnimator:
 		(visuals as EnemyAnimator).set_visual_scale(ELITE_SCALE)
+	if _sv != null:
+		_sv_apply_elite_scale()
 	refresh_outline()
 
 
 ## Elite outline (gold, red for Vampiric) wins over the accessibility outline
 ## (steady 1 px in the enemy's reserved intent colour); neither -> no material.
 func refresh_outline() -> void:
+	if _sv != null:
+		_sv_refresh_outline()
+		return
 	var sprite: AnimatedSprite2D = get_node_or_null("Visuals/AnimatedSprite2D") as AnimatedSprite2D
 	if sprite == null:
 		return

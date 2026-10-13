@@ -28,6 +28,11 @@ class_name DeathFx
 
 var _stage: int = 0
 
+## PT-PERF (D390-D399): a pooled FX (SwarmRenderer) hides itself when it finishes and is
+## `replay()`ed at the next kill instead of freeing; the capped pool replaces one
+## instanced node per kill. An unpooled FX (node-rendered enemies) frees itself as before.
+var pooled: bool = false
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -41,5 +46,17 @@ func _on_animation_finished() -> void:
 	if _stage == 0:
 		_stage = 1
 		play(&"skull_dissolve")
+	elif pooled:
+		visible = false
+		stop()
 	else:
 		queue_free()
+
+
+## Pooled reuse: restart the fall at `world_pos`.
+func replay(world_pos: Vector2) -> void:
+	_stage = 0
+	global_position = world_pos
+	reset_physics_interpolation()
+	visible = true
+	play(&"skull_fall")
