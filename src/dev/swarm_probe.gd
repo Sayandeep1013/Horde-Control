@@ -213,8 +213,20 @@ func _process(_delta: float) -> bool:
 		if now >= next_boss_log:
 			next_boss_log = now + 5.0
 			var cs2: Node = root.get_node("CombatStats")
-			print("PROBE_WATCH t=%.1f wave=%d alive=%d kills=%.0f pdmg=%.0f tdmg=%.0f" % [now, wd.get_current_wave_number(), reg.get_live_enemy_count(), cs2.get_run_counter("kills"), cs2.get_run_counter("damage_taken"), cs2.get_run_counter("tower_damage_taken")])
+			var near_t: int = 0
+			var near_p: int = 0
+			var attacking: int = 0
+			for en in reg.get_entities_with_tag(&"enemy"):
+				var dt: float = (en as Node2D).global_position.distance_to(tower.global_position)
+				if dt < 175.0:
+					near_t += 1
+				if (en as Node2D).global_position.distance_to(player.global_position) < 80.0:
+					near_p += 1
+				if en.has_method("is_windup_active") and en.is_windup_active():
+					attacking += 1
+			print("PROBE_WATCH t=%.1f wave=%d alive=%d kills=%.0f pdmg=%.0f tdmg=%.0f near_tower=%d near_player=%d windups=%d" % [now, wd.get_current_wave_number(), reg.get_live_enemy_count(), cs2.get_run_counter("kills"), cs2.get_run_counter("damage_taken"), cs2.get_run_counter("tower_damage_taken"), near_t, near_p, attacking])
 		if now > max_seconds:
+			print("PROBE_WATCH_DMG ", str(root.get_node("CombatStats").get_damage_by_source()))
 			quit(0)
 			return true
 	elif probe == "perf":
