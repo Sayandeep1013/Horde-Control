@@ -62,6 +62,8 @@ const BOX_STEPS: Dictionary = {
 }
 
 static var _theme: Theme = null
+static var _focus_box: StyleBoxFlat = null
+static var _hover_box: StyleBoxTexture = null
 static var _parchment_theme: Theme = null
 static var _body_font: Font = null
 static var _display_font: Font = null
@@ -91,10 +93,10 @@ static func get_parchment_theme() -> Theme:
 			t.set_constant("outline_size", type_name, 0)
 		for type_name: String in ["Button", "OptionButton", "CheckButton", "CheckBox"]:
 			t.set_color("font_color", type_name, ink)
-			t.set_color("font_hover_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
-			t.set_color("font_focus_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
-			t.set_color("font_pressed_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
-			t.set_color("font_hover_pressed_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
+			# D385: hover / focus / pressed keep the label's dark ink (a state is a plate cue, never a
+			# text colour: the yellow-on-teal "selected" label read as disabled).
+			for state_color: String in ["font_hover_color", "font_focus_color", "font_pressed_color", "font_hover_pressed_color"]:
+				t.set_color(state_color, type_name, ink)
 			t.set_constant("outline_size", type_name, 0)
 		t.set_color("default_color", "RichTextLabel", ink)
 		t.set_constant("outline_size", "RichTextLabel", 0)
@@ -295,9 +297,9 @@ static func _build_panels(t: Theme) -> void:
 	# height instead of Godot compressing the corner art to fit (see that
 	# constant's own header for the measured defect this replaced).
 	var row_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.ROW_TEXTURE_MARGIN, UiPalette.SPACE_XS, Color(1, 1, 1, 0.9))
-	# Highlighted row: the pack's own "hover" button sheet reads as a bright,
-	# gold-bordered inset -- exactly a highlight, with no recolouring needed.
-	var row_highlighted_box := make_texture_box(UiPalette.TEX_BUTTON_HOVER, UiPalette.ROW_TEXTURE_MARGIN, UiPalette.SPACE_XS)
+	# Highlighted row: the plain row frame, brightened (author, 2026-10-13: no
+	# gold rectangle borders on options; the pack's gold-rimmed "hover" sheet is gone).
+	var row_highlighted_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.ROW_TEXTURE_MARGIN, UiPalette.SPACE_XS, UiPalette.BUTTON_HOVER_BRIGHTEN)
 
 	t.set_stylebox("panel", "PanelContainer", panel_box)
 
@@ -330,40 +332,55 @@ static func _build_buttons(t: Theme) -> void:
 	# states used here, so no per-state recolouring of a shared texture is
 	# needed the way the old flat boxes needed one Color each.
 	var normal := make_texture_box(UiPalette.TEX_BUTTON_NORMAL, UiPalette.PANEL_TEXTURE_MARGIN, 0, Color(1, 1, 1, 1))
-	var hover := make_texture_box(UiPalette.TEX_BUTTON_HOVER, UiPalette.PANEL_TEXTURE_MARGIN, 0, Color(1, 1, 1, 1))
-	var pressed := make_texture_box(UiPalette.TEX_BUTTON_PRESSED, UiPalette.PANEL_TEXTURE_MARGIN, 0, Color(1, 1, 1, 1))
+	# D381: hover is the SAME plate, a little brighter, and the pressed / selected face is the same
+	# plate a touch darker (the held feedback of a plain button). A chosen picker is told apart by
+	# the tick the overlay draws, not by a gold tablet or a recoloured label.
+	var hover := make_texture_box(UiPalette.TEX_BUTTON_NORMAL, UiPalette.PANEL_TEXTURE_MARGIN, 0, UiPalette.BUTTON_HOVER_BRIGHTEN)
+	var pressed := make_texture_box(UiPalette.TEX_BUTTON_NORMAL, UiPalette.PANEL_TEXTURE_MARGIN, 0, UiPalette.BUTTON_PRESSED_FACE)
 	var disabled := make_texture_box(UiPalette.TEX_BUTTON_DISABLED, UiPalette.PANEL_TEXTURE_MARGIN, 0, Color(1, 1, 1, 1))
 	for box: StyleBoxTexture in [normal, hover, pressed, disabled]:
 		box.content_margin_left = pad_h
 		box.content_margin_right = pad_h
 		box.content_margin_top = pad_v
 		box.content_margin_bottom = pad_v
-	# Focus is drawn OVER the normal box, so it is border-only: a thicker
-	# accent outline. Shape (border weight), not colour alone, marks focus
-	# (MASTER_SDLC.md > Visual Edge Cases > "Colour-only distinctions").
-	var focus := _button_box(Color(0, 0, 0, 0), UiPalette.ACCENT, pad_h, pad_v)
-	focus.set_border_width_all(UiPalette.BORDER_THICK)
-	focus.draw_center = false
+	# Focus is drawn OVER the normal box. D380 / D381: no gold outline; a plain brighten, shown only
+	# while the last input was keyboard / gamepad (see `_sync_focus_box`). A plate with a
+	# SelectableState overlay draws its own cue (the yellow arrow) and hides this box.
+	var focus := _button_box(Color(1, 1, 1, SelectableState.FOCUS_ALPHA), Color(0, 0, 0, 0), pad_h, pad_v)
+	focus.set_border_width_all(0)
+	_hover_box = hover
+	_focus_box = focus # D380: shown only while the last input was keyboard / gamepad (see `_sync_focus_box`)
+	UiInputMode.watch(UiTheme._sync_focus_box)
+	_sync_focus_box(UiInputMode.current())
 
 	for type_name: String in ["Button", "OptionButton", "CheckButton", "CheckBox"]:
 		t.set_stylebox("normal", type_name, normal)
 		t.set_stylebox("hover", type_name, hover)
 		t.set_stylebox("pressed", type_name, pressed)
-		t.set_stylebox("hover_pressed", type_name, pressed)
+		t.set_stylebox("hover_pressed", type_name, hover)
 		t.set_stylebox("disabled", type_name, disabled)
 		t.set_stylebox("focus", type_name, focus)
 		# D166: every button face is a light teal or parchment texture, so the label is
 		# dark ink with no outline (light outlined text was the least legible text in the game).
 		t.set_color("font_color", type_name, UiPalette.TEXT_ON_PARCHMENT)
-		t.set_color("font_hover_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
-		t.set_color("font_focus_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
-		t.set_color("font_pressed_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
-		t.set_color("font_hover_pressed_color", type_name, UiPalette.HIGHLIGHT_ON_PARCHMENT)
+		for state_color: String in ["font_hover_color", "font_focus_color", "font_pressed_color", "font_hover_pressed_color"]:
+			t.set_color(state_color, type_name, UiPalette.TEXT_ON_PARCHMENT) # D385: a state never recolours the label
 		t.set_color("font_disabled_color", type_name, UiPalette.TEXT_DISABLED)
 		t.set_color("font_outline_color", type_name, UiPalette.TEXT_OUTLINE)
 		t.set_constant("outline_size", type_name, 0)
 		t.set_font("font", type_name, get_display_font())
 		t.set_font_size("font_size", type_name, UiPalette.FONT_SIZE_BUTTON)
+
+
+## The theme's own focus box (on every button that has no SelectableState overlay) draws only while
+## the last input was keyboard / gamepad: after a click or a tap a leftover gold border read as a
+## second selection. One shared resource, so every button follows at once.
+static func _sync_focus_box(mode: int) -> void:
+	if _hover_box != null:
+		# A finger has no hover: the mouse a tap emulates must leave no brightened plate behind.
+		_hover_box.modulate_color = Color.WHITE if mode == UiInputMode.Mode.TOUCH else UiPalette.BUTTON_HOVER_BRIGHTEN
+	if _focus_box != null:
+		_focus_box.bg_color = Color(1, 1, 1, SelectableState.FOCUS_ALPHA if mode == UiInputMode.Mode.KEYBOARD else 0.0)
 
 
 static func _button_box(fill: Color, border: Color, pad_h: int, pad_v: int) -> StyleBoxFlat:

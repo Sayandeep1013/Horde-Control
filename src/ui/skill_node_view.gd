@@ -266,8 +266,12 @@ func _build_children() -> void:
 	_status_spacer.custom_minimum_size = Vector2(0.0, STATUS_ROW_PX)
 	_status_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(_status_spacer)
-	_selectable = SelectableState.attach(self, SelectableState.RibbonSide.BOTTOM)
+	_selectable = SelectableState.attach(self, SelectableState.Layout.TILE)
 	_selectable.externally_driven = true # the Skill Tree screen owns the cursor (hover selects)
+	_selectable.note_color = UiPalette.TEXT # the plate is dark teal: a light, outlined caption / reason line
+	_selectable.note_outline = UiPalette.OUTLINE_BODY
+	_selectable.badge_px = 36.0 # the badge rides the price row's free right end, clear of the name above
+	_selectable.badge_y_fraction = 0.5
 
 
 ## `display_name` is shown on the node itself (polish pass item 1). `shape`/
@@ -362,7 +366,7 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 		_price_row.visible = false
 		_style.texture = load(UiPalette.TEX_PANEL_CARVED_SWATCH) as Texture2D
 		_style.modulate_color = Color(1, 1, 1, 1)
-		_glow_enabled = true
+		_glow_enabled = false # no gold outlines on options (author, 2026-10-13); the tick says owned
 		queue_redraw()
 		_apply_cues(false, false, "") # the Command Tent is always owned: no word, only the cursor cue
 		return
@@ -406,14 +410,14 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 			# apart from Available by the price colour AND the dimmer frame.
 			_price_label.add_theme_color_override("font_color", UiPalette.SCRAP)
 			_price_icon.glyph_color = UiPalette.SCRAP
-			_style.texture = load(UiPalette.TEX_BUTTON_HOVER if owned else UiPalette.TEX_BUTTON_NORMAL) as Texture2D
+			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D
 			_style.modulate_color = branch_tint * Color(0.72, 0.72, 0.72, 1.0)
 			_icon_tex.modulate = Color(0.85, 0.85, 0.85, 1.0)
 		State.BUYABLE:
 			_price_label.text = str(price)
 			_price_label.add_theme_color_override("font_color", UiPalette.SUCCESS)
 			_price_icon.glyph_color = UiPalette.CORES
-			_style.texture = load(UiPalette.TEX_BUTTON_HOVER if owned else UiPalette.TEX_BUTTON_NORMAL) as Texture2D # gold rim = owned
+			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D # owned = the tick, no gold rim (author, 2026-10-13)
 			_style.modulate_color = branch_tint
 		State.MAX, State.OWNED_MAX:
 			_price_icon.visible = false
@@ -422,9 +426,9 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 			# Task instruction: "owned nodes with a gold rim and subtle
 			# glow" -- the pack's own gold-rimmed "hover" tablet, plus the
 			# static halo `_draw()` paints just outside the frame's edge.
-			_style.texture = load(UiPalette.TEX_BUTTON_HOVER) as Texture2D
+			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D
 			_style.modulate_color = branch_tint
-			_glow_enabled = true
+			_glow_enabled = false # no gold halo (author, 2026-10-13): owned is the tick
 	queue_redraw()
 	# PT-UI: owned reads OWNED (even with a next rank unaffordable); an unowned node that cannot be
 	# bought says why: the Cores it costs, or that its neighbour is still closed.
@@ -448,7 +452,7 @@ func _apply_cues(owned: bool, locked: bool, reason: String) -> void:
 		_selectable.set_locked(false)
 		return
 	_selectable.set_locked(locked, reason)
-	_selectable.set_selected(owned and not locked, tr("SEL_OWNED"))
+	_selectable.set_selected(owned and not locked)
 
 
 ## The Skill Tree screen's cursor is on this node (hover, keys, a tap).

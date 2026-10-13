@@ -264,7 +264,7 @@ func test_left_moves_to_the_check_box_and_confirm_toggles_it() -> void:
 	controller.tick_for_test(0.016)
 	assert_bool(controller.get_check_box_for_test().button_pressed).is_true()
 	assert_bool(controller.is_showing()).append_failure_message("confirm on the check box toggles it, it does not close").is_true()
-	assert_bool(SelectableState.of(controller.get_check_box_for_test()).is_selected()).append_failure_message("a checked box wears the selected look").is_true()
+	assert_bool(SelectableState.of(controller.get_check_box_for_test()).is_selected()).append_failure_message("a check box shows its own tick, never the selected plate look (D382)").is_false()
 
 
 func test_the_card_is_a_paused_ui_that_keeps_running() -> void:

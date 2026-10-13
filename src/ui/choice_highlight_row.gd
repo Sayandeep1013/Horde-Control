@@ -30,9 +30,12 @@ class_name ChoiceHighlightRow
 ## follows layout rather than fixing a position.
 
 const UNDERLINE_HEIGHT: float = 4.0
-## PT-UI (docs/33 A1, D320): the shared focus cue on a paused choice too: a gold outline round the
-## highlighted option and a pointer arrow before it (the underline stays; both are shape cues).
+## PT-UI (docs/33 A1; D320, D383): the shared yellow pointer arrow on a paused choice too, beside the
+## highlighted option on whichever side has room (never clipped, never over a neighbour); the
+## underline stays (both are shape cues). It stays visible on every device: these choices confirm by
+## hold, so the player must see which one the hold will pick. No outline.
 const OUTLINE_PAD_PX: float = 10.0
+const ARROW_PAD_PX: float = 4.0
 
 var _bar: PausedChoiceBar = null
 var _highlighted: int = 0
@@ -71,7 +74,20 @@ func _draw() -> void:
 		draw_rect(rect, UiPalette.ACCENT, true)
 	var box: Rect2 = get_outline_rect()
 	if box.size.x > 0.0:
-		SelectableState.draw_focus_cue(self, box)
+		var option_rect: Rect2 = box.grow(-(OUTLINE_PAD_PX - ARROW_PAD_PX))
+		SelectableState.draw_arrow(self, option_rect, SelectableState.pick_arrow_side(self, option_rect, _option_siblings()))
+
+
+## The bar's other options (the arrow must not land on one).
+func _option_siblings() -> Array[Control]:
+	var out: Array[Control] = []
+	if _bar == null or not is_instance_valid(_bar):
+		return out
+	for i in _bar.get_child_count():
+		var c: Control = _bar.get_child(i) as Control
+		if c != null and i != _highlighted:
+			out.append(c)
+	return out
 
 
 ## The highlighted option's whole rectangle plus OUTLINE_PAD_PX, in this row's local space

@@ -296,6 +296,7 @@ var _card_row: HBoxContainer
 var _fill_ring: DraftFillRing
 var _reroll_label: Label
 var _how_to_pick_label: Label
+var _press_index: int = -1 ## D384: the card a finger is held on, waiting for its release
 var _mouse_confirm_this_frame: bool = false ## UX review P0-4
 var _card_views: Array[DraftCardView] = []
 
@@ -326,6 +327,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_resolve_dependencies()
 	_build_ui()
+	UiInputMode.ensure_listening()
+	UiInputMode.watch(_on_input_mode_changed)
 	if _run_inventory != null:
 		_last_observed_level = _run_inventory.level
 	call_deferred("_find_and_register_with_sim_loop")
@@ -510,6 +513,17 @@ func simulate_card_click_for_test(index: int) -> void:
 	_on_card_gui_input(mb, index)
 
 
+## Test-only: the mouse event a finger emulates (press or release) on card `index`; `inside` is
+## whether the release lands on the card.
+func simulate_card_touch_for_test(index: int, pressed: bool, inside: bool = true) -> void:
+	var mb := InputEventMouseButton.new()
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = pressed
+	mb.device = InputEvent.DEVICE_ID_EMULATION
+	mb.position = Vector2(10.0, 10.0) if inside else Vector2(-500.0, -500.0)
+	_on_card_gui_input(mb, index)
+
+
 func simulate_mouse_confirm_for_test() -> void:
 	_mouse_confirm_this_frame = true
 
@@ -654,6 +668,7 @@ func _on_war_chest_opened(_timestamp: float) -> void:
 
 
 func _exit_tree() -> void:
+	UiInputMode.unwatch(_on_input_mode_changed)
 	if _event_bus != null and _event_bus.has_signal("war_chest_opened") and _event_bus.is_connected("war_chest_opened", _on_war_chest_opened):
 		_event_bus.disconnect("war_chest_opened", _on_war_chest_opened)
 
@@ -1070,9 +1085,27 @@ func _on_card_gui_input(event: InputEvent, index: int) -> void:
 	if not _lockout_elapsed or not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
-	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and index >= 0 and index < _cards.size():
-		_highlighted_index = index
-		_confirm_highlighted_card()
+	if mb.button_index != MOUSE_BUTTON_LEFT or index < 0 or index >= _cards.size():
+		return
+	# D384: a real mouse confirms on the press (hover already showed the card). A finger has no
+	# hover, so a tap confirms on the RELEASE: the press dips the card and arms it, and sliding off
+	# before lifting cancels, so a stray touch never commits an upgrade.
+	var touch: bool = mb.device == InputEvent.DEVICE_ID_EMULATION
+	if mb.pressed:
+		if touch:
+			_press_index = index
+			_highlighted_index = index
+			_refresh_highlight_visual()
+			_card_views[index].set_pressed(true)
+		else:
+			_highlighted_index = index
+			_confirm_highlighted_card()
+	elif touch and _press_index == index:
+		_press_index = -1
+		_card_views[index].set_pressed(false)
+		if Rect2(Vector2.ZERO, _card_views[index].size).has_point(mb.position):
+			_highlighted_index = index
+			_confirm_highlighted_card()
 
 
 func _on_reroll_gui_input(event: InputEvent) -> void:
@@ -1105,6 +1138,7 @@ func _on_card_hovered(index: int) -> void:
 
 
 func _reset_input_state_for_open() -> void:
+	_press_index = -1
 	_time_since_open = 0.0
 	_lockout_elapsed = false
 	_hold_up_armed = false
@@ -1238,7 +1272,7 @@ func _build_ui() -> void:
 	# UX review P0-4 (D128): one line listing every way to pick a card.
 	_how_to_pick_label = Label.new()
 	_how_to_pick_label.name = "HowToPick"
-	_how_to_pick_label.text = tr("DRAFT_HOW_TO_PICK")
+	_how_to_pick_label.text = UiInputMode.how_to_pick_text() # D384: names the keys, the click or the tap that is live
 	_how_to_pick_label.theme_type_variation = UiTheme.HUD_VALUE # D145/D166: readable footer (was dim body text)
 	_how_to_pick_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_how_to_pick_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1275,7 +1309,14 @@ func _show_ui() -> void:
 	else:
 		_root.modulate.a = 1.0
 	_refresh_reroll_text()
+	_how_to_pick_label.text = UiInputMode.how_to_pick_text()
 	_build_card_views()
+
+
+func _on_input_mode_changed(_mode: int) -> void:
+	if _how_to_pick_label != null:
+		_how_to_pick_label.text = UiInputMode.how_to_pick_text()
+	_refresh_highlight_visual()
 
 
 func _hide_ui(hold_seconds: float = 0.0) -> void:
@@ -1340,8 +1381,10 @@ func _build_card_views() -> void:
 
 
 func _refresh_highlight_visual() -> void:
+	var touch: bool = UiInputMode.is_touch()
 	for i in _card_views.size():
 		_card_views[i].set_highlighted(i == _highlighted_index)
+		_card_views[i].set_dimmed(i != _highlighted_index and not touch)
 
 
 func _update_fill_ring_visual() -> void:

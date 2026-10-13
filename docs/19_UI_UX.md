@@ -34,19 +34,27 @@ Opening Pick, Patron's Boon, Sanctuary and Blood Pact reuse the Draft's card wid
 
 Written after the author's first hands-on play: "i was confused ... if im selecting this or is it preselected or can i not select this", "a written pact if i go there for the first time", "give each abilities a special symbol so that the player doesn't have to read everytime". Numbers are in the Register's "v1.0 Interface" rows "Selection states", "Card symbol", "Field Guide" and "First-encounter explainers".
 
-### One selection-state language (D320)
+### One selection-state language (D320, redone by D380-D389)
 
-Every selectable thing (Draft and event cards, War Camp pickers and tabs, Skill Tree nodes, Settings rows, pause and Results choices, achievement rows, Field Guide tiles) shows the same four states, built by one component, `SelectableState` (`src/ui/selectable_state.gd`), a mouse-transparent overlay on the selectable. Each state has a shape and a word, so none depends on colour, and the states are independent flags: a plate that is both focused and selected shows both groups.
+The first version (D320) drew a SELECTED word ribbon over the right half of a picker, hung badges outside the corners, put a dark veil over locked plates, drew a 4 px gold outline and a pointer arrow outside the focused plate (the arrow clipped at the screen edge) and lifted it 1.05x over its neighbours; a tab showed "SELECTED", the selected label turned yellow, and on touch whatever last took focus looked like a second selection. The author called it wrong on both Windows and Android (2026-10-13), then asked for the word to go, for the tick alone, for no yellow rectangle outline, and to keep the yellow arrow. The language below replaces it; the numbers are in the Register's "Selection states" row.
+
+Every selectable thing (Draft and event cards, War Camp pickers and tabs, Skill Tree nodes, Settings rows, pause and Results choices, achievement rows, Field Guide tiles) is built by one component, `SelectableState` (`src/ui/selectable_state.gd`), a mouse-transparent overlay on the selectable. The overlay draws INSIDE the plate and never over its label. The last input device (`UiInputMode`: keyboard / gamepad, mouse or touch) decides what shows.
 
 | State | Look |
 | --- | --- |
-| Available | The normal plate; nothing is drawn |
-| Focused (hover, keyboard, gamepad) | A 4 px gold outline with an ink rim, a pointer arrow on the left edge, a 1.05x lift and the `ui_hover` cue. A Draft card also carries the word CHOOSE |
-| Selected / Equipped (locked in) | A green check badge in the top-right corner, a ribbon word (SELECTED, EQUIPPED or OWNED) and a green tint; it stays when focus moves away, so focus and selection never look alike. Where a ribbon word does not fit (tabs, achievement rows whose value cell already says it) the badge and tint carry it |
-| Locked / unavailable | A hatched veil, a padlock badge and a reason line ("Win on Soldier", "Need 8 Cores", "Skill Tree"). A press shakes the plate and shows the reason; it is never silently ignored. An unmet Field Guide tile has no reason plate: its page says why |
+| Available | The plain plate |
+| Hover (a real mouse only) | The plate face a little brighter; the focus moves to the plate, so hover and keyboard focus never mark two plates. No hover on touch (the mouse a tap emulates is ignored) |
+| Focused | The yellow pointer arrow beside the plate: on the left when it fits, else the right, else inside the plate; never clipped by the screen or a scroll area, never over a neighbour. After keyboard or gamepad input the plate is also brightened a little. No outline, no scale |
+| Selected / Equipped / Owned | ONLY a tick badge inside the plate (right edge of a row, top-right corner of a tile); no word, no border, no tint, the label stays dark. It stays when focus leaves |
+| Active tab | Brightened, the other tabs darkened; no tick, no word. A tab is the current page, not a choice |
+| Locked / unavailable | The plate greyed, a padlock inside it and the reason ("Win on Soldier", "Need 8 Cores", "Skill Tree") as plain text beside it or on the tile's bottom line. A press shakes the plate and flashes the reason on a gold chip; it is never silently ignored. An unmet Field Guide tile has no reason: its page says why |
+| Armed (Draft and event cards) | The card that confirm would pick: the arrow beside it, the card brightened and the others darkened, and a prompt plate inside its bottom edge, PRESS SPACE after keys or CLICK TO CHOOSE after the mouse. The footer line names the keys, the click or the tap that is live. On touch no card is armed until a finger is on it |
+| Pressed | The plate dips to 0.95 for 0.08 s with a white flash |
 | Confirming (hold-to-confirm) | The hold ring is drawn on the card being confirmed (the footer ring stays); when confirmed a CHOSEN stamp shows for 0.35 s, held while the Draft or event fades |
 
-Surfaces that are not a plain Control reuse the same focus drawing (`SelectableState.draw_focus_cue`): the paused choice bars (Pause, Results, How to Play Back) through `ChoiceHighlightRow`, and the Settings rows inside their own rect. The Skill Tree keeps its caret under the node and adds the outline; its nodes have a status row for the OWNED word or the lock reason.
+**Picking a card (D384).** A mouse click picks the card on the press (hover already armed it). A finger picks on the release inside the card: the press dips and arms it, sliding off before lifting cancels, so a stray touch never commits an upgrade. Keys 1 / 2 / 3, A / D then Space, and hold-up are unchanged; the 0.4 s lockout and the neutral-return rule apply to all of them.
+
+Surfaces that are not a plain Control reuse the arrow: the paused choice bars (Pause, Results, How to Play Back) draw it beside the highlighted option through `ChoiceHighlightRow`, always visible because they confirm by hold; Settings rows brighten for their cursor and keep their own marker. The Skill Tree's cursor node keeps its arrow on every device (the detail panel is about it) and shows its lock reason in its status row. Achievement rows are read-only: earned shows the tick, locked a padlock, both in the row's top-right corner.
 
 ### Symbols (D321)
 

@@ -272,7 +272,7 @@ func _build_ui() -> void:
 	_back_button.custom_minimum_size = TouchUi.button_size(Vector2(200.0, 60.0))
 	_back_button.pressed.connect(close)
 	head.add_child(_back_button)
-	SelectableState.attach(_back_button, SelectableState.RibbonSide.RIGHT).set_show_word(false)
+	SelectableState.attach(_back_button, SelectableState.Layout.ROW)
 
 	_tab_row = HFlowContainer.new()
 	_tab_row.name = "Tabs"
@@ -288,14 +288,11 @@ func _build_ui() -> void:
 		button.button_group = group
 		button.focus_mode = Control.FOCUS_ALL
 		button.custom_minimum_size = TouchUi.touch_size(Vector2(0.0, 60.0))
-		button.add_theme_color_override("font_pressed_color", UiPalette.ACCENT)
-		button.add_theme_color_override("font_hover_pressed_color", UiPalette.ACCENT)
 		button.pressed.connect(_on_tab_pressed.bind(tab))
 		_tab_row.add_child(button)
 		_tab_buttons.append(button)
-		var overlay: SelectableState = SelectableState.attach(button, SelectableState.RibbonSide.RIGHT)
-		overlay.set_show_word(false)
-		button.toggled.connect(overlay.set_selected.bind(""))
+		var overlay: SelectableState = SelectableState.attach(button, SelectableState.Layout.TAB)
+		button.toggled.connect(overlay.set_selected)
 
 	var body := HBoxContainer.new()
 	body.name = "Body"
@@ -448,8 +445,7 @@ func _make_tile(entry: Dictionary) -> Button:
 		tile.add_theme_color_override("icon_pressed_color", Color(0.0, 0.0, 0.0, 0.85))
 		tile.add_theme_color_override("icon_focus_color", Color(0.0, 0.0, 0.0, 0.85))
 		tile.add_theme_color_override("icon_hover_pressed_color", Color(0.0, 0.0, 0.0, 0.85))
-	var overlay: SelectableState = SelectableState.attach(tile, SelectableState.RibbonSide.BOTTOM)
-	overlay.arrow_outside = false
+	var overlay: SelectableState = SelectableState.attach(tile, SelectableState.Layout.TILE)
 	overlay.set_locked(not known, "")
 	tile.focus_entered.connect(_show_entry.bind(id))
 	tile.mouse_entered.connect(_show_entry.bind(id))

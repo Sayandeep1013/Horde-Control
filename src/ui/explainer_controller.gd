@@ -257,9 +257,7 @@ func _on_got_it_pressed() -> void:
 
 
 func _on_check_toggled(_on: bool) -> void:
-	var overlay: SelectableState = SelectableState.of(_check)
-	if overlay != null:
-		overlay.set_selected(_check.button_pressed, tr("EXPL_ON"))
+	pass # the check box's own tick shows the state; the overlay only draws the cursor (D382)
 
 
 # --- Opening ----------------------------------------------------------------------------------------------
@@ -504,9 +502,8 @@ func _build_ui() -> void:
 	for icon_name in ["unchecked", "unchecked_disabled"]:
 		_check.add_theme_icon_override(icon_name, _check_icon(false))
 	foot.add_child(_check)
-	var check_overlay: SelectableState = SelectableState.attach(_check, SelectableState.RibbonSide.RIGHT)
+	var check_overlay: SelectableState = SelectableState.attach(_check, SelectableState.Layout.ROW)
 	check_overlay.externally_driven = true
-	check_overlay.arrow_outside = false
 	_got_it = Button.new()
 	_got_it.name = "GotIt"
 	_got_it.text = tr("EXPL_GOT_IT")
@@ -515,12 +512,10 @@ func _build_ui() -> void:
 	_got_it.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
 	_got_it.pressed.connect(_on_got_it_pressed)
 	foot.add_child(_got_it)
-	var got_overlay: SelectableState = SelectableState.attach(_got_it, SelectableState.RibbonSide.RIGHT)
+	var got_overlay: SelectableState = SelectableState.attach(_got_it, SelectableState.Layout.ROW)
 	got_overlay.externally_driven = true
-	got_overlay.arrow_outside = false
 	got_overlay.ring_anchor = Vector2(0.14, 0.5)
 	got_overlay.ring_radius = HOLD_RING_RADIUS_PX
-	got_overlay.set_show_word(false)
 
 	_prompt_label = _make_text(UiTheme.DIM_PARCHMENT)
 	_prompt_label.name = "Prompt"

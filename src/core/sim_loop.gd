@@ -176,8 +176,17 @@ func set_entity_registry_for_test(registry: Node) -> void:
 	_entity_registry = registry
 
 
+## Dev profiling (src/dev/swarm_probe.gd): when true, each step's wall time
+## is summed into `profile_step_usec` (index = step number - 1).
+static var profile_enabled: bool = false
+static var profile_step_usec: PackedInt64Array = PackedInt64Array()
+
+
 func _physics_process(delta: float) -> void:
 	_last_step_log.clear()
+	if profile_enabled:
+		_physics_process_profiled(delta)
+		return
 	_step_01_input(delta)
 	_step_02_player_movement(delta)
 	_step_03_enemy_ai_and_movement(delta)
@@ -193,6 +202,16 @@ func _physics_process(delta: float) -> void:
 	_step_13_wave_director(delta)
 	_step_14_pause_flush(delta)
 	_step_15_ui_state(delta)
+
+
+func _physics_process_profiled(delta: float) -> void:
+	if profile_step_usec.size() < 15:
+		profile_step_usec.resize(15)
+	var steps: Array[Callable] = [_step_01_input, _step_02_player_movement, _step_03_enemy_ai_and_movement, _step_04_weapon_targeting_and_firing, _step_05_projectile_movement_and_sweep, _step_06_windup_completion_and_contact_ticks, _step_07_hit_queue_resolution, _step_08_death_resolution, _step_09_drops, _step_10_pickup_movement_and_collection, _step_11_xp_and_level_up_requests, _step_12_console_channel_completion, _step_13_wave_director, _step_14_pause_flush, _step_15_ui_state]
+	for i in steps.size():
+		var t0: int = Time.get_ticks_usec()
+		steps[i].call(delta)
+		profile_step_usec[i] += Time.get_ticks_usec() - t0
 
 
 # --- Registration API (F03-09) ---------------------------------------------

@@ -7,7 +7,7 @@ extends Node
 ##
 ##   Godot_v4.7.1-stable_win64_console.exe --path <worktree> --audio-driver Dummy \
 ##       res://src/ui/dev/pt_ui_capture.tscn -- --shot=<name> --out=<relative png base> \
-##       [--size=1920x1080] [--touch-ui] --meta-profile-dir=<abs sandbox dir> --no-focus-pause
+##       [--size=1920x1080] [--touch-ui] [--mode=keyboard|mouse|touch] [--first-time-tips] --meta-profile-dir=<abs sandbox dir> --no-focus-pause
 ##
 ## --shot= hub_run | hub_press_locked | hub_loadout | guide:<tab index>[:<entry id>] |
 ##         explainer:<id> | draft | event:<kind> | pause
@@ -22,6 +22,8 @@ var _scene: Node = null
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	AudioServer.set_bus_mute(AudioServer.get_bus_index(&"Master"), true)
+	if not OS.get_cmdline_user_args().has("--first-time-tips"):
+		GameSettings.set_show_first_time_tips_for_test(false) # a first-visit card would hide the states under test
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--shot="):
 			_shot = arg.trim_prefix("--shot=")
@@ -30,6 +32,8 @@ func _ready() -> void:
 		elif arg.begins_with("--size="):
 			var p: PackedStringArray = arg.trim_prefix("--size=").split("x")
 			_size = Vector2i(int(p[0]), int(p[1]))
+		elif arg.begins_with("--mode="): # keyboard | mouse | touch: the last input device the capture pretends to have seen
+			UiInputMode.pin(["keyboard", "mouse", "touch"].find(arg.trim_prefix("--mode=")))
 	get_window().size = _size
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://").path_join(_out.get_base_dir()))
 	_run.call_deferred()
@@ -79,6 +83,7 @@ func _hub_shot(kind: String) -> void:
 	var hub: HubScreen = _scene as HubScreen
 	if kind == "hub_loadout":
 		hub.show_page_for_test("loadout")
+		hub.press_relic_for_test("quiver_of_echoes") # one Relic equipped: the EQUIPPED caption on a tile
 		await _frames(10)
 		hub.get_champion_button_for_test("warden").grab_focus() # focused AND locked on a fresh profile
 	else:
