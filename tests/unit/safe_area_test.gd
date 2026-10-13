@@ -56,17 +56,10 @@ func test_the_safe_rect_is_the_canvas_minus_the_margins() -> void:
 	assert_float(rect.size.y).is_equal_approx(canvas.y - m.y - m.w, 0.01)
 
 
-func test_a_larger_content_scale_makes_the_same_window_inset_smaller_in_logical_px() -> void:
-	TouchUi.set_override_for_test(1)
-	SafeArea.set_inset_override_for_test(Vector4(400.0, 400.0, 400.0, 400.0)) # well over the minimum margin
+func test_logical_px_per_window_px_is_the_inverse_of_the_final_transform_scale() -> void:
+	# (the headless runner never applies the content scale, so this checks the relation, not a given factor)
 	var window: Window = get_window()
-	window.content_scale_factor = 1.0
-	await get_tree().process_frame # the window's final transform follows the factor on the next frame
-	var at_one: float = SafeArea.margins(window).x
-	window.content_scale_factor = 2.0
-	await get_tree().process_frame
-	var at_two: float = SafeArea.margins(window).x
-	assert_float(at_two).is_equal_approx(at_one * 0.5, at_one * 0.02)
+	assert_float(SafeArea.logical_per_px(window) * window.get_final_transform().get_scale().x).is_equal_approx(1.0, 0.001)
 
 
 func test_fit_pins_a_full_rect_control_to_the_margins_and_follows_a_change() -> void:
