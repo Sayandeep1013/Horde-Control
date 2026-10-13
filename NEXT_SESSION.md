@@ -36,7 +36,7 @@
 
 **Open, in priority order:**
 1. **Balance pass 3 was NOT run** (docs/33 §E). The playtest-round numbers are starting values. The swarm agent's quick kite bot died in wave 3, and a cold-started wave 10 drops the Tower in 20 s. Run it with a "human-ish" bot (reaction delay, missed dodges) against the §E targets, fresh and upgraded profiles. IDs D361-D369 are free.
-2. **Performance:** 34-45 fps at 300+ alive on the dev laptop (target 60 at 350). The next step is fallback-ladder step 3 (server-side bodies, MultiMesh) per D341. src/dev/swarm_probe.gd measures it.
+2. **Performance (PT-PERF, D390-D394, 2026-10-13):** fallback-ladder step 3 is built (`SwarmBrain`, `SwarmRenderer`, `swarm_enemy.gdshader`; plain enemies have no body and are drawn from MultiMesh bands). Roughly 2x faster: 350 alive headless 23.95 to 11.72 ms, windowed Forward+ 31.0 to 18.4 ms, Compatibility 180 alive 20.6 to 13.8 ms (draw calls 1071 to 446). The author's targets (Forward+ 350 <= 14 ms, 180 <= 11 ms, Compatibility 180 <= 12 ms) are NOT met; the remaining cost is spread: plans 1.5 ms, node sync 0.6, other SimLoop steps 1.8, physics outside SimLoop about 4 (deaths, hits, effects, abilities), idle 3.5 at 350 alive. Ideas left: lean swarm enemy scenes (a spawn is 0.5 ms), a radius-aware wall test, abilities and the death path (EventBus, drops), per-tick caps on kills processed, a mobile cap review. Measure with `src/dev/swarm_probe.gd` (`--mobile`, PROBE_BRAIN / PROBE_RENDERER / PROBE_DRAW lines) at High priority, baseline and new build back to back; other agents' load swings results by 1.5x.
 3. **Touch UI:**
    - The War Camp first-visit hint banner overlaps the wider setup card.
    - The explainer scroll cap on touch was never re-captured.

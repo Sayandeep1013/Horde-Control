@@ -390,5 +390,7 @@ func _apply_toggles(reg: Node) -> void:
 			var hx2: Node = e.get_node_or_null("Hitbox")
 			if hx2 != null:
 				e.remove_child(hx2)
+		if toggles.has("hold_all") and e.has_method("swarm_hold_for_test"):
+			e.swarm_hold_for_test(true)
 		if toggles.has("hide"):
 			(e as CanvasItem).visible = false
