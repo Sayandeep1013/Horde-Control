@@ -225,8 +225,18 @@ func _process(_delta: float) -> bool:
 			if samples.size() == 1:
 				_phys_sum2 = 0
 				_idle_sum = 0
+				var sls: Script = load("res://src/core/sim_loop.gd")
+				sls.set("profile_enabled", true)
+				sls.set("profile_step_usec", PackedInt64Array())
 			if samples.size() >= measure_frames:
 				print("PROBE_SPLIT physics_phase_ms=%.2f idle_phase_ms=%.2f" % [_phys_sum2 / 1000.0 / measure_frames, _idle_sum / 1000.0 / measure_frames])
+				var parts: PackedStringArray = PackedStringArray()
+				var total_us: int = 0
+				var usec: PackedInt64Array = (load("res://src/core/sim_loop.gd") as Script).get("profile_step_usec")
+				for i in usec.size():
+					total_us += usec[i]
+					parts.append("s%d=%.2f" % [i + 1, usec[i] / 1000.0 / measure_frames])
+				print("PROBE_STEPS simloop_ms=%.2f %s" % [total_us / 1000.0 / measure_frames, " ".join(parts)])
 				_report_perf()
 				return true
 	else:
