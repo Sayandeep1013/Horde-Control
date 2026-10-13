@@ -336,6 +336,9 @@ var _out_of_range_since: float = -1.0
 ## "the same cycle model" note on `_process_attack_cycle()`).
 var _next_hit_time: float = -1.0
 var _windup_active: bool = false
+## D377: true while the current wind-up is aimed at the Tower. Those wind-ups keep
+## their timing but show no ring or "!" (a siege used to fill with red rings).
+var _windup_on_tower: bool = false
 var _hitbox_active_ticks_remaining: int = 0
 
 ## Tower Seeker body-block tracking (docs/09 > "Tower Seeker body-block
@@ -684,6 +687,12 @@ func is_body_blocked_for_test() -> bool:
 
 func is_windup_active() -> bool:
 	return _windup_active
+
+
+## D377: the ground ring and "!" show only for a wind-up the player can step out
+## of. A wind-up on the Tower shows its strike animation and nothing else.
+func is_windup_marker_shown() -> bool:
+	return _windup_active and not _windup_on_tower
 
 
 ## UX review item 5 (D131): 0.0 at wind-up start, 1.0 at the strike moment
@@ -1324,8 +1333,9 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D, now_seconds: 
 	var windup_start: float = _next_hit_time - definition.telegraph_data.windup_duration_seconds
 	if now >= windup_start and not _windup_active:
 		_windup_active = true
+		_windup_on_tower = _target != null and _target == _tower
 		windup_started.emit()
-		if _sv != null and definition.telegraph_data.windup_duration_seconds > 0.0:
+		if _sv != null and not _windup_on_tower and definition.telegraph_data.windup_duration_seconds > 0.0:
 			_sv.marker_on(_swarm_slot, now, definition.telegraph_data.windup_duration_seconds)
 
 	if now >= _next_hit_time:

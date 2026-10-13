@@ -105,7 +105,7 @@ func _ready() -> void:
 # Driven in physics ticks (not _process) so the pulse stays inside the interpolated
 # transform of the enemy it decorates (physics interpolation, feel pass D151).
 func _physics_process(_delta: float) -> void:
-	var active: bool = _controller != null and _controller.is_windup_active()
+	var active: bool = _controller != null and _controller.is_windup_marker_shown() # D377: none for Tower wind-ups
 	visible = active
 	if not active:
 		set_physics_process(false)

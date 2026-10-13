@@ -8,6 +8,17 @@ func test_windup_progress_is_zero_when_no_windup_is_active() -> void:
 	assert_float(c.get_windup_progress()).is_equal(0.0)
 
 
+## D377: a wind-up on the Tower shows no ring or "!"; one on the player does.
+func test_windup_marker_shows_only_for_attacks_on_the_player() -> void:
+	var c: EnemyController = auto_free(EnemyController.new())
+	assert_bool(c.is_windup_marker_shown()).is_false()
+	c._windup_active = true
+	c._windup_on_tower = false
+	assert_bool(c.is_windup_marker_shown()).is_true()
+	c._windup_on_tower = true
+	assert_bool(c.is_windup_marker_shown()).is_false()
+
+
 func test_every_telegraph_uses_the_one_danger_colour() -> void:
 	assert_that(TelegraphVisual.DANGER_COLOUR).is_equal(UiPalette.DANGER)
 
