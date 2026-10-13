@@ -86,13 +86,49 @@ var _free_slots: Array[int] = []
 var _entity_to_slot: Dictionary[Node2D, int] = {}
 var _grid: Dictionary[Vector2i, PackedInt32Array] = {}
 
+## PT-PERF (D393): live and total entity counts per tag bit (and overall), kept
+## incrementally so `get_entity_count` / `get_live_enemy_count`, asked every tick by the
+## Wave Director and the run recorder, are O(1) instead of a scan of every slot.
+var _alive_by_bit: PackedInt32Array = PackedInt32Array()
+var _total_by_bit: PackedInt32Array = PackedInt32Array()
+var _alive_all: int = 0
+var _total_all: int = 0
+## Per tag bit: bumped whenever an entity carrying that bit registers, deregisters or
+## changes liveness. A `get_entities_with_tag` result is cached against it, so the
+## per-tick "find the player / the Tower" lookups do not scan every slot.
+var _tag_version: PackedInt32Array = PackedInt32Array()
+var _tag_cache: Dictionary = {} # (bit * 2 + include_dead) -> {"version": int, "list": Array[Node2D]}
+
 var _tag_bit: Dictionary[StringName, int] = {}
 var _next_tag_bit: int = 0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	_ensure_bit_arrays()
 
+
+func _ensure_bit_arrays() -> void:
+	if _alive_by_bit.size() != MAX_DISTINCT_TAGS:
+		_alive_by_bit.resize(MAX_DISTINCT_TAGS)
+		_total_by_bit.resize(MAX_DISTINCT_TAGS)
+		_tag_version.resize(MAX_DISTINCT_TAGS)
+
+
+## Applies `delta_total` / `delta_alive` to the counters of every bit in `mask`.
+func _count_mask(mask: int, delta_total: int, delta_alive: int) -> void:
+	_ensure_bit_arrays()
+	_total_all += delta_total
+	_alive_all += delta_alive
+	var m: int = mask
+	var bit: int = 0
+	while m != 0:
+		if (m & 1) != 0:
+			_total_by_bit[bit] += delta_total
+			_alive_by_bit[bit] += delta_alive
+			_tag_version[bit] += 1
+		m >>= 1
+		bit += 1
 
 ## Test-only knob (see tests/unit/entity_registry_query_perf_test.gd): lets
 ## the acceptance test exercise a specific cell size against uniform and
@@ -149,6 +185,7 @@ func register_entity(entity: Node2D, position: Vector2, tags: Array) -> bool:
 		_slot_tag_mask.append(mask)
 	_entity_to_slot[entity] = slot
 	_add_to_grid(slot, position)
+	_count_mask(mask, 1, 1)
 	return true
 
 
@@ -163,6 +200,7 @@ func deregister_entity(entity: Node2D) -> bool:
 	var slot: int = _entity_to_slot[entity]
 	_remove_from_grid(slot, _slot_position[slot])
 	_entity_to_slot.erase(entity)
+	_count_mask(_slot_tag_mask[slot], -1, -int(_slot_alive[slot]))
 	_slot_entity[slot] = null
 	_slot_tag_mask[slot] = 0
 	_free_slots.append(slot)
@@ -196,6 +234,7 @@ func _reap_dangling() -> void:
 		_remove_from_grid(slot, _slot_position[slot])
 		if stale != null:
 			_entity_to_slot.erase(stale)
+		_count_mask(_slot_tag_mask[slot], -1, -int(_slot_alive[slot]))
 		_slot_entity[slot] = null
 		_slot_tag_mask[slot] = 0
 		_slot_alive[slot] = 0
@@ -246,7 +285,11 @@ func update_position_by_slot(slot: int, position: Vector2) -> void:
 func set_entity_alive(entity: Node2D, alive: bool) -> bool:
 	if entity == null or not _entity_to_slot.has(entity):
 		return false
-	_slot_alive[_entity_to_slot[entity]] = 1 if alive else 0
+	var slot: int = _entity_to_slot[entity]
+	var now_alive: int = 1 if alive else 0
+	if _slot_alive[slot] != now_alive:
+		_count_mask(_slot_tag_mask[slot], 0, now_alive - int(_slot_alive[slot]))
+	_slot_alive[slot] = now_alive
 	return true
 
 
@@ -324,6 +367,18 @@ func get_entities_with_tag(tag: StringName, include_dead: bool = false) -> Array
 	if bit < 0:
 		return result
 	var tag_mask: int = 1 << bit
+	_ensure_bit_arrays()
+	var cache_key: int = bit * 2 + (1 if include_dead else 0)
+	var cached: Variant = _tag_cache.get(cache_key)
+	if cached != null and int(cached["version"]) == _tag_version[bit]:
+		var cached_list: Array[Node2D] = cached["list"]
+		var all_valid: bool = true
+		for e in cached_list:
+			if not is_instance_valid(e):
+				all_valid = false
+				break
+		if all_valid:
+			return cached_list.duplicate()
 	for slot in _slot_entity.size():
 		if _slot_entity[slot] == null:
 			continue
@@ -335,6 +390,7 @@ func get_entities_with_tag(tag: StringName, include_dead: bool = false) -> Array
 		if (_slot_tag_mask[slot] & tag_mask) != 0:
 			result.append(_slot_entity[slot])
 	_reap_dangling()
+	_tag_cache[cache_key] = {"version": _tag_version[bit], "list": result.duplicate()}
 	return result
 
 
@@ -346,23 +402,13 @@ func get_live_enemy_count() -> int:
 
 ## Typed query. Count of live entities, optionally filtered to `tag`.
 func get_entity_count(tag: StringName = &"", include_dead: bool = false) -> int:
-	var filter_by_tag: bool = tag != &""
-	var tag_mask: int = 0
-	if filter_by_tag:
-		var bit: int = _bit_for_tag(tag, false)
-		if bit < 0:
-			return 0
-		tag_mask = 1 << bit
-	var count: int = 0
-	for slot in _slot_entity.size():
-		if _slot_entity[slot] == null:
-			continue
-		if not include_dead and _slot_alive[slot] == 0:
-			continue
-		if filter_by_tag and (_slot_tag_mask[slot] & tag_mask) == 0:
-			continue
-		count += 1
-	return count
+	_ensure_bit_arrays()
+	if tag == &"":
+		return _total_all if include_dead else _alive_all
+	var bit: int = _bit_for_tag(tag, false)
+	if bit < 0:
+		return 0
+	return _total_by_bit[bit] if include_dead else _alive_by_bit[bit]
 
 
 ## Returns the bitmask index for `tag`, assigning a fresh one on first sight

@@ -39,6 +39,19 @@ const HASH_OFFSET_PX: float = 4096.0 # keeps the cell index positive: int() trun
 const HASH_MASK: int = 63
 const HASH_SHIFT: int = 6
 const GRID_CELL_PX: float = 32.0 # FlowField.CELL_PX
+## PT-PERF (D393): an enemy farther than this from both the player and the Tower is off
+## screen and out of every fight: it plans at twice the think interval and syncs its node
+## (Hurtbox) and registry position every FAR_SYNC_TICKS-th tick. Its drawn position and
+## its brain position still move every tick.
+const FAR_DISTANCE_PX: float = 1300.0
+const FAR_SYNC_TICKS: int = 3
+## While the swarm is large (the AI LOD is on) a near enemy writes its node (Hurtbox)
+## position every NEAR_SYNC_TICKS-th tick; the registry, the hash and the drawn position
+## still move every tick.
+const NEAR_SYNC_TICKS: int = 2
+## Hit effects per tick (blood + damage numbers) on desktop and on mobile.
+const FX_PER_TICK: int = 10
+const FX_PER_TICK_MOBILE: int = 5
 
 var ents: Array = []
 var pos: PackedVector2Array = PackedVector2Array()
@@ -156,7 +169,7 @@ func add(enemy: Node2D) -> int:
 	attn[s] = 0
 	needs_plan[s] = 1
 	hold[s] = 0
-	phase[s] = int(enemy.get_instance_id() % 60) # 60 = lcm(3, 4, 5): spreads plans over every interval
+	phase[s] = int(enemy.get_instance_id() % 120) # 120 = lcm(3, 4, 5, 6, 8): spreads plans over every interval
 	set_registry_slot(s, enemy)
 	_order.append(s)
 	return s
@@ -320,8 +333,9 @@ func physics_step(delta: float) -> void:
 	var tick: int = Engine.get_physics_frames()
 	_refresh_refs(tick)
 	var ppos: Vector2 = Vector2.ZERO
-	var has_player: bool = _player != null and is_instance_valid(_player)
-	if has_player:
+	var player_known: bool = _player != null and is_instance_valid(_player)
+	var has_player: bool = player_known
+	if player_known:
 		ppos = _player.global_position
 		player_y = ppos.y
 		if _player.has_method(&"is_pass_through") and _player.is_pass_through():
@@ -344,12 +358,15 @@ func physics_step(delta: float) -> void:
 	if profile_enabled:
 		last_hash_usec = Time.get_ticks_usec() - t0
 
+	SwarmState.fx_budget = FX_PER_TICK_MOBILE if EntityCaps.is_mobile() else FX_PER_TICK
 	var alive: int = SwarmState.alive_count
 	var lod: bool = alive >= EnemyController.SWARM_LOD_MIN_ALIVE
 	var interval: int = EnemyController.swarm_think_interval()
 	var statuses: Dictionary = StatusEffects.get_state()
 	var has_status: bool = not statuses.is_empty()
 	var tower_zone: float = _tower_radius
+	var far_sq: float = FAR_DISTANCE_PX * FAR_DISTANCE_PX
+	var check_far: bool = player_known and has_tower
 	var plans: int = 0
 	var plan_us: int = 0
 	var sync_us: int = 0
@@ -365,7 +382,15 @@ func physics_step(delta: float) -> void:
 		if has_status and statuses.has(uid[i]) and StatusEffects.is_frozen(ents[i]):
 			ents[i].swarm_frozen(now) # frozen: no movement, no attack (physics_step's own freeze gate)
 			continue
-		if needs_plan[i] == 1 or not lod or (tick + phase[i]) % interval == 0:
+		var far: bool = false
+		if check_far:
+			var fdx: float = p.x - ppos.x
+			var fdy: float = p.y - ppos.y
+			if fdx * fdx + fdy * fdy > far_sq:
+				var ftx: float = p.x - tpos.x
+				var fty: float = p.y - tpos.y
+				far = ftx * ftx + fty * fty > far_sq
+		if needs_plan[i] == 1 or not lod or (tick + phase[i]) % (interval * 2 if far else interval) == 0:
 			needs_plan[i] = 0
 			plans += 1
 			var e = ents[i]
@@ -432,14 +457,16 @@ func physics_step(delta: float) -> void:
 						np = tcand
 		if np != p:
 			pos[i] = np
-			var ts0: int = Time.get_ticks_usec() if profile_enabled else 0
-			var e3: Node2D = ents[i] as Node2D
-			e3.global_position = np
-			var rs: int = regslot[i]
-			if rs >= 0:
-				_registry.update_position_by_slot(rs, np)
-			if profile_enabled:
-				sync_us += Time.get_ticks_usec() - ts0
+			var sync_every: int = FAR_SYNC_TICKS if far else (NEAR_SYNC_TICKS if lod else 1)
+			if sync_every == 1 or (tick + phase[i]) % sync_every == 0:
+				var ts0: int = Time.get_ticks_usec() if profile_enabled else 0
+				var e3: Node2D = ents[i] as Node2D
+				e3.global_position = np
+				var rs: int = regslot[i]
+				if rs >= 0:
+					_registry.update_position_by_slot(rs, np)
+				if profile_enabled:
+					sync_us += Time.get_ticks_usec() - ts0
 	last_plan_count = plans
 	last_plan_usec = plan_us
 	last_sync_usec = sync_us

@@ -143,6 +143,33 @@ func test_leaving_the_tree_frees_the_slot_for_the_next_enemy() -> void:
 	a.free()
 
 
+# --- the hit path -------------------------------------------------------------------
+
+func test_a_brain_driven_seeker_in_reach_still_damages_the_tower() -> void:
+	var seeker: EnemyController = await _spawn(SeekerScene, Vector2(150, 0)) # walks the last 10 px into its attack ring
+	var before: float = _tower.health.current_shield + _tower.health.get_current_health() # the shield soaks the first hits
+	for _i in 140: # 2.3 s: the wind-up, the hit, the Hitbox pulse
+		await get_tree().physics_frame
+		_tick(1)
+	assert_float(_tower.health.current_shield + _tower.health.get_current_health()).append_failure_message("the swarm seeker never landed a hit on the Tower").is_less(before)
+	assert_bool(seeker.hitbox.top_level).is_true() # parked between pulses
+
+
+func test_a_brain_driven_hunter_in_reach_damages_the_player() -> void:
+	var player: Player = auto_free((load("res://scenes/player.tscn") as PackedScene).instantiate()) as Player
+	player.set_registry_for_test(_registry)
+	add_child(player)
+	player.global_position = Vector2(900, 0)
+	_registry.update_position(player, player.global_position)
+	var hunter: EnemyController = await _spawn(HunterScene, Vector2(930, 0))
+	var before: float = player.death_state.current_hp
+	for _i in 120:
+		await get_tree().physics_frame
+		_tick(1)
+		hunter.set_player_for_test(player)
+	assert_float(player.death_state.current_hp).append_failure_message("the swarm hunter never hurt the player").is_less(before)
+
+
 # --- movement -------------------------------------------------------------------
 
 func test_a_seeker_walks_toward_the_tower_without_a_physics_body() -> void:
@@ -370,3 +397,41 @@ func test_the_first_buffer_row_of_a_band_is_its_northernmost_enemy() -> void:
 	assert_int(order.size()).is_equal(2)
 	assert_int(order[0]).is_equal(high.get_swarm_slot())
 	assert_int(order[1]).is_equal(low.get_swarm_slot())
+
+
+# --- spawn budget and caps ------------------------------------------------------------
+
+func test_the_wave_director_spawn_budget_is_per_tick_and_halves_on_mobile() -> void:
+	var director: WaveDirector = auto_free(WaveDirector.new()) as WaveDirector
+	assert_int(director._spawn_tick_budget()).is_equal(WaveDirector.MAX_SPAWNS_PER_TICK)
+	EntityCaps.mobile_override = 1
+	assert_int(director._spawn_tick_budget()).is_equal(WaveDirector.MAX_SPAWNS_PER_TICK_MOBILE)
+	EntityCaps.mobile_override = -1
+	assert_int(director._spawn_tick_budget_used()).is_equal(0)
+	director._note_spawn_this_tick()
+	director._note_spawn_this_tick()
+	assert_int(director._spawn_tick_budget_used()).is_equal(2)
+	await get_tree().physics_frame # a new tick starts with a fresh budget
+	assert_int(director._spawn_tick_budget_used()).is_equal(0)
+
+
+func test_mobile_think_intervals_are_sparser_than_desktop() -> void:
+	SwarmState.alive_count = 160
+	var desktop: int = EnemyController.swarm_think_interval()
+	EntityCaps.mobile_override = 1
+	var mobile: int = EnemyController.swarm_think_interval()
+	EntityCaps.mobile_override = -1
+	SwarmState.alive_count = 0
+	assert_int(desktop).is_equal(EnemyController.SWARM_THINK_INTERVAL_MID_TICKS)
+	assert_int(mobile).is_equal(EnemyController.SWARM_THINK_MOBILE_HIGH_TICKS)
+	assert_int(mobile).is_greater(desktop)
+
+
+func test_hit_effects_per_tick_are_budgeted() -> void:
+	var seeker: EnemyController = await _spawn(SeekerScene, Vector2(700, 0))
+	SwarmState.fx_budget = 0
+	var numbers_before: int = DamageNumberFx._pool.size()
+	seeker.death_state.apply_damage(5.0, null) # no budget: it flashes and shows its bar, no blood or number
+	assert_int(DamageNumberFx._pool.size()).is_equal(numbers_before)
+	assert_int(_renderer.b_on[seeker.get_swarm_slot()]).is_equal(1)
+	SwarmState.fx_budget = 1000000

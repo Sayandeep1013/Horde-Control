@@ -93,6 +93,7 @@ var magnet_radius_px: float = 96.0
 ## (`set_player_hint`) so a pickup does not run a registry radius query (and, once
 ## attracted, a scan of every registry slot) of its own each tick. Unset (standalone
 ## pickups, tests with a fake registry player): the registry path as before.
+const BOB_NEAR_RADIUS_PX: float = 1300.0 # the bob is only animated within this distance of the player
 var _hint_set: bool = false
 var _hint_alive: bool = false
 var _hint_pos: Vector2 = Vector2.ZERO
@@ -148,6 +149,8 @@ func _physics_process(delta: float) -> void:
 func _update_bob() -> void:
 	if _sprite == null:
 		return
+	if _hint_set and global_position.distance_squared_to(_hint_pos) > BOB_NEAR_RADIUS_PX * BOB_NEAR_RADIUS_PX:
+		return # PT-PERF: off screen (farther than the camera shows from the player): nobody sees the bob
 	var phase: float = _sim_clock.now * BOB_FREQUENCY_HZ * TAU
 	_sprite.position.y = sin(phase) * BOB_AMPLITUDE_PX
 
@@ -307,6 +310,8 @@ func physics_step(delta: float) -> void:
 	_update_blink(age)
 	if is_expired():
 		return # PickupSystem despawns on its next check; no further motion once past lifetime
+	if _hint_set and not _attracted and (not _hint_alive or global_position.distance_squared_to(_hint_pos) > magnet_radius_px * magnet_radius_px):
+		return # PT-PERF: out of the magnet radius and never attracted: nothing below can apply (same test as the radius check)
 
 	if not _attracted:
 		if definition != null and definition.magnet_behaviour != ContractEnums.MagnetBehaviour.Attracted:

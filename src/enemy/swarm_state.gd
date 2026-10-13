@@ -14,6 +14,10 @@ static var flow_field_next_lookup: float = -INF
 ## and SwarmRenderer (draws them in one pass). Both null in isolated unit tests, where
 ## an enemy keeps its own per-node step and node visuals. Untyped on purpose (script
 ## cycle with EnemyController, see ShutdownHygiene / D256).
+## Hit effects (blood burst + splat, damage number) a swarm enemy may still spawn this
+## tick; SwarmBrain refills it every tick (Register "Swarm rendering"). A lethal hit's
+## damage number and the death burst are never skipped.
+static var fx_budget: int = 1000000
 static var brain: Node = null
 static var renderer: Node = null
 
@@ -24,3 +28,4 @@ static func reset() -> void:
 	flow_field_next_lookup = -INF
 	brain = null
 	renderer = null
+	fx_budget = 1000000

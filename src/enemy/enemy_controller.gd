@@ -138,6 +138,13 @@ const SWARM_THINK_INTERVAL_MID_TICKS: int = 4
 const SWARM_THINK_INTERVAL_MID_ALIVE: int = 150
 const SWARM_THINK_INTERVAL_HIGH_TICKS: int = 5
 const SWARM_THINK_INTERVAL_HIGH_ALIVE: int = 250
+## PT-PERF (D393): on mobile (EntityCaps.is_mobile(), 180 enemies at most) plans are
+## sparser: every 4th tick from 60 alive, every 6th from 100, every 8th from 140.
+const SWARM_THINK_MOBILE_TICKS: int = 4
+const SWARM_THINK_MOBILE_MID_ALIVE: int = 100
+const SWARM_THINK_MOBILE_MID_TICKS: int = 6
+const SWARM_THINK_MOBILE_HIGH_ALIVE: int = 140
+const SWARM_THINK_MOBILE_HIGH_TICKS: int = 8
 ## Beyond this distance from its target an enemy steers by the FlowField
 ## (group "flow_field") when one exists; closer in, slots and straight seeking.
 const FLOW_FIELD_MIN_DISTANCE_PX: float = 96.0
@@ -266,6 +273,9 @@ var _plan_radius: float = 0.0
 var _plan_claimed: int = -1
 var _plan_waiting: bool = false
 var _may_hold_claim: bool = false
+var _sw_plans: int = 0
+var _sw_claim_radius: float = -1.0
+var _sw_sep_radius: float = -1.0
 var _tr_target: Node2D = null
 var _tr_value: float = 0.0
 var _speed_base: float = -1.0
@@ -371,7 +381,7 @@ func _ready() -> void:
 	# PT-SWARM (D342): enemies no longer collide with each other physically;
 	# spacing comes from the spatial-hash separation in _apply_movement().
 	collision_mask = CollisionLayers.MASK_ENEMY_BODY_GROUND & ~CollisionLayers.LAYER_ENEMY_BODY
-	_think_phase = int(get_instance_id() % 60) # 60 = lcm(3, 4, 5): spreads plans over every interval
+	_think_phase = int(get_instance_id() % 120) # 120 = lcm(3, 4, 5, 6, 8): spreads plans over every interval
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 
 	body_shape = get_node_or_null(body_shape_path) as CollisionShape2D
@@ -920,12 +930,12 @@ func _is_in_attack_range(target: Node2D) -> bool:
 ## checkpoint (the rule is inherently windowed -- "over 2 seconds"), but
 ## un-blocking is applied immediately the instant the player leaves reach,
 ## matching "resumes the moment it is clear" literally.
-func _update_body_block_tracking() -> void:
+func _update_body_block_tracking(now_seconds: float = -1.0) -> void:
 	if _player == null or not is_instance_valid(_player):
 		_is_body_blocked = false
 		return
-	var now: float = _now()
-	var player_in_reach: bool = global_position.distance_to(_player.global_position) <= _reach()
+	var now: float = now_seconds if now_seconds >= 0.0 else _now()
+	var player_in_reach: bool = global_position.distance_to(_player.global_position) <= _reach_cached
 	if not player_in_reach:
 		_is_body_blocked = false
 	if _bodyblock_reference_time < 0.0:
@@ -1048,6 +1058,12 @@ func _coast_step() -> void:
 
 ## Ticks between two plans of a plain enemy at the current swarm size.
 static func swarm_think_interval() -> int:
+	if EntityCaps.is_mobile():
+		if SwarmState.alive_count >= SWARM_THINK_MOBILE_HIGH_ALIVE:
+			return SWARM_THINK_MOBILE_HIGH_TICKS
+		if SwarmState.alive_count >= SWARM_THINK_MOBILE_MID_ALIVE:
+			return SWARM_THINK_MOBILE_MID_TICKS
+		return SWARM_THINK_MOBILE_TICKS
 	if SwarmState.alive_count >= SWARM_THINK_INTERVAL_HIGH_ALIVE:
 		return SWARM_THINK_INTERVAL_HIGH_TICKS
 	if SwarmState.alive_count >= SWARM_THINK_INTERVAL_MID_ALIVE:
@@ -1056,8 +1072,8 @@ static func swarm_think_interval() -> int:
 
 
 ## See WEDGE_*: rotates `dir` off a flow lane while this enemy is wedged.
-func _unwedge(dir: Vector2) -> Vector2:
-	var now: float = _now()
+func _unwedge(dir: Vector2, now_seconds: float = -1.0) -> Vector2:
+	var now: float = now_seconds if now_seconds >= 0.0 else _now()
 	if now - _wedge_ref_time >= WEDGE_CHECK_SECONDS or _wedge_ref_pos == Vector2.INF:
 		if _wedge_ref_pos != Vector2.INF and now - _wedge_ref_time < WEDGE_CHECK_SECONDS * 3.0 and global_position.distance_to(_wedge_ref_pos) < WEDGE_MIN_PROGRESS_PX:
 			_wedge_until = now + WEDGE_NUDGE_SECONDS
@@ -1156,12 +1172,12 @@ static func reset_flow_field_cache() -> void:
 ## being measured against changes -- otherwise a post-switch tick would
 ## compare "distance to the NEW target now" against "distance to the OLD
 ## target a while ago", two unrelated numbers.
-func _update_stuck_tracking(target: Node2D, in_attack_range: bool, reach_distance: float = -1.0) -> void:
+func _update_stuck_tracking(target: Node2D, in_attack_range: bool, reach_distance: float = -1.0, now_seconds: float = -1.0) -> void:
 	if in_attack_range:
 		_clear_stuck_episode()
 		return
 	var exempt: bool = _plan_waiting
-	var now: float = _now()
+	var now: float = now_seconds if now_seconds >= 0.0 else _now()
 	var current_distance: float = reach_distance if reach_distance >= 0.0 else _reach_distance_to(target)
 	if exempt:
 		# A real bug lived here, found and fixed during this task's own
@@ -1270,7 +1286,7 @@ func _despawn_due_to_stuck(target: Node2D) -> void:
 ## continuously inside a permanently-open hitbox would only ever be hit
 ## once. This matches hitbox.gd's own documented usage pattern (docs/20 >
 ## SimLoop order step 6: "wind-up completion and contact ticks").
-func _process_attack_cycle(in_attack_range: bool, _target: Node2D) -> void:
+func _process_attack_cycle(in_attack_range: bool, _target: Node2D, now_seconds: float = -1.0) -> void:
 	if hitbox == null or definition == null or definition.attack_profile == null or definition.telegraph_data == null:
 		return
 	if not in_attack_range:
@@ -1283,7 +1299,7 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D) -> void:
 		_next_hit_time = -1.0 # leaving range cancels the cycle -- re-entry starts a fresh wind-up, never a banked instant hit
 		return
 
-	var now: float = _now()
+	var now: float = now_seconds if now_seconds >= 0.0 else _now()
 	if _hitbox_active_ticks_remaining > 0:
 		_hitbox_active_ticks_remaining -= 1
 		if _hitbox_active_ticks_remaining == 0:
@@ -1300,6 +1316,8 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D) -> void:
 			_sv.marker_on(_swarm_slot, now, definition.telegraph_data.windup_duration_seconds)
 
 	if now >= _next_hit_time:
+		if _swarm_slot >= 0:
+			hitbox.global_position = global_position # a parked swarm Hitbox joins its enemy for the pulse
 		hitbox.activate_window()
 		_hitbox_active_ticks_remaining = 2 # brief pulse -- long enough for the deferred `monitoring=true` to land and for Area2D to detect the overlap (matches ghost_hit_test.gd's own one-frame-settle precedent, plus one tick of margin)
 		attack_resolved.emit(_target, float(definition.attack_profile.damage_per_hit_or_tick))
@@ -1351,10 +1369,10 @@ func _on_hurtbox_damage_received(_amount: float, source: Variant, _hitbox: Node)
 
 # --- Player Hunter leash rule ------------------------------------------------
 
-func _update_leash() -> void:
+func _update_leash(now_seconds: float = -1.0) -> void:
 	if is_finisher or _leash_deadline < 0.0:
 		return
-	var now: float = _now()
+	var now: float = now_seconds if now_seconds >= 0.0 else _now()
 	if _leash_telegraph_active:
 		if now >= _leash_deadline + tuning.leash_telegraph_seconds:
 			_convert_to_tower_seeker()
@@ -1535,6 +1553,12 @@ func _join_swarm() -> bool:
 	collision_mask = 0
 	if body_shape != null:
 		body_shape.disabled = true
+	if hitbox != null:
+		# The attack Hitbox is idle (monitoring off, shape disabled) except for its 2-tick
+		# pulse, so it does not follow the enemy: top-level, parked, moved onto the enemy
+		# only when an attack opens its window (see _process_attack_cycle).
+		hitbox.top_level = true
+		hitbox.global_position = global_position
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	var renderer: Node = SwarmState.renderer
 	if renderer != null and is_instance_valid(renderer):
@@ -1618,17 +1642,25 @@ func swarm_plan(brain: Node, slot: int, now: float) -> bool:
 		return true
 	if _player == null or not is_instance_valid(_player):
 		_player = brain.player_node() # the brain resolves them once per tick, not one registry scan per enemy
+		if _player == null:
+			_resolve_player_reference()
 	if _tower == null or not is_instance_valid(_tower):
 		_tower = brain.tower_node()
-	_resolve_player_reference()
-	_resolve_tower_reference()
-	if current_intent == ContractEnums.TargetIntent.PlayerHunter:
-		_update_leash()
+		if _tower == null:
+			_resolve_tower_reference()
+	var intent: ContractEnums.TargetIntent = current_intent
+	var target: Node2D
+	if intent == ContractEnums.TargetIntent.TowerSeeker:
+		target = _tower
+	elif intent == ContractEnums.TargetIntent.PlayerHunter:
+		_update_leash(now)
 		if _stuck_despawned or (death_state != null and death_state.is_dead):
 			return false
-	if current_intent == ContractEnums.TargetIntent.Opportunist and (_opportunist_target == null or not is_instance_valid(_opportunist_target)):
-		_pick_opportunist_initial_target()
-	var target: Node2D = _get_current_target()
+		target = _player
+	else:
+		if _opportunist_target == null or not is_instance_valid(_opportunist_target):
+			_pick_opportunist_initial_target()
+		target = _opportunist_target
 	if target == null or not is_instance_valid(target):
 		velocity = Vector2.ZERO
 		_coast_in_range = false
@@ -1642,33 +1674,49 @@ func swarm_plan(brain: Node, slot: int, now: float) -> bool:
 		_tr_value = _target_radius(target)
 	var centre_distance: float = here.distance_to(target.global_position)
 	var reach_distance: float = maxf(centre_distance - _tr_value - _body_radius_cached, 0.0) # _reach_distance_to()
-	var is_seeker: bool = current_intent == ContractEnums.TargetIntent.TowerSeeker
+	var is_seeker: bool = intent == ContractEnums.TargetIntent.TowerSeeker
 	if is_seeker:
-		_update_body_block_tracking()
+		_update_body_block_tracking(now)
 	else:
 		_is_body_blocked = false
 	var in_attack_range: bool = reach_distance <= _reach_cached or (is_seeker and _is_body_blocked) # _is_in_attack_range()
-	_plan_reset()
-	if not in_attack_range and not _direct_approach:
+	if _sw_claim_radius < 0.0:
+		_sw_claim_radius = tuning.attack_slot_claim_radius_px
+	if in_attack_range or _direct_approach:
+		_plan_slot_count = 0
+		_plan_radius = 0.0
+		_plan_claimed = -1
+		_plan_waiting = false
+	elif _may_hold_claim or target != _plan_cache_target or _tr_value != _plan_cache_target_radius or absf(centre_distance - _plan_cache_radius) <= _sw_claim_radius:
+		_plan_reset()
 		_compute_slot_plan(target, _tr_value, centre_distance)
-	if boss_id == "":
-		_update_stuck_tracking(target, in_attack_range, reach_distance)
+	else: # still on its way in: no claim, no wait
+		_plan_slot_count = _plan_cache_count
+		_plan_radius = _plan_cache_radius
+		_plan_claimed = -1
+		_plan_waiting = false
+	_sw_plans += 1
+	if boss_id == "" and (_sw_plans & 3) == 0:
+		# PT-PERF: the stuck ladder counts seconds (3, 8, 20), so it is sampled every 4th
+		# think (about 0.25 s at the busiest LOD) instead of on every one.
+		_update_stuck_tracking(target, in_attack_range, reach_distance, now)
 	if _stuck_despawned:
 		return false
-	if current_intent == ContractEnums.TargetIntent.Opportunist:
+	if intent == ContractEnums.TargetIntent.Opportunist:
 		_update_opportunist_out_of_range(target)
 	var v: Vector2 = Vector2.ZERO
 	if not in_attack_range:
 		var desired: Vector2 = _desired_position(target)
 		var flow_kind: StringName = &""
 		if _plan_claimed == -1 and not _plan_waiting:
-			flow_kind = _flow_kind_for(target) # direct approach too: a straight line into the moat never arrives
-		v = _swarm_steer(here, desired, _swarm_speed(), flow_kind, brain, slot)
+			flow_kind = &"tower" if target == _tower else (&"player" if target == _player else &"") # _flow_kind_for(); direct approach too: a straight line into the moat never arrives
+		v = _swarm_steer(here, desired, _swarm_speed(), flow_kind, brain, slot, now)
 	_sw_vel = v
 	velocity = v
 	_coast_in_range = in_attack_range
 	_coast_target = target
-	_process_attack_cycle(in_attack_range, target)
+	if in_attack_range or _windup_active or _hitbox_active_ticks_remaining > 0 or _next_hit_time >= 0.0:
+		_process_attack_cycle(in_attack_range, target, now) # in a clean out-of-range state it would only reset what is already reset
 	_sw_attn = in_attack_range or _windup_active or _hitbox_active_ticks_remaining > 0 or _next_hit_time >= 0.0
 	if _sv != null:
 		_sv_after_plan(v, now)
@@ -1687,9 +1735,9 @@ func _swarm_speed() -> float:
 
 ## A tick between two plans while the attack cycle is live (in range, a wind-up
 ## running, or the hitbox pulse open): only the cycle runs, on the last plan's target.
-func swarm_coast(_now_seconds: float) -> void:
+func swarm_coast(now_seconds: float) -> void:
 	if _coast_target != null and is_instance_valid(_coast_target):
-		_process_attack_cycle(_coast_in_range, _coast_target)
+		_process_attack_cycle(_coast_in_range, _coast_target, now_seconds)
 	_sw_attn = _coast_in_range or _windup_active or _hitbox_active_ticks_remaining > 0 or _next_hit_time >= 0.0
 
 
@@ -1702,7 +1750,7 @@ func swarm_frozen(now: float) -> void:
 
 ## Seek plus separation, the old _apply_movement() minus move_and_slide(): the
 ## separation comes from the brain's spatial hash instead of a registry radius query.
-func _swarm_steer(here: Vector2, desired_position: Vector2, speed: float, flow_kind: StringName, brain: Node, slot: int) -> Vector2:
+func _swarm_steer(here: Vector2, desired_position: Vector2, speed: float, flow_kind: StringName, brain: Node, slot: int, now: float) -> Vector2:
 	var to_desired: Vector2 = desired_position - here
 	var dist2: float = to_desired.length_squared()
 	var seek: Vector2 = to_desired.normalized() if dist2 > 1.0 else Vector2.ZERO
@@ -1711,10 +1759,14 @@ func _swarm_steer(here: Vector2, desired_position: Vector2, speed: float, flow_k
 		if ff != null:
 			var flow: Vector2 = ff.direction_to(flow_kind, here)
 			if flow != Vector2.ZERO:
-				seek = _unwedge(flow)
+				seek = _unwedge(flow, now)
 	var separation: Vector2 = Vector2.ZERO
-	if tuning.separation_neighbor_radius_px > 0.0:
-		separation = brain.separation_at(slot, here, tuning.separation_neighbor_radius_px)
+	var sep_radius: float = _sw_sep_radius
+	if sep_radius < 0.0:
+		sep_radius = tuning.separation_neighbor_radius_px
+		_sw_sep_radius = sep_radius
+	if sep_radius > 0.0:
+		separation = brain.separation_at(slot, here, sep_radius)
 	var steering: Vector2 = seek + separation
 	return steering.normalized() * speed if steering.length_squared() > 0.0001 else Vector2.ZERO
 
@@ -1840,8 +1892,15 @@ func _sv_on_damage(amount: float, source: Variant, remaining_hp: float) -> void:
 	var here: Vector2 = global_position
 	var container: Node = get_parent()
 	_sv_last_hit_dir = BloodFx.direction_away_from(source, here)
-	BloodFx.spawn_hit(container, here, _sv_last_hit_dir, BloodFx.Tier.HIT)
-	DamageNumberFx.spawn(container, here, amount, remaining_hp <= 0.0)
+	# A burst of hits in one tick (an area ability on a crowd) spawns a bounded number of
+	# blood and number effects; the rest only flash. A lethal hit keeps its number.
+	var lethal: bool = remaining_hp <= 0.0
+	if SwarmState.fx_budget > 0:
+		SwarmState.fx_budget -= 1
+		BloodFx.spawn_hit(container, here, _sv_last_hit_dir, BloodFx.Tier.HIT)
+		DamageNumberFx.spawn(container, here, amount, lethal)
+	elif lethal:
+		DamageNumberFx.spawn(container, here, amount, true)
 
 
 ## StatusEffectsRunner tint (burn, slow, freeze): kind 0..3, see SwarmRenderer.TINT_*.

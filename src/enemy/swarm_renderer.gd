@@ -692,7 +692,16 @@ func mark_dirty() -> void:
 	_dirty = true
 
 
+## Dev: wall time of the last _process (fill included) and the overlay draw, microseconds.
+var profile_enabled: bool = false
+var prof_process_usec: int = 0
+var prof_fill_usec: int = 0
+var prof_overlay_usec: int = 0
+var prof_fills: int = 0
+
+
 func _process(_delta: float) -> void:
+	var t_start: int = Time.get_ticks_usec() if profile_enabled else 0
 	var frac: float = Engine.get_physics_interpolation_fraction()
 	_enemy_material.set_shader_parameter("tick_clock", float(tick_of(SimClock.now) & (TICK_RANGE - 1)))
 	_enemy_material.set_shader_parameter("phys_frac", frac)
@@ -700,12 +709,18 @@ func _process(_delta: float) -> void:
 	_shadow_material.set_shader_parameter("phys_frac", frac)
 	if _dirty:
 		_dirty = false
+		var t_fill: int = Time.get_ticks_usec() if profile_enabled else 0
 		_fill()
+		if profile_enabled:
+			prof_fill_usec += Time.get_ticks_usec() - t_fill
+			prof_fills += 1
 	if not _bar_slots.is_empty() or not _marker_slots.is_empty():
 		_overlay.queue_redraw()
 	elif _overlay_has_content:
 		_overlay_has_content = false
 		_overlay.queue_redraw()
+	if profile_enabled:
+		prof_process_usec += Time.get_ticks_usec() - t_start
 
 
 var _overlay_has_content: bool = false
@@ -843,6 +858,13 @@ func _hide_band(b: int) -> void:
 
 ## Draws the wind-up markers and the health bars (called from SwarmOverlay._draw).
 func draw_overlay(canvas: CanvasItem) -> void:
+	var t_overlay: int = Time.get_ticks_usec() if profile_enabled else 0
+	_draw_overlay_impl(canvas)
+	if profile_enabled:
+		prof_overlay_usec += Time.get_ticks_usec() - t_overlay
+
+
+func _draw_overlay_impl(canvas: CanvasItem) -> void:
 	var brain: Node = SwarmState.brain
 	if brain == null:
 		return
