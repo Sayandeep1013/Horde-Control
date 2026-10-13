@@ -888,6 +888,12 @@ func set_shadow_step(damage: float, extra_invulnerable_seconds: float) -> void:
 	_shadow_step_invuln = maxf(0.0, extra_invulnerable_seconds)
 
 
+## PT-PERF (D390): true while a dash passes through enemy bodies; SwarmBrain does not
+## push enemies out of the player's circle then (they have no collision bodies).
+func is_pass_through() -> bool:
+	return _dash_pass_through
+
+
 func _end_dash() -> void:
 	_dash_active = false
 	_set_pass_through(false)

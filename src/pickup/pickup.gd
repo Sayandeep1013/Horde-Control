@@ -89,6 +89,25 @@ var spawn_serial: int = -1
 ## copy -- see pickup_system.gd's `_resolve_magnet_radius_px()`.
 var magnet_radius_px: float = 96.0
 
+## PT-PERF (D390): PickupSystem hands every pickup the live player position once per tick
+## (`set_player_hint`) so a pickup does not run a registry radius query (and, once
+## attracted, a scan of every registry slot) of its own each tick. Unset (standalone
+## pickups, tests with a fake registry player): the registry path as before.
+const BOB_NEAR_RADIUS_PX: float = 1300.0 # the bob is only animated within this distance of the player
+var _hint_set: bool = false
+var _hint_alive: bool = false
+var _hint_pos: Vector2 = Vector2.ZERO
+
+
+func set_player_hint(player_position: Vector2, player_alive: bool) -> void:
+	_hint_set = true
+	_hint_alive = player_alive
+	_hint_pos = player_position
+
+
+func clear_player_hint() -> void:
+	_hint_set = false
+
 var _lifetime_seconds: float = LIFETIME_SECONDS_DEFAULT
 var _spawn_time: float = 0.0
 var _attracted: bool = false
@@ -130,6 +149,8 @@ func _physics_process(delta: float) -> void:
 func _update_bob() -> void:
 	if _sprite == null:
 		return
+	if _hint_set and global_position.distance_squared_to(_hint_pos) > BOB_NEAR_RADIUS_PX * BOB_NEAR_RADIUS_PX:
+		return # PT-PERF: off screen (farther than the camera shows from the player): nobody sees the bob
 	var phase: float = _sim_clock.now * BOB_FREQUENCY_HZ * TAU
 	_sprite.position.y = sin(phase) * BOB_AMPLITUDE_PX
 
@@ -289,23 +310,35 @@ func physics_step(delta: float) -> void:
 	_update_blink(age)
 	if is_expired():
 		return # PickupSystem despawns on its next check; no further motion once past lifetime
+	if _hint_set and not _attracted and (not _hint_alive or global_position.distance_squared_to(_hint_pos) > magnet_radius_px * magnet_radius_px):
+		return # PT-PERF: out of the magnet radius and never attracted: nothing below can apply (same test as the radius check)
 
 	if not _attracted:
 		if definition != null and definition.magnet_behaviour != ContractEnums.MagnetBehaviour.Attracted:
 			return # Static pickups (Pickup Definition Contract) never attract -- no prototype pickup uses this, but the schema allows it, so it is honoured rather than assumed away
-		var nearby_players: Array[Node2D] = _registry.get_entities_in_radius(global_position, magnet_radius_px, &"player")
-		if nearby_players.is_empty():
-			return # Register: "a pickup that has never been attracted does not simulate at all" -- no motion, no raycast below this point
+		if _hint_set:
+			if not _hint_alive or global_position.distance_squared_to(_hint_pos) > magnet_radius_px * magnet_radius_px:
+				return # same test as the registry radius query below: an alive player within the magnet radius
+		else:
+			var nearby_players: Array[Node2D] = _registry.get_entities_in_radius(global_position, magnet_radius_px, &"player")
+			if nearby_players.is_empty():
+				return # Register: "a pickup that has never been attracted does not simulate at all" -- no motion, no raycast below this point
 		_attracted = true
 		_current_speed_px_per_second = INITIAL_SPEED_PX_PER_SECOND
 
 	# Sticky (Register): once attracted, keep chasing the player regardless
 	# of current distance, so a fresh in-radius check is wrong here -- pull
 	# the player's live position unconditionally instead.
-	var players: Array[Node2D] = _registry.get_entities_with_tag(&"player")
-	if players.is_empty():
-		return # no player registered to chase (edge case) -- hold position, keep accruing lifetime
-	var target_position: Vector2 = players[0].global_position
+	var target_position: Vector2
+	if _hint_set:
+		if not _hint_alive:
+			return
+		target_position = _hint_pos
+	else:
+		var players: Array[Node2D] = _registry.get_entities_with_tag(&"player")
+		if players.is_empty():
+			return # no player registered to chase (edge case) -- hold position, keep accruing lifetime
+		target_position = players[0].global_position
 
 	_current_speed_px_per_second = minf(_current_speed_px_per_second + ACCELERATION_PX_PER_SECOND_SQUARED * delta, MAX_SPEED_PX_PER_SECOND)
 

@@ -496,10 +496,18 @@ func _despawn_pickup(pickup: Pickup) -> void:
 ## reached within its lifetime simply expires; no orphan remains").
 func step_pickup_movement_and_collection(delta: float) -> void:
 	var current_magnet_radius: float = _resolve_magnet_radius_px()
+	# PT-PERF (D390): one player lookup per tick instead of one registry query per pickup.
+	var have_player: bool = _player != null and is_instance_valid(_player) and _player.death_state != null
+	var player_pos: Vector2 = _player.global_position if have_player else Vector2.ZERO
+	var player_alive: bool = have_player and not _player.death_state.is_dead
 	for pickup in _active_pickups.duplicate():
 		if not is_instance_valid(pickup):
 			_active_pickups.erase(pickup)
 			continue
+		if have_player:
+			pickup.set_player_hint(player_pos, player_alive)
+		else:
+			pickup.clear_player_hint()
 		pickup.magnet_radius_px = current_magnet_radius
 		pickup.physics_step(delta)
 		if pickup.is_expired():

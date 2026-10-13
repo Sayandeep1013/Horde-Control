@@ -1152,10 +1152,38 @@ func _process_spawn_groups(encounter: EncounterDefinition) -> void:
 				if due_time - now <= SPAWN_WARNING_LEAD_SECONDS:
 					_warn_upcoming_spawn(encounter, group, group_index, emitted, burst)
 				break
+			if SwarmState.brain != null and _spawn_tick_budget_used() >= _spawn_tick_budget():
+				return # PT-PERF (D393): a burst larger than the per-tick budget spreads over the next ticks (still due, nothing is dropped)
 			if not _attempt_spawn(encounter, group, group_index, emitted):
 				break # throttled or invalid this tick -- retries next tick WITHOUT consuming budget (Register: both throttle and "no valid candidate" share this rule)
+			_note_spawn_this_tick()
 			emitted += 1
 			_group_emitted_counts[group_index] = emitted
+
+
+## PT-PERF (D393): spawning a plain enemy costs ~0.5 ms (instantiate, physics areas,
+## registration), so with a SwarmBrain in the tree no more than MAX_SPAWNS_PER_TICK
+## (SPAWN_BUDGET_MOBILE on mobile) fodder spawn in one physics tick.
+const MAX_SPAWNS_PER_TICK: int = 12
+const MAX_SPAWNS_PER_TICK_MOBILE: int = 6
+var _spawn_budget_frame: int = -1
+var _spawn_budget_count: int = 0
+
+
+func _spawn_tick_budget() -> int:
+	return MAX_SPAWNS_PER_TICK_MOBILE if EntityCaps.is_mobile() else MAX_SPAWNS_PER_TICK
+
+
+func _spawn_tick_budget_used() -> int:
+	return _spawn_budget_count if _spawn_budget_frame == Engine.get_physics_frames() else 0
+
+
+func _note_spawn_this_tick() -> void:
+	var frame: int = Engine.get_physics_frames()
+	if _spawn_budget_frame != frame:
+		_spawn_budget_frame = frame
+		_spawn_budget_count = 0
+	_spawn_budget_count += 1
 
 
 ## PT-SWARM (D344): a boss wave's non-boss group re-arms once the boss has

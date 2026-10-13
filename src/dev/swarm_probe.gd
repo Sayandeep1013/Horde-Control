@@ -52,6 +52,16 @@ var _t_phys: int = 0
 var _t_proc: int = 0
 var _phys_sum2: int = 0
 var _idle_sum: int = 0
+var frames_total: int = 0
+var draw_calls_sum: float = 0.0
+var draw_objects_sum: float = 0.0
+var draw_prims_sum: float = 0.0
+var brain_hash_us: int = 0
+var brain_loop_us: int = 0
+var brain_plans: int = 0
+var brain_plan_us: int = 0
+var brain_sync_us: int = 0
+var brain_frames: int = 0
 var spawn_rng := RandomNumberGenerator.new()
 var bombs_seen: int = 0
 var bullets_seen: int = 0
@@ -84,6 +94,8 @@ func _initialize() -> void:
 		elif a.begins_with("--player-offset="):
 			var xy: PackedStringArray = a.trim_prefix("--player-offset=").split(",")
 			player_offset = Vector2(float(xy[0]), float(xy[1]))
+		elif a == "--mobile":
+			(load("res://src/core/entity_caps.gd") as Script).set("mobile_override", 1) # the phone caps and LOD
 		elif a.begins_with(PROFILE_FLAG): has_profile = true
 	if not has_profile:
 		push_error("swarm_probe: refusing to run without --meta-profile-dir=<sandbox dir>")
@@ -201,8 +213,20 @@ func _process(_delta: float) -> bool:
 		if now >= next_boss_log:
 			next_boss_log = now + 5.0
 			var cs2: Node = root.get_node("CombatStats")
-			print("PROBE_WATCH t=%.1f wave=%d alive=%d kills=%.0f pdmg=%.0f tdmg=%.0f" % [now, wd.get_current_wave_number(), reg.get_live_enemy_count(), cs2.get_run_counter("kills"), cs2.get_run_counter("damage_taken"), cs2.get_run_counter("tower_damage_taken")])
+			var near_t: int = 0
+			var near_p: int = 0
+			var attacking: int = 0
+			for en in reg.get_entities_with_tag(&"enemy"):
+				var dt: float = (en as Node2D).global_position.distance_to(tower.global_position)
+				if dt < 175.0:
+					near_t += 1
+				if (en as Node2D).global_position.distance_to(player.global_position) < 80.0:
+					near_p += 1
+				if en.has_method("is_windup_active") and en.is_windup_active():
+					attacking += 1
+			print("PROBE_WATCH t=%.1f wave=%d alive=%d kills=%.0f pdmg=%.0f tdmg=%.0f near_tower=%d near_player=%d windups=%d" % [now, wd.get_current_wave_number(), reg.get_live_enemy_count(), cs2.get_run_counter("kills"), cs2.get_run_counter("damage_taken"), cs2.get_run_counter("tower_damage_taken"), near_t, near_p, attacking])
 		if now > max_seconds:
+			print("PROBE_WATCH_DMG ", str(root.get_node("CombatStats").get_damage_by_source()))
 			quit(0)
 			return true
 	elif probe == "perf":
@@ -217,12 +241,29 @@ func _process(_delta: float) -> bool:
 				var near: Vector2 = player.global_position + Vector2.from_angle(spawn_rng.randf() * TAU) * spawn_rng.randf_range(450.0, 800.0)
 				wd.spawn_summons(ids[i % ids.size()], 4, near)
 		if frames > warmup_frames:
+			frames_total += 1
 			samples.append(dt_ms)
 			alive_sum += alive
 			proc_sum += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
 			phys_sum += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
+			draw_calls_sum += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+			draw_objects_sum += Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)
+			draw_prims_sum += Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
 			pairs_sum += Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS)
+			var brain: Node = _n("Main/SwarmBrain")
+			if brain != null and brain.get("profile_enabled"):
+				brain_hash_us += int(brain.get("last_hash_usec"))
+				brain_loop_us += int(brain.get("last_loop_usec"))
+				brain_plans += int(brain.get("last_plan_count"))
+				brain_plan_us += int(brain.get("last_plan_usec"))
+				brain_sync_us += int(brain.get("last_sync_usec"))
+				brain_frames += 1
 			if samples.size() == 1:
+				var rnd: Node = _n("Main/Entities/SwarmRenderer")
+				if rnd != null:
+					rnd.set("profile_enabled", true)
+				if brain != null:
+					brain.set("profile_enabled", true)
 				_phys_sum2 = 0
 				_idle_sum = 0
 				var sls: Script = load("res://src/core/sim_loop.gd")
@@ -236,6 +277,16 @@ func _process(_delta: float) -> bool:
 				for i in usec.size():
 					total_us += usec[i]
 					parts.append("s%d=%.2f" % [i + 1, usec[i] / 1000.0 / measure_frames])
+				var ffn: Node = _n("Main/Environment/ArenaInstance/FlowField")
+				if ffn != null:
+					print("PROBE_FLOW last_player_ms=%.2f recomputes=%s tower_ms=%.2f" % [float(ffn.get("last_player_usec")) / 1000.0, ffn.get("player_recomputes"), float(ffn.get("last_tower_usec")) / 1000.0])
+				var asm: Script = load("res://src/enemy/attack_slot_manager.gd")
+				print("PROBE_DRAW draw_calls=%.0f objects=%.0f primitives=%.0f (frame average)" % [draw_calls_sum / measure_frames, draw_objects_sum / measure_frames, draw_prims_sum / measure_frames])
+				var rr: Node = _n("Main/Entities/SwarmRenderer")
+				if rr != null:
+					print("PROBE_RENDERER process_ms=%.2f fill_ms=%.2f overlay_draw_ms=%.2f (per rendered frame, %d frames)" % [float(rr.get("prof_process_usec")) / 1000.0 / measure_frames, float(rr.get("prof_fill_usec")) / 1000.0 / measure_frames, float(rr.get("prof_overlay_usec")) / 1000.0 / measure_frames, measure_frames])
+				if brain_frames > 0:
+					print("PROBE_BRAIN hash_ms=%.2f loop_total_ms=%.2f plans_per_tick=%.1f plan_ms=%.2f node_sync_ms=%.2f" % [brain_hash_us / 1000.0 / brain_frames, brain_loop_us / 1000.0 / brain_frames, float(brain_plans) / brain_frames, brain_plan_us / 1000.0 / brain_frames, brain_sync_us / 1000.0 / brain_frames])
 				print("PROBE_STEPS simloop_ms=%.2f %s" % [total_us / 1000.0 / measure_frames, " ".join(parts)])
 				_report_perf()
 				return true
@@ -339,5 +390,7 @@ func _apply_toggles(reg: Node) -> void:
 			var hx2: Node = e.get_node_or_null("Hitbox")
 			if hx2 != null:
 				e.remove_child(hx2)
+		if toggles.has("hold_all") and e.has_method("swarm_hold_for_test"):
+			e.swarm_hold_for_test(true)
 		if toggles.has("hide"):
 			(e as CanvasItem).visible = false

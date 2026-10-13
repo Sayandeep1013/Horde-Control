@@ -58,6 +58,10 @@ var _off_dx: PackedInt32Array = PackedInt32Array()
 var _off_dy: PackedInt32Array = PackedInt32Array()
 var _off_cost: PackedInt32Array = PackedInt32Array()
 var _blocked_rects: Array[Rect2] = []
+var _dir_tower: PackedVector2Array = PackedVector2Array()
+var _dir_ok_tower: PackedByteArray = PackedByteArray()
+var _dir_player: PackedVector2Array = PackedVector2Array()
+var _dir_ok_player: PackedByteArray = PackedByteArray()
 
 
 func _ready() -> void:
@@ -142,8 +146,19 @@ func build(blocked_rects: Array[Rect2], tower_pos: Vector2, tower_radius: float)
 	_walkable_list = reachable
 	_player_dist = _new_dist()
 	_player_cell = -1
+	_reset_dir_caches()
 	if debug_draw:
 		queue_redraw()
+
+
+func _reset_dir_caches() -> void:
+	var n: int = _tower_dist.size()
+	_dir_tower.resize(n)
+	_dir_ok_tower.resize(n)
+	_dir_ok_tower.fill(0)
+	_dir_player.resize(n)
+	_dir_ok_player.resize(n)
+	_dir_ok_player.fill(0)
 
 
 ## Call when the arena changes (a blocker added or removed): rebuilds the mask and the Tower field.
@@ -257,6 +272,20 @@ func _cell_center(i: int) -> Vector2:
 	return _origin + Vector2(x + 0.5, y + 0.5) * CELL_PX
 
 
+## PT-PERF (D390): the padded walkability mask for batched movement (SwarmBrain):
+## cell (x, y) of the grid is byte (y + 1) * row_stride() + x + 1. Read only.
+func walk_mask() -> PackedByteArray:
+	return _walk
+
+
+func row_stride() -> int:
+	return _pw
+
+
+func grid_origin() -> Vector2:
+	return _origin
+
+
 func is_walkable(world_pos: Vector2) -> bool:
 	var i: int = _cell_index(world_pos)
 	return i >= 0 and _walk[i] == 1
@@ -296,6 +325,16 @@ func direction_to(target_kind: StringName, world_pos: Vector2) -> Vector2:
 		return (_cell_center(best) - world_pos).normalized()
 	if d == 0:
 		return Vector2.ZERO
+	# PT-PERF (D390): the summed neighbour direction depends on the cell only, so it is
+	# cached per cell (the Tower field never changes; the player field is cleared on
+	# every recompute). Cells that fall through to a position-dependent heading are not
+	# cached.
+	var is_tower: bool = target_kind == KIND_TOWER
+	if is_tower:
+		if _dir_ok_tower[i] == 1:
+			return _dir_tower[i]
+	elif _dir_ok_player[i] == 1:
+		return _dir_player[i]
 	var sum := Vector2.ZERO
 	var fallback: int = -1
 	var fallback_d: int = d
@@ -312,7 +351,14 @@ func direction_to(target_kind: StringName, world_pos: Vector2) -> Vector2:
 			fallback_d = nd
 			fallback = n
 	if sum != Vector2.ZERO:
-		return sum.normalized()
+		var out: Vector2 = sum.normalized()
+		if is_tower:
+			_dir_tower[i] = out
+			_dir_ok_tower[i] = 1
+		else:
+			_dir_player[i] = out
+			_dir_ok_player[i] = 1
+		return out
 	if fallback >= 0:
 		return (_cell_center(fallback) - world_pos).normalized()
 	return Vector2.ZERO
@@ -362,6 +408,7 @@ func recompute_player_field(player_pos: Vector2) -> void:
 	_player_cell = c
 	_player_dist.fill(UNREACHED)
 	_flood(PackedInt32Array([c]), _player_dist)
+	_dir_ok_player.fill(0)
 	player_recomputes += 1
 	last_player_usec = Time.get_ticks_usec() - t0
 	if debug_draw:
