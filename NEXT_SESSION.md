@@ -1,5 +1,28 @@
 # Next Session — Start Here
 
+## PT-PHONE: making the phone smooth (2026-10-13, D395-D400)
+
+The author: "its kinda okay on pc but phone lags". Done (branch `worktree-agent-ab2308f12540e1d22`): 30 Hz mobile simulation with tick-rate-independent rules (`SimRate`, src/core/sim_rate.gd; dev flag `--sim-hz=30`), pooled plain enemies (a reused spawn 113 us against about 540 us), ground batching (`GroundBatch`: foam, bridges, scenery) and a one-call boss bullet field, HUD numbers at 20 Hz, hidden DebugOverlay idle, Draft icon warm-up, and the Show FPS plate (top-right under the Scrap panel, FPS + ms + worst frame + enemies alive; Settings > Video > Show FPS). **Ask the author for real phone numbers with Show FPS on** (a wave-10 to 13 fight, 30 s): the desktop proxy below is only a proxy.
+
+Desktop proxy, median of three interleaved runs, machine shared (load 13-27%), old build against new (`tools/dev/perf_bench.ps1`, `src/dev/swarm_probe.gd --probe=perf --start-wave=10`, no `--mobile` unless stated):
+
+| mode | 10 alive | 180 | 350 |
+|---|---|---|---|
+| headless, old | 3.98 | 7.93 | 12.14 |
+| headless, new | 3.03 | 7.16 | 10.27 |
+| Forward+ windowed, old | 7.30 | 11.12 | 14.80 |
+| Forward+ windowed, new | 6.23 | 9.53 | 13.63 |
+| Compatibility windowed, old | 10.27 | 16.20 | 19.86 |
+| Compatibility windowed, new | 9.28 | 14.55 | 18.22 |
+| draw calls, old (all modes) | 251 | 432 | 436 |
+| draw calls, new | 228 | 408 | 414 |
+
+Phone proxy (Compatibility, `--mobile` caps, mean frame ms; the median of a 30 Hz run is the cheap frame of every pair): 10 alive 11.06 old, 9.61 new at 60 Hz, 8.79 at 30 Hz; 180 alive 16.54, 14.05, 12.14. Parity of kills and damage at 60 and 30 Hz is in D395. Heavy wave 13 / 14 (Compatibility, mobile caps, 40 s idle player): p95 15.1, 15.4, 16.1 ms old; 15.5, 13.2, 12.7, 19.8 new at 60 Hz and 15.2, 13.4, 12.5, 21.0 at 30 Hz (the machine was shared and the spread between two runs of one build is as large as the gain, so no p95 claim is made for heavy waves; the 30 Hz frame pairs are one cheap frame and one that runs a tick); max 45-66 ms in every build, and the spikes line up with the level-up Draft opening (68 nodes created, the probe levels fast), none with a spawn burst.
+
+**Targets NOT met** (10 alive <= 6 ms, 180 alive <= 8.5 ms at 60 Hz and <= 6.5 ms at 30 Hz, draw calls <= 120 / 160): the new numbers are 9.3, 14.6 and about 12.1 (mean) with 228 and 408 calls. Where the time is (Compatibility, 10 alive, new): an empty window costs 2.6 ms a frame on this machine, the headless sim 3.0, the window's render CPU 2.5 and the rest is the main thread recording canvas items. Draw calls left (scan with `tools/dev/perf_scan.ps1 -Path Main@2`): HUD about 60 (four widgets; Labels with outlines alternate with rect bars, which breaks batches), Player overhead bar 16 while idle (the Focus glow: `draw_arc` / `draw_circle` are a draw call each), the first-run explainer 20, node-rendered enemies and effects about 27, Tower 8, pickups 9. Ideas in order: a cached HUD (SubViewport, update on change, needs input forwarding), the Focus glow as one textured quad, lean enemy scenes, a Draft that builds its cards ahead of time. Facts learned: `draw_circle`, `draw_polygon`, `draw_arc` and unfilled `draw_rect` are one draw call each on the Compatibility renderer, filled rects, lines, textured rects, Labels and ColorRects batch (microbenchmark in the D397 notes).
+
+Not verified: the real Android 30 Hz feature override (verified on the desktop by renaming the feature tag to `windows`: 30 Hz and 3 steps came out), touch controls at 30 Hz, `touch_selftest` (not re-run: no touch UI file changed). Behaviour differences are listed in D395-D400; the one to watch on the phone is the 67 ms Hitbox pulse.
+
 ## Mobile layout pass (2026-10-13, D370-D374)
 
 The author's phone report ("layout doesn't fit ... cut at the bottom, sides, sometimes up"): the UI was laid out for 1080 px of height and drawn on a 720 px logical canvas, with no safe-area handling on an immersive Android build. Done: `SafeArea` (src/ui/safe_area.gd) is the one place that converts the system safe area to logical px (24 px minimum margin on a phone, `--safe-inset=L,T,R,B` dev flag) and every full-screen UI root fits inside it; the mobile UI scale cap is 1.25 (864 px canvas, text still about 18 dp); Hub, Title, Draft, Field Guide and the shared menu frame were re-laid out (details in the Register rows "Safe-area margin", "Hub compact layout", "Phone Draft cards"). The dev audit `src/dev/layout_audit.tscn` (run `tools/dev/run_layout_audit.ps1`, read with `tools/dev/audit_report.py`) opens every screen at 7 phone/tablet sizes x 3 insets plus desktop and must stay at zero errors; screenshots are in sandbox/captures/mobile_layout/. **Not verified on a real phone:** `get_display_safe_area()` values, touch drag-scroll of the new Hub page area, and the gesture bar on Android 15+; try an APK build first.
