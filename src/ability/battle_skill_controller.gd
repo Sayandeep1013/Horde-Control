@@ -248,10 +248,10 @@ func _physics_process(_delta: float) -> void:
 			var p: Node2D = _get_player()
 			if p != null:
 				_pulse_horn(p, _get_tower(), 200.0)
-	# Ready cue.
+	# Ready state (no chime: the author found the two-note "skill ready" chime
+	# off-theme, 2026-10-13; the HUD button's ready glow carries it).
 	if not _was_ready and now >= _ready_at:
 		_was_ready = true
-		Sfx.play_ui("skill_ready")
 	# Input and auto-cast.
 	if _press_for_test or Input.is_action_just_pressed(&"battle_skill"):
 		_press_for_test = false

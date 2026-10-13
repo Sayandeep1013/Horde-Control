@@ -145,6 +145,7 @@ func test_mute_all_row_toggles_on_right_press() -> void:
 
 
 func test_display_mode_row_cycles_forward() -> void:
+	GameSettings.set_display_mode_for_test(GameSettings.DisplayMode.WINDOWED)
 	_menu.highlight_row_for_test(SettingsMenu.ROW_DISPLAY_MODE)
 	assert_int(GameSettings.get_display_mode()).is_equal(GameSettings.DisplayMode.WINDOWED)
 	_menu.press_action_once_for_test(&"move_right")
@@ -351,6 +352,7 @@ func test_toggle_rows_change_once_per_press_with_no_auto_repeat() -> void:
 
 
 func test_display_mode_row_changes_once_per_press_with_no_auto_repeat() -> void:
+	GameSettings.set_display_mode_for_test(GameSettings.DisplayMode.WINDOWED)
 	_menu.highlight_row_for_test(SettingsMenu.ROW_DISPLAY_MODE)
 	_hold_direction(&"move_right", SettingsMenu.CYCLE_REPEAT_SECONDS * 3.0 + STEP)
 	assert_int(GameSettings.get_display_mode()).append_failure_message("Display Mode must advance exactly one step per press, not repeat while held").is_equal(GameSettings.DisplayMode.FULLSCREEN)

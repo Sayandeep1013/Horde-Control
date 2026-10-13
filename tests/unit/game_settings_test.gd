@@ -58,7 +58,7 @@ func test_defaults_match_the_register_row() -> void:
 	assert_int(GameSettings.get_music_volume_pct()).is_equal(70)
 	assert_int(GameSettings.get_effects_volume_pct()).is_equal(80)
 	assert_bool(GameSettings.is_mute_all()).is_false()
-	assert_int(GameSettings.get_display_mode()).is_equal(GameSettings.DisplayMode.WINDOWED)
+	assert_int(GameSettings.get_display_mode()).is_equal(GameSettings.DisplayMode.FULLSCREEN)
 	assert_bool(GameSettings.is_vsync_enabled()).is_true()
 	assert_bool(GameSettings.is_screen_shake_enabled()).is_true()
 	assert_bool(GameSettings.are_damage_numbers_enabled()).is_true()

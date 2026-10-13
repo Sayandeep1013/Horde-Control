@@ -72,9 +72,7 @@ func set_skill_state(id: String, remaining: float, total: float, is_ready: bool)
 		skill_id = id
 	cooldown_remaining = maxf(0.0, remaining)
 	cooldown_total = maxf(0.0, total)
-	if is_ready and not _was_ready and is_inside_tree() and not GameSettings.is_reduce_flashing():
-		Sfx.play_ui("skill_ready")
-	_was_ready = is_ready
+	_was_ready = is_ready # no "skill ready" chime (author, 2026-10-13: off-theme)
 	skill_ready = is_ready
 	queue_redraw()
 

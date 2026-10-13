@@ -124,7 +124,10 @@ const DEFAULT_MASTER_VOLUME_PCT: int = 100
 const DEFAULT_MUSIC_VOLUME_PCT: int = 70
 const DEFAULT_EFFECTS_VOLUME_PCT: int = 80
 const DEFAULT_MUTE_ALL: bool = false
-const DEFAULT_DISPLAY_MODE: int = DisplayMode.WINDOWED
+const DEFAULT_DISPLAY_MODE: int = DisplayMode.FULLSCREEN # D375: a desktop game opens full screen (author, 2026-10-13: "the game doesnt go full screen")
+## The saved key. `display_mode_v2` replaced `display_mode` (D375) so a profile saved
+## under the old Windowed default opens full screen once; a later choice is kept.
+const DISPLAY_MODE_KEY: String = "display_mode_v2"
 const DEFAULT_VSYNC_ENABLED: bool = true
 const DEFAULT_DAMAGE_NUMBERS_ENABLED: bool = true
 const DEFAULT_MOVEMENT_ONLY_ENABLED: bool = false
@@ -227,7 +230,7 @@ static func load_from_disk() -> void:
 	_music_volume_pct = _snap_to_step(int(cfg.get_value(SECTION_AUDIO, "music_volume_pct", _music_volume_pct)))
 	_effects_volume_pct = _snap_to_step(int(cfg.get_value(SECTION_AUDIO, "effects_volume_pct", _effects_volume_pct)))
 	_mute_all = bool(cfg.get_value(SECTION_AUDIO, "mute_all", _mute_all))
-	_display_mode = _clamp_display_mode(int(cfg.get_value(SECTION_VIDEO, "display_mode", _display_mode)))
+	_display_mode = _clamp_display_mode(int(cfg.get_value(SECTION_VIDEO, DISPLAY_MODE_KEY, _display_mode)))
 	_vsync_enabled = bool(cfg.get_value(SECTION_VIDEO, "vsync_enabled", _vsync_enabled))
 	var legacy_shake_on: bool = bool(cfg.get_value(SECTION_GAMEPLAY, "screen_shake_enabled", true))
 	if cfg.has_section_key(SECTION_GAMEPLAY, "screen_shake_pct"):
@@ -274,7 +277,7 @@ static func save() -> void:
 	cfg.set_value(SECTION_AUDIO, "music_volume_pct", _music_volume_pct)
 	cfg.set_value(SECTION_AUDIO, "effects_volume_pct", _effects_volume_pct)
 	cfg.set_value(SECTION_AUDIO, "mute_all", _mute_all)
-	cfg.set_value(SECTION_VIDEO, "display_mode", _display_mode)
+	cfg.set_value(SECTION_VIDEO, DISPLAY_MODE_KEY, _display_mode)
 	cfg.set_value(SECTION_VIDEO, "vsync_enabled", _vsync_enabled)
 	cfg.set_value(SECTION_GAMEPLAY, "screen_shake_pct", _screen_shake_pct)
 	cfg.set_value(SECTION_GAMEPLAY, "damage_numbers_enabled", _damage_numbers_enabled)
@@ -849,11 +852,7 @@ static func _apply_window_size() -> void:
 	if _display_mode != DisplayMode.WINDOWED:
 		return
 	var win: Vector2i = WINDOW_SIZES[_window_size_index]
-	var screen: Vector2i = DisplayServer.screen_get_size()
-	win = Vector2i(mini(win.x, screen.x), mini(win.y, screen.y))
-	DisplayServer.window_set_size(win)
-	var origin: Vector2i = DisplayServer.screen_get_position()
-	DisplayServer.window_set_position(origin + (screen - win) / 2)
+	_fit_window_to_usable_area(win)
 
 
 static func _clamp_display_mode(mode: int) -> int:
@@ -911,6 +910,23 @@ static func _apply_display_mode() -> void:
 		_: # DisplayMode.WINDOWED
 			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			if not _window_size_set:
+				_fit_window_to_usable_area(DisplayServer.window_get_size())
+
+
+## D375: a window never hangs under the taskbar. The usable rect is the screen
+## minus the taskbar/dock; the title bar needs room too, so the client area is
+## shrunk by the decoration size and the window is centred in what is left.
+static func _fit_window_to_usable_area(wanted: Vector2i) -> void:
+	var screen: int = DisplayServer.window_get_current_screen()
+	var usable: Rect2i = DisplayServer.screen_get_usable_rect(screen)
+	if usable.size.x <= 0 or usable.size.y <= 0:
+		return
+	var deco: Vector2i = DisplayServer.window_get_size_with_decorations() - DisplayServer.window_get_size()
+	var room: Vector2i = usable.size - deco
+	var win: Vector2i = Vector2i(mini(wanted.x, room.x), mini(wanted.y, room.y))
+	DisplayServer.window_set_size(win)
+	DisplayServer.window_set_position(usable.position + Vector2i(deco.x / 2, deco.y - deco.x / 2) + (room - win) / 2)
 
 
 static func _apply_vsync() -> void:
