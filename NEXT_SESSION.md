@@ -1,5 +1,22 @@
 # Next Session — Start Here
 
+## State at end of 2026-10-13 - v1.1.0 released
+
+**Released v1.1.0** (tag v1.1.0, D378): Windows exe attached by hand, APK attached by the tag CI run. Everything is merged on main; no agent worktrees remain. The one local branch besides main is `wp-balance2` (one unmerged balance-bot commit, 410f5e7, kept on purpose). Old captures under `sandbox/` were deleted in a cleanup the author asked for, so capture paths named below no longer exist; re-capture as needed. Keep `sandbox/connection_test` (the MCP sandbox project) and `sandbox/.gdignore`.
+
+This session also did:
+- **D375:** desktop opens full screen, and windowed mode fits above the taskbar.
+- **D376:** removed the doubled skill-ready chime.
+- **D377:** the wind-up ring and "!" show only for attacks on the player, not on the Tower.
+
+Open, in order:
+1. **Real phone numbers.** Get the author's Show FPS readings from wave 6 or later on the v1.1.0 APK. adb could not see the phone: Windows reported "Device Descriptor Request Failed", most likely a charge-only cable or USB debugging off.
+2. **Phone performance round 3,** guided by those numbers. Ideas are listed in the PT-PHONE section below: cached HUD, Focus glow as one quad, Draft cards built ahead of time, lean enemy scenes.
+3. **Balance pass 3.** The Tower takes more damage after PT-PERF, because players are no longer blocked and stragglers arrive sooner.
+4. **Results screen focus underline.** The focused results button (e.g. Retry) shows a yellow underline as well as the arrow. Ask the author whether to remove it, as the selection-style feedback suggests.
+5. **HUD clutter.** Banners and toasts can overlap when many show at once.
+6. **xp_tick pickup sound.** Remove it if the author dislikes it.
+
 ## PT-PHONE: making the phone smooth (2026-10-13, D395-D400)
 
 The author: "its kinda okay on pc but phone lags". Done (branch `worktree-agent-ab2308f12540e1d22`): 30 Hz mobile simulation with tick-rate-independent rules (`SimRate`, src/core/sim_rate.gd; dev flag `--sim-hz=30`), pooled plain enemies (a reused spawn 113 us against about 540 us), ground batching (`GroundBatch`: foam, bridges, scenery) and a one-call boss bullet field, HUD numbers at 20 Hz, hidden DebugOverlay idle, Draft icon warm-up, and the Show FPS plate (top-right under the Scrap panel, FPS + ms + worst frame + enemies alive; Settings > Video > Show FPS). **Ask the author for real phone numbers with Show FPS on** (a wave-10 to 13 fight, 30 s): the desktop proxy below is only a proxy.
