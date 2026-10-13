@@ -155,8 +155,12 @@ jobs:
           echo "$BADGING" | grep -E "^package:|^sdkVersion|^targetSdkVersion|^application-label:|^native-code" || true
           grep_badging() { echo "$BADGING" | grep -q "$1" || { echo "APK badging is missing: $1"; exit 1; }; }
           grep_badging "name='com.sayandeep1013.hordecontrol'"
-          grep_badging "versionCode='4'"
-          grep_badging "versionName='1.0.0'"
+          # The expected version comes from the Android preset, so a release bump needs no edit here.
+          VCODE="$(sed -n 's/^version\/code=\([0-9]*\)$/\1/p' export_presets.cfg | head -1)"
+          VNAME="$(sed -n 's/^version\/name="\(.*\)"$/\1/p' export_presets.cfg | head -1)"
+          test -n "$VCODE" && test -n "$VNAME" || { echo "No version/code or version/name in export_presets.cfg"; exit 1; }
+          grep_badging "versionCode='$VCODE'"
+          grep_badging "versionName='$VNAME'"
           PERMS="$("$BT/aapt2" dump permissions build/HordeControl.apk || true)"
           echo "$PERMS"
           if echo "$PERMS" | grep -q "android.permission.INTERNET"; then
