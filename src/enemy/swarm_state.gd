@@ -19,6 +19,9 @@ static var flow_field_next_lookup: float = -INF
 ## damage number and the death burst are never skipped.
 static var fx_budget: int = 1000000
 static var brain: Node = null
+## PT-PHONE (D396): per enemy scene, the per-life script variables of a freshly built enemy (see
+## EnemyController._capture_pool_defaults). Primitive values only, so nothing here pins a resource.
+static var pool_defaults: Dictionary = {}
 static var renderer: Node = null
 
 
@@ -29,3 +32,4 @@ static func reset() -> void:
 	brain = null
 	renderer = null
 	fx_budget = 1000000
+	pool_defaults.clear()

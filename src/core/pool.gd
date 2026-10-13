@@ -196,6 +196,36 @@ func discard(instance: Node) -> bool:
 	return true
 
 
+## PT-PHONE (D396): takes an active instance out of the pool's accounting WITHOUT freeing it (the
+## cap slot is given back) and keeps its Logical Death baseline, so the owner can park it and
+## hand it to `adopt()` later. Enemies use this: a plain enemy is parked per scene, because the
+## free list is not archetype-aware (see discard()).
+func detach(instance: Node) -> bool:
+	var idx: int = _active.find(instance)
+	if idx == -1:
+		return false
+	_active.remove_at(idx)
+	if is_instance_valid(instance):
+		instance.visible = false
+	return true
+
+
+## The other half of detach(): makes `instance` active again with every Logical Death flag
+## restored from its baseline, exactly as acquire() does for a free-list instance. Refuses
+## (returns false) at the cap, so the caller can fall back to a fresh spawn or a throttle.
+func adopt(instance: Node) -> bool:
+	if _active.size() >= _max_size or not _baseline.has(instance):
+		return false
+	_restore_logical_death_flags(instance)
+	instance.visible = true
+	_active.append(instance)
+	return true
+
+
+func has_baseline(instance: Node) -> bool:
+	return _baseline.has(instance)
+
+
 func clear_for_test() -> void:
 	for n in _active:
 		if is_instance_valid(n):

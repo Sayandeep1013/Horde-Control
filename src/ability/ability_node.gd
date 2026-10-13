@@ -31,7 +31,7 @@ func _ready() -> void:
 	top_level = true
 	z_as_relative = false
 	z_index = 25
-	_next_at = SimClock.now + 0.4 # a short grace so a fresh pick does not fire inside the Draft close
+	_next_at = SimRate.reschedule(_next_at, SimClock.now, 0.4) # a short grace so a fresh pick does not fire inside the Draft close
 	on_level_changed()
 
 
@@ -83,7 +83,7 @@ func due(interval: float) -> bool:
 	var now: float = SimClock.now
 	if now < _next_at:
 		return false
-	_next_at = now + interval
+	_next_at = SimRate.reschedule(_next_at, now, interval)
 	return true
 
 

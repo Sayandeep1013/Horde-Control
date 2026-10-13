@@ -13,7 +13,7 @@ func _physics_process(_delta: float) -> void:
 	var radius: float = v("radius") * AbilityDamage.area_scale()
 	if AbilityDamage.enemies_in_radius(global_position, radius).is_empty():
 		return # no enemy in the ward: hold the pulse, consume nothing
-	_next_at = SimClock.now + v("interval")
+	_next_at = SimRate.reschedule(_next_at, SimClock.now, v("interval"))
 	pulse(radius)
 
 

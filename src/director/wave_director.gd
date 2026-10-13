@@ -1171,7 +1171,7 @@ var _spawn_budget_count: int = 0
 
 
 func _spawn_tick_budget() -> int:
-	return MAX_SPAWNS_PER_TICK_MOBILE if EntityCaps.is_mobile() else MAX_SPAWNS_PER_TICK
+	return SimRate.per_tick(MAX_SPAWNS_PER_TICK_MOBILE if EntityCaps.is_mobile() else MAX_SPAWNS_PER_TICK) # PT-PHONE (D395): the same spawns per SECOND at 30 Hz
 
 
 func _spawn_tick_budget_used() -> int:
@@ -1469,20 +1469,29 @@ func _attempt_spawn(encounter: EncounterDefinition, group: SpawnGroup, group_ind
 		return false # P2.8b: encounter-level alive cap throttle -- see _encounter_cap_blocks_spawn(); a DIFFERENT mechanism from the global-cap null check below, checked first so it never wastes a global-pool acquisition it would have to immediately undo
 
 	var spawn_position: Vector2 = placement["position"]
-	var instance: Node2D = _entity_spawner.spawn_enemy(spawn_position, func() -> Node2D: return scene.instantiate())
+	var instance: Node2D = _entity_spawner.spawn_enemy(spawn_position, func() -> Node2D: return scene.instantiate(), scene.resource_path)
 	if instance == null:
 		return false # cap throttle (EntitySpawner/Pool) -- a DIFFERENT mechanism from the validation-fail-count above; never touches it
 	instance.global_position = spawn_position
 	instance.reset_physics_interpolation() # pooled instance: do not streak in from where it last died
 	if _registry != null:
 		_registry.update_position(instance, spawn_position)
-	_current_wave_spawned.append(instance)
+	_track_wave_spawn(instance)
 	_apply_wave_scaling(instance, definition)
 	_maybe_make_elite(instance, definition, serial)
 	_apply_fodder_drop_share(instance, definition, serial)
 	_track_boss(instance, definition)
 	enemy_spawned.emit(instance, group.enemy_definition_id, spawn_position)
 	return true
+
+
+## Remembers a spawned enemy for the wave's completion check. A pooled enemy (PT-PHONE, D396)
+## is the same node that already sits in the list from its previous life, so the stale entry
+## goes first and it is counted once.
+func _track_wave_spawn(instance: Node2D) -> void:
+	if instance.has_method(&"was_pooled") and instance.was_pooled():
+		_current_wave_spawned.erase(instance)
+	_current_wave_spawned.append(instance)
 
 
 ## D135 (review 2026-10-05 P0-2). Register > "Wave enemy scaling": the open
@@ -1594,14 +1603,14 @@ func spawn_summons(enemy_id: String, count: int, near: Vector2) -> int:
 			var alt: Variant = ff.call(&"random_walkable_point", rng, near, SUMMON_RING_MIN_PX * 0.5, SUMMON_RING_MAX_PX * 1.5)
 			if alt is Vector2 and alt != Vector2.ZERO:
 				position = alt
-		var instance: Node2D = _entity_spawner.spawn_enemy(position, func() -> Node2D: return scene.instantiate())
+		var instance: Node2D = _entity_spawner.spawn_enemy(position, func() -> Node2D: return scene.instantiate(), scene.resource_path)
 		if instance == null:
 			break
 		instance.global_position = position
 		instance.reset_physics_interpolation()
 		if _registry != null:
 			_registry.update_position(instance, position)
-		_current_wave_spawned.append(instance)
+		_track_wave_spawn(instance)
 		_apply_wave_scaling(instance, definition)
 		_apply_fodder_drop_share(instance, definition, SUMMON_SERIAL_BASE + _summon_serial)
 		enemy_spawned.emit(instance, enemy_id, position)

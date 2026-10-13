@@ -361,8 +361,8 @@ func physics_step(delta: float) -> void:
 ## `dead` flag itself, which src/combat/death_state.gd (outside this task's
 ## write scope) owns.
 func _is_ray_blocked(target_position: Vector2) -> bool:
-	if not is_inside_tree():
-		return false
+	if not is_inside_tree() or global_position.is_equal_approx(target_position):
+		return false # PT-PHONE: a zero-length ray only logged a normalize() warning
 	var space_state: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
 	var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(global_position, target_position)
 	query.collide_with_bodies = true

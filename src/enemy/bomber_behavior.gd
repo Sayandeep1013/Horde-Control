@@ -71,11 +71,11 @@ func _try_throw(player: Node2D, dist: float) -> void:
 		# First throw one interval after the Bomber first has a target, staggered
 		# by position so a group does not lob in unison (deterministic: no RNG).
 		var stagger: float = float(int(absf(controller.global_position.x + controller.global_position.y)) % 100) / 100.0
-		_next_throw_time = now + THROW_INTERVAL_SECONDS * (0.5 + 0.5 * stagger)
+		_next_throw_time = SimRate.reschedule(_next_throw_time, now, THROW_INTERVAL_SECONDS * (0.5 + 0.5 * stagger))
 		return
 	if now < _next_throw_time or dist > HOLD_MAX_PX + 60.0:
 		return
-	_next_throw_time = now + THROW_INTERVAL_SECONDS
+	_next_throw_time = SimRate.reschedule(_next_throw_time, now, THROW_INTERVAL_SECONDS)
 	throws_made += 1
 	_last_throw_time = now
 	var parent: Node = controller.get_parent()

@@ -15,6 +15,7 @@ const REQUIRED_PATCH := 1
 
 
 func _ready() -> void:
+	SimRate.apply_cmdline(OS.get_cmdline_user_args()) # PT-PHONE: --sim-hz / --sim-max-steps dev flags
 	var info: Dictionary = Engine.get_version_info()
 	var running := "%d.%d.%d" % [info.major, info.minor, info.patch]
 	var required := "%d.%d.%d" % [REQUIRED_MAJOR, REQUIRED_MINOR, REQUIRED_PATCH]

@@ -310,6 +310,12 @@ var _sv_last_hit_dir: Vector2 = Vector2.ZERO
 
 var _configured: bool = false
 
+## PT-PHONE (D396): pooled plain enemies. `_born_definition` is the definition this node was
+## built with (a Leash conversion swaps `definition`, and a converted enemy is never pooled);
+## `_pool_reused` is true from the moment a parked enemy is handed out again.
+var _born_definition: EnemyDefinition = null
+var _pool_reused: bool = false
+
 ## D135 (balance pass): per-wave multipliers pushed by the Wave Director at
 ## spawn through `set_wave_scaling()`. 1.0 = the Register's base stats.
 var _hp_multiplier: float = 1.0
@@ -429,6 +435,8 @@ func _ready() -> void:
 		behavior.bind(self)
 	_apply_status_immunities()
 	refresh_outline()
+	_born_definition = definition
+	_capture_pool_defaults()
 
 
 ## F03-09: registers this controller with SimLoop's step 3 (enemy AI and
@@ -1056,8 +1064,13 @@ func _coast_step() -> void:
 		_process_attack_cycle(_coast_in_range, _coast_target)
 
 
-## Ticks between two plans of a plain enemy at the current swarm size.
+## Ticks between two plans of a plain enemy at the current swarm size. The constants are 60 Hz
+## ticks; SimRate.ticks() keeps the same wall time at the phone's 30 Hz (PT-PHONE, D395).
 static func swarm_think_interval() -> int:
+	return SimRate.ticks(_swarm_think_interval_60())
+
+
+static func _swarm_think_interval_60() -> int:
 	if EntityCaps.is_mobile():
 		if SwarmState.alive_count >= SWARM_THINK_MOBILE_HIGH_ALIVE:
 			return SWARM_THINK_MOBILE_HIGH_TICKS
@@ -1306,7 +1319,7 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D, now_seconds: 
 			hitbox.deactivate_window()
 
 	if _next_hit_time < 0.0:
-		_next_hit_time = now + definition.attack_profile.cycle_or_tick_interval_seconds
+		_next_hit_time = SimRate.reschedule(_next_hit_time, now, definition.attack_profile.cycle_or_tick_interval_seconds)
 
 	var windup_start: float = _next_hit_time - definition.telegraph_data.windup_duration_seconds
 	if now >= windup_start and not _windup_active:
@@ -1321,7 +1334,7 @@ func _process_attack_cycle(in_attack_range: bool, _target: Node2D, now_seconds: 
 		hitbox.activate_window()
 		_hitbox_active_ticks_remaining = 2 # brief pulse -- long enough for the deferred `monitoring=true` to land and for Area2D to detect the overlap (matches ghost_hit_test.gd's own one-frame-settle precedent, plus one tick of margin)
 		attack_resolved.emit(_target, float(definition.attack_profile.damage_per_hit_or_tick))
-		_next_hit_time = now + definition.attack_profile.cycle_or_tick_interval_seconds
+		_next_hit_time = SimRate.reschedule(_next_hit_time, now, definition.attack_profile.cycle_or_tick_interval_seconds)
 		_windup_active = false
 		if _sv != null:
 			_sv.marker_off(_swarm_slot)
@@ -1562,9 +1575,15 @@ func _join_swarm() -> bool:
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	var renderer: Node = SwarmState.renderer
 	if renderer != null and is_instance_valid(renderer):
-		var profile = renderer.attach(_swarm_slot, self, _clock.now if _clock != null else 0.0)
-		if profile != null:
-			_sv_init(renderer, profile)
+		if _sv != null and _sv_profile != null:
+			# A pooled enemy: it shed its node visuals the first time, so it joins again with the
+			# profile it was drawn with (PT-PHONE, D396).
+			renderer.reattach(_swarm_slot, _sv_profile, _clock.now if _clock != null else 0.0)
+			_sv_init(renderer, _sv_profile)
+		else:
+			var profile = renderer.attach(_swarm_slot, self, _clock.now if _clock != null else 0.0)
+			if profile != null:
+				_sv_init(renderer, profile)
 	if _sv == null and renderer != null and is_instance_valid(renderer):
 		renderer.register_node_enemy(self) # kept its node visuals: a Y-sort separator
 	return true
@@ -1779,10 +1798,12 @@ func _sv_init(renderer: Node, profile) -> void:
 	_sv_anim = &"idle"
 	_sv_sq = SV_SQ_ONE
 	_sv_ref_speed = _sv_reference_speed()
-	if death_state != null:
+	if death_state != null and not death_state.damage_applied.is_connected(_sv_on_damage):
 		death_state.damage_applied.connect(_sv_on_damage)
-	windup_started.connect(_sv_on_windup)
-	attack_resolved.connect(_sv_on_attack)
+	if not windup_started.is_connected(_sv_on_windup):
+		windup_started.connect(_sv_on_windup)
+	if not attack_resolved.is_connected(_sv_on_attack):
+		attack_resolved.connect(_sv_on_attack)
 	_sv_refresh_outline()
 
 
@@ -2051,7 +2072,98 @@ func _on_visual_death_finished(_entity: Node2D) -> void:
 ## place as before; `force_free` makes the stuck-despawn path still free it.
 func _discard_self(force_free: bool) -> void:
 	var spawner: Node = get_tree().get_first_node_in_group(&"entity_spawner") if is_inside_tree() else null
+	if spawner != null and not force_free and can_pool() and spawner.has_method(&"park_enemy") and spawner.park_enemy(self, pool_key()):
+		return # PT-PHONE (D396): parked for the next spawn of this scene
 	if spawner != null and spawner.has_method(&"discard_enemy") and spawner.discard_enemy(self):
 		return
 	if force_free:
 		queue_free()
+
+
+# --- PT-PHONE (D396): pooled plain enemies ------------------------------------------------------
+## Script variables that survive a pooled reuse: structural references that are resolved after
+## `_ready()` or by the Wave Director, and the swarm art this node already shed its visuals for.
+const POOL_KEEP: Array[StringName] = [&"_registry", &"_clock", &"_sim_loop", &"_audio_pool", &"_tower", &"_player", &"_think_phase", &"_sv", &"_sv_profile", &"_base_hitbox_damage", &"_born_definition"]
+
+
+## The scene this enemy was instantiated from; enemies of one scene are interchangeable.
+func pool_key() -> String:
+	return scene_file_path
+
+
+## True for an enemy that can be reset to a fresh spawn: a plain swarm member that is still the
+## enemy it was born as (no Leash conversion, no elite affix, no boss behaviour, no
+## Opportunist target subscription).
+func can_pool() -> bool:
+	return _sv != null and behavior == null and elite_affix == "" and not is_finisher \
+			and definition == _born_definition and not _stuck_despawned and _opportunist_target == null \
+			and death_state != null and hurtbox != null and hitbox != null \
+			and SwarmState.pool_defaults.has(pool_key())
+
+
+## Records the value of every per-life script variable right after `_ready()`, once per scene:
+## that is what a freshly spawned enemy looks like, and what a pooled one is reset to.
+func _capture_pool_defaults() -> void:
+	var key: String = pool_key()
+	if key == "" or SwarmState.pool_defaults.has(key):
+		return
+	var defaults: Dictionary = {}
+	for prop: Dictionary in get_property_list():
+		var usage: int = int(prop["usage"])
+		if (usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0 or (usage & PROPERTY_USAGE_STORAGE) != 0:
+			continue # engine property, or an @export (those never change during a life)
+		var prop_name: StringName = StringName(prop["name"])
+		if POOL_KEEP.has(prop_name):
+			continue
+		var value: Variant = get(prop_name)
+		if value is Object:
+			continue # a node or resource reference assigned by _ready(): stays as it is
+		elif value is Array or value is Dictionary:
+			value = value.duplicate(true)
+		defaults[prop_name] = value
+	SwarmState.pool_defaults[key] = defaults
+
+
+func was_pooled() -> bool:
+	return _pool_reused
+
+
+## Called by EntitySpawner.park_enemy() when this dead enemy goes back to its scene's parked list.
+func prepare_park() -> void:
+	_pool_reused = false
+	AttackSlotManager.release_claim(_tower, self)
+	AttackSlotManager.release_claim(_player, self)
+	AttackSlotManager.release_claim(_opportunist_target, self)
+	StatusEffects.clear(self)
+	if _sim_loop != null:
+		_sim_loop.unregister(SimLoop.Step.ENEMY_AI_AND_MOVEMENT, self)
+	_swarm_leave()
+	set_physics_process(false)
+	process_mode = Node.PROCESS_MODE_DISABLED
+
+
+## Turns a parked enemy into what `scene.instantiate()` + `_ready()` would have produced: every
+## per-life variable back at its captured default, the health pool and Area2D state reset, the
+## registry entry and the swarm membership re-created (the swarm join stays deferred like a fresh
+## spawn, so the Wave Director positions and scales it first). EntitySpawner has already put it
+## back in the Pool's accounting and moved it to the spawn position.
+func reactivate_from_pool() -> void:
+	var defaults: Dictionary = SwarmState.pool_defaults.get(pool_key(), {})
+	for prop_name: StringName in defaults:
+		var value: Variant = defaults[prop_name]
+		if value is Array or value is Dictionary:
+			value = value.duplicate(true)
+		set(prop_name, value)
+	_pool_reused = true
+	if hitbox != null and _base_hitbox_damage >= 0.0:
+		hitbox.damage = _base_hitbox_damage
+	process_mode = Node.PROCESS_MODE_PAUSABLE
+	set_physics_process(true)
+	_apply_definition() # radii, hit mask, a full health pool (DeathState.reset_for_reuse), leash deadline
+	if hurtbox != null:
+		hurtbox.reset_for_reuse()
+	if hitbox != null:
+		hitbox.reset_for_reuse()
+	_apply_status_immunities()
+	_register_with_entity_registry()
+	call_deferred(&"_resolve_sim_loop_and_register")

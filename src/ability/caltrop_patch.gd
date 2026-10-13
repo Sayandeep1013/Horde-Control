@@ -46,7 +46,7 @@ func _physics_process(_delta: float) -> void:
 		queue_free()
 		return
 	if now >= _next_tick:
-		_next_tick = now + tick
+		_next_tick = SimRate.reschedule(_next_tick, now, tick)
 		for e in AbilityDamage.enemies_in_radius(global_position, radius):
 			var amount: float = damage * AbilitySynergy.kindling_mult(e) # Kindling: +25% vs burning
 			if AbilityDamage.hit(e, amount, AbilityIds.CALTROPS, &"player", true) > 0.0:

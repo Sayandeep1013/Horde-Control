@@ -14,7 +14,7 @@ func _physics_process(_delta: float) -> void:
 	var cluster: Dictionary = AbilityDamage.densest_cluster(global_position, v("range"), radius)
 	if cluster.is_empty():
 		return
-	_next_at = SimClock.now + v("interval")
+	_next_at = SimRate.reschedule(_next_at, SimClock.now, v("interval"))
 	var amount: float = dmg()
 	var parent: Node = fx_parent()
 	LobbedBomb.spawn(parent, "rock", global_position, cluster["position"], v("flight"), 0.0, radius, func(pos: Vector2) -> void:

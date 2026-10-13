@@ -55,7 +55,7 @@ func pre_step(_delta: float) -> bool:
 		return true
 	if _next_cast < 0.0:
 		var stagger: float = float(int(absf(controller.global_position.x * 1.3 + controller.global_position.y)) % 100) / 100.0
-		_next_cast = now + CAST_INTERVAL_SECONDS * (0.5 + 0.5 * stagger)
+		_next_cast = SimRate.reschedule(_next_cast, now, CAST_INTERVAL_SECONDS * (0.5 + 0.5 * stagger))
 	if dist < HOLD_MIN_PX:
 		state = State.RETREAT
 	elif dist > HOLD_MAX_PX:
@@ -71,7 +71,7 @@ func pre_step(_delta: float) -> bool:
 		_:
 			controller.hold_position()
 	if now >= _next_cast and dist <= HOLD_MAX_PX + 80.0:
-		_next_cast = now + CAST_INTERVAL_SECONDS
+		_next_cast = SimRate.reschedule(_next_cast, now, CAST_INTERVAL_SECONDS)
 		_cast_at = now + CAST_WINDUP_SECONDS
 		state = State.CASTING
 		controller.windup_started.emit()

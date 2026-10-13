@@ -114,10 +114,10 @@ func pre_step(delta: float) -> bool:
 		return true
 	var now: float = _now()
 	if _next_slam < 0.0:
-		_next_slam = now + SLAM_INTERVAL_SECONDS
-		_next_charge = now + CHARGE_FIRST_DELAY_SECONDS
-		_next_fissure = now + FISSURE_FIRST_DELAY_SECONDS
-		_next_rally = now + RALLY_FIRST_DELAY_SECONDS
+		_next_slam = SimRate.reschedule(_next_slam, now, SLAM_INTERVAL_SECONDS)
+		_next_charge = SimRate.reschedule(_next_charge, now, CHARGE_FIRST_DELAY_SECONDS)
+		_next_fissure = SimRate.reschedule(_next_fissure, now, FISSURE_FIRST_DELAY_SECONDS)
+		_next_rally = SimRate.reschedule(_next_rally, now, RALLY_FIRST_DELAY_SECONDS)
 	match state:
 		State.SLAM_WIND:
 			controller.hold_position()
@@ -142,14 +142,14 @@ func pre_step(delta: float) -> bool:
 				_erupt_fissures()
 			return true
 	if now >= _next_rally:
-		_next_rally = now + RALLY_INTERVAL_SECONDS * cooldown_scale()
+		_next_rally = SimRate.reschedule(_next_rally, now, RALLY_INTERVAL_SECONDS * cooldown_scale())
 		request_summon("player_hunter", RALLY_HUNTER_COUNT)
 		Sfx.play("boss_roar", controller.global_position)
 	var player: Node2D = controller.get_player()
 	if player != null and is_instance_valid(player):
 		var d: float = player.global_position.distance_to(controller.global_position)
 		if now >= _next_charge and d >= CHARGE_MIN_RANGE_PX and d <= CHARGE_MAX_RANGE_PX:
-			_next_charge = now + CHARGE_INTERVAL_SECONDS * cooldown_scale()
+			_next_charge = SimRate.reschedule(_next_charge, now, CHARGE_INTERVAL_SECONDS * cooldown_scale())
 			_charges_left = CHARGE_COUNT_ENRAGED if phase >= 2 else CHARGE_COUNT
 			_begin_charge_wind(player, now)
 			return true
@@ -173,7 +173,7 @@ func post_step(_delta: float, in_attack_range: bool, _target: Node2D) -> void:
 
 func _do_slam() -> void:
 	state = State.NORMAL
-	_next_slam = _now() + SLAM_INTERVAL_SECONDS * cooldown_scale()
+	_next_slam = SimRate.reschedule(_next_slam, _now(), SLAM_INTERVAL_SECONDS * cooldown_scale())
 	EnemyBlast.detonate(controller.get_registry(), _slam_center, SLAM_RADIUS_PX, scaled_damage(SLAM_DAMAGE), true, true, controller)
 	var parent: Node = controller.get_parent()
 	if parent != null:
@@ -248,7 +248,7 @@ func _hit_solid_obstacle() -> bool:
 
 func _begin_fissures(player: Node2D, now: float) -> void:
 	state = State.FISSURE_WIND
-	_next_fissure = now + FISSURE_INTERVAL_SECONDS * cooldown_scale()
+	_next_fissure = SimRate.reschedule(_next_fissure, now, FISSURE_INTERVAL_SECONDS * cooldown_scale())
 	var dur: float = _tele(FISSURE_TELEGRAPH_SECONDS)
 	_state_end = now + dur
 	_fissure_origin = controller.global_position

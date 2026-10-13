@@ -31,7 +31,7 @@ func _physics_process(_delta: float) -> void:
 	var now: float = SimClock.now
 	if now < _next_tick:
 		return
-	_next_tick = now + TICK_SECONDS
+	_next_tick = SimRate.reschedule(_next_tick, now, TICK_SECONDS)
 	AbilityDamage.hit_area(global_position, radius(), dmg("dps") * TICK_SECONDS, ability_id, &"player", false)
 	if AbilitySynergy.owns("frost_ward"): # Hallowed: the aura slows enemies inside
 		for e in AbilityDamage.enemies_in_radius(global_position, radius()):

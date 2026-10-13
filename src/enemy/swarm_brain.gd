@@ -234,7 +234,7 @@ func flow_node() -> Node:
 func _refresh_refs(tick: int) -> void:
 	if _registry == null:
 		return
-	var retry: bool = tick - _ref_retry_tick >= 20
+	var retry: bool = tick - _ref_retry_tick >= SimRate.ticks(20)
 	if (_player == null or not is_instance_valid(_player)) and retry:
 		var players: Array[Node2D] = _registry.get_entities_with_tag(&"player")
 		if not players.is_empty():
@@ -358,10 +358,12 @@ func physics_step(delta: float) -> void:
 	if profile_enabled:
 		last_hash_usec = Time.get_ticks_usec() - t0
 
-	SwarmState.fx_budget = FX_PER_TICK_MOBILE if EntityCaps.is_mobile() else FX_PER_TICK
+	SwarmState.fx_budget = SimRate.per_tick(FX_PER_TICK_MOBILE if EntityCaps.is_mobile() else FX_PER_TICK) # PT-PHONE (D395): per second, not per tick
 	var alive: int = SwarmState.alive_count
 	var lod: bool = alive >= EnemyController.SWARM_LOD_MIN_ALIVE
 	var interval: int = EnemyController.swarm_think_interval()
+	var far_sync: int = SimRate.ticks(FAR_SYNC_TICKS) # PT-PHONE (D395): the same wall time at 30 Hz
+	var near_sync: int = SimRate.ticks(NEAR_SYNC_TICKS)
 	var statuses: Dictionary = StatusEffects.get_state()
 	var has_status: bool = not statuses.is_empty()
 	var tower_zone: float = _tower_radius
@@ -457,7 +459,7 @@ func physics_step(delta: float) -> void:
 						np = tcand
 		if np != p:
 			pos[i] = np
-			var sync_every: int = FAR_SYNC_TICKS if far else (NEAR_SYNC_TICKS if lod else 1)
+			var sync_every: int = far_sync if far else (near_sync if lod else 1)
 			if sync_every == 1 or (tick + phase[i]) % sync_every == 0:
 				var ts0: int = Time.get_ticks_usec() if profile_enabled else 0
 				var e3: Node2D = ents[i] as Node2D

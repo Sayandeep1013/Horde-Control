@@ -165,7 +165,7 @@ func pre_step(delta: float) -> bool:
 			if now >= _next_shot:
 				_stomp_ring()
 				_rings_left -= 1
-				_next_shot = now + STOMP_RING_SPACING_SECONDS
+				_next_shot = SimRate.reschedule(_next_shot, now, STOMP_RING_SPACING_SECONDS)
 				if _rings_left <= 0:
 					state = State.NORMAL
 			return true

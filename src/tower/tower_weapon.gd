@@ -314,7 +314,7 @@ func _physics_process(_delta: float) -> void:
 	if _now() < _next_fire_allowed_at:
 		return
 	_fire_at(_current_target)
-	_next_fire_allowed_at = _now() + get_effective_fire_interval_seconds() # D117: Tower Volley now also changes fire rate, alongside Caliber (damage) and Optics/Watchtower (range)
+	_next_fire_allowed_at = SimRate.reschedule(_next_fire_allowed_at, _now(), get_effective_fire_interval_seconds()) # D117: Tower Volley now also changes fire rate, alongside Caliber (damage) and Optics/Watchtower (range)
 
 
 ## C-TOWERTARGET, transcribed in full in this file's header. Order-

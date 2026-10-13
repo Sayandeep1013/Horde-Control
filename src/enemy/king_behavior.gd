@@ -120,9 +120,9 @@ func _on_stagger_started() -> void:
 func _on_phase_entered(new_phase: int) -> void:
 	var now: float = _now()
 	if new_phase == 2:
-		_next_spiral = now + 1.5
+		_next_spiral = SimRate.reschedule(_next_spiral, now, 1.5)
 	elif new_phase == 3:
-		_next_storm = now + 1.0
+		_next_storm = SimRate.reschedule(_next_storm, now, 1.0)
 		Sfx.play("boss_roar", controller.global_position, 10, true)
 
 
@@ -135,10 +135,10 @@ func pre_step(_delta: float) -> bool:
 	var now: float = _now()
 	if _next_fan < 0.0:
 		_rng.seed = int(controller.get_instance_id() % 100000)
-		_next_fan = now + FAN_FIRST_DELAY_SECONDS
-		_next_barrage = now + BARRAGE_FIRST_DELAY_SECONDS
-		_next_siege = now + SIEGE_FIRST_DELAY_SECONDS
-		_next_horde = now + HORDE_FIRST_DELAY_SECONDS
+		_next_fan = SimRate.reschedule(_next_fan, now, FAN_FIRST_DELAY_SECONDS)
+		_next_barrage = SimRate.reschedule(_next_barrage, now, BARRAGE_FIRST_DELAY_SECONDS)
+		_next_siege = SimRate.reschedule(_next_siege, now, SIEGE_FIRST_DELAY_SECONDS)
+		_next_horde = SimRate.reschedule(_next_horde, now, HORDE_FIRST_DELAY_SECONDS)
 	match state:
 		State.FAN_WIND:
 			controller.hold_position()
@@ -162,7 +162,7 @@ func pre_step(_delta: float) -> bool:
 				BulletPattern.emit(bullets(), controller.global_position, BulletPattern.radial(STORM_ORBS, _storm_gap + PI * 0.5, gaps, deg_to_rad(STORM_GAP_HALF_DEG)), STORM_SPEED, STORM_RADIUS, scaled_damage(STORM_DAMAGE), true, true, controller, BULLET_ORANGE)
 				_storm_gap += deg_to_rad(STORM_GAP_ROTATION_DEG)
 				_storm_waves_left -= 1
-				_next_shot = now + STORM_WAVE_SPACING_SECONDS
+				_next_shot = SimRate.reschedule(_next_shot, now, STORM_WAVE_SPACING_SECONDS)
 			if _storm_waves_left <= 0 and now >= _next_shot:
 				state = State.NORMAL
 				stagger(STORM_STAGGER_SECONDS)
@@ -197,22 +197,22 @@ func _run_attacks(now: float, tower: Node2D) -> void:
 		_begin_spiral(now)
 		return
 	if now >= _next_siege:
-		_next_siege = now + (SIEGE_INTERVAL_PHASE_TWO_SECONDS if phase >= 2 else SIEGE_INTERVAL_SECONDS)
+		_next_siege = SimRate.reschedule(_next_siege, now, (SIEGE_INTERVAL_PHASE_TWO_SECONDS if phase >= 2 else SIEGE_INTERVAL_SECONDS))
 		siege_bombs += 1
 		controller.windup_started.emit()
 		EnemyBomb.launch(parent, controller.global_position, tower.global_position, SIEGE_FLIGHT_SECONDS, SIEGE_RADIUS_PX, scaled_damage(SIEGE_DAMAGE), true, controller, controller.get_clock(), controller.get_registry())
 	if now >= _next_horde:
-		_next_horde = now + HORDE_INTERVAL_SECONDS
+		_next_horde = SimRate.reschedule(_next_horde, now, HORDE_INTERVAL_SECONDS)
 		request_summon("tower_seeker", HORDE_SEEKERS)
 		request_summon("bomber", HORDE_BOMBERS)
 		Sfx.play("boss_roar", controller.global_position)
 	if player == null or not is_instance_valid(player):
 		return
 	if now >= _next_barrage:
-		_next_barrage = now + BARRAGE_INTERVAL_SECONDS
+		_next_barrage = SimRate.reschedule(_next_barrage, now, BARRAGE_INTERVAL_SECONDS)
 		_barrage(parent, player)
 	if now >= _next_fan:
-		_next_fan = now + FAN_INTERVAL_SECONDS
+		_next_fan = SimRate.reschedule(_next_fan, now, FAN_INTERVAL_SECONDS)
 		state = State.FAN_WIND
 		_state_end = now + FAN_TELEGRAPH_SECONDS
 		GroundTelegraph.spawn(parent, controller.global_position, controller.get_body_radius() + 40.0, FAN_TELEGRAPH_SECONDS, Color(1.0, 0.45, 0.1))
@@ -252,7 +252,7 @@ func _barrage(parent: Node, player: Node2D) -> void:
 
 func _begin_spiral(now: float) -> void:
 	spirals += 1
-	_next_spiral = now + SPIRAL_INTERVAL_SECONDS
+	_next_spiral = SimRate.reschedule(_next_spiral, now, SPIRAL_INTERVAL_SECONDS)
 	state = State.SPIRAL
 	_state_end = now + SPIRAL_SECONDS
 	_next_shot = now
@@ -262,11 +262,11 @@ func _begin_spiral(now: float) -> void:
 
 func _begin_storm(now: float) -> void:
 	storms += 1
-	_next_storm = now + STORM_INTERVAL_SECONDS
+	_next_storm = SimRate.reschedule(_next_storm, now, STORM_INTERVAL_SECONDS)
 	state = State.STORM
 	_storm_waves_left = STORM_WAVES
 	_storm_gap = _rng.randf() * TAU
-	_next_shot = now + 0.5
+	_next_shot = SimRate.reschedule(_next_shot, now, 0.5)
 	var parent: Node = controller.get_parent()
 	if parent != null:
 		GroundTelegraph.spawn(parent, controller.global_position, controller.get_body_radius() + 80.0, 0.5, Color(1.0, 0.45, 0.1))

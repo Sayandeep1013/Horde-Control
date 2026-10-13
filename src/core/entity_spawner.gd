@@ -106,6 +106,11 @@ func set_registry_for_test(registry: Node) -> void:
 ## Test-only teardown: frees every instance every pool currently owns and
 ## clears their bookkeeping. Never called by gameplay code.
 func clear_all_for_test() -> void:
+	for key in _parked_enemies:
+		for n in _parked_enemies[key]:
+			if is_instance_valid(n):
+				n.free()
+	_parked_enemies.clear()
 	for pool in [_enemy_pool, _pickup_pool, _projectile_pool, _damage_number_pool, _telegraph_pool, _high_intensity_vfx_pool]:
 		if pool != null:
 			pool.clear_for_test()
@@ -113,13 +118,69 @@ func clear_all_for_test() -> void:
 
 # --- Enemy -------------------------------------------------------------
 
-func spawn_enemy(position: Vector2 = Vector2.ZERO, factory: Callable = Callable()) -> Node2D:
+## PT-PHONE (D396): a spawned plain enemy that dies is parked (see park_enemy) instead of freed;
+## a later spawn of the same scene (`pool_key`) takes a parked one and resets it, which costs a
+## third of instantiating a scene (instantiate + physics areas + _ready of every child).
+const MAX_PARKED_PER_KEY: int = 64
+var _parked_enemies: Dictionary = {} # pool key -> Array[Node]
+var enemies_reused: int = 0
+var enemies_created: int = 0
+
+
+func spawn_enemy(position: Vector2 = Vector2.ZERO, factory: Callable = Callable(), pool_key: String = "") -> Node2D:
+	if pool_key != "":
+		var reused: Node2D = _take_parked_enemy(pool_key, position)
+		if reused != null:
+			return reused
 	var instance: Node = _enemy_pool.acquire(factory)
 	if instance == null:
 		return null
+	enemies_created += 1
 	if _registry != null:
 		_registry.register_entity(instance as Node2D, position, [&"enemy"])
 	return instance as Node2D
+
+
+func _take_parked_enemy(pool_key: String, position: Vector2) -> Node2D:
+	var parked: Array = _parked_enemies.get(pool_key, [])
+	while not parked.is_empty():
+		var candidate: Node = parked.pop_back()
+		if not is_instance_valid(candidate) or not candidate.has_method(&"reactivate_from_pool"):
+			continue
+		if not _enemy_pool.adopt(candidate):
+			parked.append(candidate) # at the cap: stay parked, the caller throttles
+			return null
+		(candidate as Node2D).global_position = position
+		candidate.call(&"reactivate_from_pool")
+		enemies_reused += 1
+		return candidate as Node2D
+	return null
+
+
+## A finished plain enemy goes back to the parked list of its scene instead of being freed.
+## Returns false (the caller discards it as before) when the list is full or the pool does
+## not know the instance.
+func park_enemy(instance: Node, pool_key: String) -> bool:
+	if pool_key == "" or not _enemy_pool.has_baseline(instance):
+		return false
+	var parked: Array = _parked_enemies.get(pool_key, [])
+	if parked.size() >= MAX_PARKED_PER_KEY:
+		return false
+	if _registry != null:
+		_registry.deregister_entity(instance)
+	if not _enemy_pool.detach(instance):
+		return false
+	instance.call(&"prepare_park")
+	parked.append(instance)
+	_parked_enemies[pool_key] = parked
+	return true
+
+
+func get_parked_enemy_count() -> int:
+	var n: int = 0
+	for key in _parked_enemies:
+		n += (_parked_enemies[key] as Array).size()
+	return n
 
 
 func despawn_enemy(instance: Node) -> bool:

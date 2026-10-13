@@ -68,6 +68,24 @@ var bullets_seen: int = 0
 var next_boss_log: float = 2.0
 var boss_seen: bool = false
 var granted: bool = false
+var _dumped: bool = false
+var _scan_nodes: Array[Node] = []
+var _scan_idx: int = -1
+var _scan_phase: int = 0
+var _scan_base: float = 0.0
+var _scan_started: bool = false
+var _last_kills: float = 0.0
+var _last_nodes: int = 0
+var _pscan_nodes: Array[Node] = []
+var _pscan_idx: int = -1
+var _pscan_wait: int = 0
+var _pscan_acc: float = 0.0
+var _pscan_n: int = 0
+var _pscan_base: float = 0.0
+var _pscan_started: bool = false
+var render_cpu_sum: float = 0.0
+var render_gpu_sum: float = 0.0
+var setup_cpu_sum: float = 0.0
 
 
 func _initialize() -> void:
@@ -225,13 +243,42 @@ func _process(_delta: float) -> bool:
 				if en.has_method("is_windup_active") and en.is_windup_active():
 					attacking += 1
 			print("PROBE_WATCH t=%.1f wave=%d alive=%d kills=%.0f pdmg=%.0f tdmg=%.0f near_tower=%d near_player=%d windups=%d" % [now, wd.get_current_wave_number(), reg.get_live_enemy_count(), cs2.get_run_counter("kills"), cs2.get_run_counter("damage_taken"), cs2.get_run_counter("tower_damage_taken"), near_t, near_p, attacking])
+		if frames > 120:
+			samples.append(dt_ms)
+			var kills_now: float = root.get_node("CombatStats").get_run_counter("kills")
+			var nodes_now: int = int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+			if dt_ms > 35.0:
+				print("PROBE_SPIKE frame=%d t=%.2f dt_ms=%.1f alive=%d dkills=%d dnodes=%d" % [frames, now, dt_ms, reg.get_live_enemy_count(), int(kills_now - _last_kills), nodes_now - _last_nodes])
+			_last_kills = kills_now
+			_last_nodes = nodes_now
 		if now > max_seconds:
 			print("PROBE_WATCH_DMG ", str(root.get_node("CombatStats").get_damage_by_source()))
+			if samples.size() > 10:
+				var sorted_w: Array = Array(samples)
+				sorted_w.sort()
+				var nw: int = sorted_w.size()
+				var over20: int = 0
+				var over33: int = 0
+				for sv in sorted_w:
+					if sv > 20.0:
+						over20 += 1
+					if sv > 33.4:
+						over33 += 1
+				print("PROBE_FRAMES frames=%d median_ms=%.2f p95_ms=%.2f p99_ms=%.2f max_ms=%.2f over20=%d over33=%d" % [nw, sorted_w[nw / 2], sorted_w[int(nw * 0.95)], sorted_w[int(nw * 0.99)], sorted_w[nw - 1], over20, over33])
 			quit(0)
 			return true
 	elif probe == "perf":
-		if not toggles.is_empty() and frames % 10 == 0:
+		if not toggles.is_empty() and frames % 10 == 0 and _scan_idx < 0:
 			_apply_toggles(reg)
+		if _pscan_started:
+			if _pscan_step(dt_ms):
+				quit(0)
+				return true
+		if _scan_idx >= 0:
+			_scan_step()
+			if _scan_idx >= _scan_nodes.size() + 1:
+				quit(0)
+				return true
 		var alive: int = reg.get_live_enemy_count()
 		var deficit: int = alive_target - alive
 		if deficit > 0:
@@ -247,6 +294,10 @@ func _process(_delta: float) -> bool:
 			proc_sum += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
 			phys_sum += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
 			draw_calls_sum += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+			var vp_rid: RID = root.get_viewport_rid()
+			render_cpu_sum += RenderingServer.viewport_get_measured_render_time_cpu(vp_rid)
+			render_gpu_sum += RenderingServer.viewport_get_measured_render_time_gpu(vp_rid)
+			setup_cpu_sum += RenderingServer.get_frame_setup_time_cpu()
 			draw_objects_sum += Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)
 			draw_prims_sum += Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
 			pairs_sum += Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS)
@@ -259,6 +310,7 @@ func _process(_delta: float) -> bool:
 				brain_sync_us += int(brain.get("last_sync_usec"))
 				brain_frames += 1
 			if samples.size() == 1:
+				RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
 				var rnd: Node = _n("Main/Entities/SwarmRenderer")
 				if rnd != null:
 					rnd.set("profile_enabled", true)
@@ -281,7 +333,7 @@ func _process(_delta: float) -> bool:
 				if ffn != null:
 					print("PROBE_FLOW last_player_ms=%.2f recomputes=%s tower_ms=%.2f" % [float(ffn.get("last_player_usec")) / 1000.0, ffn.get("player_recomputes"), float(ffn.get("last_tower_usec")) / 1000.0])
 				var asm: Script = load("res://src/enemy/attack_slot_manager.gd")
-				print("PROBE_DRAW draw_calls=%.0f objects=%.0f primitives=%.0f (frame average)" % [draw_calls_sum / measure_frames, draw_objects_sum / measure_frames, draw_prims_sum / measure_frames])
+				print("PROBE_DRAW draw_calls=%.0f objects=%.0f primitives=%.0f (frame average) render_cpu_ms=%.2f render_gpu_ms=%.2f setup_cpu_ms=%.2f" % [draw_calls_sum / measure_frames, draw_objects_sum / measure_frames, draw_prims_sum / measure_frames, render_cpu_sum / measure_frames, render_gpu_sum / measure_frames, setup_cpu_sum / measure_frames])
 				var rr: Node = _n("Main/Entities/SwarmRenderer")
 				if rr != null:
 					print("PROBE_RENDERER process_ms=%.2f fill_ms=%.2f overlay_draw_ms=%.2f (per rendered frame, %d frames)" % [float(rr.get("prof_process_usec")) / 1000.0 / measure_frames, float(rr.get("prof_fill_usec")) / 1000.0 / measure_frames, float(rr.get("prof_overlay_usec")) / 1000.0 / measure_frames, measure_frames])
@@ -347,6 +399,41 @@ func _apply_toggles(reg: Node) -> void:
 			for n in root_scene.get_tree().get_nodes_in_group(&"pickup"):
 				n.process_mode = Node.PROCESS_MODE_DISABLED
 	for t in toggles:
+		if t.begins_with("hide:"):
+			var hn: Node = root_scene.get_node_or_null(t.trim_prefix("hide:"))
+			if hn != null and ("visible" in hn):
+				hn.set("visible", false)
+		if t.begins_with("hidegroup:"):
+			for hn2 in root_scene.get_tree().get_nodes_in_group(StringName(t.trim_prefix("hidegroup:"))):
+				if "visible" in hn2:
+					hn2.set("visible", false)
+		if t == "dump_tree" and not _dumped and frames > warmup_frames:
+			_dumped = true
+			_dump(root_scene, 0, 4)
+		if t.begins_with("scan:") and not _scan_started and frames > warmup_frames:
+			_scan_started = true
+			var sp: String = t.trim_prefix("scan:")
+			var depth: int = int(sp.get_slice("@", 1)) if "@" in sp else 1
+			var sn: Node = root_scene.get_node_or_null(sp.get_slice("@", 0)) if sp.get_slice("@", 0) != "" else root_scene
+			if sn != null:
+				_scan_collect(sn, depth)
+			_scan_idx = 0
+		if t.begins_with("procscan:") and not _pscan_started and frames > warmup_frames:
+			_pscan_started = true
+			var pp: String = t.trim_prefix("procscan:")
+			var pn: Node = root_scene.get_node_or_null(pp) if pp != "" else root_scene
+			if pn != null:
+				for c in pn.get_children():
+					_pscan_nodes.append(c)
+			_pscan_idx = -1
+			_pscan_wait = 20
+			_pscan_acc = 0.0
+			_pscan_n = 0
+		if t.begins_with("dump:") and not _dumped and frames > warmup_frames:
+			_dumped = true
+			var dn: Node = root_scene.get_node_or_null(t.trim_prefix("dump:").get_slice("@", 0)) if t.get_slice("@", 0) != "dump:" else root_scene
+			if dn != null:
+				_dump(dn, 0, int(t.get_slice("@", 1)) if "@" in t else 3)
 		if t.begins_with("off:"):
 			var n: Node = root_scene.get_node_or_null(t.trim_prefix("off:"))
 			if n != null:
@@ -394,3 +481,98 @@ func _apply_toggles(reg: Node) -> void:
 			e.swarm_hold_for_test(true)
 		if toggles.has("hide"):
 			(e as CanvasItem).visible = false
+
+
+## Diagnostic (toggle "dump_tree"): the scene tree down to `max_depth` with the number of visible
+## canvas items in each subtree (an upper bound on its draw calls).
+func _dump(n: Node, depth: int, max_depth: int) -> void:
+	var cls: String = n.get_class()
+	var scr: Script = n.get_script()
+	if scr != null and scr.get_global_name() != &"":
+		cls = String(scr.get_global_name())
+	print("TREE %s%s [%s] items=%d%s" % ["  ".repeat(depth), n.name, cls, _visible_items(n), " HIDDEN" if (n is CanvasItem and not (n as CanvasItem).visible) else ""])
+	if depth >= max_depth:
+		return
+	var seen: Dictionary = {}
+	for c in n.get_children():
+		if _visible_items(c) > 0 or c is CanvasItem:
+			var key: String = c.get_class() + ("/" + String(c.get_script().get_global_name()) if c.get_script() != null else "")
+			if String(c.name).begins_with("@"):
+				seen[key] = int(seen.get(key, 0)) + 1
+				if int(seen[key]) > 2:
+					continue # anonymous siblings of one kind: the first two stand for the rest
+			_dump(c, depth + 1, max_depth)
+
+
+func _visible_items(n: Node) -> int:
+	var cnt: int = 0
+	if n is CanvasItem and (n as CanvasItem).is_visible_in_tree():
+		cnt = 1
+	for c in n.get_children():
+		cnt += _visible_items(c)
+	return cnt
+
+
+func _scan_collect(n: Node, depth: int) -> void:
+	for c in n.get_children():
+		if (c is CanvasItem and (c as CanvasItem).visible) or (c is CanvasLayer and (c as CanvasLayer).visible):
+			_scan_nodes.append(c)
+			if depth > 1:
+				_scan_collect(c, depth - 1)
+
+
+## Diagnostic (toggle "scan:<path>@<depth>"): hides each canvas child in turn and prints how many
+## draw calls the frame loses ("SCAN <path> calls=N items=M").
+func _scan_step() -> void:
+	if _scan_idx >= _scan_nodes.size():
+		_scan_idx += 1
+		return
+	var n: Node = _scan_nodes[_scan_idx]
+	if not is_instance_valid(n):
+		_scan_idx += 1
+		return
+	var calls: float = Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+	if _scan_phase == 0:
+		_scan_base = calls
+		n.set("visible", false)
+		_scan_phase = 1
+	elif _scan_phase == 1:
+		_scan_phase = 2
+	else:
+		n.set("visible", true)
+		_scan_phase = 0
+		_scan_idx += 1
+		if _scan_base - calls != 0.0:
+			print("SCAN %s calls=%d (of %d) items=%d" % [root_scene.get_path_to(n), int(_scan_base - calls), int(_scan_base), _visible_items(n)])
+
+
+## Diagnostic (toggle "procscan:<path>"): disables the processing of each child of <path> in turn
+## (process_mode DISABLED) and prints how much the mean frame time drops ("PSCAN <child> delta_ms").
+## Headless runs are stable to about 0.1 ms. Returns true when done.
+func _pscan_step(dt_ms: float) -> bool:
+	if _pscan_wait > 0:
+		_pscan_wait -= 1
+		return false
+	_pscan_acc += dt_ms
+	_pscan_n += 1
+	if _pscan_n < 90:
+		return false
+	var mean: float = _pscan_acc / float(_pscan_n)
+	_pscan_acc = 0.0
+	_pscan_n = 0
+	if _pscan_idx < 0:
+		_pscan_base = mean
+		print("PSCAN baseline %.2f" % mean)
+	else:
+		var prev: Node = _pscan_nodes[_pscan_idx]
+		if is_instance_valid(prev):
+			prev.process_mode = Node.PROCESS_MODE_INHERIT
+			print("PSCAN %s delta_ms=%.2f (%.2f)" % [prev.name, _pscan_base - mean, mean])
+	_pscan_idx += 1
+	_pscan_wait = 10
+	while _pscan_idx < _pscan_nodes.size() and not is_instance_valid(_pscan_nodes[_pscan_idx]):
+		_pscan_idx += 1
+	if _pscan_idx >= _pscan_nodes.size():
+		return true
+	_pscan_nodes[_pscan_idx].process_mode = Node.PROCESS_MODE_DISABLED
+	return false

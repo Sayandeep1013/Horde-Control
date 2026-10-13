@@ -20,7 +20,7 @@ func _physics_process(_delta: float) -> void:
 	var candidates: Array[Node2D] = AbilityDamage.enemies_in_radius(global_position, v("range"))
 	if candidates.is_empty():
 		return
-	_next_at = SimClock.now + v("interval")
+	_next_at = SimRate.reschedule(_next_at, SimClock.now, v("interval"))
 	var throws: int = AbilityCatalog.dynamite_count(level)
 	for i in throws:
 		if candidates.is_empty():

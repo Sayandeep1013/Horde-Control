@@ -20,7 +20,7 @@ func _physics_process(_delta: float) -> void:
 			far = e
 	if far == null:
 		return
-	_next_at = SimClock.now + v("interval")
+	_next_at = SimRate.reschedule(_next_at, SimClock.now, v("interval"))
 	fire_at(far.global_position, reach)
 
 

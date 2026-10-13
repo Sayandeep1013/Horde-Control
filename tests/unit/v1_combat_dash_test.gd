@@ -180,3 +180,27 @@ func test_a_dash_without_the_card_deals_no_damage() -> void:
 	_tick(0.2)
 	assert_float(_damage_of("shadow_step")).is_equal(0.0)
 	assert_bool(is_instance_valid(e)).is_true()
+
+
+## PT-PHONE (D395): the dash covers the Register distance at any tick rate (the last tick moves
+## only the time left), so the 30 Hz phone dashes exactly as far as the 60 Hz desktop.
+func test_dash_distance_is_220px_at_60_and_at_30_hz() -> void:
+	var saved_hz: int = Engine.physics_ticks_per_second
+	for hz: int in [60, 30]:
+		Engine.physics_ticks_per_second = hz
+		var dt: float = 1.0 / float(hz)
+		_player.global_position = Vector2.ZERO
+		SimClock.now += 5.0 # past the previous run's recharge and buffers
+		_player.set_input_direction_for_test(Vector2.RIGHT)
+		_player.press_dash_for_test()
+		var travelled: float = 0.0
+		for i in int(0.4 / dt):
+			SimClock.now += dt
+			_player.physics_step(dt)
+			if _player.is_dashing():
+				travelled += absf(_player.velocity.x) * dt
+		assert_float(travelled).is_equal_approx(220.0, 1.0)
+		_player.set_input_direction_for_test(Vector2.ZERO)
+		SimClock.now += 3.0
+		_player.physics_step(dt)
+	Engine.physics_ticks_per_second = saved_hz

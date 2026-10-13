@@ -10,7 +10,7 @@ func _physics_process(_delta: float) -> void:
 	var first: Node2D = AbilityDamage.nearest_enemy(global_position, v("range"))
 	if first == null:
 		return
-	_next_at = SimClock.now + v("interval")
+	_next_at = SimRate.reschedule(_next_at, SimClock.now, v("interval"))
 	strike(first)
 
 

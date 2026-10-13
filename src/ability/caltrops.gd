@@ -21,7 +21,7 @@ func _physics_process(delta: float) -> void:
 	_last_pos = pos
 	if speed < MOVING_SPEED_PX_PER_S or SimClock.now < _next_at:
 		return
-	_next_at = SimClock.now + v("interval")
+	_next_at = SimRate.reschedule(_next_at, SimClock.now, v("interval"))
 	var parent: Node = fx_parent()
 	var patches: Array = get_tree().get_nodes_in_group(&"caltrop_patch")
 	if patches.size() >= MAX_LIVE_PATCHES:

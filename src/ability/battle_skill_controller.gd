@@ -196,7 +196,7 @@ func _cast_war_horn(player: Node2D) -> bool:
 	if weapon != null and weapon.has_method("set_buff_fire_rate_multiplier"):
 		weapon.set_buff_fire_rate_multiplier(HORN_PLAYER_RATE)
 	_buff_until = SimClock.now + HORN_SECONDS
-	_next_pulse = SimClock.now + HORN_PULSE_SECONDS
+	_next_pulse = SimRate.reschedule(_next_pulse, SimClock.now, HORN_PULSE_SECONDS)
 	_pulse_horn(player, tower, 240.0)
 	Sfx.play("wave_horn", player.global_position)
 	return true
@@ -244,7 +244,7 @@ func _physics_process(_delta: float) -> void:
 		if now >= _buff_until:
 			_end_horn()
 		elif now >= _next_pulse:
-			_next_pulse = now + HORN_PULSE_SECONDS
+			_next_pulse = SimRate.reschedule(_next_pulse, now, HORN_PULSE_SECONDS)
 			var p: Node2D = _get_player()
 			if p != null:
 				_pulse_horn(p, _get_tower(), 200.0)
@@ -257,7 +257,7 @@ func _physics_process(_delta: float) -> void:
 		_press_for_test = false
 		try_cast()
 	elif now >= _ready_at and now >= _next_auto_check and GameSettings.is_auto_cast_enabled():
-		_next_auto_check = now + AUTO_CHECK_SECONDS
+		_next_auto_check = SimRate.reschedule(_next_auto_check, now, AUTO_CHECK_SECONDS)
 		if auto_cast_is_useful():
 			try_cast()
 

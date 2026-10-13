@@ -474,7 +474,7 @@ func physics_step(_delta: float) -> void:
 		return # no target in range -- hold fire, consume nothing
 	_current_target = target
 	_fire_at(target)
-	_next_fire_allowed_at = _now() + get_effective_fire_interval_seconds()
+	_next_fire_allowed_at = SimRate.reschedule(_next_fire_allowed_at, _now(), get_effective_fire_interval_seconds())
 
 
 ## Register: "nearest re-picked every shot" (Provisional Values Register >

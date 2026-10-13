@@ -355,7 +355,10 @@ func _movement_step(delta: float, raw_direction: Vector2) -> void:
 		# v1.0 Dash: a fixed-speed burst overrides the ramp; the exit velocity
 		# is seeded at base speed so the stop is not a hard snap.
 		_local_velocity = _dash_direction * definition.base_speed_px_per_second * _speed_multiplier * _boon_speed_multiplier
-		velocity = _dash_direction * (DASH_DISTANCE_PX / DASH_DURATION_SECONDS) * SimClock.time_scale
+		# PT-PHONE (D395): the last tick of the dash covers only the time left, so the dash is
+		# exactly DASH_DISTANCE_PX at any tick rate (60 Hz: 10 whole ticks overshot by 4%).
+		var dash_fraction: float = clampf((_dash_end_at - SimClock.now) / maxf(delta, 0.0001), 0.0, 1.0) if delta > 0.0 else 1.0
+		velocity = _dash_direction * (DASH_DISTANCE_PX / DASH_DURATION_SECONDS) * SimClock.time_scale * dash_fraction
 		move_and_slide()
 		if _registry != null:
 			_registry.update_position(self, global_position)

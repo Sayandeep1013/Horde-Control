@@ -15,7 +15,7 @@ func on_level_changed() -> void:
 
 func _physics_process(_delta: float) -> void:
 	if SimClock.now >= _next_refresh:
-		_next_refresh = SimClock.now + REFRESH_SECONDS
+		_next_refresh = SimRate.reschedule(_next_refresh, SimClock.now, REFRESH_SECONDS)
 		_push()
 
 

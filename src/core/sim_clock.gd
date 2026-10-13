@@ -28,7 +28,9 @@ extends Node
 ## the master explicitly says does not touch time_scale at all; it is not
 ## implemented here -- see the P1.1 evidence report's contradiction note.
 
-const PHYSICS_STEP: float = 1.0 / 60.0 # pinned 60 Hz physics rate (docs/20 > Version)
+## The 60 Hz design tick (docs/20 > Version). A phone runs 30 Hz (PT-PHONE, D395): `now` advances by
+## the RUNNING tick (SimRate.step()), so a second of sim time is a second at either rate.
+const PHYSICS_STEP: float = 1.0 / 60.0
 const TIME_SCALE_MIN: float = 0.25
 const TIME_SCALE_MAX: float = 1.0
 const TIME_SCALE_REDUCTION_MAX_MS: float = 120.0
@@ -71,7 +73,7 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	if _scale_revert_at_msec >= 0 and Time.get_ticks_msec() >= _scale_revert_at_msec:
 		time_scale = TIME_SCALE_MAX # goes through the setter above; also clears the deadline
-	now += PHYSICS_STEP * time_scale
+	now += (1.0 / float(Engine.physics_ticks_per_second)) * time_scale
 
 
 ## Typed command (docs/20 > Communication, commands). Requests a temporary

@@ -490,6 +490,22 @@ func attach(slot: int, enemy: Node2D, now: float) -> Profile:
 		var seeker_def: EnemyDefinition = enemy.get("seeker_definition_for_conversion") as EnemyDefinition
 		if seeker_def != null and seeker_def.readability_profile != null:
 			p.conv_reserved = seeker_def.readability_profile.reserved_colour
+	_attach_slot(slot, p, bar_dy, now)
+	for n in ["Visuals", "TelegraphVisual", "HealthBar"]:
+		var node: Node = enemy.get_node_or_null(n)
+		if node != null:
+			enemy.remove_child(node)
+			node.free()
+	return p
+
+
+## PT-PHONE (D396): a pooled enemy that already shed its node visuals joins again with the
+## profile it was drawn with (no node lookups, nothing freed).
+func reattach(slot: int, p: Profile, now: float) -> void:
+	_attach_slot(slot, p, p.bar_dy, now)
+
+
+func _attach_slot(slot: int, p: Profile, bar_dy: float, now: float) -> void:
 	ensure_slot(slot)
 	s_active[slot] = 1
 	s_prof[slot] = p.id
@@ -508,12 +524,6 @@ func attach(slot: int, enemy: Node2D, now: float) -> Profile:
 		_order.append(slot)
 		s_in_order[slot] = 1
 	_dirty = true
-	for n in ["Visuals", "TelegraphVisual", "HealthBar"]:
-		var node: Node = enemy.get_node_or_null(n)
-		if node != null:
-			enemy.remove_child(node)
-			node.free()
-	return p
 
 
 func detach(slot: int) -> void:

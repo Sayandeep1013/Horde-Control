@@ -138,6 +138,8 @@ debug_pseudoloc_toggle={
 
 common/physics_jitter_fix=0.0
 common/physics_interpolation=true
+common/physics_ticks_per_second.mobile=30
+common/max_physics_steps_per_frame.mobile=3
 
 [input_devices]
 

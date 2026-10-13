@@ -22,7 +22,7 @@ func _physics_process(_delta: float) -> void:
 	if SimClock.now < _next_at:
 		return
 	if cast() > 0:
-		_next_at = SimClock.now + v("interval")
+		_next_at = SimRate.reschedule(_next_at, SimClock.now, v("interval"))
 
 
 ## Chooses the impact points (densest cluster first, covered enemies dropped, then random
