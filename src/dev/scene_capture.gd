@@ -24,6 +24,7 @@ extends Node
 ##     [--walk-into-crate=F] (PT-ARENA: at frame F the player is put 120 px east of the first Crate and walks west into it)
 ##     [--flow-debug] (PT-ARENA: at frame 2 draw the FlowField mask and both fields)
 ##     [--overview=Z] (PT-ARENA: from frame 2 the camera is pinned at the arena centre at zoom Z, e.g. 0.58)
+##   [--show-fps]  (PT-PHONE: switch Settings > Video > Show FPS on for the capture)
 ##   [--first-time-tips]  (PT-UI: keep the first-encounter explainers on; captures turn them off)
 ##   (the v1.0 flags are dev-only helpers for WP-COMBAT captures, prototype scene only)
 ##   [--event=opening|patrons_boon|sanctuary|blood_pact] [--flawless] [--armory]
@@ -82,6 +83,8 @@ func _ready() -> void:
 	# unless it asks for them (`--first-time-tips`).
 	if not OS.get_cmdline_user_args().has("--first-time-tips"):
 		GameSettings.set_show_first_time_tips_for_test(false)
+	if OS.get_cmdline_user_args().has("--show-fps"):
+		GameSettings.set_show_fps(true) # PT-PHONE: the Show FPS plate in a capture
 	var scene_path: String = "res://scenes/prototype.tscn"
 	var size: Vector2i = Vector2i(1920, 1080)
 	for arg in OS.get_cmdline_user_args():
