@@ -149,11 +149,18 @@ const PICKER_HINT_MIN_HEIGHT: float = 130.0 # three lines at the 37 px floor
 const PAGE_RUN: String = "run"
 const PAGE_LOADOUT: String = "loadout"
 const START_RUN_MIN_SIZE: Vector2 = Vector2(360.0, 84.0) # the primary action, visibly larger
-## D147: the mobile layout draws the Hub on a 720 px tall logical canvas; the
-## card (which already carries its own "War Camp" ribbon) takes the whole band
-## and the separate title above it is dropped. 720-base px.
-const COMPACT_MENU_BAND_TOP: float = 8.0
-const COMPACT_MENU_BAND_BOTTOM: float = 712.0
+const UI_BASE_HEIGHT: float = 1080.0
+## D147, D370: the mobile layout draws the Hub on an 864 px tall logical canvas inside the
+## safe area; the card (which already carries its own "War Camp" ribbon) takes the whole
+## height and the separate title above it is dropped. The Cores pill sits in the left
+## gutter (Register "Hub compact gutter"), the banners flow above the cards, and the
+## page area of the Run Setup card scrolls when the cards are taller than what is left.
+const COMPACT_LEFT_GUTTER: float = 104.0
+const COMPACT_PICKER_HINT_MIN_HEIGHT: float = 88.0 # two lines at the 37 px floor; a third line grows the card and shrinks the scroll area
+const COMPACT_MENU_CARD_MIN_WIDTH: float = 400.0
+const COMPACT_MENU_CARD_NARROW_WIDTH: float = 360.0 # when the safe width is under 1524 px: the narrow buttons plus the card chrome
+const COMPACT_MENU_BUTTON_NARROW_PX: float = 290.0
+const COMPACT_ROW_SLACK_PX: float = 40.0 # the cards are a little wider than their minimum (card chrome, scroll bar)
 
 ## Harness-only flag (title_screen.gd's own `--debug-panel=` precedent):
 ## `--debug-panel=skill_tree` / `--debug-panel=records` / `--debug-panel=
@@ -163,6 +170,20 @@ const COMPACT_MENU_BAND_BOTTOM: float = 712.0
 const DEBUG_PANEL_FLAG_PREFIX: String = "--debug-panel="
 
 var _root: Control
+var _safe: Control ## D370: the safe-area-fitted parent of everything interactive
+var _content_parent: Control
+var _menu_center: CenterContainer
+## D370: card widths; the compact layout narrows them when the safe width is short (16:9 phone with a cut-out).
+var _setup_width: float = SETUP_CARD_MIN_WIDTH
+var _menu_width: float = MENU_CARD_MIN_WIDTH
+var _menu_button_min_w: float = BUTTON_MIN_SIZE.x
+var _picker_min_width: float = PICKER_BUTTON_MIN_SIZE.x
+var _relic_min_width: float = RELIC_BUTTON_MIN_SIZE.x
+var _page_scroll: ScrollContainer
+var _menu_scroll: ScrollContainer
+var _menu_column: VBoxContainer
+var _banner_column: VBoxContainer
+var _fit_pending: bool = false
 var _cores_label: Label
 var _cores_icon: UiShapeGlyph
 var _start_run_button: Button
@@ -424,8 +445,23 @@ func _on_v3_dismiss_pressed() -> void:
 
 # --- UI construction ----------------------------------------------------------
 
+## Compact layout: gutter + setup card + gap + menu card must fit the safe width. 400 px of menu
+## card and the full 960 px setup card need 1488 px; a 16:9 phone with a camera cut-out has about 1400.
+func _compute_compact_widths() -> void:
+	if not TouchUi.is_mobile_layout():
+		_menu_width = MENU_CARD_MIN_WIDTH
+		return
+	var avail: float = SafeArea.rect(get_window()).size.x - COMPACT_LEFT_GUTTER
+	_menu_width = COMPACT_MENU_CARD_MIN_WIDTH if avail >= 1420.0 else COMPACT_MENU_CARD_NARROW_WIDTH
+	_menu_button_min_w = BUTTON_MIN_SIZE.x if avail >= 1420.0 else COMPACT_MENU_BUTTON_NARROW_PX
+	_setup_width = minf(SETUP_CARD_MIN_WIDTH, avail - _menu_width - float(UiPalette.SPACE_XL) - COMPACT_ROW_SLACK_PX)
+	_picker_min_width = minf(PICKER_BUTTON_MIN_SIZE.x, (_setup_width - 72.0) / 2.0)
+	_relic_min_width = minf(RELIC_BUTTON_MIN_SIZE.x, (_setup_width - 72.0 - 36.0) / 4.0)
+
+
 func _build_ui() -> void:
 	UiStrings.ensure_registered()
+	_compute_compact_widths()
 	_root = Control.new()
 	_root.name = "Root"
 	_root.theme = UiTheme.get_theme()
@@ -435,6 +471,24 @@ func _build_ui() -> void:
 
 	_build_background()
 	_build_scrim()
+	# D370: everything a finger or an eye must reach lives under `Safe`, which keeps
+	# clear of the camera cut-out, rounded corners and gesture bar; the backdrop bleeds.
+	_safe = Control.new()
+	_safe.name = "Safe"
+	_safe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_safe)
+	SafeArea.fit(_safe)
+	_content_parent = _safe
+	if TouchUi.is_mobile_layout():
+		# Compact: a column [banners, cards] to the right of the Cores pill, so nothing overlaps.
+		var layout := VBoxContainer.new()
+		layout.name = "Layout"
+		layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layout.add_theme_constant_override("separation", UiPalette.SPACE_S)
+		layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		layout.offset_left = COMPACT_LEFT_GUTTER
+		_safe.add_child(layout)
+		_content_parent = layout
 	_build_foreground()
 	_build_top_bar()
 	_build_banners()
@@ -573,11 +627,14 @@ func _place(control: Control, top_left: Vector2, size: Vector2) -> void:
 
 
 func _build_foreground() -> void:
+	if TouchUi.is_mobile_layout():
+		_build_menu_card(_content_parent) # the banners are added first by _build_banners(); order fixed there
+		return
 	var foreground := Control.new()
 	foreground.name = "Foreground"
 	foreground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	foreground.mouse_filter = Control.MOUSE_FILTER_PASS
-	_root.add_child(foreground)
+	_content_parent.add_child(foreground)
 
 	_build_title_block(foreground)
 	_build_menu_card(foreground)
@@ -601,7 +658,15 @@ func _build_menu_card(parent: Control) -> void:
 	var center := CenterContainer.new()
 	center.name = "MenuCenter"
 	center.mouse_filter = Control.MOUSE_FILTER_PASS
-	center.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_menu_center = center
+	if TouchUi.is_mobile_layout():
+		# D370: a plain child of the compact column; it takes whatever height the banners leave.
+		center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		parent.add_child(center)
+		center.resized.connect(_fit_setup_pages_deferred)
+		_build_card_row(center)
+		return
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# Round 2: the card's own real content (Start Run + 3 buttons + CARD's
 	# own texture padding) measures ~372px tall -- centred on the ORIGINAL
 	# 720/1050 band (centre y=885) that left only ~9px of clearance above
@@ -613,10 +678,14 @@ func _build_menu_card(parent: Control) -> void:
 	# UX review P0-1 (D127): the card now holds ribbon + Start Run + 5 buttons
 	# (~600px), so the band spans nearly the whole lower screen and the card is
 	# centred inside it; a test asserts every focusable button lies in 1280x720.
-	center.offset_top = COMPACT_MENU_BAND_TOP if TouchUi.is_mobile_layout() else HUB_MENU_BAND_TOP
-	center.offset_bottom = COMPACT_MENU_BAND_BOTTOM if TouchUi.is_mobile_layout() else HUB_MENU_BAND_BOTTOM
+	center.offset_top = HUB_MENU_BAND_TOP
+	center.offset_bottom = HUB_MENU_BAND_BOTTOM - UI_BASE_HEIGHT # the band's bottom margin, so any canvas height works
 	parent.add_child(center)
+	center.resized.connect(_fit_setup_pages_deferred)
+	_build_card_row(center)
 
+
+func _build_card_row(center: CenterContainer) -> void:
 	var row := HBoxContainer.new()
 	row.name = "CardRow"
 	row.theme_type_variation = UiTheme.hbox("XL")
@@ -629,7 +698,7 @@ func _build_menu_card(parent: Control) -> void:
 	card.name = "MenuCard"
 	card.theme_type_variation = UiTheme.CARD
 	card.theme = UiTheme.get_parchment_theme() # D166: dark ink on parchment
-	card.custom_minimum_size = Vector2(MENU_CARD_MIN_WIDTH, 0.0)
+	card.custom_minimum_size = Vector2(_menu_width, 0.0)
 	card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	card.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_child(card)
@@ -638,7 +707,19 @@ func _build_menu_card(parent: Control) -> void:
 	var column := VBoxContainer.new()
 	column.name = "MenuColumn"
 	column.theme_type_variation = UiTheme.vbox("M")
-	card.add_child(column)
+	_menu_column = column
+	# D370: the menu column scrolls only when the safe height (less any notice above) is shorter than it.
+	_menu_scroll = ScrollContainer.new()
+	_menu_scroll.name = "MenuScroll"
+	_menu_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	card.add_child(_menu_scroll)
+	var menu_pad := MarginContainer.new()
+	menu_pad.name = "MenuPad"
+	menu_pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	menu_pad.add_theme_constant_override("margin_right", 12)
+	menu_pad.add_theme_constant_override("margin_bottom", 12)
+	_menu_scroll.add_child(menu_pad)
+	menu_pad.add_child(column)
 
 	# Review fix (D249): the page title above the card already says "War Camp", so
 	# the card's own ribbon only appears where that title is hidden (the touch layout).
@@ -688,7 +769,7 @@ func _build_setup_card(parent: Container) -> void:
 	card.name = "SetupCard"
 	card.theme_type_variation = UiTheme.CARD
 	card.theme = UiTheme.get_parchment_theme()
-	card.custom_minimum_size = Vector2(SETUP_CARD_MIN_WIDTH, 0.0)
+	card.custom_minimum_size = Vector2(_setup_width, 0.0)
 	card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	card.mouse_filter = Control.MOUSE_FILTER_PASS
 	parent.add_child(card)
@@ -700,9 +781,31 @@ func _build_setup_card(parent: Container) -> void:
 
 	column.add_child(_build_tab_row())
 
+	# D370: the pages sit in a scroll area (horizontal off) that only scrolls when the card would
+	# otherwise be taller than the screen; `_fit_setup_pages()` sizes it.
+	_page_scroll = ScrollContainer.new()
+	_page_scroll.name = "PageScroll"
+	_page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_page_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(_page_scroll)
+	# The selection badges hang over a picker's top-right corner and the locked reason plates below
+	# its bottom edge (D320); the scroll clips to its rect, so the pages get room around them.
+	var pad := MarginContainer.new()
+	pad.name = "PagePad"
+	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.add_theme_constant_override("margin_right", 16)
+	pad.add_theme_constant_override("margin_top", 12)
+	pad.add_theme_constant_override("margin_bottom", 16)
+	_page_scroll.add_child(pad)
+	var pages := VBoxContainer.new()
+	pages.name = "Pages"
+	pages.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.add_child(pages)
+
 	_run_page = VBoxContainer.new()
 	_run_page.name = "RunPage"
-	column.add_child(_run_page)
+	pages.add_child(_run_page)
 	_run_page.add_child(_make_picker_heading(tr("HUB_DIFFICULTY")))
 	var diff_grid := GridContainer.new()
 	diff_grid.name = "DifficultyGrid"
@@ -745,14 +848,15 @@ func _build_setup_card(parent: Container) -> void:
 
 
 	_loadout_page = _build_loadout_page()
-	column.add_child(_loadout_page)
+	pages.add_child(_loadout_page)
 
 	_picker_hint = Label.new()
 	_picker_hint.name = "PickerHint"
 	_picker_hint.theme_type_variation = UiTheme.DIM_PARCHMENT
 	_picker_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_picker_hint.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	_picker_hint.custom_minimum_size = Vector2(SETUP_CARD_MIN_WIDTH - 60.0, PICKER_HINT_MIN_HEIGHT)
+	_picker_hint.custom_minimum_size = Vector2(_setup_width - 60.0, COMPACT_PICKER_HINT_MIN_HEIGHT if TouchUi.is_mobile_layout() else PICKER_HINT_MIN_HEIGHT)
+	_picker_hint.minimum_size_changed.connect(_fit_setup_pages_deferred) # a third line takes room from the page area, never from Start Run
 	column.add_child(_picker_hint)
 
 	_start_run_button = Button.new()
@@ -828,7 +932,7 @@ func _build_loadout_page() -> VBoxContainer:
 		button.name = "Relic_%s" % id
 		button.toggle_mode = true
 		button.focus_mode = Control.FOCUS_ALL
-		button.custom_minimum_size = TouchUi.touch_size(RELIC_BUTTON_MIN_SIZE)
+		button.custom_minimum_size = TouchUi.touch_size(Vector2(_relic_min_width, RELIC_BUTTON_MIN_SIZE.y))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.expand_icon = true
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -845,9 +949,37 @@ func _build_loadout_page() -> VBoxContainer:
 	return page
 
 
+func _fit_setup_pages_deferred() -> void:
+	if _fit_pending:
+		return
+	_fit_pending = true
+	_fit_setup_pages.call_deferred()
+
+
+## D370: caps the Run Setup card to the height the band leaves and gives its page area exactly
+## the room that is left (it scrolls by touch drag or wheel only when the pages are taller).
+func _fit_setup_pages() -> void:
+	_fit_pending = false
+	if _page_scroll == null or _setup_card == null or _menu_center == null or not is_inside_tree():
+		return
+	var usable: float = _menu_center.size.y
+	if usable < 200.0:
+		return
+	_page_scroll.custom_minimum_size.y = 0.0
+	var fixed: float = _setup_card.get_combined_minimum_size().y
+	var content: float = maxf(_run_page.get_combined_minimum_size().y, _loadout_page.get_combined_minimum_size().y) + 28.0 # PagePad's top and bottom
+	_page_scroll.custom_minimum_size.y = minf(content, maxf(160.0, usable - fixed - 8.0)) # 8 px of slack for the layout's own rounding
+	if _menu_scroll != null and _menu_card != null:
+		_menu_scroll.custom_minimum_size.y = 0.0
+		var menu_fixed: float = _menu_card.get_combined_minimum_size().y
+		var menu_content: float = _menu_column.get_combined_minimum_size().y + 12.0 # MenuPad's bottom
+		_menu_scroll.custom_minimum_size.y = minf(menu_content, maxf(160.0, usable - menu_fixed - 8.0))
+
+
 func _show_page(page: String) -> void:
 	_run_page.visible = page == PAGE_RUN
 	_loadout_page.visible = page == PAGE_LOADOUT
+	_fit_setup_pages_deferred()
 	(_tab_buttons[page] as Button).button_pressed = true # the ButtonGroup releases the other tab; only `pressed` is connected, so this does not recurse
 	if page == PAGE_LOADOUT:
 		_set_hint_for_champion(MetaProgress.get_selected_champion())
@@ -868,7 +1000,7 @@ func _make_picker_button(text: String, icon_path: String) -> Button:
 	button.text = text
 	button.toggle_mode = true
 	button.focus_mode = Control.FOCUS_ALL
-	button.custom_minimum_size = TouchUi.touch_size(PICKER_BUTTON_MIN_SIZE)
+	button.custom_minimum_size = TouchUi.touch_size(Vector2(_picker_min_width, PICKER_BUTTON_MIN_SIZE.y))
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.expand_icon = true
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -905,6 +1037,7 @@ func _refresh_pickers() -> void:
 	_endless_button.text = tr("HUB_ENDLESS_ON") if _endless_button.button_pressed else tr("HUB_ENDLESS_OFF")
 	_refresh_loadout_pickers()
 	_set_hint_for_difficulty(difficulty)
+	_fit_setup_pages_deferred()
 
 
 ## Champions and Relics: the chosen ones are pressed, locked ones are greyed tablets.
@@ -1054,7 +1187,7 @@ func _make_menu_button(text: String) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_ALL
-	button.custom_minimum_size = TouchUi.touch_size(BUTTON_MIN_SIZE)
+	button.custom_minimum_size = TouchUi.touch_size(Vector2(_menu_button_min_w, BUTTON_MIN_SIZE.y))
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE) # D166: main menu buttons read at 56
 	SelectableState.attach(button, SelectableState.Layout.ROW) # PT-UI: the focused cue on every menu button
@@ -1067,9 +1200,9 @@ func _build_top_bar() -> void:
 	bar.mouse_filter = Control.MOUSE_FILTER_PASS
 	bar.theme_type_variation = UiTheme.hbox("L")
 	bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	bar.offset_left = UiPalette.SCREEN_MARGIN
-	bar.offset_top = UiPalette.SCREEN_MARGIN
-	_root.add_child(bar)
+	bar.offset_left = 0.0 if TouchUi.is_mobile_layout() else UiPalette.SCREEN_MARGIN # D370: the safe margin already insets a phone
+	bar.offset_top = 0.0 if TouchUi.is_mobile_layout() else UiPalette.SCREEN_MARGIN
+	_safe.add_child(bar)
 
 	var cores_pill := PanelContainer.new()
 	cores_pill.name = "CoresPill"
@@ -1109,16 +1242,18 @@ func _build_banners() -> void:
 	# No theme_type_variation here: UiPalette.SPACE_S is the theme's own
 	# default VBoxContainer separation (UiTheme.BOX_STEPS's own header:
 	# "SPACE_S is the theme default and needs no variation").
-	column.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	column.offset_top = 100.0
-	column.offset_left = 660.0
-	column.offset_right = -660.0
+	_banner_column = column
 	if TouchUi.is_mobile_layout():
-		# D167: the banner sits in the free column left of the menu card, never over it.
-		column.anchor_right = 0.34
-		column.offset_left = float(UiPalette.SCREEN_MARGIN)
-		column.offset_right = 0.0
-	_root.add_child(column)
+		# D370: banners flow above the cards in the compact column (the pill sits in the gutter),
+		# so a banner can never overlap a card; the Run Setup pages scroll to make room.
+		_content_parent.add_child(column)
+		_content_parent.move_child(column, 0)
+	else:
+		column.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+		column.offset_top = 100.0
+		column.offset_left = 660.0
+		column.offset_right = -660.0
+		_safe.add_child(column)
 
 	_hint_banner = _build_banner(column, "HintBanner", tr("HUB_FIRST_VISIT_HINT"), tr("HUB_HINT_DISMISS"), _on_hint_dismiss_pressed)
 	_warning_banner = _build_banner(column, "WarningBanner", "", tr("HUB_HINT_DISMISS"), _on_warning_dismiss_pressed)

@@ -72,8 +72,38 @@ func open(tab: int = FieldGuideCatalog.Tab.ABILITIES, entry_id: String = "") -> 
 	if entry_id != "":
 		select_entry(entry_id)
 	_update_found_label()
+	_fit_card()
+	_refit_after_layout.call_deferred()
 	MenuFrame.animate_in(_frame)
 	_focus_first_tile.call_deferred()
+
+
+## The tab row wraps to a second line once the card has its real width, which adds height the first
+## measurement could not see; measure again a frame later.
+func _refit_after_layout() -> void:
+	if not is_inside_tree():
+		return
+	await get_tree().process_frame
+	if _open:
+		_fit_card()
+
+
+## D370: the card and its two scroll areas take the room the safe area leaves (the fixed 1700 x
+## 560 design did not fit a phone: it ran past the right edge and the bottom of the canvas).
+func _fit_card() -> void:
+	if not is_inside_tree():
+		return
+	var safe: Rect2 = SafeArea.rect(get_window())
+	var card: PanelContainer = _frame.card
+	card.custom_minimum_size.x = minf(CARD_WIDTH_PX, safe.size.x)
+	var tiles_w: float = _scroll.custom_minimum_size.x
+	_detail_scroll.custom_minimum_size.x = clampf(safe.size.x - tiles_w - 150.0, 360.0, DETAIL_WIDTH_PX)
+	_scroll.custom_minimum_size.y = 0.0
+	_detail_scroll.custom_minimum_size.y = 0.0
+	var fixed: float = card.get_combined_minimum_size().y
+	var body_h: float = clampf(safe.size.y - fixed, 200.0, BODY_HEIGHT_PX)
+	_scroll.custom_minimum_size.y = body_h
+	_detail_scroll.custom_minimum_size.y = body_h
 
 
 func close() -> void:

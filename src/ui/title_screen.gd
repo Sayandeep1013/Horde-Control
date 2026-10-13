@@ -341,6 +341,7 @@ func _build_foreground() -> void:
 	foreground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	foreground.mouse_filter = Control.MOUSE_FILTER_PASS
 	_root.add_child(foreground)
+	SafeArea.fit(foreground) # D370: text and buttons keep clear of the cut-out, corners and gesture bar; the art bleeds
 
 	_build_title_block(foreground)
 	_build_menu_card(foreground)
@@ -353,7 +354,7 @@ func _build_version_footer(parent: Control) -> void:
 	var label := Label.new()
 	label.name = "VersionLabel"
 	label.text = version_text()
-	label.theme_type_variation = UiTheme.SMALL
+	label.theme_type_variation = UiTheme.HUD_VALUE if TouchUi.is_mobile_layout() else UiTheme.SMALL # D370: 19 px reads under 10 dp on a phone
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -402,11 +403,13 @@ func _build_menu_card(parent: Control) -> void:
 	_menu_center = CenterContainer.new()
 	_menu_center.name = "MenuCenter"
 	_menu_center.mouse_filter = Control.MOUSE_FILTER_PASS
-	_menu_center.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_menu_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# UX review P0-2 (D127): five buttons do not fit the old 705-1050 band at
 	# 720p; the card is centred in a taller band so Quit stays on screen.
+	# D370: the band's bottom is anchored to the canvas bottom (it was an absolute y of a
+	# 1080 or 720 px canvas), so it follows the real canvas height and the safe area.
 	_menu_center.offset_top = COMPACT_MENU_BAND_TOP if TouchUi.is_mobile_layout() else MENU_BAND_TOP
-	_menu_center.offset_bottom = COMPACT_MENU_BAND_BOTTOM if TouchUi.is_mobile_layout() else MENU_BAND_BOTTOM
+	_menu_center.offset_bottom = 0.0 if TouchUi.is_mobile_layout() else MENU_BAND_BOTTOM - 1080.0
 	_menu_center.anchor_right = 0.55 if TouchUi.is_mobile_layout() else 0.5 # left half, clear of the castle on the right (D167; v1.0 on desktop too)
 	parent.add_child(_menu_center)
 
@@ -529,9 +532,9 @@ func _build_sub_panel(panel_name: String) -> Dictionary:
 	# 0.96 alpha, not fully opaque, so the tagline ghosted through at the
 	# seam). Starting the band at 280 (the same y the Castle backdrop
 	# starts at) keeps the panel entirely clear of the title block instead.
-	center.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.offset_top = COMPACT_MENU_BAND_TOP if TouchUi.is_mobile_layout() else 280.0
-	center.offset_bottom = COMPACT_MENU_BAND_BOTTOM if TouchUi.is_mobile_layout() else 1080.0
+	center.offset_bottom = 0.0 # D370: anchored to the canvas bottom, inside the safe area
 	_root.get_node("Foreground").add_child(center)
 
 	var panel := PanelContainer.new()
@@ -585,7 +588,7 @@ func _set_title_block_visible(shown: bool) -> void:
 ## Sizes the page to its text once laid out, under the title band and above the card's Back button.
 func _fit_how_to_play() -> void:
 	await get_tree().process_frame
-	HowToPlay.fit(_how_to_play_scroll, get_viewport().get_visible_rect().size.y - HOW_TO_PLAY_TOP_PX - 260.0)
+	HowToPlay.fit(_how_to_play_scroll, SafeArea.rect(get_window()).size.y - HOW_TO_PLAY_TOP_PX - 260.0)
 
 
 func _on_how_to_play_back_pressed() -> void:
@@ -617,11 +620,14 @@ func _on_settings_pressed() -> void:
 	_last_focused_main_button = _settings_button
 	get_viewport().gui_release_focus()
 	_menu_center.visible = false
+	if TouchUi.is_mobile_layout():
+		_set_title_block_visible(false) # D370: the Settings card needs the whole safe height; the logo would show through its scrim
 	_settings_menu.set_active(true)
 
 
 func _on_settings_closed() -> void:
 	_settings_menu.set_active(false)
+	_set_title_block_visible(true)
 	_menu_center.visible = true
 	var target: Button = _last_focused_main_button if _last_focused_main_button != null else _play_button
 	target.grab_focus()

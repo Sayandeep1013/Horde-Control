@@ -923,6 +923,7 @@ func _build_ui() -> void:
 	for side in ["left", "top", "right", "bottom"]:
 		margin.add_theme_constant_override("margin_%s" % side, UiPalette.SPACE_XL)
 	root.add_child(margin)
+	SafeArea.fit(margin) # D370: header, board and detail panel keep clear of the cut-out and gesture bar
 
 	var column := VBoxContainer.new()
 	column.name = "Column"

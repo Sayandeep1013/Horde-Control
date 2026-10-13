@@ -183,18 +183,19 @@ func test_touch_height_raises_small_targets_on_mobile_only() -> void:
 	assert_float(TouchUi.button_size(Vector2(360.0, 56.0)).y).is_equal_approx(TouchUi.BUTTON_TOUCH_MIN_PX, 0.001)
 
 
-func test_ui_scale_is_1_5_on_a_20_9_phone_less_on_16_9_and_1_on_desktop() -> void:
+func test_ui_scale_is_1_25_on_a_20_9_phone_less_on_16_9_and_1_on_desktop() -> void:
 	var wide := Vector2(2400.0, 1080.0)
 	var sixteen_nine := Vector2(1920.0, 1080.0)
 	TouchUi.set_override_for_test(0)
 	assert_float(TouchUi.ui_scale_for(wide)).is_equal_approx(1.0, 0.001)
 	TouchUi.set_override_for_test(1)
-	assert_float(TouchUi.ui_scale_for(wide)).is_equal_approx(1.5, 0.001)
+	assert_float(TouchUi.ui_scale_for(wide)).is_equal_approx(TouchUi.UI_SCALE_MAX, 0.001)
+	assert_float(TouchUi.UI_SCALE_MAX).is_equal_approx(1.25, 0.001) # D370
 	# 16:9: the logical canvas must stay at least 1400 px wide.
 	assert_float(1920.0 / TouchUi.ui_scale_for(sixteen_nine)).is_greater_equal(TouchUi.UI_MIN_LOGICAL_WIDTH_PX - 1.0)
 	assert_float(TouchUi.ui_scale_for(Vector2(1000.0, 1000.0))).is_equal_approx(1.0, 0.001) # never shrinks the UI
-	TouchUi.set_scale_suspended(null, true) # the Skill Tree board runs unscaled
-	assert_float(TouchUi.ui_scale_for(wide)).is_equal_approx(1.0, 0.001)
+	TouchUi.set_scale_suspended(null, true) # the Skill Tree board runs at most BOARD_SCALE
+	assert_float(TouchUi.ui_scale_for(wide)).is_equal_approx(TouchUi.BOARD_SCALE, 0.001)
 	TouchUi.set_scale_suspended(null, false)
 
 

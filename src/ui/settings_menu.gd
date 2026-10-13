@@ -121,7 +121,7 @@ var _tab_panels: Array[VBoxContainer] = []
 var _tab_labels: Array[Label] = []
 var _scroll: ScrollContainer
 var _row_list: VBoxContainer
-var _footer_list: VBoxContainer
+var _footer_list: BoxContainer
 var _hint_label: Label
 
 ## Tabs shown (the Controls tab is keyboard-only, so a phone has four).
@@ -356,9 +356,15 @@ func _build_ui() -> void:
 	_frame.column.add_child(_hint_label)
 
 	MenuFrame.build_separator(_frame.column) # Review fix (D246): the buttons sit apart from the settings list
-	_footer_list = VBoxContainer.new()
+	if TouchUi.is_mobile_layout():
+		# D370: Reset to Defaults and Back sit side by side on a phone, which gives the setting rows a
+		# whole plate more of the 864 px canvas (the last row of a five-row tab no longer scrolls away).
+		_footer_list = HBoxContainer.new()
+		_footer_list.theme_type_variation = UiTheme.hbox("M")
+	else:
+		_footer_list = VBoxContainer.new()
+		_footer_list.theme_type_variation = UiTheme.vbox("M")
 	_footer_list.name = "FooterList"
-	_footer_list.theme_type_variation = UiTheme.vbox("M")
 	_frame.column.add_child(_footer_list)
 
 	for tab_index: int in TAB_ROWS.size():
@@ -457,6 +463,7 @@ func _add_footer_button(id: String, label_text: String) -> void:
 	var plate := PanelContainer.new()
 	plate.name = "Plate_" + id
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.size_flags_horizontal = Control.SIZE_EXPAND_FILL # side by side on a phone (D370), full width in the column
 	plate.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.PARCHMENT.darkened(0.12), UiPalette.INK_PIXEL, 0, UiPalette.BORDER_THICK, UiPalette.SPACE_S))
 	_footer_list.add_child(plate)
 	_add_row(plate, id, label_text, false)

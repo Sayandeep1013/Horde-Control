@@ -146,6 +146,18 @@ func _collect_text(node: Node, text: String, out: Array) -> void:
 		_collect_text(ch, text, out)
 
 
+## Diagnostic: the visible mouse-stopping controls whose rect holds `logical_pos`, top layer first.
+func _stoppers_at(logical_pos: Vector2) -> String:
+	var out: PackedStringArray = []
+	var stack: Array[Node] = [get_tree().root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		if n is Control and (n as Control).is_visible_in_tree() and (n as Control).mouse_filter == Control.MOUSE_FILTER_STOP and (n as Control).get_global_rect().has_point(logical_pos):
+			out.append("%s(layer %d)" % [n.get_path(), _layer_of(n)])
+		stack.append_array(n.get_children())
+	return ", ".join(out)
+
+
 func _find_class_node(root: Node, node_name: String) -> Node:
 	return root.find_child(node_name, true, false)
 
@@ -170,11 +182,6 @@ func _run_menus() -> void:
 	await _frames(20)
 	_shot("title_how_to_play")
 	_check("title: How to Play Back by tap", await _tap_text("Back"))
-	await _frames(20)
-	_check("title: Controls opens by tap", await _tap_text("Controls"))
-	await _frames(20)
-	_shot("title_controls")
-	_check("title: Controls Back by tap", await _tap_text("Back"))
 	await _frames(20)
 	_check("title: Credits opens by tap", await _tap_text("Credits"))
 	await _frames(20)
@@ -277,6 +284,7 @@ func _run_menus() -> void:
 
 
 func _run_flow() -> void:
+	GameSettings.set_show_first_time_tips_for_test(false) # the menu taps above may have reloaded the settings; an explainer would pause the run
 	var packed: PackedScene = load("res://scenes/prototype.tscn")
 	_prototype = packed.instantiate()
 	add_child(_prototype)
@@ -290,6 +298,7 @@ func _run_flow() -> void:
 		await _frames(20)
 		_check("event: tapping a card picks it and the run resumes", not events_ui.is_showing() and not get_tree().paused)
 	await _frames(20)
+	await get_tree().create_timer(1.5).timeout # the event card's CHOSEN hold and fade run on time, not frames: its dim must be gone before a finger can reach the buttons
 	var player: Node2D = _prototype.get_node("Main/Player") as Node2D
 	var tc: TouchControls = _prototype.get_node("TouchControls") as TouchControls
 	_check("touch controls visible", tc.visible and tc.joystick != null and tc.pause_button != null)
@@ -303,7 +312,7 @@ func _run_flow() -> void:
 	_check("touch: the HUD action cluster steps aside", not hud_node.get_action_cluster().visible)
 	_touch(tc.dash_button.get_global_rect().get_center(), true, 1)
 	await _frames(3)
-	_check("touch: holding the Dash button presses dash", Input.is_action_pressed(&"dash"))
+	_check("touch: holding the Dash button presses dash", Input.is_action_pressed(&"dash"), "button rect %s visible=%s; stoppers at its centre: %s" % [tc.dash_button.get_global_rect(), tc.dash_button.is_visible_in_tree(), _stoppers_at(tc.dash_button.get_global_rect().get_center())])
 	_touch(tc.dash_button.get_global_rect().get_center(), false, 1)
 	await _frames(3)
 	_check("touch: lifting the finger releases dash", not Input.is_action_pressed(&"dash"))
@@ -378,7 +387,7 @@ func _run_flow() -> void:
 	flow.simulate_player_died_for_test()
 	await _frames(60)
 	_shot("run_end")
-	var cont: Control = _find_text(get_tree().root, "Continue")
-	_check("run end: Continue is on screen", cont != null and get_viewport().get_visible_rect().encloses(cont.get_global_rect()), str(cont.get_global_rect()) if cont != null else "missing")
+	var cont: Control = _find_text(get_tree().root, "War Camp")
+	_check("run end: War Camp is on screen", cont != null and get_viewport().get_visible_rect().encloses(cont.get_global_rect()), str(cont.get_global_rect()) if cont != null else "missing")
 	var menu_btn: Control = _find_text(get_tree().root, "Main Menu")
 	_check("run end: Main Menu is on screen", menu_btn != null and get_viewport().get_visible_rect().encloses(menu_btn.get_global_rect()), str(menu_btn.get_global_rect()) if menu_btn != null else "missing")

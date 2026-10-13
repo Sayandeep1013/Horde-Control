@@ -191,6 +191,27 @@ const HIGHLIGHT_SHADOW_ALPHA: float = 0.55
 ## same content width or the same lift feel.
 ## D166: 400 so a 37 px description wraps to two or three lines, not five.
 const CONTENT_MIN_WIDTH: float = 400.0
+## D370: on a phone the cards share the safe width (up to this wide each), so a long description
+## wraps in fewer lines and the three cards plus heading and footer fit the safe height.
+const COMPACT_CARD_MAX_WIDTH_PX: float = 600.0
+const COMPACT_CONTENT_MIN_WIDTH: float = 340.0
+const CARD_ROW_GAP_PX: float = 32.0 ## UiPalette.SPACE_XXL, the card row's separation
+
+
+## The minimum size of a card on the mobile layout: at least `base` (460 wide), widened to a
+## third of the safe width, never past `COMPACT_CARD_MAX_WIDTH_PX`.
+static func compact_card_size(window: Window, base: Vector2, count: int) -> Vector2:
+	var n: int = maxi(count, 1)
+	# 48 px of slack: the focused card lifts 5% (D320) and must stay inside the safe area.
+	var share: float = (SafeArea.rect(window).size.x - 48.0 - CARD_ROW_GAP_PX * float(n - 1)) / float(n)
+	var narrowest: float = COMPACT_CONTENT_MIN_WIDTH + (base.x - CONTENT_MIN_WIDTH) # the same frame padding, narrower text
+	return Vector2(clampf(share, narrowest, maxf(base.x, COMPACT_CARD_MAX_WIDTH_PX)), base.y)
+
+
+## The text column's minimum width: 400 px on desktop, 340 px on a phone so three cards fit a
+## 16:9 canvas with a camera cut-out (the card widens to its share where there is room).
+static func _content_min_width() -> float:
+	return COMPACT_CONTENT_MIN_WIDTH if TouchUi.is_mobile_layout() else CONTENT_MIN_WIDTH
 const PROMPT_ROOM_PX: float = 44.0 ## the armed card's prompt plate sits here (D384); not reserved on a phone, where a tap has no prompt
 ## Round 2 (review): 1.05 read as too subtle in a still frame; raised
 ## alongside the border-width/shadow changes above, same reasoning.
@@ -404,7 +425,7 @@ func _init() -> void:
 	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_name_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_name_label.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 0)
+	_name_label.custom_minimum_size = Vector2(_content_min_width(), 0)
 	_column.add_child(_name_label)
 
 	# Clear hierarchy: one-sentence effect in body -- the root Theme's own
@@ -425,7 +446,7 @@ func _init() -> void:
 	_effect_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_effect_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_effect_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_effect_label.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 0)
+	_effect_label.custom_minimum_size = Vector2(_content_min_width(), 0)
 	_column.add_child(_effect_label)
 
 	# Clear hierarchy: rank change line dim.
@@ -435,7 +456,7 @@ func _init() -> void:
 	_rank_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_rank_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_rank_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_rank_label.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 0)
+	_rank_label.custom_minimum_size = Vector2(_content_min_width(), 0)
 	_column.add_child(_rank_label)
 
 	# The pack's parchment is light, so the card's own text is dark umber with no
@@ -447,7 +468,7 @@ func _init() -> void:
 	# Second UI pass: rank pips, right below the text line they reinforce.
 	_rank_pips = RankPips.new()
 	_rank_pips.name = "RankPips"
-	_rank_pips.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 16.0)
+	_rank_pips.custom_minimum_size = Vector2(_content_min_width(), 16.0)
 	_column.add_child(_rank_pips)
 	if not TouchUi.is_mobile_layout():
 		# D384: room for the prompt plate the armed card shows inside its bottom edge, so it never covers the pips.

@@ -449,6 +449,8 @@ func _fallback_summary() -> Dictionary:
 func _fit_panels() -> void:
 	if not is_inside_tree() or _panels_scroll == null:
 		return
+	# D370: the card is never wider than the safe area (a phone with a camera cut-out on a 16:9 canvas).
+	_frame.card.custom_minimum_size.x = minf(CARD_MIN_WIDTH_PX, SafeArea.rect(get_window()).size.x)
 	MenuFrame.fit_scroll(_frame, _panels_scroll, get_viewport().get_visible_rect().size.y)
 
 
@@ -522,6 +524,7 @@ func _build_how_to_play_overlay() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_PASS
 	_howto_root.add_child(center)
+	SafeArea.fit(center) # D370
 
 	var card := PanelContainer.new()
 	card.theme_type_variation = UiTheme.CARD

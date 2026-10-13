@@ -50,6 +50,8 @@ const SLOT_DIVIDER_WIDTH: float = 4.0
 ## Widest row of clusters at scale 1 (player + Tower + Scrap + gaps); the HUD Scale
 ## is capped so a scaled row never outgrows a narrow canvas.
 const HUD_REFERENCE_WIDTH_PX: float = 1280.0
+## D370: extra edge gap of the HUD clusters on a phone, on top of the safe-area margin (desktop keeps SCREEN_MARGIN).
+const HUD_PHONE_EDGE_PX: float = 8.0
 const HUD_MIN_EFFECTIVE_SCALE: float = 0.6
 const SIEGE_PULSE_HZ: float = 2.0
 const REPAIR_TAG_HOLD_SECONDS: float = 0.5
@@ -66,6 +68,7 @@ var _scale_root: Control
 var _frame: Control
 var _applied_scale: float = -1.0
 var _applied_canvas: Vector2 = Vector2.ZERO
+var _applied_margins: Vector4 = Vector4.ZERO
 
 var _player_field: Control
 var _player_health_bar: HudBar
@@ -314,13 +317,15 @@ func _refresh_all() -> void:
 func _apply_scale() -> void:
 	var canvas: Vector2 = get_viewport().get_visible_rect().size
 	var s: float = effective_scale(GameSettings.get_hud_scale(), canvas.x)
-	if is_equal_approx(s, _applied_scale) and canvas == _applied_canvas:
+	var m: Vector4 = SafeArea.margins(get_window()) # D370: the HUD lives inside the phone's safe area
+	if is_equal_approx(s, _applied_scale) and canvas == _applied_canvas and m == _applied_margins:
 		return
 	_applied_scale = s
 	_applied_canvas = canvas
+	_applied_margins = m
 	_scale_root.scale = Vector2(s, s)
-	_scale_root.position = Vector2.ZERO
-	_scale_root.size = canvas / s
+	_scale_root.position = Vector2(m.x, m.y)
+	_scale_root.size = (canvas - Vector2(m.x + m.z, m.y + m.w)) / s
 
 
 ## The HUD Scale setting, capped so the top row still fits a narrow canvas.
@@ -630,7 +635,8 @@ func _build_ui() -> void:
 ## edge as its content changes size (a layout preset alone does not set growth).
 func _anchor(control: Control, h: int, v: int) -> void:
 	_frame.add_child(control)
-	var margin: float = float(UiPalette.SCREEN_MARGIN)
+	# D370: on a phone the safe-area margin (>= 24 px) already insets the frame, so only a small extra gap.
+	var margin: float = HUD_PHONE_EDGE_PX if SafeArea.is_active() else float(UiPalette.SCREEN_MARGIN)
 	control.anchor_left = float(h + 1) * 0.5
 	control.anchor_right = control.anchor_left
 	control.anchor_top = float(v)
