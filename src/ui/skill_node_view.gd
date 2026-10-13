@@ -266,8 +266,12 @@ func _build_children() -> void:
 	_status_spacer.custom_minimum_size = Vector2(0.0, STATUS_ROW_PX)
 	_status_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(_status_spacer)
-	_selectable = SelectableState.attach(self, SelectableState.RibbonSide.BOTTOM)
+	_selectable = SelectableState.attach(self, SelectableState.Layout.TILE)
 	_selectable.externally_driven = true # the Skill Tree screen owns the cursor (hover selects)
+	_selectable.note_color = UiPalette.TEXT # the plate is dark teal: a light, outlined caption / reason line
+	_selectable.note_outline = UiPalette.OUTLINE_BODY
+	_selectable.badge_px = 36.0 # the badge rides the price row's free right end, clear of the name above
+	_selectable.badge_y_fraction = 0.5
 
 
 ## `display_name` is shown on the node itself (polish pass item 1). `shape`/
@@ -448,7 +452,7 @@ func _apply_cues(owned: bool, locked: bool, reason: String) -> void:
 		_selectable.set_locked(false)
 		return
 	_selectable.set_locked(locked, reason)
-	_selectable.set_selected(owned and not locked, tr("SEL_OWNED"))
+	_selectable.set_selected(owned and not locked)
 
 
 ## The Skill Tree screen's cursor is on this node (hover, keys, a tap).

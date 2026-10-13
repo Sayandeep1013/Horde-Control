@@ -62,8 +62,8 @@ class_name DraftCardView
 ##
 ## ## PT-UI (docs/33 A1/A2, D320/D321)
 ## The corner brackets and the 1.09 lift are replaced by the shared SelectableState
-## overlay (4 px gold outline, pointer arrow, 1.05x lift when highlighted; the
-## confirming ring and the CHOSEN stamp too), and every card now carries its symbol,
+## overlay (D384: the armed card gets the yellow arrow, a brighter face (the others dimmed) and a prompt plate
+## inside its bottom edge, no border and no lift; the confirming ring and the CHOSEN stamp too), and every card now carries its symbol,
 ## `ICON_PX_DESKTOP` px (`ICON_PX_COMPACT` on a phone) at the top, so a returning player
 ## recognises it without reading. An id with no icon shows the Player / Tower glyph instead.
 ##
@@ -191,6 +191,7 @@ const HIGHLIGHT_SHADOW_ALPHA: float = 0.55
 ## same content width or the same lift feel.
 ## D166: 400 so a 37 px description wraps to two or three lines, not five.
 const CONTENT_MIN_WIDTH: float = 400.0
+const PROMPT_ROOM_PX: float = 44.0 ## the armed card's prompt plate sits here (D384); not reserved on a phone, where a tap has no prompt
 ## Round 2 (review): 1.05 read as too subtle in a still frame; raised
 ## alongside the border-width/shadow changes above, same reasoning.
 
@@ -395,7 +396,6 @@ func _init() -> void:
 	_selectable = SelectableState.attach(self)
 	_selectable.externally_driven = true
 	_selectable.ring_anchor = Vector2(0.5, 0.26)
-	_selectable.focus_word = tr("SEL_FOCUS_CHOOSE")
 
 	# Clear hierarchy: name in VALUE weight (display font, larger than body).
 	_name_label = Label.new()
@@ -449,6 +449,13 @@ func _init() -> void:
 	_rank_pips.name = "RankPips"
 	_rank_pips.custom_minimum_size = Vector2(CONTENT_MIN_WIDTH, 16.0)
 	_column.add_child(_rank_pips)
+	if not TouchUi.is_mobile_layout():
+		# D384: room for the prompt plate the armed card shows inside its bottom edge, so it never covers the pips.
+		var prompt_room := Control.new()
+		prompt_room.name = "PromptRoom"
+		prompt_room.custom_minimum_size = Vector2(0.0, PROMPT_ROOM_PX)
+		prompt_room.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_column.add_child(prompt_room)
 
 
 ## Typed command. Populates every Readability field and the Differentiation
@@ -577,7 +584,7 @@ func set_highlighted(value: bool) -> void:
 	_highlighted = value
 	_apply_highlight_style()
 	if _selectable != null:
-		_selectable.set_focused(value)
+		_selectable.set_armed(value) # D384: the card confirm will pick: gold border, warm fill, a prompt for the live device
 
 
 ## D117: the NORMAL (non-highlighted) border colour is the card's own
@@ -629,6 +636,18 @@ func play_entrance(delay: float = 0.0) -> void:
 func set_confirm_progress(progress: float) -> void:
 	if _selectable != null:
 		_selectable.set_confirm_progress(progress)
+
+
+## D384: a card that is not the armed one is darkened while another is (nothing on touch).
+func set_dimmed(on: bool) -> void:
+	if _selectable != null:
+		_selectable.set_dimmed(on)
+
+
+## D384: the press feedback (a quick dip while a finger or button is held on the card).
+func set_pressed(on: bool) -> void:
+	if _selectable != null:
+		_selectable.set_pressed(on)
 
 
 ## PT-UI: the CHOSEN stamp for 0.35 s (a confirmed card).

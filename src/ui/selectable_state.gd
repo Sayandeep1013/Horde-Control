@@ -1,98 +1,122 @@
 extends Control
 class_name SelectableState
 
-## One selection-state language for every selectable thing (PT-UI, docs/33 A1;
-## docs/19 > "Selection states"; decision D320). The overlay is a mouse-transparent
-## child of the selectable (a card, a picker Button, a Skill Tree node, a Settings
-## row) and draws the four states over it, each with a SHAPE and a WORD so none
-## depends on colour:
-##   Available  plain plate, nothing drawn
-##   Focused    4 px gold outline, 1.05x scale, a pointer arrow, the `ui_hover` cue
-##   Selected   green check badge + a ribbon word (SELECTED / EQUIPPED / OWNED) +
-##              a tinted fill; stays while focus moves away
-##   Locked     hatched dark veil + padlock + a reason line; a press shakes the plate
-## plus the confirming ring (hold-to-confirm, drawn on the card) and the CHOSEN
-## stamp (0.35 s). The flags are independent (a focused, selected plate shows both
-## cue groups) so "which one am I on" and "which one is locked in" never look alike.
-## Sizes and timings: Register > "v1.0 Interface" > "Selection states".
+## One selection-state language for every selectable thing (PT-UI, docs/33 A1; docs/19 >
+## "Selection states"; decisions D320, redone by D380-D389 after the author's feedback "the
+## selection thing u implemented is wrong in both windows n android", then "for the selected
+## options remove the word 'selected'", "just show the tick .. and also remove the yellow
+## rectangle border", "the yellow triangle arrow to indicate what to press is okay tho"). The
+## overlay is a mouse-transparent child of the selectable (a card, a picker Button, a tab, a Skill
+## Tree node, a Settings row) and draws its state INSIDE the plate, never over the label:
+##   Available  the plain plate
+##   Hover      (a real mouse only) the plate brightened; the focus moves to the plate, so hover and
+##              keyboard focus can never mark two plates at once
+##   Focused    the yellow pointer arrow ("this is what to press"), drawn beside the plate on
+##              whichever side has room (never clipped by the screen or a scroll area, never over a
+##              neighbour; inside the plate when there is no room), plus a subtle brighten while the
+##              last input was keyboard / gamepad. No outline, no scale
+##   Selected   ONLY a tick badge inside the plate (right edge of a row, top-right of a tile). No
+##              word, no border, no tint; the label stays dark ink
+##   Tab        the active tab is brightened, the others darkened: no tick, no word
+##   Locked     the host greys the plate; the overlay adds a padlock inside it and the reason as
+##              plain text beside it (a row) or on the bottom line (a tile). A press shakes the
+##              plate and flashes the reason
+##   Armed      the Draft / event card that confirm will pick: the arrow, a brighter card (the
+##              others dimmed) and a prompt plate inside the card's bottom edge naming the live
+##              device. On touch no card is armed until a finger is on it
+## plus the press feedback (a quick scale-down and flash), the confirming ring (hold-to-confirm,
+## drawn on the card) and the CHOSEN stamp (0.35 s). Shape and an icon carry every state, so none
+## depends on colour. Sizes and timings: Register > "v1.0 Interface" > "Selection states".
 
 enum State { AVAILABLE, FOCUSED, SELECTED, LOCKED }
-enum RibbonSide { BOTTOM, RIGHT }
+## ROW: a wide button (picker, menu button): badge at the right edge, reason beside it.
+## TILE: a card-like plate (relic, Skill Tree node, Field Guide tile): badge in the top-right
+## corner, reason on the bottom line. TAB: a page selector (see above).
+enum Layout { ROW, TILE, TAB }
+enum ArrowSide { LEFT, RIGHT, INSIDE }
 
-const OUTLINE_PX: float = 4.0
-const FOCUS_SCALE: float = 1.05
 const ARROW_PX: float = 28.0
-const BADGE_PX: float = 52.0
-const BADGE_PX_SMALL: float = 40.0 ## on a plate shorter than SMALL_PLATE_PX (a picker row)
-const SMALL_PLATE_PX: float = 100.0
-const BADGE_OVERHANG_PX: float = 12.0
+const ARROW_GAP_PX: float = 2.0
+const BADGE_MARGIN_PX: float = 10.0
+const BADGE_PX_MAX: float = 48.0
+const BADGE_PX_MIN: float = 28.0
+const PRESS_SCALE: float = 0.95
+const HOVER_ALPHA: float = 0.14
+const FOCUS_ALPHA: float = 0.14
+const PRESS_ALPHA: float = 0.22
+const ARMED_ALPHA: float = 0.20
+const DIM_ALPHA: float = 0.22
+const TAB_RAISE_ALPHA: float = 0.16
+const TAB_DIM_ALPHA: float = 0.30
 const SHAKE_SECONDS: float = 0.3
 const SHAKE_PX: float = 10.0
 const CHOSEN_SECONDS: float = 0.35
 const REASON_FLASH_SECONDS: float = 0.9
 const RING_RADIUS_PX: float = 40.0
 const RING_WIDTH_PX: float = 8.0
-const TINT_ALPHA: float = 0.22
-const VEIL_ALPHA: float = 0.5
-const WORD_SELECTED: String = "SEL_SELECTED"
-const WORD_EQUIPPED: String = "SEL_EQUIPPED"
-const WORD_OWNED: String = "SEL_OWNED"
+const PROMPT_MARGIN_PX: float = 14.0
+const PROMPT_KEYBOARD: String = "SEL_PROMPT_KEYBOARD"
+const PROMPT_MOUSE: String = "SEL_PROMPT_MOUSE"
 
 signal locked_pressed(reason: String)
 
-var ribbon_side: int = RibbonSide.BOTTOM
+var layout: int = Layout.ROW
 ## Where the confirming ring centres, as a fraction of the plate (a card puts it on its icon).
 var ring_anchor: Vector2 = Vector2(0.5, 0.2)
 var ring_radius: float = RING_RADIUS_PX
-## false for a plate whose neighbours are close (an arrow outside would cover them).
-var arrow_outside: bool = true
-## false for a strip of tabs: the check badge and tint carry "selected" where a word would not fit.
-var show_word: bool = true
-## How far the check / padlock badge hangs outside the corner (0 inside a scrolling list, which would clip it).
-var badge_overhang: float = BADGE_OVERHANG_PX
-## How dark the locked veil is; a text-heavy plate (an achievement row) keeps it light so its words stay readable.
-var veil_alpha: float = VEIL_ALPHA
-## A word on the focused plate (a Draft card says what pressing confirm does); "" for none.
-var focus_word: String = "":
-	set(value):
-		focus_word = value
-		if _focus_plate != null:
-			_focus_label.text = value
-			_refresh()
-## true when focus/hover on the TARGET should not be read (the host drives set_focused itself).
+## false for a read-only row (an achievement): it shows selected / locked but never hover, focus or press.
+var interactive: bool = true
+## true when the host drives the cursor itself (a Draft card, the Skill Tree, the explainer buttons):
+## the overlay does not read the target's focus / mouse signals.
 var externally_driven: bool = false
+## Colour of the reason text; a dark plate (a Skill Tree node) sets a light one.
+var note_color: Color = UiPalette.TEXT_ON_PARCHMENT:
+	set(value):
+		note_color = value
+		if _reason_label != null:
+			_reason_label.add_theme_color_override("font_color", value)
+var note_outline: int = 0:
+	set(value):
+		note_outline = value
+		if _reason_label != null:
+			_reason_label.add_theme_constant_override("outline_size", value)
+## A Draft card is "armed" while it is the one confirm would pick.
+var prompt_enabled: bool = true
+## The tick / padlock badge: 0 = sized from the plate; a tile whose corner holds text puts it lower.
+var badge_px: float = 0.0
+var badge_y_fraction: float = -1.0 ## -1 = top-right corner (a tile) or centred (a row); else the badge centre at this fraction of the height
 
 var _target: Control = null
 var _focused: bool = false
 var _hover: bool = false
+var _pressed: bool = false
 var _selected: bool = false
 var _locked: bool = false
-var _word: String = ""
+var _armed: bool = false
+var _dimmed: bool = false
 var _reason: String = ""
 var _confirm: float = 0.0
 var _chosen_left: float = 0.0
 var _reason_flash_left: float = 0.0
 var _last_reason_shown: String = ""
-var _ribbon: PanelContainer = null
-var _ribbon_label: Label = null
-var _reason_plate: PanelContainer = null
-var _focus_plate: PanelContainer = null
-var _focus_label: Label = null
 var _reason_label: Label = null
+var _prompt_plate: PanelContainer = null
+var _prompt_label: Label = null
 var _stamp: PanelContainer = null
 var _tween: Tween = null
+var _scale_goal: float = 1.0
 
 
-## Adds the overlay to `target` and wires its focus / hover signals. Idempotent.
-static func attach(target: Control, side: int = RibbonSide.BOTTOM) -> SelectableState:
+## Adds the overlay to `target` and wires its focus / hover / press signals. Idempotent.
+static func attach(target: Control, layout_kind: int = Layout.ROW) -> SelectableState:
 	var existing: SelectableState = of(target)
 	if existing != null:
-		existing.ribbon_side = side
+		existing.layout = layout_kind
 		existing._layout_plates()
 		return existing
 	var overlay := SelectableState.new()
 	overlay.name = "SelectableState"
-	overlay.ribbon_side = side
+	overlay.layout = layout_kind
 	overlay._target = target
 	target.add_child(overlay)
 	return overlay
@@ -102,18 +126,17 @@ static func of(target: Control) -> SelectableState:
 	return null if target == null else target.get_node_or_null("SelectableState") as SelectableState
 
 
-## The distinguishing cues for one state, as data (tests and docs read it).
-static func cues_for(state: int) -> Dictionary:
+## The distinguishing cues for one state, as data (tests and docs read it). Selected is a tick
+## (or, on a tab, the raised face), locked a padlock and a reason, focused the arrow, so no state
+## depends on colour and none draws a word or a border.
+static func cues_for(state: int, layout_kind: int = Layout.ROW) -> Dictionary:
+	var selected: bool = state == State.SELECTED
 	return {
-		"outline": state == State.FOCUSED,
 		"arrow": state == State.FOCUSED,
-		"scale": state == State.FOCUSED,
-		"check": state == State.SELECTED,
-		"ribbon_word": state == State.SELECTED,
-		"tint": state == State.SELECTED,
+		"check": selected and layout_kind != Layout.TAB,
+		"tab_raise": selected and layout_kind == Layout.TAB,
 		"padlock": state == State.LOCKED,
 		"reason_line": state == State.LOCKED,
-		"veil": state == State.LOCKED,
 	}
 
 
@@ -127,20 +150,27 @@ func _init() -> void:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS # paused menus and Drafts animate their cues
+	UiInputMode.ensure_listening()
+	UiInputMode.watch(_on_input_mode_changed)
 	if _target == null:
 		_target = get_parent() as Control
 	if _target != null:
 		_target.offset_transform_enabled = true
 		_target.offset_transform_pivot_ratio = Vector2(0.5, 0.5)
-		if not externally_driven:
+		if _target is BaseButton:
+			# The overlay owns the focus cue: the theme's own focus box would draw a second one.
+			_target.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		if interactive and not externally_driven:
 			_target.focus_entered.connect(_on_target_focus.bind(true))
 			_target.focus_exited.connect(_on_target_focus.bind(false))
 			_target.mouse_entered.connect(_on_target_hover.bind(true))
 			_target.mouse_exited.connect(_on_target_hover.bind(false))
+			if _target is BaseButton:
+				(_target as BaseButton).button_down.connect(set_pressed.bind(true))
+				(_target as BaseButton).button_up.connect(set_pressed.bind(false))
 		_target.resized.connect(_on_target_resized)
 		_target.visibility_changed.connect(_on_target_visibility)
-		_focused = _target.has_focus()
-		_apply_focus_visual(false)
+		_focused = interactive and not externally_driven and _target.has_focus()
 	item_rect_changed.connect(_on_target_resized)
 	set_process(false)
 	_layout_plates()
@@ -148,18 +178,23 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_kill_tween()
+	UiInputMode.unwatch(_on_input_mode_changed)
 
 
 # --- State ---------------------------------------------------------------------------------
 
+## The host's cursor (keyboard focus, the mouse's hover focus, or the Skill Tree's inspected node)
+## is on this plate.
 func set_focused(on: bool) -> void:
-	_set_focus_state(on, _hover)
+	_focused = on
+	if on and not _locked and not externally_driven and interactive and UiInputMode.is_keyboard():
+		Sfx.play_ui.call_deferred("ui_hover") # deferred: the first focus lands while a scene is still being built
+	_refresh()
 
 
-func set_selected(on: bool, word: String = "") -> void:
+## Selected: the tick badge. (No word: the author asked for the tick alone.)
+func set_selected(on: bool) -> void:
 	_selected = on
-	_word = word if word != "" else tr(WORD_SELECTED)
-	_ribbon_label.text = _word
 	_refresh()
 
 
@@ -169,6 +204,18 @@ func set_locked(on: bool, reason: String = "") -> void:
 	_reason = reason
 	_reason_label.text = reason
 	_refresh()
+
+
+## A Draft card the confirm will pick: the arrow, a brighter card and the prompt plate.
+func set_armed(on: bool) -> void:
+	_armed = on
+	_refresh()
+
+
+## A Draft card that is NOT the armed one while another is: darkened so the armed one stands out.
+func set_dimmed(on: bool) -> void:
+	_dimmed = on
+	queue_redraw()
 
 
 func set_confirm_progress(progress: float) -> void:
@@ -185,6 +232,15 @@ func flash_chosen() -> void:
 	queue_redraw()
 
 
+## The press feedback: a quick scale-down and flash while a finger / button is held on the plate.
+func set_pressed(on: bool) -> void:
+	if _pressed == on:
+		return
+	_pressed = on
+	_tween_scale(PRESS_SCALE if on else 1.0)
+	_refresh()
+
+
 ## A press on a locked plate: shake it and light the reason; never a silent ignore.
 ## Returns the reason shown ("" when the plate is not locked).
 func press_locked() -> String:
@@ -192,7 +248,6 @@ func press_locked() -> String:
 		return ""
 	_last_reason_shown = _reason
 	_reason_flash_left = REASON_FLASH_SECONDS
-	_reason_plate.visible = true
 	_style_reason(true)
 	set_process(true)
 	_shake()
@@ -200,8 +255,8 @@ func press_locked() -> String:
 	return _reason
 
 
-func set_show_word(on: bool) -> void:
-	show_word = on
+func set_layout(kind: int) -> void:
+	layout = kind
 	_refresh()
 
 
@@ -210,13 +265,27 @@ func get_state() -> int:
 		return State.LOCKED
 	if _selected:
 		return State.SELECTED
-	if _focused or _hover:
+	if is_arrow_visible() or is_hover_visible():
 		return State.FOCUSED
 	return State.AVAILABLE
 
 
+## The yellow arrow shows on the plate that holds the host's cursor (keyboard focus, the mouse's
+## hover focus, the Skill Tree's inspected node) and on the armed Draft card.
+func is_arrow_visible() -> bool:
+	if _locked and not _focused:
+		return false
+	if _armed and not _locked and (not UiInputMode.is_touch() or _pressed):
+		return true
+	return _focused and (interactive or externally_driven)
+
+
+func is_hover_visible() -> bool:
+	return _hover and interactive and not externally_driven and UiInputMode.is_mouse()
+
+
 func is_focused() -> bool:
-	return _focused or _hover
+	return _focused
 
 
 func is_selected() -> bool:
@@ -225,6 +294,14 @@ func is_selected() -> bool:
 
 func is_locked() -> bool:
 	return _locked
+
+
+func is_armed() -> bool:
+	return _armed
+
+
+func is_pressed() -> bool:
+	return _pressed
 
 
 func get_reason() -> String:
@@ -243,39 +320,122 @@ func get_confirm_progress() -> float:
 	return _confirm
 
 
-## What is drawn right now (independent flags, so focus + selected shows both groups).
+## What is drawn right now (independent flags, so a focused, selected plate shows both groups).
 func visible_cues() -> Dictionary:
-	var focused: bool = is_focused()
 	var selected: bool = _selected and not _locked
+	var tab: bool = layout == Layout.TAB
+	var armed: bool = _armed and not _locked and (not UiInputMode.is_touch() or _pressed)
 	return {
-		"outline": focused, "arrow": focused, "scale": focused,
-		"focus_word": focused and focus_word != "" and not _selected and not _locked,
-		"check": selected, "ribbon_word": selected and show_word, "tint": selected,
-		"padlock": _locked, "reason_line": _locked and _reason != "", "veil": _locked,
-		"ring": _confirm > 0.0, "chosen": _chosen_left > 0.0,
+		"arrow": is_arrow_visible(),
+		"focus_wash": _focused and UiInputMode.is_keyboard() and interactive and not externally_driven,
+		"hover": is_hover_visible() and not _pressed,
+		"pressed": _pressed,
+		"check": selected and not tab,
+		"tab_raise": selected and tab,
+		"tab_dim": tab and not selected,
+		"padlock": _locked,
+		"reason_line": _locked and _reason != "",
+		"armed": armed,
+		"dim": _dimmed and not armed,
+		"prompt": armed and prompt_enabled and not UiInputMode.is_touch(),
+		"ring": _confirm > 0.0,
+		"chosen": _chosen_left > 0.0,
 	}
-
-
-func get_ribbon_label() -> Label:
-	return _ribbon_label
 
 
 func get_reason_label() -> Label:
 	return _reason_label
 
 
+func get_prompt_label() -> Label:
+	return _prompt_label
+
+
 func get_target_scale() -> float:
 	return _target.offset_transform_scale.x if _target != null else 1.0
 
 
+## The word on an armed Draft card for the live device.
+func prompt_text() -> String:
+	return tr(PROMPT_MOUSE) if UiInputMode.is_mouse() else tr(PROMPT_KEYBOARD)
+
+
+## Which side of the plate the arrow goes: the left (pointing right) when there is room, else the
+## right (pointing left), else inside the plate's left padding. Room means: inside the viewport
+## and every scroll area that would clip it, and not over a sibling plate.
+func arrow_side() -> int:
+	if _target == null:
+		return ArrowSide.LEFT
+	return SelectableState.pick_arrow_side(self, _rect(), _siblings())
+
+
+## The arrow's side for a plate `local_rect` (in `canvas`'s local space), given the plates beside
+## it. Static so the paused choice bars (not a plain Control) share it.
+static func pick_arrow_side(canvas: Control, local_rect: Rect2, siblings: Array[Control]) -> int:
+	var to_global: Transform2D = canvas.get_global_transform()
+	var clip: Rect2 = canvas.get_viewport_rect()
+	var node: Node = canvas.get_parent()
+	while node != null:
+		if node is ScrollContainer:
+			clip = clip.intersection((node as ScrollContainer).get_global_rect())
+		node = node.get_parent()
+	var cy: float = local_rect.position.y + local_rect.size.y * 0.5
+	var left_rect := Rect2(local_rect.position.x - ARROW_GAP_PX - ARROW_PX, cy - ARROW_PX * 0.6, ARROW_PX, ARROW_PX * 1.2)
+	var right_rect := Rect2(local_rect.end.x + ARROW_GAP_PX, cy - ARROW_PX * 0.6, ARROW_PX, ARROW_PX * 1.2)
+	for pair: Array in [[ArrowSide.LEFT, left_rect], [ArrowSide.RIGHT, right_rect]]:
+		var r: Rect2 = pair[1]
+		var g := Rect2(to_global * r.position, r.size)
+		if not clip.encloses(g):
+			continue
+		var blocked: bool = false
+		for sib: Control in siblings:
+			if is_instance_valid(sib) and sib.is_visible_in_tree() and sib.get_global_rect().intersects(g):
+				blocked = true
+				break
+		if not blocked:
+			return pair[0]
+	return ArrowSide.INSIDE
+
+
 # --- Internals ------------------------------------------------------------------------------
 
+func _siblings() -> Array[Control]:
+	var out: Array[Control] = []
+	var parent: Node = _target.get_parent()
+	if parent == null:
+		return out
+	for ch: Node in parent.get_children():
+		if ch is Control and ch != _target and not (ch is SelectableState):
+			out.append(ch as Control)
+	return out
+
+
+func _on_input_mode_changed(mode: int) -> void:
+	# A resting mouse that was already over this plate when the menu opened fired no `mouse_entered`
+	# after the first real move, so the focus never followed: take it now.
+	if mode == UiInputMode.Mode.MOUSE and _hover:
+		_take_focus_for_hover()
+	_refresh()
+
+
+func _take_focus_for_hover() -> void:
+	if interactive and not externally_driven and _target != null and _target.focus_mode != Control.FOCUS_NONE and not _target.has_focus() and _target.is_visible_in_tree():
+		_target.grab_focus() # hover and keyboard focus never mark two plates: the mouse takes the focus along
+
+
 func _on_target_focus(on: bool) -> void:
-	_set_focus_state(on, _hover)
+	set_focused(on)
 
 
 func _on_target_hover(on: bool) -> void:
-	_set_focus_state(_focused, on)
+	if on == _hover:
+		return
+	_hover = on
+	if on and UiInputMode.is_mouse() and not _locked:
+		Sfx.play_ui.call_deferred("ui_hover")
+	if on and UiInputMode.is_mouse():
+		_take_focus_for_hover()
+	_refresh()
 
 
 func _on_target_resized() -> void:
@@ -286,27 +446,19 @@ func _on_target_resized() -> void:
 func _on_target_visibility() -> void:
 	if _target != null and not _target.is_visible_in_tree():
 		_hover = false
+		_pressed = false
 		_focused = false
-		_apply_focus_visual(false)
+		_scale_goal = 1.0
+		_target.offset_transform_scale = Vector2.ONE
 		queue_redraw()
 
 
-func _set_focus_state(focus: bool, hover: bool) -> void:
-	var was: bool = is_focused()
-	_focused = focus
-	_hover = hover
-	if was != is_focused():
-		_apply_focus_visual(true)
-		if is_focused() and not _locked and not externally_driven: # a host that drives the focus (the Draft) owns its own cycle cue
-			Sfx.play_ui.call_deferred("ui_hover") # deferred: the first focus lands while a scene is still being built
-	_refresh()
-
-
 func _refresh() -> void:
-	var selected: bool = _selected and not _locked
-	_ribbon.visible = selected and show_word
-	_reason_plate.visible = _locked and _reason != ""
-	_focus_plate.visible = is_focused() and focus_word != "" and not _selected and not _locked
+	var cues: Dictionary = visible_cues()
+	_reason_label.visible = cues["reason_line"]
+	_prompt_plate.visible = cues["prompt"]
+	if _prompt_label != null and cues["prompt"]:
+		_prompt_label.text = prompt_text()
 	if _locked and _reason_flash_left <= 0.0:
 		_style_reason(false)
 	_layout_plates()
@@ -314,18 +466,17 @@ func _refresh() -> void:
 	queue_redraw()
 
 
-## The 1.05x lift (visual-only offset transform, so containers and tests see the real rect).
-func _apply_focus_visual(animate: bool) -> void:
+func _tween_scale(goal: float) -> void:
 	if _target == null:
 		return
-	var goal: Vector2 = Vector2.ONE * (FOCUS_SCALE if is_focused() else 1.0)
+	_scale_goal = goal
 	_kill_tween()
-	if not animate or not is_inside_tree() or DisplayServer.get_name() == "headless":
-		_target.offset_transform_scale = goal
+	if not is_inside_tree() or DisplayServer.get_name() == "headless":
+		_target.offset_transform_scale = Vector2.ONE * goal
 		return
 	_tween = create_tween()
 	_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	_tween.tween_property(_target, "offset_transform_scale", goal, UiPalette.MOTION_FAST)
+	_tween.tween_property(_target, "offset_transform_scale", Vector2.ONE * goal, UiPalette.MOTION_FAST)
 
 
 func _shake() -> void:
@@ -339,7 +490,7 @@ func _shake() -> void:
 	var step: float = SHAKE_SECONDS / 5.0
 	for dx: float in [-SHAKE_PX, SHAKE_PX, -SHAKE_PX * 0.6, SHAKE_PX * 0.6, 0.0]:
 		_tween.tween_property(_target, "offset_transform_position:x", dx, step)
-	_tween.finished.connect(_apply_focus_visual.bind(false))
+	_tween.finished.connect(_tween_scale.bind(PRESS_SCALE if _pressed else 1.0))
 
 
 func _kill_tween() -> void:
@@ -365,35 +516,23 @@ func _process(delta: float) -> void:
 
 
 func _build_plates() -> void:
-	_ribbon = PanelContainer.new()
-	_ribbon.name = "Ribbon"
-	_ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ribbon.visible = false
-	_ribbon.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.SUCCESS, UiPalette.INK_PIXEL, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THICK, UiPalette.SPACE_XS))
-	add_child(_ribbon)
-	_ribbon_label = _make_plate_label(UiPalette.INK_PIXEL)
-	_ribbon_label.name = "RibbonWord"
-	_ribbon.add_child(_ribbon_label)
-
-	_focus_plate = PanelContainer.new()
-	_focus_plate.name = "FocusPlate"
-	_focus_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_focus_plate.visible = false
-	_focus_plate.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.ACCENT, UiPalette.INK_PIXEL, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THICK, UiPalette.SPACE_XS))
-	add_child(_focus_plate)
-	_focus_label = _make_plate_label(UiPalette.INK_PIXEL)
-	_focus_label.name = "FocusWord"
-	_focus_plate.add_child(_focus_label)
-
-	_reason_plate = PanelContainer.new()
-	_reason_plate.name = "ReasonPlate"
-	_reason_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_reason_plate.visible = false
-	add_child(_reason_plate)
-	_reason_label = _make_plate_label(UiPalette.TEXT)
+	_reason_label = _make_note_label()
 	_reason_label.name = "ReasonLine"
-	_reason_plate.add_child(_reason_label)
+	add_child(_reason_label)
 	_style_reason(false)
+
+	_prompt_plate = PanelContainer.new()
+	_prompt_plate.name = "PromptPlate"
+	_prompt_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_prompt_plate.visible = false
+	_prompt_plate.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.ACCENT, UiPalette.INK_PIXEL, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THICK, UiPalette.SPACE_XS))
+	add_child(_prompt_plate)
+	_prompt_label = _make_note_label()
+	_prompt_label.name = "PromptWord"
+	_prompt_label.add_theme_color_override("font_color", UiPalette.INK_PIXEL)
+	_prompt_label.add_theme_constant_override("outline_size", 0)
+	_prompt_label.visible = true # the plate carries the visibility
+	_prompt_plate.add_child(_prompt_label)
 
 	_stamp = PanelContainer.new()
 	_stamp.name = "ChosenStamp"
@@ -401,33 +540,44 @@ func _build_plates() -> void:
 	_stamp.visible = false
 	_stamp.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.ACCENT, UiPalette.INK_PIXEL, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THICK, UiPalette.SPACE_S))
 	add_child(_stamp)
-	var stamp_label: Label = _make_plate_label(UiPalette.INK_PIXEL)
+	var stamp_label: Label = _make_note_label()
 	stamp_label.name = "ChosenWord"
 	stamp_label.text = tr("SEL_CHOSEN")
+	stamp_label.add_theme_color_override("font_color", UiPalette.INK_PIXEL)
+	stamp_label.add_theme_constant_override("outline_size", 0)
+	stamp_label.visible = true
 	stamp_label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_HEADING)
 	_stamp.add_child(stamp_label)
 	_stamp.rotation = deg_to_rad(-8.0)
 
 
-func _make_plate_label(color: Color) -> Label:
+func _make_note_label() -> Label:
 	var label := Label.new()
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.visible = false
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	label.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_BODY)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_constant_override("outline_size", 0)
+	label.add_theme_color_override("font_color", note_color)
+	label.add_theme_color_override("font_outline_color", UiPalette.TEXT_OUTLINE)
+	label.add_theme_constant_override("outline_size", note_outline)
 	return label
 
 
+## The reason is plain text on the plate; pressing a locked plate flashes it on a gold chip.
 func _style_reason(flash: bool) -> void:
-	var border: Color = UiPalette.ACCENT if flash else UiPalette.TEXT_DISABLED
-	_reason_plate.add_theme_stylebox_override("panel", UiTheme.make_box(UiPalette.INK, border, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THICK, UiPalette.SPACE_XS))
-	_reason_label.add_theme_color_override("font_color", UiPalette.ACCENT if flash else UiPalette.TEXT)
+	if flash:
+		_reason_label.add_theme_stylebox_override("normal", UiTheme.make_box(UiPalette.ACCENT, UiPalette.INK_PIXEL, UiPalette.RADIUS_SMALL, UiPalette.BORDER_THIN, UiPalette.SPACE_XS))
+		_reason_label.add_theme_color_override("font_color", UiPalette.INK_PIXEL)
+		_reason_label.add_theme_constant_override("outline_size", 0)
+	else:
+		_reason_label.remove_theme_stylebox_override("normal")
+		_reason_label.add_theme_color_override("font_color", note_color)
+		_reason_label.add_theme_constant_override("outline_size", note_outline)
 
 
-## The plate the cues are drawn around: the target's whole rect, even when the target is a
+## The plate the cues are drawn on: the target's whole rect, even when the target is a
 ## container that has inset this overlay by its content margins (a Draft card's frame).
 func _rect() -> Rect2:
 	if _target == null:
@@ -435,19 +585,37 @@ func _rect() -> Rect2:
 	return Rect2(-position, _target.size)
 
 
-## Places the word plates by hand (a container host would otherwise stretch them): along the
-## bottom edge (cards, tiles) or on the right (wide buttons); the CHOSEN stamp at the centre.
+func _badge_side(rect: Rect2) -> float:
+	if badge_px > 0.0:
+		return badge_px
+	return clampf(rect.size.y * 0.5, BADGE_PX_MIN, BADGE_PX_MAX)
+
+
+## The tick / padlock badge, INSIDE the plate: right edge, centred (a row) or top-right corner.
+func _badge_rect(rect: Rect2) -> Rect2:
+	var side: float = _badge_side(rect)
+	var x: float = rect.end.x - side - BADGE_MARGIN_PX
+	var y: float = rect.position.y + (rect.size.y - side) * 0.5 if layout == Layout.ROW else rect.position.y + BADGE_MARGIN_PX
+	if badge_y_fraction >= 0.0:
+		y = rect.position.y + rect.size.y * badge_y_fraction - side * 0.5
+	return Rect2(x, y, side, side)
+
+
+## Places the text plates by hand (a container host would otherwise stretch them).
 func _layout_plates() -> void:
-	if _ribbon == null or _target == null:
+	if _reason_label == null or _target == null:
 		return
 	var r: Rect2 = _rect()
-	for plate: Control in [_ribbon, _reason_plate, _focus_plate]:
-		var s: Vector2 = plate.get_combined_minimum_size()
-		plate.size = s
-		if ribbon_side == RibbonSide.RIGHT:
-			plate.position = Vector2(r.end.x - s.x - float(UiPalette.SPACE_S) - _badge_side(r) * 0.5, r.position.y + (r.size.y - s.y) * 0.5)
-		else:
-			plate.position = Vector2(r.position.x + (r.size.x - s.x) * 0.5, r.end.y - s.y + float(UiPalette.SPACE_S))
+	var badge: Rect2 = _badge_rect(r)
+	var s: Vector2 = _reason_label.get_combined_minimum_size()
+	_reason_label.size = s
+	if layout == Layout.ROW:
+		_reason_label.position = Vector2(badge.position.x - BADGE_MARGIN_PX - s.x, r.position.y + (r.size.y - s.y) * 0.5)
+	else:
+		_reason_label.position = Vector2(r.position.x + (r.size.x - s.x) * 0.5, r.end.y - s.y - 8.0)
+	var ps: Vector2 = _prompt_plate.get_combined_minimum_size()
+	_prompt_plate.size = ps
+	_prompt_plate.position = Vector2(r.position.x + (r.size.x - ps.x) * 0.5, r.end.y - ps.y - PROMPT_MARGIN_PX)
 	var ss: Vector2 = _stamp.get_combined_minimum_size()
 	_stamp.size = ss
 	_stamp.pivot_offset = ss * 0.5
@@ -459,79 +627,68 @@ func _draw() -> void:
 	if rect.size.x <= 2.0 or rect.size.y <= 2.0:
 		return
 	var cues: Dictionary = visible_cues()
-	if cues["tint"]:
-		draw_rect(rect, UiPalette.with_alpha(UiPalette.SUCCESS, TINT_ALPHA), true)
-	if cues["veil"]:
-		_draw_veil(rect)
-	if cues["outline"]:
-		SelectableState.draw_focus_cue(self, rect, arrow_outside)
+	var face: Rect2 = rect.grow(-3.0)
+	if cues["tab_dim"]:
+		draw_rect(rect, UiPalette.with_alpha(UiPalette.INK, TAB_DIM_ALPHA), true)
+	if cues["dim"]:
+		draw_rect(rect, UiPalette.with_alpha(UiPalette.INK, DIM_ALPHA), true)
+	if cues["tab_raise"]:
+		draw_rect(face, UiPalette.with_alpha(Color.WHITE, TAB_RAISE_ALPHA), true)
+	if cues["armed"]:
+		draw_rect(face, UiPalette.with_alpha(Color.WHITE, ARMED_ALPHA), true)
+	if cues["focus_wash"]:
+		draw_rect(face, UiPalette.with_alpha(Color.WHITE, FOCUS_ALPHA), true)
+	if cues["hover"] and not _target is BaseButton: # a Button's own hover face is already the brighter plate
+		draw_rect(face, UiPalette.with_alpha(Color.WHITE, HOVER_ALPHA), true)
 	if cues["check"]:
-		_draw_check_badge(rect)
+		_draw_check(_badge_rect(rect))
 	if cues["padlock"]:
-		_draw_padlock(rect)
+		_draw_padlock(_badge_rect(rect))
+	if cues["pressed"]:
+		draw_rect(face, UiPalette.with_alpha(Color.WHITE, PRESS_ALPHA), true)
+	if cues["arrow"]:
+		SelectableState.draw_arrow(self, rect, arrow_side())
 	if cues["ring"]:
 		_draw_ring(rect)
 
 
-## Dark veil plus diagonal hatching: reads as "closed" with colour removed.
-func _draw_veil(rect: Rect2) -> void:
-	draw_rect(rect, UiPalette.with_alpha(UiPalette.INK, veil_alpha), true)
-	var hatch: Color = UiPalette.with_alpha(UiPalette.TEXT_DISABLED, 0.35)
-	var step: float = 24.0
-	var x: float = -rect.size.y
-	while x < rect.size.x:
-		var x0: float = maxf(x, 0.0)
-		var x1: float = minf(x + rect.size.y, rect.size.x)
-		if x1 - x0 > 1.0:
-			draw_line(rect.position + Vector2(x0, rect.size.y - (x0 - x)), rect.position + Vector2(x1, rect.size.y - (x1 - x)), hatch, 3.0)
-		x += step
-
-
-## The focus cue itself, shared with the surfaces that are not a plain Control (the Settings rows, the
-## paused choice bar): a 4 px gold outline with an ink rim, and a pointer arrow on the left edge
-## (outside the plate, so it never covers content; `arrow_outside` false draws it just inside).
-static func draw_focus_cue(canvas: CanvasItem, rect: Rect2, arrow_outside: bool = true) -> void:
-	canvas.draw_rect(rect.grow(1.0), UiPalette.INK_PIXEL, false, 2.0)
-	canvas.draw_rect(rect.grow(-OUTLINE_PX * 0.5), UiPalette.ACCENT, false, OUTLINE_PX)
+## The yellow pointer arrow ("this is what to press"): a 28 px triangle with an ink rim, pointing
+## at `rect` from its left or right edge, or drawn just inside the left edge when neither side has
+## room. Shared with the surfaces that are not a plain Control (the paused choice bars).
+static func draw_arrow(canvas: CanvasItem, rect: Rect2, side: int) -> void:
 	var cy: float = rect.position.y + rect.size.y * 0.5
-	var tip_x: float = rect.position.x - 2.0
-	var base_x: float = tip_x - ARROW_PX
-	if not arrow_outside:
-		base_x = rect.position.x + OUTLINE_PX + 2.0
-		tip_x = base_x + ARROW_PX
-	var pts := PackedVector2Array([Vector2(base_x, cy - ARROW_PX * 0.6), Vector2(tip_x, cy), Vector2(base_x, cy + ARROW_PX * 0.6)])
+	var half: float = ARROW_PX * 0.6
+	var pts: PackedVector2Array
+	match side:
+		ArrowSide.RIGHT:
+			var tip_x: float = rect.end.x + ARROW_GAP_PX
+			pts = PackedVector2Array([Vector2(tip_x + ARROW_PX, cy - half), Vector2(tip_x, cy), Vector2(tip_x + ARROW_PX, cy + half)])
+		ArrowSide.INSIDE:
+			var base_x: float = rect.position.x + 4.0
+			pts = PackedVector2Array([Vector2(base_x, cy - half), Vector2(base_x + ARROW_PX, cy), Vector2(base_x, cy + half)])
+		_:
+			var tip_left: float = rect.position.x - ARROW_GAP_PX
+			pts = PackedVector2Array([Vector2(tip_left - ARROW_PX, cy - half), Vector2(tip_left, cy), Vector2(tip_left - ARROW_PX, cy + half)])
 	canvas.draw_colored_polygon(pts, UiPalette.ACCENT)
 	canvas.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), UiPalette.INK_PIXEL, 3.0)
 
 
-func _badge_side(rect: Rect2) -> float:
-	return BADGE_PX_SMALL if rect.size.y < SMALL_PLATE_PX else BADGE_PX
-
-
-func _badge_rect(rect: Rect2) -> Rect2:
-	var side: float = _badge_side(rect)
-	return Rect2(rect.end.x - side + badge_overhang, rect.position.y - badge_overhang, side, side)
-
-
-func _draw_check_badge(rect: Rect2) -> void:
-	var b: Rect2 = _badge_rect(rect)
-	draw_rect(b.grow(3.0), UiPalette.INK_PIXEL, true)
+func _draw_check(b: Rect2) -> void:
+	draw_rect(b.grow(2.0), UiPalette.INK_PIXEL, true)
 	draw_rect(b, UiPalette.SUCCESS, true)
 	var pts := PackedVector2Array([
 		b.position + b.size * Vector2(0.22, 0.52), b.position + b.size * Vector2(0.42, 0.72), b.position + b.size * Vector2(0.80, 0.28)])
-	draw_polyline(pts, UiPalette.INK_PIXEL, 9.0)
+	draw_polyline(pts, UiPalette.INK_PIXEL, maxf(4.0, b.size.x * 0.17))
 
 
-func _draw_padlock(rect: Rect2) -> void:
-	var b: Rect2 = _badge_rect(rect)
-	draw_rect(b.grow(3.0), UiPalette.INK_PIXEL, true)
-	draw_rect(b, UiPalette.TEXT_DISABLED, true)
+func _draw_padlock(b: Rect2) -> void:
+	draw_rect(b.grow(2.0), UiPalette.INK_PIXEL, true)
+	draw_rect(b, UiPalette.TEXT_DIM, true)
 	var body := Rect2(b.position + b.size * Vector2(0.24, 0.46), b.size * Vector2(0.52, 0.38))
 	var shackle_c: Vector2 = b.position + b.size * Vector2(0.5, 0.42)
-	draw_arc(shackle_c, b.size.x * 0.17, PI, TAU, 12, UiPalette.INK_PIXEL, 5.0)
-	draw_rect(body, UiPalette.TEXT, true)
-	draw_rect(body, UiPalette.INK_PIXEL, false, 2.0)
-	draw_rect(Rect2(body.get_center() - Vector2(2.0, 4.0), Vector2(4.0, 8.0)), UiPalette.INK_PIXEL, true)
+	draw_arc(shackle_c, b.size.x * 0.17, PI, TAU, 12, UiPalette.INK_PIXEL, maxf(3.0, b.size.x * 0.1))
+	draw_rect(body, UiPalette.INK_PIXEL, true)
+	draw_rect(Rect2(body.get_center() - Vector2(2.0, 4.0), Vector2(4.0, 8.0)), UiPalette.TEXT_DIM, true)
 
 
 func _draw_ring(rect: Rect2) -> void:

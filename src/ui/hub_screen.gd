@@ -137,13 +137,13 @@ const SHEEP_SPOTS: Array = [Vector2(560.0, 470.0), Vector2(650.0, 520.0), Vector
 const MUSIC_VOLUME_DB: float = -14.0 # the calm town theme (D254) plays at the title's own level; the old -22 dB was for the battle theme
 
 const MENU_CARD_MIN_WIDTH: float = 460.0
-const SETUP_CARD_MIN_WIDTH: float = 960.0 # PT-UI: wide enough for a name AND a selection word on one picker
+const SETUP_CARD_MIN_WIDTH: float = 960.0 # PT-UI: wide enough for a name AND a lock reason on one picker
 const PICKER_BUTTON_MIN_SIZE: Vector2 = Vector2(440.0, 72.0)
 const PICKER_ICON_SIDE: int = 40
 const BUTTON_MIN_SIZE: Vector2 = Vector2(360.0, 60.0)
 const HUB_MENU_BAND_TOP: float = 250.0 # 1080-base px; UX review P0-1
 const HUB_MENU_BAND_BOTTOM: float = 1050.0
-const RELIC_BUTTON_MIN_SIZE: Vector2 = Vector2(200.0, 104.0) # icon tablets with an EQUIPPED word along the bottom, 4 per row
+const RELIC_BUTTON_MIN_SIZE: Vector2 = Vector2(200.0, 104.0) # icon tablets, 4 per row; the tick marks an equipped one
 const RELIC_ICON_SIDE: int = 48
 const PICKER_HINT_MIN_HEIGHT: float = 130.0 # three lines at the 37 px floor
 const PAGE_RUN: String = "run"
@@ -764,7 +764,7 @@ func _build_setup_card(parent: Container) -> void:
 	_start_run_button.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE)
 	_start_run_button.pressed.connect(_on_start_run_pressed)
 	column.add_child(_start_run_button)
-	SelectableState.attach(_start_run_button, SelectableState.RibbonSide.RIGHT)
+	SelectableState.attach(_start_run_button, SelectableState.Layout.ROW)
 
 
 ## The "Run | Loadout" tab strip. Plain toggle Buttons in a ButtonGroup, so focus,
@@ -783,13 +783,11 @@ func _build_tab_row() -> HBoxContainer:
 		button.focus_mode = Control.FOCUS_ALL
 		button.custom_minimum_size = TouchUi.touch_size(Vector2(0.0, 64.0))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.add_theme_color_override("font_pressed_color", UiPalette.ACCENT)
-		button.add_theme_color_override("font_hover_pressed_color", UiPalette.ACCENT)
 		button.pressed.connect(_show_page.bind(page))
 		row.add_child(button)
 		_tab_buttons[page] = button
-		var overlay: SelectableState = SelectableState.attach(button, SelectableState.RibbonSide.RIGHT)
-		button.toggled.connect(overlay.set_selected.bind(""))
+		var overlay: SelectableState = SelectableState.attach(button, SelectableState.Layout.TAB) # a tab is the current page: raised and joined to it, no check
+		button.toggled.connect(overlay.set_selected)
 	(_tab_buttons[PAGE_RUN] as Button).set_pressed_no_signal(true)
 	SelectableState.of(_tab_buttons[PAGE_RUN]).set_selected(true)
 	return row
@@ -839,7 +837,7 @@ func _build_loadout_page() -> VBoxContainer:
 		if ResourceLoader.exists(LoadoutCatalog.icon_path(id)):
 			button.icon = load(LoadoutCatalog.icon_path(id)) as Texture2D
 		button.pressed.connect(_on_relic_pressed.bind(id))
-		SelectableState.attach(button, SelectableState.RibbonSide.BOTTOM)
+		SelectableState.attach(button, SelectableState.Layout.TILE)
 		button.focus_entered.connect(_set_hint_for_relic.bind(id))
 		button.mouse_entered.connect(_set_hint_for_relic.bind(id))
 		relic_grid.add_child(button)
@@ -876,11 +874,9 @@ func _make_picker_button(text: String, icon_path: String) -> Button:
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT # PT-UI: the name sits beside the icon, the state word on the right
 	button.add_theme_constant_override("icon_max_width", PICKER_ICON_SIDE)
-	button.add_theme_color_override("font_pressed_color", UiPalette.ACCENT)
-	button.add_theme_color_override("font_hover_pressed_color", UiPalette.ACCENT)
 	if ResourceLoader.exists(icon_path):
 		button.icon = load(icon_path) as Texture2D
-	SelectableState.attach(button, SelectableState.RibbonSide.RIGHT) # PT-UI: focused / selected / locked language
+	SelectableState.attach(button, SelectableState.Layout.ROW) # PT-UI: focused / selected / locked language
 	return button
 
 
@@ -924,19 +920,19 @@ func _refresh_loadout_pickers() -> void:
 		var button: Button = _relic_buttons[id]
 		var unlocked: bool = MetaProgress.is_relic_unlocked(id)
 		button.set_pressed_no_signal(unlocked and equipped.has(id))
-		_style_pick(button, unlocked and equipped.has(id), not unlocked, "" if unlocked else SelectionReasons.loadout(id), tr("SEL_EQUIPPED"))
+		_style_pick(button, unlocked and equipped.has(id), not unlocked, "" if unlocked else SelectionReasons.loadout(id))
 	_relics_heading.text = tr("HUB_RELICS") % [equipped.size(), MetaProgress.get_relic_slot_count()]
 
 
-## PT-UI (docs/33 A1): the shared selection language on a picker. `word` names the
-## selected state (SELECTED by default, EQUIPPED for a Relic); a locked one carries its reason.
-func _style_pick(button: Button, selected: bool, locked: bool, reason: String = "", word: String = "") -> void:
+## PT-UI (docs/33 A1; D381): the shared selection language on a picker. The selected one shows only
+## the tick (no word: the author's call); a locked one carries its padlock and its reason.
+func _style_pick(button: Button, selected: bool, locked: bool, reason: String = "") -> void:
 	_style_locked(button, locked)
 	var overlay: SelectableState = SelectableState.of(button)
 	if overlay == null:
 		return
 	overlay.set_locked(locked, reason)
-	overlay.set_selected(selected and not locked, word)
+	overlay.set_selected(selected and not locked)
 
 
 ## A press on a locked picker shakes it and shows why (never a silent ignore).
@@ -1061,7 +1057,7 @@ func _make_menu_button(text: String) -> Button:
 	button.custom_minimum_size = TouchUi.touch_size(BUTTON_MIN_SIZE)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.add_theme_font_size_override("font_size", UiPalette.FONT_SIZE_VALUE) # D166: main menu buttons read at 56
-	SelectableState.attach(button, SelectableState.RibbonSide.RIGHT) # PT-UI: the focused cue on every menu button
+	SelectableState.attach(button, SelectableState.Layout.ROW) # PT-UI: the focused cue on every menu button
 	return button
 
 

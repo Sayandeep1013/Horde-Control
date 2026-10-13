@@ -92,6 +92,7 @@ var _badge_label: Label
 var _card_row: HBoxContainer
 var _fill_ring: DraftFillRing
 var _how_to_pick_label: Label
+var _press_index: int = -1 ## D384: the card a finger is held on, waiting for its release
 var _card_views: Array[DraftCardView] = []
 var _fade_tween: Tween = null
 
@@ -100,6 +101,18 @@ func _ready() -> void:
 	layer = DRAFT_CANVAS_LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui()
+	UiInputMode.ensure_listening()
+	UiInputMode.watch(_on_input_mode_changed)
+
+
+func _on_input_mode_changed(_mode: int) -> void:
+	if _how_to_pick_label != null:
+		_how_to_pick_label.text = UiInputMode.how_to_pick_text()
+	_refresh_highlight()
+
+
+func _exit_tree() -> void:
+	UiInputMode.unwatch(_on_input_mode_changed)
 
 
 ## Wires the collaborators (the integration calls this once; tests call it with fakes).
@@ -150,6 +163,7 @@ func _show(offer: Dictionary, already_paused: bool) -> void:
 	_build_cards()
 	_kill_fade()
 	_root.visible = true
+	_how_to_pick_label.text = UiInputMode.how_to_pick_text()
 	if DisplayServer.get_name() != "headless" and is_inside_tree():
 		_root.modulate.a = 0.0
 		_fade_tween = _root.create_tween()
@@ -288,9 +302,26 @@ func _on_card_gui_input(event: InputEvent, index: int) -> void:
 	if not _lockout_elapsed or not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
-	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and index >= 0 and index < _cards_count:
-		_highlighted_index = index
-		_confirm_highlighted()
+	if mb.button_index != MOUSE_BUTTON_LEFT or index < 0 or index >= _cards_count or index >= _card_views.size():
+		return
+	# D384: the same press / release rule as the Level-Up Draft: a real mouse confirms on the press,
+	# a finger on the release inside the card (the press dips and arms it; sliding off cancels).
+	var touch: bool = mb.device == InputEvent.DEVICE_ID_EMULATION
+	if mb.pressed:
+		if touch:
+			_press_index = index
+			_highlighted_index = index
+			_refresh_highlight()
+			_card_views[index].set_pressed(true)
+		else:
+			_highlighted_index = index
+			_confirm_highlighted()
+	elif touch and _press_index == index:
+		_press_index = -1
+		_card_views[index].set_pressed(false)
+		if Rect2(Vector2.ZERO, _card_views[index].size).has_point(mb.position):
+			_highlighted_index = index
+			_confirm_highlighted()
 
 
 func _on_card_hovered(index: int) -> void:
@@ -317,6 +348,7 @@ func _clear_edges() -> void:
 
 
 func _reset_input_state() -> void:
+	_press_index = -1
 	_time_since_open = 0.0
 	_lockout_elapsed = false
 	_hold_up_armed = false
@@ -423,7 +455,7 @@ func _build_ui() -> void:
 
 	_how_to_pick_label = Label.new()
 	_how_to_pick_label.name = "HowToPick"
-	_how_to_pick_label.text = tr("DRAFT_HOW_TO_PICK")
+	_how_to_pick_label.text = UiInputMode.how_to_pick_text() # D384: names the keys, the click or the tap that is live
 	_how_to_pick_label.theme_type_variation = UiTheme.HUD_VALUE
 	_how_to_pick_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_how_to_pick_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -560,8 +592,10 @@ static func pact_effect(id: String) -> String:
 
 
 func _refresh_highlight() -> void:
+	var touch: bool = UiInputMode.is_touch()
 	for i in _card_views.size():
 		_card_views[i].set_highlighted(i == _highlighted_index)
+		_card_views[i].set_dimmed(i != _highlighted_index and not touch) # D384: the armed card stands out
 
 
 func _update_ring() -> void:

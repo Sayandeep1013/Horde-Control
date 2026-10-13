@@ -68,6 +68,10 @@ const TEX_PANEL_CARVED_SWATCH: String = TS_UI_ROOT + "Banners/Carved_Regular.png
 const TEX_BUTTON_NORMAL: String = TS_UI_ROOT + "Buttons/Button_Blue_9Slides.png"
 const TEX_BUTTON_HOVER: String = TS_UI_ROOT + "Buttons/Button_Hover_9Slides.png"
 const TEX_BUTTON_PRESSED: String = TS_UI_ROOT + "Buttons/Button_Blue_9Slides_Pressed.png"
+## D381: the hover face is the normal plate times this (a brighten, never a different rim).
+const BUTTON_HOVER_BRIGHTEN: Color = Color(1.14, 1.14, 1.14, 1.0)
+## D381: the pressed / held face is the normal plate times this (a touch darker).
+const BUTTON_PRESSED_FACE: Color = Color(0.92, 0.92, 0.92, 1.0)
 const TEX_BUTTON_DISABLED: String = TS_UI_ROOT + "Buttons/Button_Disable_9Slides.png"
 ## Skill Tree art pass (author request, 2026-09-23: "the skill tree graphics
 ## needs to be more detailed"): the pack's own red-rimmed stone tablet, for

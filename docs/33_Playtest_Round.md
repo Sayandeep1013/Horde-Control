@@ -36,6 +36,8 @@ This applies to:
 - pause and Results buttons;
 - achievements.
 
+(Superseded 2026-10-13 by D380-D389: the ring, ribbon, veil and arrow below were replaced after the author's feedback; see docs/19 "One selection-state language".)
+
 | State | Look (must be readable without colour: shape + icon + word) |
 | --- | --- |
 | **Available** | Normal plate |
