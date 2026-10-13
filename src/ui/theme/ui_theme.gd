@@ -297,9 +297,9 @@ static func _build_panels(t: Theme) -> void:
 	# height instead of Godot compressing the corner art to fit (see that
 	# constant's own header for the measured defect this replaced).
 	var row_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.ROW_TEXTURE_MARGIN, UiPalette.SPACE_XS, Color(1, 1, 1, 0.9))
-	# Highlighted row: the pack's own "hover" button sheet reads as a bright,
-	# gold-bordered inset -- exactly a highlight, with no recolouring needed.
-	var row_highlighted_box := make_texture_box(UiPalette.TEX_BUTTON_HOVER, UiPalette.ROW_TEXTURE_MARGIN, UiPalette.SPACE_XS)
+	# Highlighted row: the plain row frame, brightened (author, 2026-10-13: no
+	# gold rectangle borders on options; the pack's gold-rimmed "hover" sheet is gone).
+	var row_highlighted_box := make_texture_box(UiPalette.TEX_PANEL_CARVED, UiPalette.ROW_TEXTURE_MARGIN, UiPalette.SPACE_XS, UiPalette.BUTTON_HOVER_BRIGHTEN)
 
 	t.set_stylebox("panel", "PanelContainer", panel_box)
 

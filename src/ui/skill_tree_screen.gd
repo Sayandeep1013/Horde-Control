@@ -1051,7 +1051,7 @@ func _build_legend_row(parent: Container) -> void:
 	row.theme_type_variation = UiTheme.hbox("L")
 	parent.add_child(row)
 
-	_add_legend_entry(row, UiPalette.TEX_BUTTON_HOVER, UiShapeGlyph.Shape.SQUARE, UiPalette.ACCENT, tr("SKILL_TREE_LEGEND_OWNED"))
+	_add_legend_entry(row, UiPalette.TEX_BUTTON_NORMAL, UiShapeGlyph.Shape.SQUARE, UiPalette.ACCENT, tr("SKILL_TREE_LEGEND_OWNED"))
 	_add_legend_entry(row, UiPalette.TEX_BUTTON_NORMAL, UiShapeGlyph.Shape.SQUARE, UiPalette.TEXT, tr("SKILL_TREE_LEGEND_AVAILABLE"))
 	_add_legend_entry(row, UiPalette.TEX_BUTTON_NORMAL, UiShapeGlyph.Shape.SQUARE, UiPalette.SCRAP, tr("SKILL_TREE_LEGEND_UNAFFORDABLE"))
 	_add_legend_entry(row, UiPalette.TEX_BUTTON_DISABLED, UiShapeGlyph.Shape.LOCK, UiPalette.TEXT_DIM, tr("SKILL_TREE_LEGEND_LOCKED"))

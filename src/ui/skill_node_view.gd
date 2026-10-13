@@ -366,7 +366,7 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 		_price_row.visible = false
 		_style.texture = load(UiPalette.TEX_PANEL_CARVED_SWATCH) as Texture2D
 		_style.modulate_color = Color(1, 1, 1, 1)
-		_glow_enabled = true
+		_glow_enabled = false # no gold outlines on options (author, 2026-10-13); the tick says owned
 		queue_redraw()
 		_apply_cues(false, false, "") # the Command Tent is always owned: no word, only the cursor cue
 		return
@@ -410,14 +410,14 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 			# apart from Available by the price colour AND the dimmer frame.
 			_price_label.add_theme_color_override("font_color", UiPalette.SCRAP)
 			_price_icon.glyph_color = UiPalette.SCRAP
-			_style.texture = load(UiPalette.TEX_BUTTON_HOVER if owned else UiPalette.TEX_BUTTON_NORMAL) as Texture2D
+			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D
 			_style.modulate_color = branch_tint * Color(0.72, 0.72, 0.72, 1.0)
 			_icon_tex.modulate = Color(0.85, 0.85, 0.85, 1.0)
 		State.BUYABLE:
 			_price_label.text = str(price)
 			_price_label.add_theme_color_override("font_color", UiPalette.SUCCESS)
 			_price_icon.glyph_color = UiPalette.CORES
-			_style.texture = load(UiPalette.TEX_BUTTON_HOVER if owned else UiPalette.TEX_BUTTON_NORMAL) as Texture2D # gold rim = owned
+			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D # owned = the tick, no gold rim (author, 2026-10-13)
 			_style.modulate_color = branch_tint
 		State.MAX, State.OWNED_MAX:
 			_price_icon.visible = false
@@ -426,9 +426,9 @@ func set_state(state: int, rank: int, max_rank: int, price: int, branch_color: C
 			# Task instruction: "owned nodes with a gold rim and subtle
 			# glow" -- the pack's own gold-rimmed "hover" tablet, plus the
 			# static halo `_draw()` paints just outside the frame's edge.
-			_style.texture = load(UiPalette.TEX_BUTTON_HOVER) as Texture2D
+			_style.texture = load(UiPalette.TEX_BUTTON_NORMAL) as Texture2D
 			_style.modulate_color = branch_tint
-			_glow_enabled = true
+			_glow_enabled = false # no gold halo (author, 2026-10-13): owned is the tick
 	queue_redraw()
 	# PT-UI: owned reads OWNED (even with a next rank unaffordable); an unowned node that cannot be
 	# bought says why: the Cores it costs, or that its neighbour is still closed.
