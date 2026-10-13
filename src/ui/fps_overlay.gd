@@ -50,7 +50,12 @@ func _ready() -> void:
 	_label.offset_left = UiPalette.SCREEN_MARGIN
 	_label.offset_bottom = -UiPalette.SCREEN_MARGIN
 	_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	add_child(_label)
+	var frame := Control.new() # D370: inside the phone's safe area
+	frame.name = "Safe"
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(frame)
+	SafeArea.fit(frame)
+	frame.add_child(_label)
 	_refresh()
 
 

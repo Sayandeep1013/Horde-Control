@@ -16,6 +16,7 @@ var _row: HBoxContainer = null
 var _entries: Dictionary = {} # boon id -> {"pill": PanelContainer, "label": Label}
 var _applied_scale: float = -1.0
 var _applied_canvas: Vector2 = Vector2.ZERO
+var _applied_margins: Vector4 = Vector4.ZERO
 
 
 func _ready() -> void:
@@ -41,12 +42,15 @@ func _process(_delta: float) -> void:
 func _apply_scale() -> void:
 	var canvas: Vector2 = get_viewport().get_visible_rect().size
 	var s: float = Hud.effective_scale(GameSettings.get_hud_scale(), canvas.x)
-	if is_equal_approx(s, _applied_scale) and canvas == _applied_canvas:
+	var m: Vector4 = SafeArea.margins(get_window()) # D370: inside the phone's safe area, like the HUD frame
+	if is_equal_approx(s, _applied_scale) and canvas == _applied_canvas and m == _applied_margins:
 		return
 	_applied_scale = s
 	_applied_canvas = canvas
+	_applied_margins = m
 	scale = Vector2(s, s)
-	position = Vector2(float(UiPalette.SCREEN_MARGIN), float(UiPalette.SCREEN_MARGIN) + TOP_OFFSET_DESIGN_PX) * s
+	var edge: float = Hud.HUD_PHONE_EDGE_PX if SafeArea.is_active() else float(UiPalette.SCREEN_MARGIN)
+	position = Vector2(m.x, m.y) + Vector2(edge, edge + TOP_OFFSET_DESIGN_PX) * s
 
 
 func get_entry_count() -> int:

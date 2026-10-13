@@ -72,6 +72,7 @@ static func build(layer: CanvasLayer, dim_alpha: float, column_separation_step: 
 	parts.center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	parts.center.mouse_filter = Control.MOUSE_FILTER_PASS
 	parts.root.add_child(parts.center)
+	SafeArea.fit(parts.center) # D370: the card centres inside the phone's safe area; the dim still bleeds to the edges
 
 	parts.card = PanelContainer.new()
 	parts.card.name = "Card"
@@ -93,7 +94,8 @@ static func build(layer: CanvasLayer, dim_alpha: float, column_separation_step: 
 ## as tall as its content, up to the room the card's fixed parts leave. Call after
 ## the card is in the tree and whenever the scroll's content changes.
 static func fit_scroll(parts: Parts, scroll: ScrollContainer, canvas_height: float) -> void:
-	var usable: float = maxf(240.0, canvas_height - 2.0 * float(UiPalette.SPACE_XL))
+	var safe_height: float = SafeArea.rect(parts.card.get_window()).size.y if parts.card.is_inside_tree() else canvas_height
+	var usable: float = maxf(240.0, minf(canvas_height, safe_height) - 2.0 * float(UiPalette.SPACE_XL))
 	parts.card.custom_maximum_size = Vector2(-1.0, usable)
 	scroll.custom_minimum_size.y = 0.0
 	var fixed: float = parts.card.get_combined_minimum_size().y

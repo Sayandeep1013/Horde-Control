@@ -47,6 +47,7 @@ var dash_button: HudActionButton = null
 var skill_button: HudActionButton = null
 
 var _pause_authority: Node = null
+var _safe: Control = null ## D370: safe-area frame that holds the buttons
 
 
 func _ready() -> void:
@@ -58,6 +59,13 @@ func _ready() -> void:
 		set_process_input(false)
 		return
 	_build_joystick()
+	# D370: the buttons sit inside the phone's safe area (camera cut-out, corners, gesture bar);
+	# the joystick zone is an input area, not content, so it keeps the whole left half.
+	_safe = Control.new()
+	_safe.name = "Safe"
+	_safe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_safe)
+	SafeArea.fit(_safe)
 	_build_pause_button()
 	_build_action_buttons()
 	_pause_authority = get_node_or_null("/root/PauseAuthority")
@@ -102,14 +110,14 @@ func _build_action_buttons() -> void:
 	skill_button.make_interactive(SKILL_BUTTON_SIZE_PX)
 	skill_button.theme = UiTheme.get_theme()
 	_place_bottom_right(skill_button, SKILL_BUTTON_SIZE_PX, ACTION_MARGIN_PX)
-	add_child(skill_button)
+	_safe.add_child(skill_button)
 
 	dash_button = HudActionButton.new(HudActionButton.Kind.DASH)
 	dash_button.name = "DashButton"
 	dash_button.make_interactive(DASH_BUTTON_SIZE_PX)
 	dash_button.theme = UiTheme.get_theme()
 	_place_bottom_right(dash_button, DASH_BUTTON_SIZE_PX, ACTION_MARGIN_PX + SKILL_BUTTON_SIZE_PX + ACTION_GAP_PX)
-	add_child(dash_button)
+	_safe.add_child(dash_button)
 
 
 ## Anchored to the bottom-right corner; `right_inset` is the gap to the right edge.
@@ -142,7 +150,7 @@ func _build_pause_button() -> void:
 	pause_button.tooltip_text = ""
 	pause_button.accessibility_name = "Pause"
 	pause_button.pressed.connect(_on_pause_pressed)
-	add_child(pause_button)
+	_safe.add_child(pause_button)
 
 	# Two bars drawn with panels, not a font glyph: no font has to carry them.
 	var center := CenterContainer.new()

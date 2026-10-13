@@ -424,6 +424,7 @@ func _build_ui() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(center)
+	SafeArea.fit(center) # D370
 
 	_card = PanelContainer.new()
 	_card.name = "Card"

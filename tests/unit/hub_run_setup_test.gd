@@ -8,13 +8,19 @@ extends GdUnitTestSuite
 var _dir: String
 
 
+var _window_before: Vector2i = Vector2i.ZERO
+
+
 func before_test() -> void:
+	_window_before = get_window().size
+	get_window().size = Vector2i(1920, 1080) # D370: the Hub bands are anchored to the canvas, so the 1920x1080 canvas asserted below needs a 1920x1080 window
 	_dir = "user://__hub_setup_test_%d_%d/" % [Time.get_ticks_usec(), randi()]
 	MetaProgress.set_base_path_for_test(_dir)
 	RunConfig.reset_for_test()
 
 
 func after_test() -> void:
+	get_window().size = _window_before
 	RunConfig.reset_for_test()
 	MetaProgress.set_base_path_for_test("user://")
 

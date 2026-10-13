@@ -30,7 +30,7 @@ const REASON_EVENT: StringName = &"draft"
 const DRAFT_CANVAS_LAYER: int = 20
 const CARD_MIN_SIZE: Vector2 = Vector2(460, 440)
 const CARD_MIN_SIZE_COMPACT: Vector2 = Vector2(460, 320)
-const COMPACT_TOP_PX: float = 160.0
+const COMPACT_TOP_PX: float = 0.0 # D370: see DraftController.COMPACT_TOP_PX
 const DESKTOP_TOP_PX: float = 80.0
 const HOLD_RING_DIAMETER: float = 56.0
 const DIM_ALPHA: float = 0.7 ## a touch above the Draft's 60%: the tint carries the mode
@@ -352,8 +352,8 @@ func _build_ui() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_PASS
 	# Below the HUD's top panels (the pact's badge line makes the column taller than a Draft's).
-	center.offset_top = COMPACT_TOP_PX if TouchUi.is_mobile_layout() else DESKTOP_TOP_PX
 	_root.add_child(center)
+	SafeArea.fit(center, Vector4(0.0, COMPACT_TOP_PX if TouchUi.is_mobile_layout() else DESKTOP_TOP_PX, 0.0, 0.0)) # D370: inside the safe area
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
@@ -485,7 +485,7 @@ func _build_cards() -> void:
 		var card: Dictionary = cards[i]
 		var view := DraftCardView.new()
 		view.name = "Card%d" % i
-		view.custom_minimum_size = CARD_MIN_SIZE_COMPACT if TouchUi.is_mobile_layout() else CARD_MIN_SIZE
+		view.custom_minimum_size = DraftCardView.compact_card_size(get_window(), CARD_MIN_SIZE_COMPACT, cards.size()) if TouchUi.is_mobile_layout() else CARD_MIN_SIZE
 		view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		_card_row.add_child(view)
 		_setup_card(view, card)

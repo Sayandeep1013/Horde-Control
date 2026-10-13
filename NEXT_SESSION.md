@@ -1,5 +1,9 @@
 # Next Session — Start Here
 
+## Mobile layout pass (2026-10-13, D370-D374)
+
+The author's phone report ("layout doesn't fit ... cut at the bottom, sides, sometimes up"): the UI was laid out for 1080 px of height and drawn on a 720 px logical canvas, with no safe-area handling on an immersive Android build. Done: `SafeArea` (src/ui/safe_area.gd) is the one place that converts the system safe area to logical px (24 px minimum margin on a phone, `--safe-inset=L,T,R,B` dev flag) and every full-screen UI root fits inside it; the mobile UI scale cap is 1.25 (864 px canvas, text still about 18 dp); Hub, Title, Draft, Field Guide and the shared menu frame were re-laid out (details in the Register rows "Safe-area margin", "Hub compact layout", "Phone Draft cards"). The dev audit `src/dev/layout_audit.tscn` (run `tools/dev/run_layout_audit.ps1`, read with `tools/dev/audit_report.py`) opens every screen at 7 phone/tablet sizes x 3 insets plus desktop and must stay at zero errors; screenshots are in sandbox/captures/mobile_layout/. **Not verified on a real phone:** `get_display_safe_area()` values, touch drag-scroll of the new Hub page area, and the gesture bar on Android 15+; try an APK build first.
+
 ## TODO - resume here (updated 2026-10-11, v1.0.0)
 
 **v1.0.0 (2026-10-11).** The author asked to "implement the game itself": difficulty, gameplay loop, skill tree, meaningful abilities, settings, a properly designed HUD, and a releasable build, with free reign. Mid-session they also asked for Archero 2 ideas and gave a playtest round. Everything is merged on main, released as v1.0.0 (Windows exe plus Android APK built by CI).

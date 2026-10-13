@@ -22,22 +22,28 @@ const FLAG_FORCE_OFF: String = "--no-touch-ui"
 
 ## "Mobile UI scale" and "Touch target minimum" rows (D147).
 ## The project canvas is 1080 px tall and `canvas_items` stretching already
-## scales it to the window. The mobile layout multiplies that by up to 1.5
-## (`Window.content_scale_factor`): a 20:9 phone gets 1.5, a logical canvas of
-## 1600x720, and body text (37 px at the 1080 px base, D166) reads as 20 dp or more. A 16:9 phone
-## gets less, because the HUD's top row needs a logical canvas at least
-## `UI_MIN_LOGICAL_WIDTH_PX` wide. The camera divides the factor back out
+## scales it to the window. The mobile layout multiplies that by up to 1.25
+## (`Window.content_scale_factor`): a 20:9 phone gets 1.25, a logical canvas of
+## 1920x864, and body text (37 px at the 1080 px base, D166) reads as about 18 dp.
+## D370 (phone feedback 2026-10-13): this was 1.5 (a 1600x720 canvas), and many
+## screens designed for 1080 px of height were cut off at the bottom; 1.25 keeps
+## text well over the 14 dp floor and gives every screen 144 px more height. A 16:9
+## phone gets a little less, because the HUD's top row needs a logical canvas at
+## least `UI_MIN_LOGICAL_WIDTH_PX` wide. The camera divides the factor back out
 ## (src/camera/game_camera.gd), so the player sees the same amount of world.
-const UI_SCALE_MAX: float = 1.5
+const UI_SCALE_MAX: float = 1.25
 const UI_MIN_LOGICAL_WIDTH_PX: float = 1560.0
 const UI_BASE_HEIGHT_PX: float = 1080.0
-## Smallest tap target on a menu row, in logical px (x1.5 on a 1080 px phone
-## = 96 px, about 38 dp on a 6.7 in phone) -- the most that eight Settings
-## rows fit into 720 px.
-const MENU_TOUCH_MIN_PX: float = 64.0
+## The Skill Tree board is laid out in 1080 px and pans, so it runs at most this scale while open
+## (D370: was 1.0; at 1.0 its 37 px node text was about 13.7 dp, 1.1 makes it about 15 dp).
+const BOARD_SCALE: float = 1.1
+## Smallest tap target on a menu row, in logical px (x1.25 on a 1080 px phone
+## = 90 px, about 36 dp on a 6.7 in phone) -- the most that eight Settings
+## rows fit into 864 px (D370: raised from 64).
+const MENU_TOUCH_MIN_PX: float = 72.0
 ## Smallest tap target for the few big buttons that have room (Title, Hub
-## menus, Back): 80 logical px = 120 px on a 1080 px phone, about 47 dp.
-const BUTTON_TOUCH_MIN_PX: float = 80.0
+## menus, Back): 88 logical px = 110 px on a 1080 px phone, about 44 dp (D370: raised from 80).
+const BUTTON_TOUCH_MIN_PX: float = 88.0
 
 static var _override: int = -1
 static var _scale_suspended: bool = false
@@ -81,12 +87,13 @@ static func button_size(base: Vector2) -> Vector2:
 
 
 ## `Window.content_scale_factor` for the mobile layout; 1.0 elsewhere (and
-## while a screen that cannot take the scale has suspended it).
+## at most `BOARD_SCALE` while a screen that cannot take the full scale has suspended it).
 static func ui_scale_for(window_size: Vector2) -> float:
-	if not is_mobile_layout() or _scale_suspended or window_size.y <= 0.0:
+	if not is_mobile_layout() or window_size.y <= 0.0:
 		return 1.0
 	var aspect: float = window_size.x / window_size.y
-	return clampf(aspect * UI_BASE_HEIGHT_PX / UI_MIN_LOGICAL_WIDTH_PX, 1.0, UI_SCALE_MAX)
+	var scale: float = clampf(aspect * UI_BASE_HEIGHT_PX / UI_MIN_LOGICAL_WIDTH_PX, 1.0, UI_SCALE_MAX)
+	return minf(scale, BOARD_SCALE) if _scale_suspended else scale
 
 
 ## Applies the mobile UI scale to `window` and keeps it applied when the
@@ -101,8 +108,8 @@ static func apply_ui_scale(window: Window) -> void:
 		window.size_changed.connect(cb)
 
 
-## The Skill Tree board is laid out in 1920x1080 px and does not fit a 720 px
-## tall logical canvas, so it runs at scale 1.0 while it is open (D147).
+## The Skill Tree board is laid out in 1920x1080 px and does not fit a phone's
+## logical canvas, so it runs at most `BOARD_SCALE` (1.0 in D147) while it is open.
 static func set_scale_suspended(window: Window, suspended: bool) -> void:
 	_scale_suspended = suspended
 	if window != null and is_mobile_layout():

@@ -536,8 +536,11 @@ func get_spawn_markers_for_test() -> Dictionary:
 
 
 func _marker_screen_position(direction: Vector2) -> Vector2:
-	var half: Vector2 = size / 2.0 - Vector2(MARKER_EDGE_INSET_PX, MARKER_EDGE_INSET_PX)
-	var pos: Vector2 = _rect_edge_point(size / 2.0, half, direction.angle())
+	# D370: the 48 px inset is measured from the safe-area edge, not from the physical screen edge.
+	var m: Vector4 = SafeArea.margins(get_window())
+	var centre: Vector2 = size / 2.0 + Vector2(m.x - m.z, m.y - m.w) / 2.0
+	var half: Vector2 = (size - Vector2(m.x + m.z, m.y + m.w)) / 2.0 - Vector2(MARKER_EDGE_INSET_PX, MARKER_EDGE_INSET_PX)
+	var pos: Vector2 = _rect_edge_point(centre, half, direction.angle())
 	pos.y = clampf(pos.y, INDICATOR_MARGIN_TOP, maxf(INDICATOR_MARGIN_TOP, size.y - INDICATOR_MARGIN_BOTTOM))
 	return pos.round()
 
@@ -650,6 +653,11 @@ func _indicator_pos(box_size: Vector2, dir: Vector2) -> Vector2:
 	var y_min: float = INDICATOR_MARGIN_TOP
 	var y_max: float = maxf(y_min, box_size.y - INDICATOR_MARGIN_BOTTOM)
 	pos.y = clampf(pos.y, y_min, y_max)
+	# D370: the arrow and its Tower badge stay clear of a camera cut-out and the gesture bar.
+	var m: Vector4 = SafeArea.margins(get_window())
+	if m != Vector4.ZERO:
+		var pad: float = ICON_INSET + ICON_BADGE_RADIUS + 4.0
+		pos.x = clampf(pos.x, m.x + pad, maxf(m.x + pad, box_size.x - m.z - pad))
 	return pos
 
 

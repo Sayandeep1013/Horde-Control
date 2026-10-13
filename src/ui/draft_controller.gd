@@ -154,9 +154,10 @@ const CARD_MIN_SIZE: Vector2 = Vector2(460, 440)
 ## Phone layout (D167): the 720 px logical canvas leaves 160 px of HUD above
 ## and a footer below, so the cards are shorter and the key badge is hidden.
 const CARD_MIN_SIZE_COMPACT: Vector2 = Vector2(460, 320)
-## The Draft's heading starts this far below the top edge on a phone, clear of
-## the HUD's Tower panel and Wave ribbon (D167).
-const COMPACT_TOP_PX: float = 160.0
+## The Draft's heading starts this far below the safe-area top on a phone. D167 kept it clear of
+## the HUD's top panels (160 px); D370 drops that: the HUD is dimmed under the modal Draft, and the
+## cards need the height (864 px canvas minus margins).
+const COMPACT_TOP_PX: float = 0.0
 const HOLD_RING_DIAMETER: float = 56.0
 ## `tr()` key for the heading Label; its English text is registered by
 ## src/ui/theme/ui_strings.gd.
@@ -1151,9 +1152,9 @@ func _build_ui() -> void:
 	center.name = "Center"
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_PASS
-	if TouchUi.is_mobile_layout():
-		center.offset_top = COMPACT_TOP_PX # D167: below the HUD's top panels
 	_root.add_child(center)
+	# D167: below the HUD's top panels on a phone; D370: and inside the safe area.
+	SafeArea.fit(center, Vector4(0.0, COMPACT_TOP_PX if TouchUi.is_mobile_layout() else 0.0, 0.0, 0.0))
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
@@ -1314,7 +1315,7 @@ func _build_card_views() -> void:
 		var def: UpgradeDefinition = card.definition
 		var view: DraftCardView = DraftCardView.new()
 		view.name = "Card%d" % i
-		view.custom_minimum_size = CARD_MIN_SIZE_COMPACT if TouchUi.is_mobile_layout() else CARD_MIN_SIZE
+		view.custom_minimum_size = DraftCardView.compact_card_size(get_window(), CARD_MIN_SIZE_COMPACT, _cards.size()) if TouchUi.is_mobile_layout() else CARD_MIN_SIZE
 		view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		_card_row.add_child(view)
 		var current_rank: int = 0

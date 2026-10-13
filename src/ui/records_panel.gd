@@ -22,6 +22,8 @@ const ROW_VALUE_MIN_WIDTH: float = 200.0
 var _frame: MenuFrame.Parts
 var _back_button: Button
 var _rows: Dictionary = {} # String key -> Label (the value cell)
+var _rows_scroll: ScrollContainer ## D370: the nine rows scroll when the safe height is shorter than the card
+var _rows_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -35,6 +37,7 @@ func set_active(active: bool) -> void:
 	visible = active
 	if active:
 		_refresh()
+		MenuFrame.fit_scroll(_frame, _rows_scroll, get_viewport().get_visible_rect().size.y)
 		MenuFrame.animate_in(_frame)
 	else:
 		MenuFrame.reset_motion(_frame)
@@ -83,6 +86,16 @@ func _build_ui() -> void:
 	MenuFrame.build_title(_frame.column, tr("RECORDS_TITLE"), UiTheme.HEADING, 420.0)
 	MenuFrame.build_separator(_frame.column)
 
+	_rows_scroll = ScrollContainer.new()
+	_rows_scroll.name = "RowsScroll"
+	_rows_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_frame.column.add_child(_rows_scroll)
+	_rows_box = VBoxContainer.new()
+	_rows_box.name = "Rows"
+	_rows_box.theme_type_variation = UiTheme.vbox("L")
+	_rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_rows_scroll.add_child(_rows_box)
+
 	_build_row(tr("RECORDS_BEST_WAVE"), "best_wave")
 	_build_row(tr("RECORDS_LONGEST_TIME"), "longest_time")
 	_build_row(tr("RECORDS_MOST_KILLS"), "most_kills")
@@ -108,7 +121,7 @@ func _build_row(label_text: String, key: String) -> void:
 	var row := PanelContainer.new()
 	row.name = "%sRow" % key.capitalize().replace(" ", "")
 	row.theme_type_variation = UiTheme.ROW
-	_frame.column.add_child(row)
+	_rows_box.add_child(row)
 
 	var hbox := HBoxContainer.new()
 	hbox.theme_type_variation = UiTheme.hbox("L")
