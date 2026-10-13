@@ -90,12 +90,12 @@ func _refresh() -> void:
 		(bar.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = UiPalette.SUCCESS_ON_PARCHMENT if unlocked else UiPalette.TOWER
 		var icon: TextureRect = _icons[achievement.id]
 		icon.modulate = Color(1, 1, 1, 1) if unlocked else Color(0.55, 0.55, 0.55, 0.9)
-		# PT-UI (docs/33 A1): earned = check badge and tint, still locked = padlock and veil. The row's own
-		# value cell carries the word ("Unlocked" or the progress), so the overlay adds no word plate.
+		# PT-UI (docs/33 A1; D381): earned = gold border and check, still locked = padlock; both sit inside the
+		# row's top-right corner. The row's own value cell carries the word ("Unlocked" or the progress).
 		var overlay: SelectableState = SelectableState.of(_row_panels.get(achievement.id) as Control)
 		if overlay != null:
 			overlay.set_locked(not unlocked, "")
-			overlay.set_selected(unlocked, tr("SEL_OWNED"))
+			overlay.set_selected(unlocked)
 
 
 ## Unlocked: "Unlocked". Locked, cumulative metric: "n / threshold". Locked,
@@ -198,10 +198,8 @@ func _build_row(achievement: AchievementDefinition) -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_PASS # lets a finger drag scroll the list
 	_rows_parent.add_child(row)
 	_row_panels[achievement.id] = row
-	var overlay: SelectableState = SelectableState.attach(row, SelectableState.RibbonSide.RIGHT)
-	overlay.set_show_word(false)
-	overlay.veil_alpha = 0.16
-	overlay.badge_overhang = 0.0 # the list scrolls and would clip a hanging badge
+	var overlay: SelectableState = SelectableState.attach(row, SelectableState.Layout.TILE) # status only: earned = gold border + check, still locked = padlock, both inside the row
+	overlay.interactive = false
 
 	var hbox := HBoxContainer.new()
 	hbox.theme_type_variation = UiTheme.hbox("L")

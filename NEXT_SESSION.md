@@ -4,6 +4,8 @@
 
 **v1.0.0 (2026-10-11).** The author asked to "implement the game itself": difficulty, gameplay loop, skill tree, meaningful abilities, settings, a properly designed HUD, and a releasable build, with free reign. Mid-session they also asked for Archero 2 ideas and gave a playtest round. Everything is merged on main, released as v1.0.0 (Windows exe plus Android APK built by CI).
 
+**Selection states redone (2026-10-13, D380-D389).** The author said the selection language was wrong on Windows and Android. It is now drawn inside the plate: selected is only a tick (no word, no yellow border), a brighter active tab with no tick, a padlock with plain reason text for locked, the yellow pointer arrow placed where it has room, a keyboard-only brighten (`src/ui/ui_input_mode.gd`), hover that moves focus, an armed Draft card with a device-named prompt, and a finger picking a card on the release. See docs/19 "One selection-state language", the Register row "Selection states" and `src/dev/selection_selftest.tscn` (windowed, synthetic input). Captures: `sandbox/captures/selection/`.
+
 **Design briefs, in order of authority (later wins):**
 - docs/31_V1_Release_Design.md (v1.0 scope)
 - docs/32_Archero_Adaptation.md (run events, arena objects, Champions/Relics)

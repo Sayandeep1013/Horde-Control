@@ -44,7 +44,9 @@ const MESSAGES: Dictionary = {
 
 	"DRAFT_TITLE": "Level up! Choose an upgrade",
 	# UX review P0-4 (D128): every way to pick, from project.godot's input map.
-	"DRAFT_HOW_TO_PICK": "Click a card  |  keys 1 / 2 / 3  |  A / D, then Space  |  or hold W / Up",
+	"DRAFT_HOW_TO_PICK": "A / D to move  |  Space to choose  |  keys 1 / 2 / 3  |  or hold W / Up",
+	"DRAFT_HOW_MOUSE": "Click a card to choose it  |  or keys 1 / 2 / 3",
+	"DRAFT_HOW_TOUCH": "Tap a card to choose it",
 	"DRAFT_HOLD_CAPTION": "Hold W / Up to pick",
 	"DRAFT_REROLL": "Reroll: R (%d left)",
 	"DRAFT_REROLL_NONE": "No rerolls left",
@@ -519,11 +521,9 @@ const MESSAGES: Dictionary = {
 	"RESULTS_WARLORD_TITLE": "Warlord",
 	# --- PT-UI begin (docs/33 A: selection states, symbols, Field Guide, first-time explainers; D320-D329) ---
 	# Selection states (A1)
-	"SEL_SELECTED": "SELECTED",
-	"SEL_EQUIPPED": "EQUIPPED",
-	"SEL_OWNED": "OWNED",
 	"SEL_CHOSEN": "CHOSEN",
-	"SEL_FOCUS_CHOOSE": "CHOOSE",
+	"SEL_PROMPT_KEYBOARD": "PRESS SPACE",
+	"SEL_PROMPT_MOUSE": "CLICK TO CHOOSE",
 	"SEL_LOCKED_NEED_CORES": "Need %d Cores",
 	"SEL_LOCKED_WIN_ON": "Win on %s",
 	"SEL_LOCKED_UNLOCK": "Locked",
@@ -760,7 +760,6 @@ const MESSAGES: Dictionary = {
 	"EXPL_GOT_IT": "Got it",
 	"EXPL_DONT_SHOW": "Don't show tips again",
 	"EXPL_NEW": "NEW",
-	"EXPL_ON": "ON",
 	"EXPL_PROMPT": "Click, press Space, or hold Up to continue",
 	"EXPL_FIELD_GUIDE": "More in the Field Guide (War Camp or Pause).",
 	"SETTINGS_FIRST_TIME_TIPS": "Show first-time tips",
@@ -772,7 +771,8 @@ const MESSAGES: Dictionary = {
 ## layout (a phone build, or `--touch-ui`). Same keys; `ensure_registered()`
 ## picks one table once. A key absent here keeps its desktop text.
 const MOBILE_MESSAGES: Dictionary = {
-	"DRAFT_HOW_TO_PICK": "Tap a card to pick it",
+	"DRAFT_HOW_TO_PICK": "Tap a card to choose it",
+	"DRAFT_HOW_MOUSE": "Tap a card to choose it",
 	"DRAFT_HOLD_CAPTION": "Or hold up to pick",
 	"DRAFT_REROLL": "Reroll (%d left)",
 	"HOWTO_EVENTS": "Run events pause the game for a tap: an Opening Pick, a Patron's Boon and a Sanctuary in the gaps, and a Blood Pact after the Warchief that costs your HP or the Tower's.",

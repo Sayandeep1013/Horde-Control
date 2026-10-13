@@ -67,16 +67,39 @@ func test_clicking_a_card_confirms_that_card() -> void:
 	assert_bool(_controller.is_draft_showing_for_test()).is_false()
 
 
+func test_a_finger_picks_on_the_release_inside_the_card_and_sliding_off_cancels() -> void:
+	_tick_seconds(0.5)
+	_controller.simulate_card_touch_for_test(1, true)
+	assert_bool(_controller.is_draft_showing_for_test()).append_failure_message("the press alone commits nothing").is_true()
+	assert_int(_controller.get_highlighted_index_for_test()).is_equal(1)
+	assert_bool(_controller.get_card_view_for_test(1).get_selectable().is_pressed()).is_true()
+	_controller.simulate_card_touch_for_test(1, false, false)
+	assert_bool(_controller.is_draft_showing_for_test()).append_failure_message("lifting off the card cancels").is_true()
+	assert_bool(_controller.get_card_view_for_test(1).get_selectable().is_pressed()).is_false()
+	_controller.simulate_card_touch_for_test(1, true)
+	_controller.simulate_card_touch_for_test(1, false, true)
+	assert_bool(_controller.is_draft_showing_for_test()).append_failure_message("a clean tap picks on the release").is_false()
+
+
 func test_a_card_click_during_the_lockout_is_ignored() -> void:
 	_tick_seconds(0.1)
 	_controller.simulate_card_click_for_test(1)
 	assert_bool(_controller.is_draft_showing_for_test()).is_true()
 
 
-func test_footer_lists_every_way_to_pick_and_cards_carry_key_badges() -> void:
-	var footer: String = _controller.get_how_to_pick_label_for_test().text
-	for token in ["Click", "1 / 2 / 3", "A / D", "Space", "hold W"]:
-		assert_str(footer).contains(token)
+func test_footer_names_the_way_to_pick_for_the_live_device_and_cards_carry_key_badges() -> void:
+	# D384: the footer says what the active device does: keys after a key press, the click after the
+	# mouse, the tap on touch; never one line listing all three.
+	UiInputMode.set_mode(UiInputMode.Mode.KEYBOARD)
+	var keys: String = UiInputMode.how_to_pick_text()
+	for token in ["1 / 2 / 3", "A / D", "Space", "hold W"]:
+		assert_str(keys).contains(token)
+	assert_str(UiInputMode.how_to_pick_text()).is_equal(keys)
+	UiInputMode.set_mode(UiInputMode.Mode.MOUSE)
+	assert_str(UiInputMode.how_to_pick_text()).contains("Click")
+	UiInputMode.set_mode(UiInputMode.Mode.TOUCH)
+	assert_str(UiInputMode.how_to_pick_text()).contains("Tap")
+	UiInputMode.reset_for_test()
 	for i in 3:
 		var badge: Control = _controller.get_card_view_for_test(i).get_key_badge_for_test()
 		assert_object(badge).is_not_null()
